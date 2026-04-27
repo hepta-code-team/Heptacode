@@ -4,6 +4,17 @@ KI-basierte Patientensteuerung zur Effizienzsteigerung im Gesundheitswesen.
 Patienten werden sicher, schnell und laienverständlich durch das Gesundheitssystem geleitet — mit fundierter Triage nach dem Manchester Triage System (MTS).
 
 ---
+## RollenVerteilung
+| Name | Rolle | 
+|---|---|
+| Ella | --- |
+| Chris| ---|
+| Selim | --- | 
+| Isabelle | --- |
+| Hanin | --- | 
+| Kai | --- |
+| Lisa | --- | 
+---
 
 ## Tech Stack
 
@@ -24,6 +35,7 @@ Patienten werden sicher, schnell und laienverständlich durch das Gesundheitssys
 | Frontend | http://localhost:5173 |
 | Backend | http://localhost:3000 |
 | Health Check | http://localhost:3000/health |
+| Setup Guide  | [docs/SETUP.md](docs/SETUP.md)
 
 ---
 
