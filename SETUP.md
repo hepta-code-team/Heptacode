@@ -6,7 +6,12 @@ git clone https://github.com/euer-repo/heptacode.git
 cd heptacode
 
 # 2. Leere .env.local anlegen
+make setup
+
+oder
+
 touch .env.local        # Mac
+
 New-Item .env.local     # Windows PowerShell
 
 # 3. Node modules lokal installieren (nur für VS Code - keine roten Fehler)
