@@ -1,31 +1,35 @@
 Was sind die steps ?
-(nicht unbedingt)Du brauchst zuerst eine neue version von node.js.#
+
+# 0. Was braucht man vor dem Klonen?
+(nicht unbedingt) Du brauchst zuerst eine neue version von node.js.#
+
+Du brauchst make (haben wir in cpr gehabt)
+
 Du brauchst Docker Desktop --> Vs Extensions
 - Docker von Mircosoft 
 - Container Tools von mircosoft
 - Dev Containers
 
 # 1. Repo klonen
-git clone https://github.com/euer-repo/heptacode.git
+- git clone https://github.com/euer-repo/heptacode.git
 cd heptacode
 
 # 2. Leere .env.local anlegen
-make setup
+- make setup
 
 oder
 
-touch .env.local        # Mac
+- touch .env.local        # Mac
 
-New-Item .env.local     # Windows PowerShell
+- New-Item .env.local     # Windows PowerShell
 
 # 3. Node modules lokal installieren (nur für VS Code - keine roten Fehler)
-wenn kein node heruntergeladen ist:
+- wenn kein node heruntergeladen ist:
 docker compose -f docker-compose.dev.yml run --rm frontend npm install
-
 
 docker compose -f docker-compose.dev.yml run --rm backend npm install
 
-ohne:
+- ohne:
 cd frontend && npm install
 cd ../backend && npm install
 
