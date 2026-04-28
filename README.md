@@ -1,7 +1,7 @@
 # Heptacode
 
 KI-basierte Patientensteuerung zur Effizienzsteigerung im Gesundheitswesen.  
-Patienten werden sicher, schnell und laienverständlich durch das Gesundheitssystem geleitet — mit fundierter Triage nach dem Manchester Triage System (MTS).
+Patienten werden sicher, schnell und laienverständlich durch das Gesundheitssystem geleitet — mit KI-basierter Triage.
 
 ---
 ## RollenVerteilung
@@ -105,7 +105,7 @@ heptacode/
     │   └── ai/
     │       ├── client.ts       # MedGemma Client
     │       ├── prompts.ts      # Prompts zentral
-    │       └── triage.ts       # MTS-Logik
+    │       └── triage.ts       # Triage-Logik
     └── tsconfig.json
 ```
 
