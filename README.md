@@ -16,6 +16,18 @@ Patienten werden sicher, schnell und laienverständlich durch das Gesundheitssys
 | Lisa | Flex | 
 ---
 
+## Branches
+
+| Branch | Zweck |
+|---|---|
+| `main` | Stable — nur reviewed Code |
+| `tech-stack-v1` | wurde gelöscht/ War der erste Ansatz für unseren TechStack|
+| *`newFold-v1` | Aktuelle branch |
+| `feature/...` | Neue Features |
+
+# * Bedeutet: ist der Branch an dem aktuell gearbeitet wird
+---
+
 ## Tech Stack
 
 | Bereich | Technologie |
@@ -108,16 +120,6 @@ heptacode/
     │       └── triage.ts       # Triage-Logik
     └── tsconfig.json
 ```
-
----
-
-## Branches
-
-| Branch | Zweck |
-|---|---|
-| `main` | Stable — nur reviewed Code |
-| `tech-stack-v1` | Aktueller Entwicklungsstand |
-| `feature/...` | Neue Features |
 
 ---
 
