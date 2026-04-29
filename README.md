@@ -7,13 +7,13 @@ Patienten werden sicher, schnell und laienverständlich durch das Gesundheitssys
 ## RollenVerteilung
 | Name | Rolle | 
 |---|---|
-| Ella | --- |
-| Chris| ---|
-| Selim | --- | 
-| Isabelle | --- |
-| Hanin | --- | 
-| Kai | --- |
-| Lisa | --- | 
+| Ella | PO/Frontend |
+| Chris| Backend|
+| Selim | Frontend | 
+| Isabelle | Frontend |
+| Hanin | Backend | 
+| Kai | SM/Backend |
+| Lisa | Flex | 
 ---
 
 ## Tech Stack
