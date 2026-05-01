@@ -1,8 +1,8 @@
 import { useNavigate, useLocation } from "react-router";
 
 const pages = [
-  { path: "/", name: "Red Flags" },
-  { path: "/patient-data", name: "Stammdaten" },
+  { path: "/", name: "Symptome wählen" },
+  { path: "/patient-data", name: "Stammdaten eingeben" },
   { path: "/symptom-selection", name: "Körperregionen" },
   { path: "/symptom-details", name: "Details" },
   { path: "/result", name: "Auswertung" },
