@@ -13,6 +13,16 @@ interface AssessmentContextType {
 
 const AssessmentContext = createContext<AssessmentContextType | undefined>(undefined);
 
+
+/*
+This function uses a global React-State to pass its data. By using a state for all components,
+the data doesn't have to get passed as a prop from one page to another, or from one functio
+to another.
+The Assessment Provider wraps around the whole Router. That means, that every Pages that gets
+routed has access to the AssessmentContext. It is a global state provider inside the React-App.
+So a browser-reload or app-reload clears the state. This could be fixed using sessionStorage im Browser.
+*/
+
 export function AssessmentProvider({ children }: { children: ReactNode }) {
   const [patientData, setPatientData] = useState<PatientData | null>(null);
   const [selectedSymptoms, setSelectedSymptoms] = useState<SelectedSymptom[]>([]);

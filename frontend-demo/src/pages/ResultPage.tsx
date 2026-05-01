@@ -1,11 +1,13 @@
 import { useNavigate, useSearchParams } from "react-router";
+import { PhoneCall } from "lucide-react";
 import PageShell from "../components/PageShell";
 import ResultCard from "../features/results/ResultCard";
 import Button from "../components/Button";
 import { TRIAGE_CONFIGS } from "../types/triage";
 import { useAssessment } from "../lib/AssessmentContext";
 import type { CareLevel } from "../types/triage";
-import { DURATIONS } from "../features/symptoms/symptoms.constants";
+import { DURATIONS, getMeasurementConfig } from "../features/symptoms/symptoms.constants";
+import type { Symptom } from "../types/assessment";
 
 export default function ResultPage() {
   const navigate = useNavigate();
@@ -15,20 +17,43 @@ export default function ResultPage() {
   // Check if this is an emergency from landing page
   const isEmergency = searchParams.get("emergency") === "true";
 
-  // Calculate care level based on pain levels (only if not emergency from landing page)
+  const isMultipleDays = (duration: string) => ["days", "week", "weeks"].includes(duration);
+
+  const getSymptomCareLevel = (symptom: Symptom): CareLevel => {
+    const config = getMeasurementConfig(symptom.region, symptom.side);
+
+    if (config.type === "temperature") {
+      if (symptom.measurementValue >= 40 && isMultipleDays(symptom.duration)) return "emergency";
+      if (symptom.measurementValue >= 39) return "doctor";
+      return "selfcare";
+    }
+
+    if (symptom.measurementValue >= 8) return "emergency";
+    if (symptom.measurementValue >= 5) return "doctor";
+    return "selfcare";
+  };
+
+  const getHighestCareLevel = (levels: CareLevel[]): CareLevel => {
+    if (levels.includes("emergency")) return "emergency";
+    if (levels.includes("doctor")) return "doctor";
+    return "selfcare";
+  };
+
   const calculateCareLevel = (): CareLevel => {
     if (isEmergency) return "emergency";
+    if (symptomDetails.length === 0) return "selfcare";
 
-    // Future: AI will determine this
-    // For now: simple logic based on max pain level
-    const maxPainLevel = Math.max(...symptomDetails.map(s => s.painLevel));
-    if (maxPainLevel >= 8) return "emergency";
-    if (maxPainLevel >= 5) return "doctor";
-    return "selfcare";
+    return getHighestCareLevel(symptomDetails.map(getSymptomCareLevel));
   };
 
   const careLevel = calculateCareLevel();
   const config = TRIAGE_CONFIGS[careLevel];
+  const callAction =
+    careLevel === "emergency"
+      ? { href: "tel:112", label: "112 anrufen", description: "Notruf" }
+      : careLevel === "doctor"
+        ? { href: "tel:116117", label: "116 117 anrufen", description: "Ärztlicher Bereitschaftsdienst" }
+        : null;
 
   const handleReset = () => {
     resetAssessment();
@@ -39,12 +64,37 @@ export default function ResultPage() {
     return DURATIONS.find(d => d.id === durationId)?.label || durationId;
   };
 
+  const getMeasurementSummary = (symptom: Symptom) => {
+    const config = getMeasurementConfig(symptom.region, symptom.side);
+
+    if (config.type === "temperature") {
+      return `${config.title} ${symptom.measurementValue.toFixed(1)} ${config.unit}`;
+    }
+
+    return `${config.title} ${symptom.measurementValue}/10`;
+  };
+
   return (
     <PageShell
       title="Ihre Auswertung"
       subtitle="Basierend auf Ihren Angaben haben wir folgende Empfehlung für Sie."
     >
       <ResultCard config={config} />
+
+      {callAction && (
+        <a
+          href={callAction.href}
+          className="md:hidden mb-4 flex min-h-[56px] w-full items-center justify-center gap-3 rounded-[14px] px-5 py-3 text-white shadow-sm transition-all hover:opacity-90"
+          style={{ backgroundColor: config.color }}
+          aria-label={callAction.label}
+        >
+          <PhoneCall className="size-5 flex-shrink-0" aria-hidden="true" />
+          <span className="font-['DM_Sans:Bold',sans-serif] font-bold text-base">
+            {callAction.label}
+          </span>
+          <span className="sr-only">{callAction.description}</span>
+        </a>
+      )}
 
       {/* Begründung */}
       <div className="bg-[#eff2f6] rounded-[16px] p-5 md:p-6 mb-4">
@@ -129,7 +179,10 @@ export default function ResultPage() {
             </div>
           )}
 
-          {/* Symptome */}
+          {/* Symptome
+          TODO: AI will do this as well
+          */}
+
           {symptomDetails.length > 0 && (
             <div>
               <div className="flex items-center justify-between mb-2">
@@ -148,7 +201,7 @@ export default function ResultPage() {
                       <strong>
                         {symptom.side ? `${symptom.region} (${symptom.side})` : symptom.region}
                       </strong>
-                      {" "}(Schmerzstärke {symptom.painLevel}/10
+                      {" "}({getMeasurementSummary(symptom)}
                       {symptom.duration && `, ${getDurationLabel(symptom.duration)}`})
                       {index < symptomDetails.length - 1 && (index === symptomDetails.length - 2 ? " und " : ", ")}
                     </span>

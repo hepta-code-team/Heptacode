@@ -17,10 +17,13 @@ export interface Symptom {
   id: string;
   region: string;
   side?: string;
-  painLevel: number;
+  measurementType: SymptomMeasurementType;
+  measurementValue: number;
   duration: string;
   active: boolean;
 }
+
+export type SymptomMeasurementType = "pain" | "temperature" | "feeling" | "severity";
 
 export interface Assessment {
   patientData?: PatientData;

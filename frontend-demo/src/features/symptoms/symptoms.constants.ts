@@ -5,6 +5,7 @@ import legPainIcon from "../../assets/symptoms/legpain.png";
 import mentalDistressIcon from "../../assets/symptoms/mentaldistress.png";
 import overallPainIcon from "../../assets/symptoms/overallpain.png";
 import stomachPainIcon from "../../assets/symptoms/stomachpain.png";
+import type { SymptomMeasurementType } from "../../types/assessment";
 import headAcheIcon from "../../assets/symptoms/headache.png";
 
 export interface BodyRegion {
@@ -91,3 +92,72 @@ export const PRE_EXISTING_CONDITIONS = [
 ];
 
 export const MAX_SYMPTOMS = 3;
+
+export interface MeasurementConfig {
+  type: SymptomMeasurementType;
+  title: string;
+  min: number;
+  max: number;
+  step?: number;
+  defaultValue: number;
+  unit?: string;
+  minLabel: string;
+  maxLabel: string;
+}
+
+const MEASUREMENT_CONFIGS: Record<SymptomMeasurementType, MeasurementConfig> = {
+  pain: {
+    type: "pain",
+    title: "Schmerzstärke",
+    min: 1,
+    max: 10,
+    defaultValue: 5,
+    minLabel: "Leicht",
+    maxLabel: "Sehr stark",
+  },
+  temperature: {
+    type: "temperature",
+    title: "Temperatur",
+    min: 38,
+    max: 42.5,
+    step: 0.1,
+    defaultValue: 38,
+    unit: "°C",
+    minLabel: "38 °C",
+    maxLabel: ">42 °C",
+  },
+  feeling: {
+    type: "feeling",
+    title: "Gefühlsintensität",
+    min: 1,
+    max: 10,
+    defaultValue: 5,
+    minLabel: "Leicht",
+    maxLabel: "Sehr stark",
+  },
+  severity: {
+    type: "severity",
+    title: "Beschwerdestärke",
+    min: 1,
+    max: 10,
+    defaultValue: 5,
+    minLabel: "Leicht",
+    maxLabel: "Sehr stark",
+  },
+};
+
+export function getMeasurementConfig(region: string, option?: string): MeasurementConfig {
+  if (option === "Fieber") {
+    return MEASUREMENT_CONFIGS.temperature;
+  }
+
+  if (region === "Psychische Probleme") {
+    return MEASUREMENT_CONFIGS.feeling;
+  }
+
+  if (["Übelkeit/Schwindel", "Schwäche", "Verwirrtheit", "Schüttelfrost"].includes(option ?? "")) {
+    return MEASUREMENT_CONFIGS.severity;
+  }
+
+  return MEASUREMENT_CONFIGS.pain;
+}

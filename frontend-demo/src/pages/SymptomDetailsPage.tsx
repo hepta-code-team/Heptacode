@@ -6,28 +6,49 @@ import SymptomButtonGrid from "../features/symptoms/SymptomButtonGrid";
 import Modal from "../components/Modal";
 import Button from "../components/Button";
 import { useAssessment } from "../lib/AssessmentContext";
+import { getMeasurementConfig } from "../features/symptoms/symptoms.constants";
 import type { Symptom } from "../types/assessment";
 
 export default function SymptomDetailsPage() {
   const navigate = useNavigate();
   const { selectedSymptoms, symptomDetails: contextDetails, setSymptomDetails: setContextDetails } = useAssessment();
 
+  const createSymptomDetails = (region: string, side: string | undefined, index: number): Symptom => {
+    const measurementConfig = getMeasurementConfig(region, side);
+
+    return {
+      id: `symptom-${Date.now()}-${index}`,
+      region,
+      side: side || "",
+      measurementType: measurementConfig.type,
+      measurementValue: measurementConfig.defaultValue,
+      duration: "",
+      active: true,
+    };
+  };
+
+  const normalizeSymptom = (symptom: Symptom, index: number): Symptom => {
+    const measurementConfig = getMeasurementConfig(symptom.region, symptom.side);
+
+    return {
+      ...symptom,
+      id: symptom.id || `symptom-${Date.now()}-${index}`,
+      measurementType: measurementConfig.type,
+      measurementValue: Number.isFinite(symptom.measurementValue)
+        ? symptom.measurementValue
+        : measurementConfig.defaultValue,
+    };
+  };
+
   // Initialize symptomDetails from selectedSymptoms
   const [symptomDetails, setSymptomDetails] = useState<Symptom[]>(() => {
     // If context already has details, use them
     if (contextDetails.length > 0) {
-      return contextDetails;
+      return contextDetails.map(normalizeSymptom);
     }
 
     // Otherwise, create new details from selectedSymptoms
-    return selectedSymptoms.map((s, idx) => ({
-      id: `symptom-${Date.now()}-${idx}`,
-      region: s.region,
-      side: s.side || "",
-      painLevel: 5,
-      duration: "",
-      active: true,
-    }));
+    return selectedSymptoms.map((s, idx) => createSymptomDetails(s.region, s.side, idx));
   });
 
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -56,14 +77,7 @@ export default function SymptomDetailsPage() {
 
     if (inactiveIndex !== -1) {
       const updated = [...symptomDetails];
-      updated[inactiveIndex] = {
-        ...updated[inactiveIndex],
-        region: regionName,
-        side: side || "",
-        painLevel: 5,
-        duration: "",
-        active: true,
-      };
+      updated[inactiveIndex] = createSymptomDetails(regionName, side, inactiveIndex);
       setSymptomDetails(updated);
     }
 
@@ -77,10 +91,17 @@ export default function SymptomDetailsPage() {
     navigate("/result");
   };
 
+  const canContinue = symptomDetails
+    .filter((symptom) => symptom.active)
+    .every((symptom) => {
+      const config = getMeasurementConfig(symptom.region, symptom.side);
+      return symptom.measurementValue >= config.min && symptom.measurementValue <= config.max;
+    });
+
   return (
     <PageShell
       title="Details zu Ihren Beschwerden"
-      subtitle="Bewerten Sie bitte Ihre Schmerzen und geben Sie die Dauer an."
+      subtitle="Bewerten Sie bitte die passende Stärke oder Messgröße und geben Sie die Dauer an."
       onBack={() => navigate("/symptom-selection")}
     >
       <div className="flex flex-col gap-6">
@@ -109,7 +130,7 @@ export default function SymptomDetailsPage() {
       </div>
 
       <div className="mt-6 mb-6 flex justify-end">
-        <Button onClick={handleContinue}>
+        <Button onClick={handleContinue} disabled={!canContinue}>
           <p
             className="font-['DM_Sans:Bold',sans-serif] font-bold text-base"
             style={{ fontVariationSettings: "'opsz' 14" }}
