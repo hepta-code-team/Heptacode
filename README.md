@@ -7,7 +7,7 @@ Patienten werden sicher, schnell und laienverständlich durch das Gesundheitssys
 ## RollenVerteilung
 | Name | Rolle | 
 |---|---|
-| Ella | PO/Frontend |
+| Ella | PO/UI/UX |
 | Chris| Backend|
 | Selim | Frontend | 
 | Isabelle | Frontend |
@@ -32,7 +32,7 @@ Patienten werden sicher, schnell und laienverständlich durch das Gesundheitssys
 
 | Bereich | Technologie |
 |---|---|
-| Frontend | React 18, TypeScript, Tailwind CSS, PrimeReact |
+| Frontend | React 18, TypeScript, Tailwind CSS, PrimeReact, Vite |
 | Backend | Node.js, Fastify, Zod, TypeScript |
 | KI | MedGemma (eigener Server, OpenAI-kompatible API) |
 | Infrastruktur | Docker, Docker Compose, Nginx |
