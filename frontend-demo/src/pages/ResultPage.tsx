@@ -170,6 +170,31 @@ export default function ResultPage() {
                     <strong>Schwanger:</strong> Ja
                   </p>
                 )}
+                {patientData.isBreastfeeding && (
+                  <p className="font-['DM_Sans:Medium',sans-serif] font-medium text-[#3e3e3e] text-xs">
+                    <strong>Stillend:</strong> Ja
+                  </p>
+                )}
+                {patientData.allergies && (
+                  <p className="font-['DM_Sans:Medium',sans-serif] font-medium text-[#3e3e3e] text-xs">
+                    <strong>Allergien:</strong> {patientData.allergies}
+                  </p>
+                )}
+                {patientData.medications && (
+                  <p className="font-['DM_Sans:Medium',sans-serif] font-medium text-[#3e3e3e] text-xs">
+                    <strong>Medikamente:</strong> {patientData.medications}
+                  </p>
+                )}
+                {patientData.substanceInfluence && patientData.substanceInfluence !== "Nein" && (
+                  <p className="font-['DM_Sans:Medium',sans-serif] font-medium text-[#3e3e3e] text-xs">
+                    <strong>Einfluss:</strong> {patientData.substanceInfluence}
+                  </p>
+                )}
+                {patientData.recentAbroad && (
+                  <p className="font-['DM_Sans:Medium',sans-serif] font-medium text-[#3e3e3e] text-xs">
+                    <strong>Ausland letzte 3 Monate:</strong> Ja{patientData.recentAbroadDetails && ` (${patientData.recentAbroadDetails})`}
+                  </p>
+                )}
                 {patientData.conditions.length > 0 && (
                   <p className="font-['DM_Sans:Medium',sans-serif] font-medium text-[#3e3e3e] text-xs">
                     <strong>Vorerkrankungen:</strong> {patientData.conditions.join(", ")}

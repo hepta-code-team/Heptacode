@@ -3,25 +3,45 @@ import { Mic } from "lucide-react";
 import { BODY_REGIONS, MAX_SYMPTOMS, type BodyRegion } from "./symptoms.constants";
 
 type OtherRegion = { id: "other"; name: string };
+type InlineOption = {
+  id: string;
+  name: string;
+  icon: string;
+  parentName: string;
+  option: string;
+  options?: string[];
+  isInlineOption: true;
+};
+type SymptomGridItem = BodyRegion | OtherRegion | InlineOption;
 
 interface SymptomButtonGridProps {
   onRegionSelect: (regionName: string, side?: string) => void;
+  regions?: BodyRegion[];
   selectedRegions?: string[];
   showOtherOption?: boolean;
   onOtherClick?: () => void;
+  inlineOptions?: boolean;
 }
 
 export default function SymptomButtonGrid({
   onRegionSelect,
+  regions: providedRegions,
   selectedRegions = [],
   showOtherOption = false,
   onOtherClick,
+  inlineOptions = false,
 }: SymptomButtonGridProps) {
   const [expandedRegion, setExpandedRegion] = useState<string | null>(null);
 
-  const handleRegionClick = (region: BodyRegion | OtherRegion) => {
+  const handleRegionClick = (region: SymptomGridItem) => {
     if (region.id === "other") {
       onOtherClick?.();
+      return;
+    }
+
+    if ("isInlineOption" in region && !("options" in region && region.options?.length)) {
+      onRegionSelect(region.parentName, region.option);
+      setExpandedRegion(null);
       return;
     }
 
@@ -42,41 +62,85 @@ export default function SymptomButtonGrid({
     return selectedRegions.some((r) => r.includes(regionName));
   };
 
+  const isItemSelected = (region: SymptomGridItem) => {
+    if ("isInlineOption" in region) {
+      if ("options" in region && region.options?.length) {
+        return selectedRegions.some((selectedRegion) => selectedRegion.includes(`${region.name} (`));
+      }
+
+      return selectedRegions.includes(`${region.parentName} (${region.option})`);
+    }
+
+    return isRegionSelected(region.name);
+  };
+
   const otherRegion: OtherRegion = { id: "other", name: "Symptome umschreiben" };
-  const regions: Array<BodyRegion | OtherRegion> = showOtherOption
-    ? [...BODY_REGIONS, otherRegion]
-    : BODY_REGIONS;
+  const baseRegions = providedRegions ?? BODY_REGIONS;
+  const preparedRegions: SymptomGridItem[] = inlineOptions
+    ? baseRegions.flatMap((region) => {
+        if (region.id === "verbrennung") {
+          return [region];
+        }
+
+        if (!region.options?.length) {
+          return [region];
+        }
+
+        return region.options.map((option) => ({
+          id: `${region.id}-${option}`,
+          name: option,
+          icon: region.icon,
+          parentName: region.name,
+          option,
+          ...(region.id === "kopf" && option === "Gesicht" ? { options: ["Auge", "Ohr", "Kiefer"] } : {}),
+          isInlineOption: true as const,
+        }));
+      })
+    : baseRegions;
+  const regions: SymptomGridItem[] = showOtherOption
+    ? [...preparedRegions, otherRegion]
+    : preparedRegions;
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
       {regions.map((region) => (
         <div key={region.id} className="relative">
           <button
             onClick={() => handleRegionClick(region)}
             className={`w-full bg-[#eff2f6] rounded-[16px] p-4 h-[120px] flex items-center justify-center text-center transition-all relative ${
-              isRegionSelected(region.name)
+              isItemSelected(region)
                 ? "ring-4 ring-[#486284]"
                 : "hover:bg-[#dde3ea]"
             }`}
-            disabled={selectedRegions.length >= MAX_SYMPTOMS && !isRegionSelected(region.name)}
+            disabled={selectedRegions.length >= MAX_SYMPTOMS && !isItemSelected(region)}
           >
             {"icon" in region && (
               <img
                 src={region.icon}
                 alt=""
-                className="absolute left-6 top-1/2 size-20 -translate-y-1/2 object-contain"
+                className="absolute left-5 top-1/2 size-18 -translate-y-1/2 object-contain lg:left-6 lg:size-20"
                 aria-hidden="true"
               />
             )}
             {region.id === "other" && (
               <Mic className="absolute left-8 top-1/2 size-10 -translate-y-1/2 text-[#828b93]" aria-hidden="true" />
             )}
-            <p
-              className="font-['DM_Sans:Bold',sans-serif] font-bold text-[#3e3e3e] text-base px-24"
-              style={{ fontVariationSettings: "'opsz' 14" }}
-            >
-              {region.name}
-            </p>
+            <div className="px-20 lg:px-24">
+              {"isInlineOption" in region && (
+                <p
+                  className="font-['DM_Sans:Medium',sans-serif] font-medium text-[#486284] text-xs mb-0.5"
+                  style={{ fontVariationSettings: "'opsz' 14" }}
+                >
+                  {region.parentName}
+                </p>
+              )}
+              <p
+                className="font-['DM_Sans:Bold',sans-serif] font-bold text-[#3e3e3e] text-base"
+                style={{ fontVariationSettings: "'opsz' 14" }}
+              >
+                {region.name}
+              </p>
+            </div>
             {"options" in region && region.options?.length && (
               <svg
                 className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-[#486284]"

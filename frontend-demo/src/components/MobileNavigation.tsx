@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from "react-router";
 const pages = [
   { path: "/", name: "Symptome wählen" },
   { path: "/patient-data", name: "Stammdaten eingeben" },
-  { path: "/symptom-selection", name: "Körperregionen" },
+  { path: "/symptom-selection", name: "Beschwerden" },
   { path: "/symptom-details", name: "Details" },
   { path: "/result", name: "Auswertung" },
 ];
@@ -11,7 +11,8 @@ const pages = [
 export default function MobileNavigation() {
   const navigate = useNavigate();
   const location = useLocation();
-  const currentIndex = pages.findIndex((p) => p.path === location.pathname);
+  const activePath = location.pathname === "/body-area" ? "/symptom-selection" : location.pathname;
+  const currentIndex = pages.findIndex((p) => p.path === activePath);
 
   const canGoBack = currentIndex > 0;
   const canGoForward = currentIndex < pages.length - 1;

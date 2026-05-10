@@ -7,12 +7,14 @@ interface SymptomDetailsFormProps {
   symptom: Symptom;
   onUpdate: (field: keyof Symptom, value: Symptom[keyof Symptom]) => void;
   onRemove: () => void;
+  showDurationError?: boolean;
 }
 
 export default function SymptomDetailsForm({
   symptom,
   onUpdate,
   onRemove,
+  showDurationError = false,
 }: SymptomDetailsFormProps) {
   const measurementConfig = getMeasurementConfig(symptom.region, symptom.side);
 
@@ -44,6 +46,7 @@ export default function SymptomDetailsForm({
       <DurationSelector
         selectedDuration={symptom.duration}
         onDurationChange={(duration) => onUpdate("duration", duration)}
+        showError={showDurationError && symptom.duration === ""}
       />
     </div>
   );

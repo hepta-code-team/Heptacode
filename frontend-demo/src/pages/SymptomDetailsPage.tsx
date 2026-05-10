@@ -52,6 +52,7 @@ export default function SymptomDetailsPage() {
   });
 
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [showValidationErrors, setShowValidationErrors] = useState(false);
 
   // Redirect if no symptoms selected
   useEffect(() => {
@@ -85,8 +86,14 @@ export default function SymptomDetailsPage() {
   };
 
   const handleContinue = () => {
-    // Save only active symptoms to context
     const activeSymptoms = symptomDetails.filter(s => s.active);
+
+    if (activeSymptoms.some((symptom) => symptom.duration === "")) {
+      setShowValidationErrors(true);
+      return;
+    }
+
+    // Save only active symptoms to context
     setContextDetails(activeSymptoms);
     navigate("/result");
   };
@@ -112,6 +119,7 @@ export default function SymptomDetailsPage() {
                 symptom={symptom}
                 onUpdate={(field, value) => updateSymptom(index, field, value)}
                 onRemove={() => toggleSymptomActive(index)}
+                showDurationError={showValidationErrors}
               />
             ) : (
               <div className="bg-[#eff2f6] rounded-[16px] p-5">

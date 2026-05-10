@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from "react-router";
 const pages = [
   { path: "/", name: "Red Flags" },
   { path: "/patient-data", name: "Stammdaten" },
-  { path: "/symptom-selection", name: "Körperregionen" },
+  { path: "/symptom-selection", name: "Beschwerden" },
   { path: "/symptom-details", name: "Details" },
   { path: "/result", name: "Auswertung" },
 ];
@@ -11,7 +11,8 @@ const pages = [
 export default function WizardNavigation() {
   const navigate = useNavigate();
   const location = useLocation();
-  const currentIndex = pages.findIndex((p) => p.path === location.pathname);
+  const activePath = location.pathname === "/body-area" ? "/symptom-selection" : location.pathname;
+  const currentIndex = pages.findIndex((p) => p.path === activePath);
 
   return (
     <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 py-4 hidden md:block">

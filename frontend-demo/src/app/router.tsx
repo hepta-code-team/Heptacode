@@ -15,6 +15,10 @@ export const router = createBrowserRouter([
     element: <PatientDataPage />,
   },
   {
+    path: "/body-area",
+    element: <Navigate to="/symptom-selection" replace />,
+  },
+  {
     path: "/symptom-selection",
     element: <SymptomSelectionPage />,
   },

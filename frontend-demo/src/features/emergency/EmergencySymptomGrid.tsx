@@ -30,9 +30,9 @@ const symptoms = [
     icon: imgStomachPain,
   },
   {
-    name: "Starke Blutungen",
-    desc: "Starke oder nicht stoppende Blutung",
-    descLong: "Blutung, die stark ist, nicht aufhört oder schnell viel Blutverlust verursacht. Auch wichtig bei tiefen Wunden oder wenn Kleidung rasch durchblutet.",
+    name: "Starke Blutungen / Knochenbruch",
+    desc: "Starke Blutung, offene Wunde oder Verdacht auf Knochenbruch",
+    descLong: "Starke Blutung, die nicht aufhört oder schnell zu viel Blutverlust führt. Auch bei tiefen Wunden, sichtbarer Fehlstellung oder Verdacht auf einen Knochenbruch.",
     icon: imgSevereBleeding,
   },
   {

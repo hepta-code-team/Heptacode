@@ -1,5 +1,6 @@
 import armPainIcon from "../../assets/symptoms/armpain.png";
 import backPainIcon from "../../assets/symptoms/backpain.png";
+import burnIcon from "../../assets/symptoms/burn.png";
 import chestPainIcon from "../../assets/symptoms/chestpain.png";
 import legPainIcon from "../../assets/symptoms/legpain.png";
 import mentalDistressIcon from "../../assets/symptoms/mentaldistress.png";
@@ -15,12 +16,14 @@ export interface BodyRegion {
   options?: string[];
 }
 
+export type BodyAreaCategory = "head" | "torso" | "arms" | "legs" | "mental" | "general";
+
 export const BODY_REGIONS: BodyRegion[] = [
   {
     id: "kopf",
     name: "Kopf",
     icon: headAcheIcon,
-    options: ["Stirn", "Schläfen", "Hinterkopf", "Gesicht", "Auge", "Ohr"],
+    options: ["Stirn", "Schläfen", "Hinterkopf", "Gesicht"],
   },
   {
     id: "brust",
@@ -53,6 +56,12 @@ export const BODY_REGIONS: BodyRegion[] = [
     options: ["Hüfte", "Oberschenkel", "Knie", "Wade", "Fuß/Knöchel", "Zehen"],
   },
   {
+    id: "verbrennung",
+    name: "Verbrennung",
+    icon: burnIcon,
+    options: ["Große Fläche", "Kleine Fläche", "Blasenbildung"],
+  },
+  {
     id: "allgemein",
     name: "Allgemein",
     icon: overallPainIcon,
@@ -67,6 +76,33 @@ export const BODY_REGIONS: BodyRegion[] = [
 ];
 
 export const EMERGENCY_SYMPTOM_OPTIONS = ["Suizidgedanken"];
+
+export const BODY_AREA_REGION_IDS: Record<BodyAreaCategory, string[]> = {
+  head: ["kopf", "verbrennung"],
+  torso: ["brust", "bauch", "ruecken", "verbrennung"],
+  arms: ["arme", "verbrennung"],
+  legs: ["beine", "verbrennung"],
+  mental: ["psychisch"],
+  general: ["allgemein"],
+};
+
+export const BODY_AREA_LABELS: Record<BodyAreaCategory, string> = {
+  head: "Kopf",
+  torso: "Torso",
+  arms: "Arme",
+  legs: "Beine",
+  mental: "Psyche",
+  general: "Allgemein",
+};
+
+export function getBodyRegionsForCategory(category?: string | null) {
+  if (!category || !(category in BODY_AREA_REGION_IDS)) {
+    return BODY_REGIONS;
+  }
+
+  const regionIds = BODY_AREA_REGION_IDS[category as BodyAreaCategory];
+  return BODY_REGIONS.filter((region) => regionIds.includes(region.id));
+}
 
 export interface Duration {
   id: string;

@@ -1,3 +1,6 @@
+import { useState } from "react";
+import { CircleHelp } from "lucide-react";
+import Modal from "../../components/Modal";
 import type { MeasurementConfig } from "./symptoms.constants";
 
 interface PainScaleSelectorProps {
@@ -7,6 +10,8 @@ interface PainScaleSelectorProps {
 }
 
 export default function PainScaleSelector({ config, value, onValueChange }: PainScaleSelectorProps) {
+  const [isScaleInfoOpen, setIsScaleInfoOpen] = useState(false);
+
   const getScaleColor = (level: number) => {
     const colors = [
       "#ACED40",
@@ -103,12 +108,24 @@ export default function PainScaleSelector({ config, value, onValueChange }: Pain
   return (
     <div className="mb-4">
       <div className="flex items-center justify-between mb-3">
-        <p
-          className="font-['DM_Sans:SemiBold',sans-serif] font-semibold text-[#3e3e3e] text-base"
-          style={{ fontVariationSettings: "'opsz' 14" }}
-        >
-          {config.title}
-        </p>
+        <div className="flex items-center gap-2">
+          <p
+            className="font-['DM_Sans:SemiBold',sans-serif] font-semibold text-[#3e3e3e] text-base"
+            style={{ fontVariationSettings: "'opsz' 14" }}
+          >
+            {config.title}
+          </p>
+          {config.type === "pain" && (
+            <button
+              type="button"
+              onClick={() => setIsScaleInfoOpen(true)}
+              className="inline-flex size-5 -translate-y-0.5 items-center justify-center rounded-full text-[#486284] transition-all hover:bg-[#dde3ea]"
+              aria-label="Informationen zur Schmerzskala"
+            >
+              <CircleHelp className="size-4" aria-hidden="true" />
+            </button>
+          )}
+        </div>
         <p
           className="font-['DM_Sans:Bold',sans-serif] font-bold text-2xl"
           style={{
@@ -138,6 +155,26 @@ export default function PainScaleSelector({ config, value, onValueChange }: Pain
         <span className="text-xs text-gray-500">{config.minLabel}</span>
         <span className="text-xs text-gray-500">{config.maxLabel}</span>
       </div>
+      <Modal
+        isOpen={isScaleInfoOpen}
+        onClose={() => setIsScaleInfoOpen(false)}
+        title="Numerische Rating-Skala"
+        subtitle="Die Schmerzstärke wird hier mit der Numerischen Rating-Skala von 1 bis 10 abgefragt."
+        maxWidth="max-w-lg"
+      >
+        <div className="space-y-3 text-sm font-['DM_Sans:Medium',sans-serif] font-medium text-[#3e3e3e]">
+          <p>1 bis 3 steht eher für leichte Schmerzen, die noch gut auszuhalten sind.</p>
+          <p>4 bis 6 beschreibt mittlere Schmerzen, die deutlich stören oder einschränken.</p>
+          <p>7 bis 10 steht für starke bis sehr starke Schmerzen, die sehr belastend sind oder kaum auszuhalten wirken.</p>
+          <button
+            type="button"
+            onClick={() => setIsScaleInfoOpen(false)}
+            className="mt-2 w-full rounded-[14px] bg-[#486284] px-5 py-3 text-white transition-all hover:bg-[#3a4d68]"
+          >
+            Verstanden
+          </button>
+        </div>
+      </Modal>
     </div>
   );
 }

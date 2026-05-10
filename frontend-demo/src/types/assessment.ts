@@ -5,6 +5,12 @@ export interface PatientData {
   weight: string;
   gender: string;
   isPregnant: boolean;
+  isBreastfeeding: boolean;
+  allergies: string;
+  medications: string;
+  substanceInfluence: string;
+  recentAbroad: boolean;
+  recentAbroadDetails: string;
   conditions: string[];
 }
 

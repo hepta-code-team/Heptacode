@@ -8,7 +8,7 @@ interface PageShellProps {
   subtitle?: string;
   onBack?: () => void;
   showWizard?: boolean;
-  maxWidth?: "md" | "lg" | "xl";
+  maxWidth?: "md" | "lg" | "xl" | "2xl";
 }
 
 export default function PageShell({
@@ -23,6 +23,7 @@ export default function PageShell({
     md: "max-w-2xl",
     lg: "max-w-4xl",
     xl: "max-w-5xl",
+    "2xl": "max-w-6xl",
   };
 
   return (

@@ -1,12 +1,14 @@
 import { useState } from "react";
 import { useNavigate } from "react-router";
-import { AlertTriangle, CheckCircle2, X } from "lucide-react";
+import { AlertTriangle, CheckCircle2, CircleHelp, X } from "lucide-react";
 import PageShell from "../components/PageShell";
+import Modal from "../components/Modal";
 import EmergencySymptomGrid from "../features/emergency/EmergencySymptomGrid";
 
 export default function LandingPage() {
   const navigate = useNavigate();
   const [isDisclaimerOpen, setIsDisclaimerOpen] = useState(true);
+  const [isEmergencyInfoOpen, setIsEmergencyInfoOpen] = useState(false);
 
   const handleEmergencySymptom = () => {
     // Red Flag symptoms always lead to emergency
@@ -65,9 +67,19 @@ export default function LandingPage() {
 
       {/* Mobile */}
       <div className="block lg:hidden">
-        <h1 className="font-['DM_Sans:Bold',sans-serif] font-bold text-[#486284] text-2xl mb-3" style={{ fontVariationSettings: "'opsz' 14" }}>
-          Leiden Sie unter einem dieser Symptome?
-        </h1>
+        <div className="mb-3 flex items-start gap-2">
+          <h1 className="font-['DM_Sans:Bold',sans-serif] font-bold text-[#486284] text-2xl" style={{ fontVariationSettings: "'opsz' 14" }}>
+            Leiden Sie unter einem dieser Symptome?
+          </h1>
+          <button
+            type="button"
+            onClick={() => setIsEmergencyInfoOpen(true)}
+            className="mt-1 flex size-7 flex-shrink-0 items-center justify-center rounded-full bg-[#eff2f6] text-[#486284] transition-all hover:bg-[#dde3ea]"
+            aria-label="Informationen zu Notfall-Symptomen"
+          >
+            <CircleHelp className="size-4" aria-hidden="true" />
+          </button>
+        </div>
         <p className="font-['DM_Sans:Medium',sans-serif] font-medium text-[#486284] text-base mb-5" style={{ fontVariationSettings: "'opsz' 14" }}>
           Bitte wählen Sie das Symptom aus, unter dem Sie leiden oder Überspringen Sie diese Seite.
         </p>
@@ -82,12 +94,22 @@ export default function LandingPage() {
 
       {/* Desktop */}
       <div className="hidden lg:block">
-        <h1
-          className="font-['DM_Sans:Bold',sans-serif] font-bold text-[#486284] text-2xl md:text-3xl mb-2"
-          style={{ fontVariationSettings: "'opsz' 14" }}
-        >
-          Leiden Sie unter einem dieser Symptome?
-        </h1>
+        <div className="mb-2 flex items-center gap-2">
+          <h1
+            className="font-['DM_Sans:Bold',sans-serif] font-bold text-[#486284] text-2xl md:text-3xl"
+            style={{ fontVariationSettings: "'opsz' 14" }}
+          >
+            Leiden Sie unter einem dieser Symptome?
+          </h1>
+          <button
+            type="button"
+            onClick={() => setIsEmergencyInfoOpen(true)}
+            className="flex size-8 flex-shrink-0 items-center justify-center rounded-full bg-[#eff2f6] text-[#486284] transition-all hover:bg-[#dde3ea]"
+            aria-label="Informationen zu Notfall-Symptomen"
+          >
+            <CircleHelp className="size-5" aria-hidden="true" />
+          </button>
+        </div>
         <p
           className="font-['DM_Sans:Medium',sans-serif] font-medium text-[#486284] text-base md:text-lg mb-4"
           style={{ fontVariationSettings: "'opsz' 14" }}
@@ -112,6 +134,32 @@ export default function LandingPage() {
           </button>
         </div>
       </div>
+
+      <Modal
+        isOpen={isEmergencyInfoOpen}
+        onClose={() => setIsEmergencyInfoOpen(false)}
+        title="Warum diese Symptome?"
+        subtitle="Die hier gezeigten Warnsymptome orientieren sich an öffentlich zugänglichen Informationen des Bundesministeriums für Gesundheit zu medizinischen Notfällen."
+        maxWidth="max-w-lg"
+      >
+        <div className="space-y-3 text-sm font-['DM_Sans:Medium',sans-serif] font-medium text-[#3e3e3e]">
+          <p>
+            Symptome wie akute Atemnot, starke Brustschmerzen, starke Blutungen oder plötzliche Lähmungs-,
+            Seh- oder Sprachstörungen können Hinweise auf eine akute Notfallsituation sein.
+          </p>
+          <p>
+            Wenn eines dieser Symptome zutrifft, führt die App deshalb direkt zur Notfall-Empfehlung. Diese Einordnung
+            ersetzt keine Diagnose, hilft aber dabei, Warnzeichen nicht zu übersehen.
+          </p>
+          <button
+            type="button"
+            onClick={() => setIsEmergencyInfoOpen(false)}
+            className="mt-2 w-full rounded-[14px] bg-[#486284] px-5 py-3 text-white transition-all hover:bg-[#3a4d68]"
+          >
+            Verstanden
+          </button>
+        </div>
+      </Modal>
     </PageShell>
   );
 }
