@@ -13,4 +13,15 @@ export default defineConfig({
       '@': path.resolve(__dirname, './src'),
     },
   },
+  server: {
+    host: '0.0.0.0',
+    port: 5173,
+    proxy: {
+      '/api': {
+        target: process.env.VITE_API_PROXY_TARGET ?? 'http://backend:3000',
+        changeOrigin: true,
+        rewrite: (requestPath) => requestPath.replace(/^\/api/, ''),
+      },
+    },
+  },
 })
