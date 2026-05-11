@@ -1,6 +1,5 @@
 import armPainIcon from "../../assets/symptoms/armpain.png";
 import backPainIcon from "../../assets/symptoms/backpain.png";
-import burnIcon from "../../assets/symptoms/burn.png";
 import chestPainIcon from "../../assets/symptoms/chestpain.png";
 import legPainIcon from "../../assets/symptoms/legpain.png";
 import mentalDistressIcon from "../../assets/symptoms/mentaldistress.png";
@@ -58,7 +57,7 @@ export const BODY_REGIONS: BodyRegion[] = [
   {
     id: "verbrennung",
     name: "Verbrennung",
-    icon: burnIcon,
+    icon: overallPainIcon,
     options: ["Große Fläche", "Kleine Fläche", "Blasenbildung"],
   },
   {
