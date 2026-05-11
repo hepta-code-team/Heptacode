@@ -1,27 +1,36 @@
 {
-  "name": "frontend",
+  "name": "heptacode-frontend",
   "private": true,
   "version": "0.0.1",
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "tsc && vite build",
-    "preview": "vite preview"
+    "build": "vite build",
+    "check": "tsc --noEmit",
+    "dev": "vite"
   },
   "dependencies": {
-    "primereact": "^10.8.3",
-    "primeicons": "^7.0.0",
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1"
+    "@radix-ui/react-label": "2.1.2",
+    "clsx": "2.1.1",
+    "lucide-react": "0.487.0",
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
+    "react-router": "7.13.0",
+    "tailwind-merge": "3.2.0"
   },
   "devDependencies": {
-    "@types/react": "^18.3.3",
-    "@types/react-dom": "^18.3.0",
-    "@vitejs/plugin-react": "^4.3.1",
-    "autoprefixer": "^10.4.20",
-    "postcss": "^8.4.40",
-    "tailwindcss": "^3.4.10",
-    "typescript": "^5.5.3",
-    "vite": "^5.3.4"
+    "@tailwindcss/vite": "4.1.12",
+    "@types/node": "22.10.2",
+    "@types/react": "18.3.12",
+    "@types/react-dom": "18.3.1",
+    "@vitejs/plugin-react": "4.7.0",
+    "tailwindcss": "4.1.12",
+    "typescript": "5.6.3",
+    "vite": "6.4.2"
+  },
+  "packageManager": "npm@11.6.2",
+  "pnpm": {
+    "overrides": {
+      "vite": "6.4.2"
+    }
   }
 }

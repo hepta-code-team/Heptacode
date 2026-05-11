@@ -69,7 +69,7 @@ make dev
 
 # 5. Pushen
 git add .
-git commit -m "was du gemacht hast"
+git commit -m "was du gemacht hast" (keep conventional git msg in mind)
 git push
 ```
 
