@@ -1,0 +1,38 @@
+services:
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.dev
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./frontend:/workspace
+      - /workspace/node_modules
+    environment:
+      - VITE_API_BASE_URL=/api
+    depends_on:
+      - backend
+    networks:
+      - app-network
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.dev
+    ports:
+      - "3000:3000"
+      - "9229:9229"
+    volumes:
+      - ./backend:/workspace
+      - /workspace/node_modules
+    environment:
+      - NODE_ENV=development
+      - PORT=3000
+    env_file:
+      - .env.local
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    driver: bridge
