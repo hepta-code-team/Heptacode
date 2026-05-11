@@ -2,7 +2,6 @@ import Fastify from 'fastify'
 import cors from '@fastify/cors'
 import helmet from '@fastify/helmet'
 import { z } from 'zod'
-import {process} from "zod/v4/core";
 
 const app = Fastify({ logger: true })
 

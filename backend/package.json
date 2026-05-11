@@ -1730,12 +1730,13 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
+    "@types/node": "^25.6.2",
     "tsx": "^4.21.0",
     "typescript": "^6.0.3"
   },
   "type": "module",
   "scripts": {
-    "dev": "tsx watch index.ts",
-    "start": "tsx index.ts"
+    "dev": "tsx watch src/index.ts",
+    "start": "tsx src/index.ts"
   }
 }
