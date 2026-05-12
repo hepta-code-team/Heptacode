@@ -1,5 +1,5 @@
-import type { Assessment, PatientData, Symptom } from '../triage/triage.types.js'
-import type { PdfExportResult, PdfSection } from './pdf.types.js'
+import type { PatientData, TriageSymptom } from '../triage/triage.types.js'
+import type { PdfAssessment, PdfExportResult, PdfSection } from './pdf.types.js'
 
 const DURATION_LABELS: Record<string, string> = {
   today: 'Seit heute',
@@ -8,44 +8,15 @@ const DURATION_LABELS: Record<string, string> = {
   weeks: 'Seit mehr als 2 Wochen',
 }
 
-interface MeasurementConfig {
-  title: string
-  max?: number
-  unit?: string
-  type: 'temperature' | 'scale'
-}
-
-function getMeasurementConfig(region: string, side?: string): MeasurementConfig {
-  if (side === 'Fieber') {
-    return { title: 'Temperatur', unit: '°C', type: 'temperature' }
+function formatDuration(duration?: string): string | null {
+  if (!duration) {
+    return null
   }
 
-  if (region === 'Psychische Probleme') {
-    return { title: 'Gefühlsintensität', max: 10, type: 'scale' }
-  }
-
-  if (['Übelkeit/Schwindel', 'Schwäche', 'Verwirrtheit', 'Schüttelfrost'].includes(side ?? '')) {
-    return { title: 'Beschwerdestärke', max: 10, type: 'scale' }
-  }
-
-  return { title: 'Schmerzstärke', max: 10, type: 'scale' }
-}
-
-function formatMeasurement(symptom: Symptom): string {
-  const config = getMeasurementConfig(symptom.region, symptom.side)
-
-  if (config.type === 'temperature') {
-    return `${config.title} ${symptom.measurementValue.toFixed(1)} ${config.unit ?? ''}`.trim()
-  }
-
-  return `${config.title} ${symptom.measurementValue}/${config.max ?? 10}`
-}
-
-function formatDuration(duration: string): string {
   return DURATION_LABELS[duration] ?? duration
 }
 
-function symptomLabel(symptom: Symptom): string {
+function symptomLabel(symptom: TriageSymptom): string {
   return symptom.side ? `${symptom.region} (${symptom.side})` : symptom.region
 }
 
@@ -63,7 +34,7 @@ function summarizePatient(data: PatientData): string {
   ].join('\n')
 }
 
-function buildSections(assessment: Assessment): PdfSection[] {
+function buildSections(assessment: PdfAssessment): PdfSection[] {
   const sections: PdfSection[] = []
 
   if (assessment.patientData) {
@@ -73,21 +44,19 @@ function buildSections(assessment: Assessment): PdfSection[] {
     })
   }
 
-  if (assessment.selectedSymptoms.length > 0) {
+  if (assessment.symptoms.length > 0) {
     sections.push({
-      title: 'Gewählte Beschwerdebereiche',
-      content: assessment.selectedSymptoms
-        .map((symptom) => (symptom.side ? `${symptom.region} (${symptom.side})` : symptom.region))
-        .join(', '),
-    })
-  }
+      title: 'Beschwerden',
+      content: assessment.symptoms
+        .map((symptom) => {
+          const parts = [
+            symptomLabel(symptom),
+            symptom.painLevel !== undefined ? `Schmerzstärke ${symptom.painLevel}/10` : null,
+            formatDuration(symptom.duration),
+          ].filter((part): part is string => part !== null)
 
-  const activeSymptoms = assessment.symptomDetails.filter((symptom) => symptom.active)
-  if (activeSymptoms.length > 0) {
-    sections.push({
-      title: 'Symptomdetails',
-      content: activeSymptoms
-        .map((symptom) => `${symptomLabel(symptom)} (${formatMeasurement(symptom)}, ${formatDuration(symptom.duration)})`)
+          return parts.join(', ')
+        })
         .join('\n'),
     })
   }
@@ -139,7 +108,7 @@ function buildPdfDocument(lines: string[]): Buffer {
   return Buffer.from(pdf, 'utf8')
 }
 
-export function createPdfSummary(assessment: Assessment): PdfExportResult {
+export function createPdfSummary(assessment: PdfAssessment): PdfExportResult {
   const sections = buildSections(assessment)
   const generatedAt = new Date().toISOString()
   const printableLines = [

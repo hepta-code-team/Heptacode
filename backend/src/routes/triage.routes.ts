@@ -5,6 +5,13 @@ import { triageRequestSchema } from '../modules/triage/triage.types.js'
 export const triageRoutes: FastifyPluginAsync = async (app) => {
   app.post('/api/v1/triage/evaluate', async (request, reply) => {
     const body = triageRequestSchema.parse(request.body)
-    void reply.send(evaluateTriage(body.assessment, body.emergencyFromLanding))
+    const result = await evaluateTriage(
+      body.patientData,
+      body.symptoms,
+      body.emergencyFromLanding,
+      body.text,
+      body.inputType,
+    )
+    void reply.send(result)
   })
 }

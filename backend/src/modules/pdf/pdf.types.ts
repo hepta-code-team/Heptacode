@@ -1,13 +1,18 @@
 import { z } from 'zod'
-import { assessmentSchema, type Assessment } from '../triage/triage.types.js'
+import { patientDataSchema, triageSymptomSchema, type PatientData, type TriageSymptom } from '../triage/triage.types.js'
 
 export interface PdfSection {
   title: string
   content: string
 }
 
+export interface PdfAssessment {
+  patientData?: PatientData
+  symptoms: TriageSymptom[]
+}
+
 export interface PdfExportRequest {
-  assessment: Assessment
+  assessment: PdfAssessment
 }
 
 export interface PdfExportResult {
@@ -18,6 +23,11 @@ export interface PdfExportResult {
   sections: PdfSection[]
 }
 
+export const pdfAssessmentSchema = z.object({
+  patientData: patientDataSchema.optional(),
+  symptoms: z.array(triageSymptomSchema).max(3),
+})
+
 export const pdfExportRequestSchema = z.object({
-  assessment: assessmentSchema,
+  assessment: pdfAssessmentSchema,
 })

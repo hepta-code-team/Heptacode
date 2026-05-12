@@ -10,6 +10,12 @@ import type {
 } from './triage.types.js'
 import { triageAiResultSchema } from './triage.types.js'
 
+function createBadRequestError(message: string): Error & { statusCode: number } {
+  const error = new Error(message) as Error & { statusCode: number }
+  error.statusCode = 400
+  return error
+}
+
 // Konstante für die Dauer-Labels
 const DURATION_LABELS: Record<NonNullable<TriageSymptom['duration']>, string> = {
   today: 'Seit heute',
@@ -120,9 +126,20 @@ export async function evaluateTriage(
   }
 
   // Wenn Freitext übergeben wurde, wird zuerst die Symptom-Extraktion ausgeführt und deren Ergebnis für die Triage verwendet.
-  const triageSymptoms = text
-    ? (await extractSymptoms(text, inputType)).symptoms
-    : (symptoms ?? [])
+  if (text) {
+    const extractionResult = await extractSymptoms(text, inputType)
+
+    if (extractionResult.invalidInput) {
+      // Ungültiger Freitext soll in der Triage als Eingabefehler sichtbar werden.
+      throw createBadRequestError(
+        extractionResult.message ?? 'Bitte beschreiben Sie konkrete gesundheitliche Beschwerden.',
+      )
+    }
+
+    return requestTriageFromAi(patientData, extractionResult.symptoms)
+  }
+
+  const triageSymptoms = symptoms ?? []
 
   if (triageSymptoms.length === 0) {
     return {

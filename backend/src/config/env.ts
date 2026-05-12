@@ -4,6 +4,8 @@ export interface EnvConfig {
   corsOrigin: string
   aiApiUrl?: string
   aiApiKey: string
+  /** Model identifier for the external AI system used in symptom extraction. */
+  aiModel: string
 }
 
 function readPort(value: string | undefined): number {
@@ -17,4 +19,5 @@ export const env: EnvConfig = {
   corsOrigin: process.env.CORS_ORIGIN ?? 'http://localhost:5173',
   aiApiUrl: process.env.AI_API_URL ?? process.env.Base_URL,
   aiApiKey: process.env.AI_API_KEY ?? 'dummy',
+  aiModel: process.env.AI_MODEL ?? process.env.MODEL ?? 'gpt-4o-mini',
 }
