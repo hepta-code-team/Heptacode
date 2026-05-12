@@ -66,10 +66,10 @@ export default function EmergencySymptomGrid({ onSymptomClick, variant = "mobile
               aria-hidden="true"
             />
             <div className="flex-1 text-left">
-              <p className="font-['DM_Sans:Bold',sans-serif] font-bold text-[#3e3e3e] text-sm mb-1" style={{ fontVariationSettings: "'opsz' 14" }}>
+              <p className="font-['DM_Sans:Bold',sans-serif] font-bold text-app-text-body text-sm mb-1" style={{ fontVariationSettings: "'opsz' 14" }}>
                 {symptom.name}
               </p>
-              <p className="font-['DM_Sans:Medium',sans-serif] font-medium text-[#3e3e3e] text-xs leading-snug" style={{ fontVariationSettings: "'opsz' 14" }}>
+              <p className="font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-body text-xs leading-snug" style={{ fontVariationSettings: "'opsz' 14" }}>
                 {symptom.desc}
               </p>
             </div>
@@ -96,13 +96,13 @@ export default function EmergencySymptomGrid({ onSymptomClick, variant = "mobile
           />
           <div className="flex-1 text-left">
             <p
-              className="font-['DM_Sans:Bold',sans-serif] font-bold text-[#3e3e3e] text-lg mb-1"
+              className="font-['DM_Sans:Bold',sans-serif] font-bold text-app-text-body text-lg mb-1"
               style={{ fontVariationSettings: "'opsz' 14" }}
             >
               {symptom.name}
             </p>
             <p
-              className="font-['DM_Sans:Medium',sans-serif] font-medium text-[#3e3e3e] text-sm leading-snug"
+              className="font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-body text-sm leading-snug"
               style={{ fontVariationSettings: "'opsz' 14" }}
             >
               {symptom.descLong}
@@ -124,13 +124,13 @@ export default function EmergencySymptomGrid({ onSymptomClick, variant = "mobile
         />
         <div className="flex-1 text-left">
           <p
-            className="font-['DM_Sans:Bold',sans-serif] font-bold text-[#3e3e3e] text-lg mb-1"
+            className="font-['DM_Sans:Bold',sans-serif] font-bold text-app-text-body text-lg mb-1"
             style={{ fontVariationSettings: "'opsz' 14" }}
           >
             Starke Kopfschmerzen
           </p>
           <p
-            className="font-['DM_Sans:Medium',sans-serif] font-medium text-[#3e3e3e] text-sm leading-snug"
+            className="font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-body text-sm leading-snug"
             style={{ fontVariationSettings: "'opsz' 14" }}
           >
             Sehr starke, ungewohnte oder plötzlich einsetzende Kopfschmerzen. Besonders auffällig, wenn sie anders sind als sonst oder sehr heftig beginnen.

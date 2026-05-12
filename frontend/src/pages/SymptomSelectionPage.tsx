@@ -244,7 +244,7 @@ export default function SymptomSelectionPage() {
       <div className="grid grid-cols-1 lg:grid-cols-[300px_minmax(0,1fr)] gap-5 xl:gap-6 items-start">
         <div className="rounded-[18px] bg-[#f5f7fa] p-4">
           <p
-            className="mb-3 text-center font-['DM_Sans:Bold',sans-serif] font-bold text-[#486284] text-sm"
+            className="mb-3 text-center font-['DM_Sans:Bold',sans-serif] font-bold text-app-text-primary text-sm"
             style={{ fontVariationSettings: "'opsz' 14" }}
           >
             Bereich wählen
@@ -262,14 +262,14 @@ export default function SymptomSelectionPage() {
                   type="button"
                   onClick={() => handleCategorySelect(area.id)}
                   className={`rounded-[14px] p-3 text-left transition-all ${
-                    isSelected ? "bg-[#486284] text-white" : "bg-white text-[#3e3e3e] hover:bg-[#dde3ea]"
+                    isSelected ? "bg-[#486284] text-app-text-on-primary" : "bg-white text-app-text-body hover:bg-[#dde3ea]"
                   }`}
                   aria-pressed={isSelected}
                 >
                   <div className="flex items-start gap-3">
                     <div
                       className={`flex size-10 flex-shrink-0 items-center justify-center rounded-full ${
-                        isSelected ? "bg-white/20 text-white" : "bg-[#eff2f6] text-[#486284]"
+                        isSelected ? "bg-white/20 text-app-text-on-primary" : "bg-[#eff2f6] text-app-text-primary"
                       }`}
                     >
                       <Icon className="size-5" aria-hidden="true" />
@@ -283,7 +283,7 @@ export default function SymptomSelectionPage() {
                       </p>
                       <p
                         className={`font-['DM_Sans:Medium',sans-serif] font-medium text-xs leading-snug ${
-                          isSelected ? "text-white/85" : "text-[#486284]"
+                          isSelected ? "text-app-text-on-primary/85" : "text-app-text-primary"
                         }`}
                         style={{ fontVariationSettings: "'opsz' 14" }}
                       >
@@ -297,10 +297,10 @@ export default function SymptomSelectionPage() {
             <button
               type="button"
               onClick={() => setIsModalOpen(true)}
-              className="rounded-[14px] bg-white p-3 text-left text-[#3e3e3e] transition-all hover:bg-[#dde3ea]"
+              className="rounded-[14px] bg-white p-3 text-left text-app-text-body transition-all hover:bg-[#dde3ea]"
             >
               <div className="flex items-start gap-3">
-                <div className="flex size-10 flex-shrink-0 items-center justify-center rounded-full bg-[#eff2f6] text-[#486284]">
+                <div className="flex size-10 flex-shrink-0 items-center justify-center rounded-full bg-[#eff2f6] text-app-text-primary">
                   <Mic className="size-5" aria-hidden="true" />
                 </div>
                 <div>
@@ -311,7 +311,7 @@ export default function SymptomSelectionPage() {
                     Symptome beschreiben
                   </p>
                   <p
-                    className="font-['DM_Sans:Medium',sans-serif] font-medium text-[#486284] text-xs leading-snug"
+                    className="font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-primary text-xs leading-snug"
                     style={{ fontVariationSettings: "'opsz' 14" }}
                   >
                     Freitext oder Spracheingabe
@@ -326,13 +326,13 @@ export default function SymptomSelectionPage() {
           <div className="mb-4 rounded-[18px] bg-[#f5f7fa] p-3">
             <div className="mb-2 flex items-center justify-between">
               <p
-                className="font-['DM_Sans:Bold',sans-serif] font-bold text-[#486284] text-sm"
+                className="font-['DM_Sans:Bold',sans-serif] font-bold text-app-text-primary text-sm"
                 style={{ fontVariationSettings: "'opsz' 14" }}
               >
                 Ihre Auswahl
               </p>
               <p
-                className="font-['DM_Sans:Medium',sans-serif] font-medium text-[#486284] text-xs"
+                className="font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-primary text-xs"
                 style={{ fontVariationSettings: "'opsz' 14" }}
               >
                 {selectedSymptoms.length}/{MAX_SYMPTOMS}
@@ -346,7 +346,7 @@ export default function SymptomSelectionPage() {
                 <div
                   key={index}
                   className={`min-h-0 rounded-full border px-3 py-2 md:min-h-[68px] md:rounded-[12px] md:p-3 ${
-                    symptom ? "border-[#486284] bg-white text-[#3e3e3e]" : "border-dashed border-[#cfd5dd] bg-white/70 text-[#828b93]"
+                    symptom ? "border-[#486284] bg-white text-app-text-body" : "border-dashed border-[#cfd5dd] bg-white/70 text-app-text-muted"
                   }`}
                 >
                   <div className="flex items-center justify-between gap-2 md:items-start">
@@ -368,7 +368,7 @@ export default function SymptomSelectionPage() {
                       <button
                         type="button"
                         onClick={() => removeSymptom(index)}
-                        className="rounded-full p-0.5 text-[#486284] hover:bg-[#eff2f6]"
+                        className="rounded-full p-0.5 text-app-text-primary hover:bg-[#eff2f6]"
                         aria-label={`${getSymptomKey(symptom)} entfernen`}
                       >
                         <X className="size-3.5 md:size-4" aria-hidden="true" />
@@ -386,13 +386,13 @@ export default function SymptomSelectionPage() {
             <>
               <div className="mb-3">
                 <p
-                  className="font-['DM_Sans:Bold',sans-serif] font-bold text-[#486284] text-lg"
+                  className="font-['DM_Sans:Bold',sans-serif] font-bold text-app-text-primary text-lg"
                   style={{ fontVariationSettings: "'opsz' 14" }}
                 >
                   {selectedCategoryLabel}
                 </p>
                 <p
-                  className="font-['DM_Sans:Medium',sans-serif] font-medium text-[#486284] text-sm"
+                  className="font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-primary text-sm"
                   style={{ fontVariationSettings: "'opsz' 14" }}
                 >
                   {selectedSymptoms.length}/{MAX_SYMPTOMS} Beschwerden ausgewählt
@@ -409,7 +409,7 @@ export default function SymptomSelectionPage() {
           ) : (
             <div className="flex min-h-[220px] items-center justify-center rounded-[18px] border-2 border-dashed border-[#cfd5dd] bg-[#f5f7fa] p-6 text-center">
               <p
-                className="max-w-md font-['DM_Sans:Medium',sans-serif] font-medium text-[#486284] text-sm leading-relaxed"
+                className="max-w-md font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-primary text-sm leading-relaxed"
                 style={{ fontVariationSettings: "'opsz' 14" }}
               >
                 Wählen Sie zuerst oben am Körper, bei Allgemein oder bei Psyche einen Bereich aus. Danach erscheinen hier die passenden Beschwerden.
@@ -443,14 +443,14 @@ export default function SymptomSelectionPage() {
           value={symptomText}
           onChange={(event) => setSymptomText(event.target.value)}
           placeholder="z.B. Ich habe seit 3 Tagen starke Kopfschmerzen (7/10) und leichte Übelkeit."
-          className="w-full h-40 bg-[#eff2f6] rounded-[16px] p-4 resize-none border-none outline-none focus:ring-2 focus:ring-[#486284] font-['DM_Sans:Medium',sans-serif] font-medium text-[#3e3e3e] text-base"
+          className="w-full h-40 bg-[#eff2f6] rounded-[16px] p-4 resize-none border-none outline-none focus:ring-2 focus:ring-[#486284] font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-body text-base"
           style={{ fontVariationSettings: "'opsz' 14" }}
         />
 
         <div className="flex justify-between items-center mt-6">
           <button
             onClick={() => {}}
-            className="bg-[#486284] text-white rounded-full w-16 h-16 hover:bg-[#3a4d68] transition-all shadow-lg flex items-center justify-center"
+            className="bg-[#486284] text-app-text-on-primary rounded-full w-16 h-16 hover:bg-[#3a4d68] transition-all shadow-lg flex items-center justify-center"
             aria-label="Symptom diktieren"
           >
             <Mic className="size-8" aria-hidden="true" />
@@ -458,7 +458,7 @@ export default function SymptomSelectionPage() {
 
           <button
             onClick={() => setIsModalOpen(false)}
-            className="bg-[#486284] text-white rounded-full w-16 h-16 hover:bg-[#3a4d68] transition-all shadow-lg flex items-center justify-center"
+            className="bg-[#486284] text-app-text-on-primary rounded-full w-16 h-16 hover:bg-[#3a4d68] transition-all shadow-lg flex items-center justify-center"
             aria-label="Symptombeschreibung übernehmen"
           >
             <Check className="size-8" strokeWidth={3} aria-hidden="true" />

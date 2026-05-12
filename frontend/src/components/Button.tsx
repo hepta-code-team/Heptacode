@@ -18,12 +18,12 @@ export default function Button({
   const baseStyles = "rounded-[14px] px-8 py-2.5 transition-all";
 
   const variantStyles = {
-    primary: "bg-[#486284] text-white hover:bg-[#3a4d68]",
-    secondary: "bg-gray-300 text-[#3e3e3e] hover:bg-gray-400",
-    danger: "bg-[#ffcdcd] text-[#3e3e3e] hover:bg-[#ffb8b8]",
+    primary: "bg-[#486284] text-app-text-on-primary hover:bg-[#3a4d68]",
+    secondary: "bg-gray-300 text-app-text-body hover:bg-gray-400",
+    danger: "bg-[#ffcdcd] text-app-text-body hover:bg-[#ffb8b8]",
   };
 
-  const disabledStyles = "bg-gray-300 text-gray-500 cursor-not-allowed hover:bg-gray-300";
+  const disabledStyles = "bg-gray-300 text-app-text-subtle cursor-not-allowed hover:bg-gray-300";
 
   return (
     <button

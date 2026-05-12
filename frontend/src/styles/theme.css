@@ -2,6 +2,18 @@
 
 :root {
   --font-size: 16px;
+  --app-text-primary: #23345b;
+  --app-text-primary-strong: #3a4d68;
+  --app-text-body: #3e3e3e;
+  --app-text-muted: #828b93;
+  --app-text-disabled: #d1d5db;
+  --app-text-subtle: #6b7280;
+  --app-text-danger: #ef4444;
+  --app-text-danger-strong: #b91c1c;
+  --app-text-emergency: #ff2546;
+  --app-text-warning: #F59E0B;
+  --app-text-warning-strong: #92400E;
+  --app-text-on-primary: #ffffff;
   --background: #ffffff;
   --foreground: oklch(0.145 0 0);
   --card: #ffffff;
@@ -80,6 +92,18 @@
 
 @theme inline {
   --color-background: var(--background);
+  --color-app-text-primary: var(--app-text-primary);
+  --color-app-text-primary-strong: var(--app-text-primary-strong);
+  --color-app-text-body: var(--app-text-body);
+  --color-app-text-muted: var(--app-text-muted);
+  --color-app-text-disabled: var(--app-text-disabled);
+  --color-app-text-subtle: var(--app-text-subtle);
+  --color-app-text-danger: var(--app-text-danger);
+  --color-app-text-danger-strong: var(--app-text-danger-strong);
+  --color-app-text-emergency: var(--app-text-emergency);
+  --color-app-text-warning: var(--app-text-warning);
+  --color-app-text-warning-strong: var(--app-text-warning-strong);
+  --color-app-text-on-primary: var(--app-text-on-primary);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
   --color-card-foreground: var(--card-foreground);

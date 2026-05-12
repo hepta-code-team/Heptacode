@@ -25,8 +25,8 @@ export default function MobileNavigation() {
           disabled={!canGoBack}
           className={`p-2 ${
             canGoBack
-              ? "text-[#486284] hover:bg-gray-100"
-              : "text-gray-300 cursor-not-allowed"
+              ? "text-app-text-primary hover:bg-gray-100"
+              : "text-app-text-disabled cursor-not-allowed"
           } rounded-lg transition-all`}
           aria-label="Zurück"
         >
@@ -47,12 +47,12 @@ export default function MobileNavigation() {
 
         <div className="flex-1 text-center">
           <p
-            className="font-['DM_Sans:SemiBold',sans-serif] font-semibold text-[#486284] text-sm"
+            className="font-['DM_Sans:SemiBold',sans-serif] font-semibold text-app-text-primary text-sm"
             style={{ fontVariationSettings: "'opsz' 14" }}
           >
             {pages[currentIndex]?.name}
           </p>
-          <p className="text-xs text-gray-500">
+          <p className="text-xs text-app-text-subtle">
             {currentIndex + 1} / {pages.length}
           </p>
         </div>
@@ -62,8 +62,8 @@ export default function MobileNavigation() {
           disabled={!canGoForward}
           className={`p-2 ${
             canGoForward
-              ? "text-[#486284] hover:bg-gray-100"
-              : "text-gray-300 cursor-not-allowed"
+              ? "text-app-text-primary hover:bg-gray-100"
+              : "text-app-text-disabled cursor-not-allowed"
           } rounded-lg transition-all`}
           aria-label="Weiter"
         >
