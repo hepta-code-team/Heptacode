@@ -1,6 +1,7 @@
-import  openai from "openai";
+import OpenAI from 'openai'
+import { env } from '../config/env.js'
 
-export const medgemma = new openai({
-    apiKey:'dummy',
-    baseURL: process.env.Base_URL,
+export const aiClient = new OpenAI({
+  apiKey: env.aiApiKey,
+  baseURL: env.aiApiUrl,
 })
