@@ -1,6 +1,7 @@
 import { zodResponseFormat } from 'openai/helpers/zod'
 import { aiClient } from '../../ai/client.js'
 import { env } from '../../config/env.js'
+import { extractSymptoms } from '../symptom-extraction/symptomExtraction.service.js'
 import type {
   CareLevel,
   PatientData,
@@ -106,8 +107,10 @@ async function requestTriageFromAi(
 // Funktion um die Versorgungsebene zu evaluieren
 export async function evaluateTriage(
   patientData: PatientData | undefined,
-  symptoms: TriageSymptom[],
+  symptoms: TriageSymptom[] | undefined,
   emergencyFromLanding?: boolean,
+  text?: string,
+  inputType: 'text' | 'speech' = 'text',
 ): Promise<TriageResponse> {
   if (emergencyFromLanding) {
     return {
@@ -116,12 +119,17 @@ export async function evaluateTriage(
     }
   }
 
-  if (symptoms.length === 0) {
+  // Wenn Freitext übergeben wurde, wird zuerst die Symptom-Extraktion ausgeführt und deren Ergebnis für die Triage verwendet.
+  const triageSymptoms = text
+    ? (await extractSymptoms(text, inputType)).symptoms
+    : (symptoms ?? [])
+
+  if (triageSymptoms.length === 0) {
     return {
       careLevel: 'selfcare',
       reasons: [],
     }
   }
 
-  return requestTriageFromAi(patientData, symptoms)
+  return requestTriageFromAi(patientData, triageSymptoms)
 }

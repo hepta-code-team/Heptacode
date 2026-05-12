@@ -31,7 +31,9 @@ export type CareLevel = 'emergency' | 'doctor' | 'selfcare'
 // Typ für die Anfrage
 export interface TriageRequest {
   patientData?: PatientData
-  symptoms: TriageSymptom[]
+  symptoms?: TriageSymptom[]
+  text?: string
+  inputType?: 'text' | 'speech'
   emergencyFromLanding?: boolean
 }
 
@@ -75,6 +77,11 @@ export const triageAiResultSchema = z.object({
 // Schema für die Anfrage
 export const triageRequestSchema = z.object({
   patientData: patientDataSchema.optional(),
-  symptoms: z.array(triageSymptomSchema).max(3),
+  symptoms: z.array(triageSymptomSchema).max(3).optional(),
+  text: z.string().trim().min(1).optional(),
+  inputType: z.enum(['text', 'speech']).optional(),
   emergencyFromLanding: z.boolean().optional(),
+}).refine((value) => Boolean(value.text) || Boolean(value.symptoms && value.symptoms.length > 0), {
+  message: 'text oder symptoms ist erforderlich',
+  path: ['text'],
 })
