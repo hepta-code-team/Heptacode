@@ -6,18 +6,33 @@ export interface SelectedSymptom {
 }
 
 export interface SymptomExtractionRequest {
-  input: string
+  text: string
   inputType?: 'text' | 'speech'
 }
 
 export interface SymptomExtractionResponse {
-  input: string
+  text: string
   inputType: 'text' | 'speech'
-  suggestions: SelectedSymptom[]
-  redFlags: string[]
+  symptoms: SelectedSymptom[]
 }
 
-export const symptomExtractionRequestSchema = z.object({
-  input: z.string().trim().min(1),
-  inputType: z.enum(['text', 'speech']).optional(),
+export const selectedSymptomSchema = z.object({
+  region: z.string().min(1),
+  side: z.string().min(1).optional(),
 })
+
+// Strict AI output contract: Das Model darf nur bis zu drei frontend-kompatible Symptome zurückgeben.
+export const symptomExtractionAiResultSchema = z.object({
+  symptoms: z.array(selectedSymptomSchema).max(3),
+})
+
+export const symptomExtractionRequestSchema = z
+  .object({
+    text: z.string().trim().min(1).optional(),
+    input: z.string().trim().min(1).optional(),
+    inputType: z.enum(['text', 'speech']).optional(),
+  })
+  .refine((value) => Boolean(value.text ?? value.input), {
+    message: 'text is required',
+    path: ['text'],
+  })
