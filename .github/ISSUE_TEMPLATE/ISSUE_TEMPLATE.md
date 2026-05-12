@@ -1,5 +1,15 @@
-## Summary
-Brief describe what this issue covers
+---
+name: Issue
+about: Create a new issue
+title: ""
+labels: ""
+assignees: ""
+---
+
+## 📝 Summary
+
+Briefly describe what this issue covers.
+
 
 ## Issue Type
 
@@ -9,17 +19,23 @@ Brief describe what this issue covers
 - [ ] 📝 Documentation
 - [ ] ✅ Tests
 - [ ] 🔧 Config / Tooling
-- [ ] 🧠 AI 
+- [ ] 🧠 AI
 - [ ] 🏥 Medical Logic / Triage
 - [ ] 🔐 Security
 - [ ] 🎨 UI / UX
 
+
 ## Backlog Items
+
 If this issue covers any backlog items, list them here, e.g. `FA1.2`, `TA3`, `DO1`.
-Delete this section if not
+
+Delete this section if not applicable.
+
 
 ## Acceptance Criteria
+
 - [ ] 
 - [ ] 
 
-## Notes
+ ## Notes
+Further notes or context
