@@ -19,6 +19,8 @@ export interface SymptomExtractionResponse {
   text: string
   inputType: 'text' | 'speech'
   symptoms: SelectedSymptom[]
+  invalidInput?: boolean
+  message?: string
 }
 
 // Schema für das ausgewählte Symptom
@@ -33,6 +35,12 @@ export const selectedSymptomSchema = z.object({
 // Strict AI output contract: Das Model darf nur bis zu drei frontend-kompatible Symptome zurückgeben.
 export const symptomExtractionAiResultSchema = z.object({
   symptoms: z.array(selectedSymptomSchema).max(3),
+})
+
+// Strict AI output contract: Das Model bewertet, ob überhaupt medizinisch sinnvoller Freitext vorliegt.
+export const symptomInputValidationAiResultSchema = z.object({
+  isValidMedicalInput: z.boolean(),
+  reason: z.string().min(1),
 })
 
 export const symptomExtractionRequestSchema = z

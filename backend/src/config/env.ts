@@ -4,6 +4,7 @@ export interface EnvConfig {
   corsOrigin: string
   aiApiUrl: string
   aiApiKey: string
+  /** Model identifier for the external AI system used in symptom extraction. */
   aiModel: string
 }
 

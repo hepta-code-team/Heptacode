@@ -1,6 +1,6 @@
 import { z } from 'zod'
-import type { PdfExportResult } from '../pdf/pdf.types.js'
 
+// Typ für die Patientendaten
 export interface PatientData {
   birthMonth: string
   birthYear: string
@@ -17,42 +17,33 @@ export interface PatientData {
   conditions: string[]
 }
 
-export interface SelectedSymptom {
+// Typ für das ausgewählte Symptom
+export interface TriageSymptom {
   region: string
   side?: string
+  painLevel?: number
+  duration?: 'today' | 'days' | 'week' | 'weeks'
 }
 
-export type SymptomMeasurementType = 'pain' | 'temperature' | 'feeling' | 'severity'
-
-export interface Symptom {
-  id: string
-  region: string
-  side?: string
-  measurementType: SymptomMeasurementType
-  measurementValue: number
-  duration: string
-  active: boolean
-}
-
-export interface Assessment {
-  patientData?: PatientData
-  selectedSymptoms: SelectedSymptom[]
-  symptomDetails: Symptom[]
-}
-
+// Typ für die Versorgungsebene
 export type CareLevel = 'emergency' | 'doctor' | 'selfcare'
 
+// Typ für die Anfrage
 export interface TriageRequest {
-  assessment: Assessment
+  patientData?: PatientData
+  symptoms?: TriageSymptom[]
+  text?: string
+  inputType?: 'text' | 'speech'
   emergencyFromLanding?: boolean
 }
 
+// Typ für die Antwort
 export interface TriageResponse {
   careLevel: CareLevel
   reasons: string[]
-  pdfSummary: PdfExportResult
 }
 
+// Schema für die Patientendaten
 export const patientDataSchema = z.object({
   birthMonth: z.string(),
   birthYear: z.string(),
@@ -69,28 +60,28 @@ export const patientDataSchema = z.object({
   conditions: z.array(z.string()),
 })
 
-export const selectedSymptomSchema = z.object({
-  region: z.string(),
-  side: z.string().optional(),
+// Schema für das ausgewählte Symptom
+export const triageSymptomSchema = z.object({
+  region: z.string().min(1),
+  side: z.string().min(1).optional(),
+  painLevel: z.number().int().min(1).max(10).optional(),
+  duration: z.enum(['today', 'days', 'week', 'weeks']).optional(),
 })
 
-export const symptomSchema = z.object({
-  id: z.string(),
-  region: z.string(),
-  side: z.string().optional(),
-  measurementType: z.enum(['pain', 'temperature', 'feeling', 'severity']),
-  measurementValue: z.number(),
-  duration: z.string(),
-  active: z.boolean(),
+// Schema für die Antwort des AI
+export const triageAiResultSchema = z.object({
+  careLevel: z.enum(['emergency', 'doctor', 'selfcare']),
+  reasons: z.array(z.string().min(1)).max(5),
 })
 
-export const assessmentSchema = z.object({
-  patientData: patientDataSchema.optional(),
-  selectedSymptoms: z.array(selectedSymptomSchema),
-  symptomDetails: z.array(symptomSchema),
-})
-
+// Schema für die Anfrage
 export const triageRequestSchema = z.object({
-  assessment: assessmentSchema,
+  patientData: patientDataSchema.optional(),
+  symptoms: z.array(triageSymptomSchema).max(3).optional(),
+  text: z.string().trim().min(1).optional(),
+  inputType: z.enum(['text', 'speech']).optional(),
   emergencyFromLanding: z.boolean().optional(),
+}).refine((value) => Boolean(value.text) || Boolean(value.symptoms && value.symptoms.length > 0), {
+  message: 'text oder symptoms ist erforderlich',
+  path: ['text'],
 })
