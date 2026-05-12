@@ -131,6 +131,7 @@ export default function ResultPage() {
           </p>
           <button
             onClick={() => alert('PDF-Download würde hier starten')}
+            aria-label="download-summary"
             className="bg-[#486284] text-white rounded-[10px] px-4 py-2 hover:bg-[#3a4d68] transition-all flex items-center gap-2"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
