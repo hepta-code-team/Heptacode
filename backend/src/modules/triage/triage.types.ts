@@ -106,11 +106,7 @@ export const triageRequestSchema = z.object({
   text: z.string().trim().min(1).optional(),
   inputType: z.enum(['text', 'speech']).optional(),
   emergencyFromLanding: z.boolean().optional(),
-}).refine((value) => (
-  value.emergencyFromLanding === true ||
-  Boolean(value.text) ||
-  Boolean(value.symptoms && value.symptoms.length > 0)
-), {
+}).refine((value) => Boolean(value.text) || Boolean(value.symptoms && value.symptoms.length > 0), {
   message: 'text oder symptoms ist erforderlich',
   path: ['text'],
 })
