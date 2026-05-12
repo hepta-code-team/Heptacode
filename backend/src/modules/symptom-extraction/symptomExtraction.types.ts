@@ -1,24 +1,33 @@
 import { z } from 'zod'
 
+// Typ für das ausgewählte Symptom
 export interface SelectedSymptom {
   region: string
   side?: string
+  painLevel?: number
+  duration?: 'today' | 'days' | 'week' | 'weeks'
 }
 
+// Typ für die Anfrage
 export interface SymptomExtractionRequest {
   text: string
   inputType?: 'text' | 'speech'
 }
 
+// Typ für die Antwort
 export interface SymptomExtractionResponse {
   text: string
   inputType: 'text' | 'speech'
   symptoms: SelectedSymptom[]
 }
 
+// Schema für das ausgewählte Symptom
 export const selectedSymptomSchema = z.object({
   region: z.string().min(1),
   side: z.string().min(1).optional(),
+  // Passt zur aktuellen Frontend-Schmerzskala, die ganze Zahlen von 1 bis 10 verwendet.
+  painLevel: z.number().int().min(1).max(10).optional(),
+  duration: z.enum(['today', 'days', 'week', 'weeks']).optional(),
 })
 
 // Strict AI output contract: Das Model darf nur bis zu drei frontend-kompatible Symptome zurückgeben.
