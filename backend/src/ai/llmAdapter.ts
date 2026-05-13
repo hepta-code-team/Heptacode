@@ -13,6 +13,7 @@ function readAiText(content: unknown): string {
   return ''
 }
 
+// Funktion schon in symptomExtraction.service.ts verwendet (überflüssig)
 export async function extractSymptoms(
   symptomText: string,
 ): Promise<SymptomExtractionResult> {

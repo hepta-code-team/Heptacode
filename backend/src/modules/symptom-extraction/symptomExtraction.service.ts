@@ -7,7 +7,6 @@ import {
   symptomInputValidationAiResultSchema,
 } from './symptomExtraction.types.js'
 
-// Funktion um die Symptome vom AI zu requesten
 const symptomExtractionInstructions = [
   //Prompt von ChatGPT erstellt:
   'Du extrahierst aus deutschem medizinischem Freitext bis zu drei Beschwerden in Erwähnungsreihenfolge.',
@@ -33,7 +32,6 @@ const symptomExtractionInstructions = [
   'Erfinde nichts. Wenn kein passendes Symptom erkennbar ist, gib eine leere Liste zurück.',
 ].join('\n')
 
-// Funktion um die Validierung des Freitexts vom AI zu requesten
 const symptomValidationInstructions = [
   //Prompt von ChatGPT erstellt:
   'Du bewertest, ob ein deutscher Freitext eine sinnvolle medizinische Beschreibung von Beschwerden enthält.',
