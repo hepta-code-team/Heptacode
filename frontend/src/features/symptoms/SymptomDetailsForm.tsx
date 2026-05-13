@@ -23,7 +23,7 @@ export default function SymptomDetailsForm({
       {/* X Button oben rechts */}
       <button
         onClick={onRemove}
-        className="absolute top-4 right-4 text-[#486284] hover:text-[#3a4d68] transition-all"
+        className="absolute top-4 right-4 text-app-text-primary hover:text-app-text-primary-strong transition-all"
       >
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -31,7 +31,7 @@ export default function SymptomDetailsForm({
       </button>
 
       <p
-        className="font-['DM_Sans:Bold',sans-serif] font-bold text-[#486284] text-lg mb-4 pr-8"
+        className="font-['DM_Sans:Bold',sans-serif] font-bold text-app-text-primary text-lg mb-4 pr-8"
         style={{ fontVariationSettings: "'opsz' 14" }}
       >
         {symptom.side ? `${symptom.region} (${symptom.side})` : symptom.region}

@@ -12,14 +12,14 @@ export default function DurationSelector({ selectedDuration, onDurationChange, s
       <div className="mb-2 flex items-center justify-between gap-3">
         <p
           className={`font-['DM_Sans:SemiBold',sans-serif] font-semibold text-base ${
-            showError ? "text-red-500" : "text-[#3e3e3e]"
+            showError ? "text-app-text-danger" : "text-app-text-body"
           }`}
           style={{ fontVariationSettings: "'opsz' 14" }}
         >
           Seit wann?
         </p>
         {showError && (
-          <p className="text-right text-xs font-semibold text-red-500">
+          <p className="text-right text-xs font-semibold text-app-text-danger">
             Bitte auswählen
           </p>
         )}
@@ -31,8 +31,8 @@ export default function DurationSelector({ selectedDuration, onDurationChange, s
             onClick={() => onDurationChange(duration.id)}
             className={`p-3 rounded-[12px] transition-all ${
               selectedDuration === duration.id
-                ? "bg-[#486284] text-white"
-                : "bg-white text-[#3e3e3e] hover:bg-[#dde3ea]"
+                ? "bg-[#486284] text-app-text-on-primary"
+                : "bg-white text-app-text-body hover:bg-[#dde3ea]"
             }`}
           >
             <span

@@ -62,13 +62,13 @@ export default function PainScaleSelector({ config, value, onValueChange }: Pain
       <div className="mb-4">
         <div className="flex items-center justify-between mb-3">
           <p
-            className="font-['DM_Sans:SemiBold',sans-serif] font-semibold text-[#3e3e3e] text-base"
+            className="font-['DM_Sans:SemiBold',sans-serif] font-semibold text-app-text-body text-base"
             style={{ fontVariationSettings: "'opsz' 14" }}
           >
             {config.title}
           </p>
           <p
-            className="font-['DM_Sans:Bold',sans-serif] font-bold text-2xl text-[#486284]"
+            className="font-['DM_Sans:Bold',sans-serif] font-bold text-2xl text-app-text-primary"
             style={{ fontVariationSettings: "'opsz' 14" }}
           >
             {value >= 42.5 ? ">42" : value.toFixed(1)} {config.unit}
@@ -98,8 +98,8 @@ export default function PainScaleSelector({ config, value, onValueChange }: Pain
           })}
         </div>
         <div className="flex justify-between">
-          <span className="text-xs text-gray-500">{config.minLabel}</span>
-          <span className="text-xs text-gray-500">{config.maxLabel}</span>
+          <span className="text-xs text-app-text-subtle">{config.minLabel}</span>
+          <span className="text-xs text-app-text-subtle">{config.maxLabel}</span>
         </div>
       </div>
     );
@@ -110,7 +110,7 @@ export default function PainScaleSelector({ config, value, onValueChange }: Pain
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
           <p
-            className="font-['DM_Sans:SemiBold',sans-serif] font-semibold text-[#3e3e3e] text-base"
+            className="font-['DM_Sans:SemiBold',sans-serif] font-semibold text-app-text-body text-base"
             style={{ fontVariationSettings: "'opsz' 14" }}
           >
             {config.title}
@@ -119,7 +119,7 @@ export default function PainScaleSelector({ config, value, onValueChange }: Pain
             <button
               type="button"
               onClick={() => setIsScaleInfoOpen(true)}
-              className="inline-flex size-5 -translate-y-0.5 items-center justify-center rounded-full text-[#486284] transition-all hover:bg-[#dde3ea]"
+              className="inline-flex size-5 -translate-y-0.5 items-center justify-center rounded-full text-app-text-primary transition-all hover:bg-[#dde3ea]"
               aria-label="Informationen zur Schmerzskala"
             >
               <CircleHelp className="size-4" aria-hidden="true" />
@@ -141,7 +141,7 @@ export default function PainScaleSelector({ config, value, onValueChange }: Pain
           <button
             key={level}
             onClick={() => onValueChange(level)}
-            className="flex-1 h-12 rounded-lg transition-all hover:opacity-80 flex items-center justify-center font-['DM_Sans:Bold',sans-serif] font-bold text-white text-sm"
+            className="flex-1 h-12 rounded-lg transition-all hover:opacity-80 flex items-center justify-center font-['DM_Sans:Bold',sans-serif] font-bold text-app-text-on-primary text-sm"
             style={{
               backgroundColor: getButtonColor(level, value),
               fontVariationSettings: "'opsz' 14",
@@ -152,8 +152,8 @@ export default function PainScaleSelector({ config, value, onValueChange }: Pain
         ))}
       </div>
       <div className="flex justify-between">
-        <span className="text-xs text-gray-500">{config.minLabel}</span>
-        <span className="text-xs text-gray-500">{config.maxLabel}</span>
+        <span className="text-xs text-app-text-subtle">{config.minLabel}</span>
+        <span className="text-xs text-app-text-subtle">{config.maxLabel}</span>
       </div>
       <Modal
         isOpen={isScaleInfoOpen}
@@ -162,14 +162,14 @@ export default function PainScaleSelector({ config, value, onValueChange }: Pain
         subtitle="Die Schmerzstärke wird hier mit der Numerischen Rating-Skala von 1 bis 10 abgefragt."
         maxWidth="max-w-lg"
       >
-        <div className="space-y-3 text-sm font-['DM_Sans:Medium',sans-serif] font-medium text-[#3e3e3e]">
+        <div className="space-y-3 text-sm font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-body">
           <p>1 bis 3 steht eher für leichte Schmerzen, die noch gut auszuhalten sind.</p>
           <p>4 bis 6 beschreibt mittlere Schmerzen, die deutlich stören oder einschränken.</p>
           <p>7 bis 10 steht für starke bis sehr starke Schmerzen, die sehr belastend sind oder kaum auszuhalten wirken.</p>
           <button
             type="button"
             onClick={() => setIsScaleInfoOpen(false)}
-            className="mt-2 w-full rounded-[14px] bg-[#486284] px-5 py-3 text-white transition-all hover:bg-[#3a4d68]"
+            className="mt-2 w-full rounded-[14px] bg-[#486284] px-5 py-3 text-app-text-on-primary transition-all hover:bg-[#3a4d68]"
           >
             Verstanden
           </button>
