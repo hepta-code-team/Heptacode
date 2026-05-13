@@ -1,3 +1,4 @@
+import { saveSummary, getSummary } from './summary.store.js'
 import type {
   SummaryRequest,
   SummaryResponse,
@@ -14,7 +15,7 @@ export async function createSummaryService(
   const detectedRedFlags = detectRedFlags(data)
   const urgencyLevel = determineUrgencyLevel(data, detectedRedFlags)
 
-  return {
+  const summary: SummaryResponse = {
     summaryId: `summary_${Date.now()}`,
     urgencyLevel,
     humanReviewRequired: true,
@@ -41,6 +42,10 @@ export async function createSummaryService(
     safetyNotice:
       'Diese Einschätzung ersetzt keine ärztliche Diagnose. Die finale Bewertung muss durch medizinisches Fachpersonal erfolgen.',
   }
+
+  saveSummary(summary)
+
+  return summary
 }
 
 function detectRedFlags(data: SummaryRequest): string[] {
@@ -153,32 +158,40 @@ function createPlainLanguageSummary(
 function createProfessionalSummary(data: SummaryRequest): string {
   const { patient, symptoms } = data
 
-  return [
-    `Patientendaten: Alter ${patient.age}, Geschlecht: ${patient.sex}.`,
+  const patientLines = [
+    'Patientendaten',
+    `Alter: ${patient.age}`,
+    `Geschlecht: ${patient.sex}`,
     patient.pregnant !== undefined
-      ? `Schwangerschaft: ${patient.pregnant ? 'ja' : 'nein'}.`
-      : '',
+      ? `Schwangerschaft: ${patient.pregnant ? 'ja' : 'nein'}`
+      : null,
     patient.knownConditions?.length
-      ? `Vorerkrankungen: ${patient.knownConditions.join(', ')}.`
-      : 'Keine Vorerkrankungen angegeben.',
+      ? `Vorerkrankungen: ${patient.knownConditions.join(', ')}`
+      : 'Vorerkrankungen: keine Angabe',
     patient.medications?.length
-      ? `Medikation: ${patient.medications.join(', ')}.`
-      : 'Keine Medikation angegeben.',
+      ? `Medikation: ${patient.medications.join(', ')}`
+      : 'Medikation: keine Angabe',
     patient.allergies?.length
-      ? `Allergien: ${patient.allergies.join(', ')}.`
-      : 'Keine Allergien angegeben.',
-    `Beschwerden: ${symptoms.freeText}.`,
-    symptoms.duration ? `Dauer: ${symptoms.duration}.` : '',
-    symptoms.severity !== undefined
-      ? `Schweregrad: ${symptoms.severity}/10.`
-      : '',
-    symptoms.location ? `Lokalisation: ${symptoms.location}.` : '',
-    symptoms.progression ? `Verlauf: ${symptoms.progression}.` : '',
+      ? `Allergien: ${patient.allergies.join(', ')}`
+      : 'Allergien: keine Angabe',
   ]
-    .filter(Boolean)
-    .join(' ')
-}
 
+  const symptomLines = [
+    '',
+    'Beschwerden:',
+    `Beschreibung: ${symptoms.freeText}`,
+    symptoms.duration ? `Dauer: ${symptoms.duration}` : 'Dauer: keine Angabe',
+    symptoms.severity !== undefined
+      ? `Schweregrad: ${symptoms.severity}/10`
+      : 'Schweregrad: keine Angabe',
+    symptoms.location ? `Lokalisation: ${symptoms.location}` : 'Lokalisation: keine Angabe',
+    symptoms.progression ? `Verlauf: ${symptoms.progression}` : 'Verlauf: keine Angabe',
+  ]
+
+  return [...patientLines, ...symptomLines]
+    .filter((line): line is string => Boolean(line))
+    .join('\n')
+}
 function createMissingInformationList(data: SummaryRequest): string[] {
   const missing: string[] = []
 
@@ -229,4 +242,8 @@ function createRecommendationMessage(urgencyLevel: UrgencyLevel): string {
     default:
       return 'Es fehlen noch wichtige Informationen für eine sinnvolle Ersteinschätzung.'
   }
+}
+
+export function getSummaryById(summaryId: string): SummaryResponse | undefined {
+  return getSummary(summaryId)
 }
