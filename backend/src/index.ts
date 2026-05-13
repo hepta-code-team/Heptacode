@@ -10,6 +10,7 @@ await app.register(cors, {
   origin: process.env.CORS_ORIGIN ?? 'http://localhost:5173',
 })
 
+// Zod Schema Test
 const PingSchema = z.object({
   message: z.string().min(1),
 })
@@ -108,6 +109,8 @@ function buildReasons(careLevel: CareLevel, symptoms: Symptom[]) {
   ]
 }
 
+
+// Routes
 app.get('/health', async () => ({ status: 'ok' }))
 
 app.post('/ping', async (request, reply) => {
@@ -139,6 +142,7 @@ app.post('/assessments', async (request, reply) => {
   })
 })
 
+// Start
 try {
   await app.listen({ port: Number(process.env.PORT ?? 3000), host: '0.0.0.0' })
 } catch (err) {

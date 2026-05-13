@@ -1,6 +1,14 @@
 import OpenAI from "openai";
+import{ env } from "../config/env.js"
 
-export const medgemma = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY ?? "dummy",
-  baseURL: process.env.BASE_URL,
-});
+const protocol = new URL(env.aiAPiUrl).protocol;
+if (protocol !== "http:" && protocol !== "https:") {
+  throw new Error("AI_API_URL must use HTTP or HTTPS.");
+}
+
+export const aiClient = new OpenAI({
+  apiKey: env.aiApiKey,
+  baseURL: env.aiApiUrl,
+})
+
+export const aiModel  = env.aiModel
