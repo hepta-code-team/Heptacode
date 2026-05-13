@@ -1,7 +1,10 @@
+import { buildApp } from './app.js'
+import { env } from './config/env.js'
 import Fastify from 'fastify'
 import cors from '@fastify/cors'
 import helmet from '@fastify/helmet'
 import { z } from 'zod'
+
 
 const app = Fastify({ logger: true })
 
@@ -144,8 +147,8 @@ app.post('/assessments', async (request, reply) => {
 
 // Start
 try {
-  await app.listen({ port: Number(process.env.PORT ?? 3000), host: '0.0.0.0' })
-} catch (err) {
-  app.log.error(err)
+  await app.listen({ port: env.port, host: env.host })
+} catch (error) {
+  app.log.error(error)
   process.exit(1)
 }
