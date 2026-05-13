@@ -30,9 +30,24 @@ export interface Symptom {
 }
 
 export type SymptomMeasurementType = "pain" | "temperature" | "feeling" | "severity";
+export type CareLevel = "emergency" | "doctor" | "selfcare";
+
+export interface AssessmentPayload {
+  patientData: PatientData;
+  selectedSymptoms: SelectedSymptom[];
+  symptomDetails: Symptom[];
+}
+
+export interface AssessmentResult {
+  careLevel: CareLevel;
+  reasons: string[];
+  summary?: string;
+  createdAt?: string;
+}
 
 export interface Assessment {
   patientData?: PatientData;
   selectedSymptoms: SelectedSymptom[];
   symptomDetails: Symptom[];
+  result?: AssessmentResult | null;
 }

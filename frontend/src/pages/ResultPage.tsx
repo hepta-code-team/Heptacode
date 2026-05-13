@@ -12,7 +12,7 @@ import type { Symptom } from "../types/assessment";
 export default function ResultPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { patientData, symptomDetails, resetAssessment } = useAssessment();
+  const { patientData, symptomDetails, assessmentResult, resetAssessment } = useAssessment();
 
   // Check if this is an emergency from landing page
   const isEmergency = searchParams.get("emergency") === "true";
@@ -46,7 +46,7 @@ export default function ResultPage() {
     return getHighestCareLevel(symptomDetails.map(getSymptomCareLevel));
   };
 
-  const careLevel = calculateCareLevel();
+  const careLevel = assessmentResult?.careLevel ?? calculateCareLevel();
   const config = TRIAGE_CONFIGS[careLevel];
   const callAction =
     careLevel === "emergency"
@@ -105,18 +105,21 @@ export default function ResultPage() {
           Begründung
         </p>
         <ul className="space-y-1.5">
-          <li
-            className="font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-body text-sm leading-relaxed"
-            style={{ fontVariationSettings: "'opsz' 14" }}
-          >
-            • Ihre Symptome deuten auf eine behandlungsbedürftige Erkrankung hin
-          </li>
-          <li
-            className="font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-body text-sm leading-relaxed"
-            style={{ fontVariationSettings: "'opsz' 14" }}
-          >
-            • Die Dauer und Intensität Ihrer Beschwerden sollten ärztlich abgeklärt werden
-          </li>
+          {(assessmentResult?.reasons?.length
+            ? assessmentResult.reasons
+            : [
+                "Ihre Angaben wurden ausgewertet.",
+                "Bei Verschlechterung oder Unsicherheit sollten Sie medizinische Hilfe suchen.",
+              ]
+          ).map((reason) => (
+            <li
+              key={reason}
+              className="font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-body text-sm leading-relaxed"
+              style={{ fontVariationSettings: "'opsz' 14" }}
+            >
+              • {reason}
+            </li>
+          ))}
         </ul>
       </div>
 
@@ -208,6 +211,22 @@ export default function ResultPage() {
           {/* Symptome
           TODO: AI will do this as well
           */}
+
+          {assessmentResult?.summary && (
+            <div>
+              <p
+                className="font-['DM_Sans:Bold',sans-serif] font-bold text-app-text-body text-sm mb-2"
+                style={{ fontVariationSettings: "'opsz' 14" }}
+              >
+                Backend-Zusammenfassung
+              </p>
+              <div className="bg-[#eff2f6] rounded-[10px] p-3">
+                <p className="font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-body text-xs leading-relaxed">
+                  {assessmentResult.summary}
+                </p>
+              </div>
+            </div>
+          )}
 
           {symptomDetails.length > 0 && (
             <div>

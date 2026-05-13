@@ -1,4 +1,4 @@
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "";
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:3000';
 
 type RequestOptions = Omit<RequestInit, "body"> & {
   body?: unknown;
@@ -17,7 +17,20 @@ async function request<TResponse>(path: string, options: RequestOptions = {}): P
   });
 
   if (!response.ok) {
-    throw new Error(`API request failed with status ${response.status}`);
+    let message = `API request failed with status ${response.status}`;
+
+    try {
+      const errorBody = await response.json();
+      message = errorBody?.message ?? errorBody?.error ?? message;
+    } catch {
+      // Ignore invalid JSON error bodies.
+    }
+
+    throw new Error(message);
+  }
+
+  if (response.status === 204) {
+    return undefined as TResponse;
   }
 
   return response.json() as Promise<TResponse>;

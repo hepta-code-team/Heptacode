@@ -1,6 +1,6 @@
-import  openai from "openai";
+import OpenAI from "openai";
 
-export const medgemma = new openai({
-    apiKey:'dummy',
-    baseURL: process.env.Base_URL,
-})
+export const medgemma = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY ?? "dummy",
+  baseURL: process.env.BASE_URL,
+});
