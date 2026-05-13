@@ -9,18 +9,31 @@ Diese Anleitung beschreibt, wie die beiden Backend-Funktionen lokal getestet wer
 
 Das Backend benötigt Zugriff auf das KI-Modell.
 
+<<<<<<< HEAD
+Beispiel mit LiteLLM / MedGemma:
+=======
 Die KI-URL muss per `http://` oder `https://` erreichbar sein.
+>>>>>>> dev
 
 Bestehende lokale `.env.local`-Dateien mit den älteren Variablennamen `Base_URL` und `API_KEY`
 werden weiterhin unterstützt. Bevorzugt werden aber `AI_API_URL` und `AI_API_KEY`.
 Beispiel env.local:
 
+<<<<<<< HEAD
+export AI_API_URL="http://141.19.141.155:4000"
+export AI_API_KEY="<virtual-api-key>"
+export AI_MODEL="medgemma:27b"
+
+npm run dev
+```
+=======
 NODE_ENV=development
 PORT=3000
 CORS_ORIGIN=http://localhost:5173/
 AI_API_URL=url
 AI_API_KEY=key
 AI_MODEL=medgemma:4b
+>>>>>>> dev
 
 ## Erreichbarkeit prüfen
 
