@@ -24,7 +24,8 @@ export const env: EnvConfig = {
   port: readPort(process.env.PORT),
   host: process.env.HOST ?? '0.0.0.0',
   corsOrigin: process.env.CORS_ORIGIN ?? 'http://localhost:5173',
-  aiApiUrl: readRequired(process.env.AI_API_URL, 'AI_API_URL'),
-  aiApiKey: process.env.AI_API_KEY ?? 'dummy',
+  // Legacy fallback keeps older local env files working while standardizing on AI_* names.
+  aiApiUrl: readRequired(process.env.AI_API_URL ?? process.env.Base_URL, 'AI_API_URL'),
+  aiApiKey: process.env.AI_API_KEY ?? process.env.API_KEY ?? 'dummy',
   aiModel: process.env.AI_MODEL ?? 'medgemma',
 }
