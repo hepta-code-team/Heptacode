@@ -1,8 +1,10 @@
 import OpenAI from 'openai'
 import { env } from '../config/env.js'
 
-if (!env.aiApiUrl.startsWith('https://')) {
-  throw new Error('AI_API_URL must use HTTPS')
+const protocol = new URL(env.aiApiUrl).protocol
+
+if (protocol !== 'https:' && protocol !== 'http:') {
+  throw new Error('AI_API_URL must use HTTP or HTTPS')
 }
 
 export const aiClient = new OpenAI({
