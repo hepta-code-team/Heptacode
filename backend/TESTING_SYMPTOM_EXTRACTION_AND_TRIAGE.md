@@ -104,11 +104,12 @@ curl -X POST http://localhost:3000/api/v1/triage/evaluate \
   }'
 ```
 
-Erwartet wird eine Antwort mit `careLevel` und `reasons`, zum Beispiel:
+Erwartet wird eine Antwort mit `careLevel`, `recommendedSpecialty` und `reasons`, zum Beispiel:
 
 ```json
 {
   "careLevel": "doctor",
+  "recommendedSpecialty": "neurology",
   "reasons": [
     "Die Beschwerden sollten zeitnah ärztlich abgeklärt werden."
   ]
@@ -147,6 +148,7 @@ Erwartet wird wieder eine Triage-Antwort:
 ```json
 {
   "careLevel": "doctor",
+  "recommendedSpecialty": "neurology",
   "reasons": [
     "Die Beschwerden sollten zeitnah ärztlich abgeklärt werden."
   ]

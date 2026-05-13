@@ -28,6 +28,29 @@ export interface TriageSymptom {
 // Typ für die Versorgungsebene
 export type CareLevel = 'emergency' | 'doctor' | 'selfcare'
 
+// Schema fuer die erlaubten medizinischen Versorgungsangebote
+export const medicalSpecialtySchema = z.enum([
+  'home_care',
+  'emergency_medicine',
+  'general_practice',
+  'internal_medicine',
+  'cardiology',
+  'neurology',
+  'orthopedics',
+  'gastroenterology',
+  'pulmonology',
+  'dermatology',
+  'urology',
+  'gynecology',
+  'psychiatry',
+  'pediatrics',
+  'dentistry',
+  'ophthalmology',
+  'otolaryngology',
+])
+
+export type MedicalSpecialty = z.infer<typeof medicalSpecialtySchema>
+
 // Typ für die Anfrage
 export interface TriageRequest {
   patientData?: PatientData
@@ -40,6 +63,7 @@ export interface TriageRequest {
 // Typ für die Antwort
 export interface TriageResponse {
   careLevel: CareLevel
+  recommendedSpecialty: MedicalSpecialty
   reasons: string[]
 }
 
@@ -71,6 +95,7 @@ export const triageSymptomSchema = z.object({
 // Schema für die Antwort des AI
 export const triageAiResultSchema = z.object({
   careLevel: z.enum(['emergency', 'doctor', 'selfcare']),
+  recommendedSpecialty: medicalSpecialtySchema,
   reasons: z.array(z.string().min(1)).max(5),
 })
 

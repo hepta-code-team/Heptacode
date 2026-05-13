@@ -4,11 +4,12 @@ import { env } from '../../config/env.js'
 import { extractSymptoms } from '../symptom-extraction/symptomExtraction.service.js'
 import type {
   CareLevel,
+  MedicalSpecialty,
   PatientData,
   TriageResponse,
   TriageSymptom,
 } from './triage.types.js'
-import { triageAiResultSchema } from './triage.types.js'
+import { medicalSpecialtySchema, triageAiResultSchema } from './triage.types.js'
 
 function createBadRequestError(message: string): Error & { statusCode: number } {
   const error = new Error(message) as Error & { statusCode: number }
@@ -16,7 +17,7 @@ function createBadRequestError(message: string): Error & { statusCode: number } 
   return error
 }
 
-// Konstante für die Dauer-Labels
+// Konstante fuer die Dauer-Labels
 const DURATION_LABELS: Record<NonNullable<TriageSymptom['duration']>, string> = {
   today: 'Seit heute',
   days: 'Seit ein paar Tagen',
@@ -25,25 +26,30 @@ const DURATION_LABELS: Record<NonNullable<TriageSymptom['duration']>, string> = 
 }
 
 // Prompt von ChatGPT erstellt:
+// Die KI waehlt Versorgungsangebot und Begruendungen.
+// Die erlaubten Werte werden zusaetzlich ueber Zod validiert.
 const triageInstructions = [
   'Du bewertest strukturierte medizinische Angaben und ordnest sie genau einer Versorgungsebene zu.',
-  'Erlaubte careLevel-Werte sind ausschließlich: emergency, doctor, selfcare.',
-  'Berücksichtige die übergebenen Symptome, optionale Schmerzintensitäten, Dauern und die Stammdaten.',
-  'Handle sicherheitsorientiert. Bei klaren Warnzeichen oder hohem Risiko wähle die höhere Versorgungsebene.',
-  'Gib kurze, konkrete Begründungen auf Deutsch zurück.',
-  'Erfinde keine zusätzlichen Symptome oder Stammdaten.',
+  'Erlaubte careLevel-Werte sind ausschliesslich: emergency, doctor, selfcare.',
+  `Erlaubte recommendedSpecialty-Werte sind ausschliesslich: ${medicalSpecialtySchema.options.join(', ')}.`,
+  'Waehle recommendedSpecialty selbst passend zu den Angaben aus; home_care steht fuer haeusliche Versorgung.',
+  'careLevel muss zur Empfehlung passen: emergency_medicine -> emergency, home_care -> selfcare, alle anderen Empfehlungen -> doctor.',
+  'Beruecksichtige die uebergebenen Symptome, optionale Schmerzintensitaeten, Dauern und die Stammdaten.',
+  'Handle sicherheitsorientiert. Bei klaren Warnzeichen oder hohem Risiko waehle die hoehere Versorgungsebene.',
+  'Gib kurze, konkrete Begruendungen auf Deutsch zurueck.',
+  'Erfinde keine zusaetzlichen Symptome oder Stammdaten.',
 ].join('\n')
 
-// Funktion um die Patientendaten zu formatieren
+// Funktion um die Patientendaten fuer die KI zu formatieren
 function formatPatientData(patientData?: PatientData): string {
   if (!patientData) {
-    return 'Keine Stammdaten übergeben.'
+    return 'Keine Stammdaten uebergeben.'
   }
 
   return [
     `Geburtsmonat: ${patientData.birthMonth}`,
     `Geburtsjahr: ${patientData.birthYear}`,
-    `Größe: ${patientData.height}`,
+    `Groesse: ${patientData.height}`,
     `Gewicht: ${patientData.weight}`,
     `Geschlecht: ${patientData.gender}`,
     `Schwanger: ${patientData.isPregnant ? 'Ja' : 'Nein'}`,
@@ -56,17 +62,17 @@ function formatPatientData(patientData?: PatientData): string {
   ].join('\n')
 }
 
-// Funktion um die Symptome zu formatieren
+// Funktion um die Symptome fuer die KI zu formatieren
 function formatSymptoms(symptoms: TriageSymptom[]): string {
   if (symptoms.length === 0) {
-    return 'Keine Symptome übergeben.'
+    return 'Keine Symptome uebergeben.'
   }
 
   return symptoms
     .map((symptom, index) => {
       const parts = [
         symptom.side ? `${symptom.region} (${symptom.side})` : symptom.region,
-        symptom.painLevel !== undefined ? `Schmerzstärke ${symptom.painLevel}/10` : null,
+        symptom.painLevel !== undefined ? `Schmerzstaerke ${symptom.painLevel}/10` : null,
         symptom.duration ? DURATION_LABELS[symptom.duration] : null,
       ].filter((part): part is string => part !== null)
 
@@ -75,12 +81,33 @@ function formatSymptoms(symptoms: TriageSymptom[]): string {
     .join('\n')
 }
 
-// Funktion um die Versorgungsebene vom AI zu requesten
+// Funktion um das empfohlene Versorgungsangebot auf die grobe Ebene abzubilden
+function toCareLevel(recommendedSpecialty: MedicalSpecialty): CareLevel {
+  if (recommendedSpecialty === 'emergency_medicine') {
+    return 'emergency'
+  }
+
+  if (recommendedSpecialty === 'home_care') {
+    return 'selfcare'
+  }
+
+  return 'doctor'
+}
+
+// Funktion um widerspruechliche KI-Antworten zwischen careLevel und Empfehlung zu vermeiden
+function ensureConsistentCareLevel(result: TriageResponse): TriageResponse {
+  return {
+    ...result,
+    careLevel: toCareLevel(result.recommendedSpecialty),
+  }
+}
+
+// Funktion um Versorgungsebene und Fachrichtung vom AI zu requesten
 async function requestTriageFromAi(
   patientData: PatientData | undefined,
   symptoms: TriageSymptom[],
-): Promise<{ careLevel: CareLevel; reasons: string[] }> {
-  // Die KI erhält bereits strukturierte Eingaben und muss nur noch die Versorgungsebene bewerten.
+): Promise<TriageResponse> {
+  // Die KI erhaelt bereits strukturierte Eingaben und muss eine validierbare JSON-Antwort liefern.
   const completion = await aiClient.beta.chat.completions.parse({
     model: env.aiModel,
     messages: [
@@ -107,7 +134,7 @@ async function requestTriageFromAi(
     throw new Error('AI triage returned no structured result')
   }
 
-  return parsed
+  return ensureConsistentCareLevel(parsed)
 }
 
 // Funktion um die Versorgungsebene zu evaluieren
@@ -121,16 +148,17 @@ export async function evaluateTriage(
   if (emergencyFromLanding) {
     return {
       careLevel: 'emergency',
-      reasons: ['Notfallmodus über die Startseite ausgewählt.'],
+      recommendedSpecialty: 'emergency_medicine',
+      reasons: ['Notfallmodus ueber die Startseite ausgewaehlt.'],
     }
   }
 
-  // Wenn Freitext übergeben wurde, wird zuerst die Symptom-Extraktion ausgeführt und deren Ergebnis für die Triage verwendet.
+  // Wenn Freitext uebergeben wurde, wird zuerst die Symptom-Extraktion ausgefuehrt und deren Ergebnis fuer die Triage verwendet.
   if (text) {
     const extractionResult = await extractSymptoms(text, inputType)
 
     if (extractionResult.invalidInput) {
-      // Ungültiger Freitext soll in der Triage als Eingabefehler sichtbar werden.
+      // Ungueltiger Freitext soll in der Triage als Eingabefehler sichtbar werden.
       throw createBadRequestError(
         extractionResult.message ?? 'Bitte beschreiben Sie konkrete gesundheitliche Beschwerden.',
       )
@@ -142,8 +170,10 @@ export async function evaluateTriage(
   const triageSymptoms = symptoms ?? []
 
   if (triageSymptoms.length === 0) {
+    // Ohne Symptome bleibt die Empfehlung bei Selfcare, ohne dass ein KI-Call noetig ist.
     return {
       careLevel: 'selfcare',
+      recommendedSpecialty: 'home_care',
       reasons: [],
     }
   }
