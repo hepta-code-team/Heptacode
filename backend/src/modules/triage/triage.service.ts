@@ -1,6 +1,4 @@
-import { zodResponseFormat } from 'openai/helpers/zod'
-import { aiClient } from '../../ai/client.js'
-import { env } from '../../config/env.js'
+import { requestStructuredAiResponse } from '../../ai/llmAdapter.js'
 import { extractSymptoms } from '../symptom-extraction/symptomExtraction.service.js'
 import type {
   CareLevel,
@@ -108,8 +106,7 @@ async function requestTriageFromAi(
   symptoms: TriageSymptom[],
 ): Promise<TriageResponse> {
   // Die KI erhaelt bereits strukturierte Eingaben und muss eine validierbare JSON-Antwort liefern.
-  const completion = await aiClient.beta.chat.completions.parse({
-    model: env.aiModel,
+  const parsed = await requestStructuredAiResponse({
     messages: [
       { role: 'system', content: triageInstructions },
       {
@@ -123,16 +120,10 @@ async function requestTriageFromAi(
         ].join('\n'),
       },
     ],
-    response_format: zodResponseFormat(triageAiResultSchema, 'triage_result'),
+    schema: triageAiResultSchema,
+    schemaName: 'triage_result',
     temperature: 0,
   })
-
-  const parsed = completion.choices[0]?.message.parsed
-
-  if (!parsed) {
-    // Fehlende strukturierte Ausgabe wird als Integrationsfehler behandelt.
-    throw new Error('AI triage returned no structured result')
-  }
 
   return ensureConsistentCareLevel(parsed)
 }

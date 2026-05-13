@@ -9,13 +9,13 @@ Diese Anleitung beschreibt, wie die beiden Backend-Funktionen lokal getestet wer
 
 Das Backend benötigt Zugriff auf das KI-Modell.
 
-Beispiel mit Ollama / MedGemma:
+Beispiel mit LiteLLM / MedGemma:
 
 ```bash
 cd /Users/christianscheider/Dev/Heptacode/backend
 
-export AI_API_URL="http://141.19.141.150:11434/v1/"
-export AI_API_KEY="ollama"
+export AI_API_URL="http://141.19.141.155:4000"
+export AI_API_KEY="<virtual-api-key>"
 export AI_MODEL="medgemma:27b"
 
 npm run dev

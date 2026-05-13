@@ -1,6 +1,4 @@
-import { zodResponseFormat } from 'openai/helpers/zod'
-import { aiClient } from '../../ai/client.js'
-import { env } from '../../config/env.js'
+import { requestStructuredAiResponse } from '../../ai/llmAdapter.js'
 import type { SymptomExtractionResponse } from './symptomExtraction.types.js'
 import {
   symptomExtractionAiResultSchema,
@@ -89,8 +87,7 @@ function detectHeuristicInvalidInput(text: string): string | null {
 
 async function requestInputValidationFromAi(text: string, inputType: 'text' | 'speech') {
   // Die KI prüft hier nur, ob der Inhalt überhaupt medizinisch sinnvoll ist.
-  const completion = await aiClient.beta.chat.completions.parse({
-    model: env.aiModel,
+  return requestStructuredAiResponse({
     messages: [
       { role: 'system', content: symptomValidationInstructions },
       {
@@ -98,27 +95,15 @@ async function requestInputValidationFromAi(text: string, inputType: 'text' | 's
         content: `Input-Typ: ${inputType}\nFreitext: ${text}`,
       },
     ],
-    response_format: zodResponseFormat(
-      symptomInputValidationAiResultSchema,
-      'symptom_input_validation_result',
-    ),
+    schema: symptomInputValidationAiResultSchema,
+    schemaName: 'symptom_input_validation_result',
     temperature: 0,
   })
-
-  const parsed = completion.choices[0]?.message.parsed
-
-  if (!parsed) {
-    // Fehlende strukturierte Ausgabe wird als Integration-Fehler behandelt.
-    throw new Error('AI symptom input validation returned no structured result')
-  }
-
-  return parsed
 }
 
 async function requestSymptomsFromAi(text: string, inputType: 'text' | 'speech') {
   // Das model ist auf unsere feste Symptomtaxonomie beschränkt, so dass das Frontend die Ergebnis direkt verarbeiten kann.
-  const completion = await aiClient.beta.chat.completions.parse({
-    model: env.aiModel,
+  return requestStructuredAiResponse({
     messages: [
       { role: 'system', content: symptomExtractionInstructions },
       {
@@ -126,21 +111,10 @@ async function requestSymptomsFromAi(text: string, inputType: 'text' | 'speech')
         content: `Input-Typ: ${inputType}\nFreitext: ${text}`,
       },
     ],
-    response_format: zodResponseFormat(
-      symptomExtractionAiResultSchema,
-      'symptom_extraction_result',
-    ),
+    schema: symptomExtractionAiResultSchema,
+    schemaName: 'symptom_extraction_result',
     temperature: 0,
   })
-
-  const parsed = completion.choices[0]?.message.parsed
-
-  if (!parsed) {
-    // Fehlende strukturierte Ausgabe wird als Integration-Fehler behandelt.
-    throw new Error('AI symptom extraction returned no structured result')
-  }
-
-  return parsed
 }
 
 export async function extractSymptoms(
