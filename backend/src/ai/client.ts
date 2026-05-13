@@ -1,9 +1,10 @@
-import OpenAI from "openai";
-import{ env } from "../config/env.js"
+import OpenAI from 'openai'
+import { env } from '../config/env.js'
 
-const protocol = new URL(env.aiAPiUrl).protocol;
-if (protocol !== "http:" && protocol !== "https:") {
-  throw new Error("AI_API_URL must use HTTP or HTTPS.");
+const protocol = new URL(env.aiApiUrl).protocol
+
+if (protocol !== 'https:' && protocol !== 'http:') {
+  throw new Error('AI_API_URL must use HTTP or HTTPS')
 }
 
 export const aiClient = new OpenAI({
@@ -11,4 +12,4 @@ export const aiClient = new OpenAI({
   baseURL: env.aiApiUrl,
 })
 
-export const aiModel  = env.aiModel
+export const aiModel = env.aiModel
