@@ -3,10 +3,12 @@ import { useNavigate, useLocation } from "react-router";
 const pages = [
   { path: "/", name: "Symptome wählen" },
   { path: "/patient-data", name: "Stammdaten eingeben" },
+  { path: "/medical-data", name: "Medizinische Angaben" },
   { path: "/symptom-selection", name: "Beschwerden" },
   { path: "/symptom-details", name: "Details" },
   { path: "/result", name: "Auswertung" },
 ];
+
 
 export default function MobileNavigation() {
   const navigate = useNavigate();
