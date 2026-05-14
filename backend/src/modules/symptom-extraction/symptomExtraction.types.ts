@@ -10,7 +10,9 @@ export interface SelectedSymptom {
 
 // Typ für die Anfrage
 export interface SymptomExtractionRequest {
+  symptomText?: string
   text: string
+  input?: string
   inputType?: 'text' | 'speech'
 }
 
@@ -43,13 +45,15 @@ export const symptomInputValidationAiResultSchema = z.object({
   reason: z.string().min(1),
 })
 
+// Also ich habe hier symptomText hinzugefügt da wir das in TA1.4 haben wollen.
 export const symptomExtractionRequestSchema = z
   .object({
+    symptomText: z.string().trim().min(1).optional(),
     text: z.string().trim().min(1).optional(),
     input: z.string().trim().min(1).optional(),
     inputType: z.enum(['text', 'speech']).optional(),
   })
-  .refine((value) => Boolean(value.text ?? value.input), {
-    message: 'text is required',
-    path: ['text'],
+  .refine((value) => Boolean(value.symptomText ?? value.text ?? value.input), {
+    message: 'symptomText is required',
+    path: ['symptomText'],
   })
