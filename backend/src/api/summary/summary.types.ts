@@ -1,4 +1,11 @@
 import { z } from 'zod'
+import { medicalSpecialtySchema } from '../../modules/triage/triage.types.js'
+
+export const SummaryTriageSchema = z.object({
+  careLevel: z.enum(['emergency', 'doctor', 'selfcare']),
+  recommendedSpecialty: medicalSpecialtySchema,
+  reasons: z.array(z.string().min(1)).max(5),
+})
 
 export const SummaryRequestSchema = z.object({
   patient: z.object({
@@ -19,6 +26,8 @@ export const SummaryRequestSchema = z.object({
     progression: z.enum(['better', 'same', 'worse', 'unknown']).optional(),
   }),
 
+  triage: SummaryTriageSchema.optional(),
+
   context: z
     .object({
       language: z.enum(['de', 'en']).optional(),
@@ -32,29 +41,16 @@ export const SummaryRequestSchema = z.object({
 })
 
 export type SummaryRequest = z.infer<typeof SummaryRequestSchema>
-
-export type UrgencyLevel =
-  | 'emergency'
-  | 'urgent'
-  | 'soon'
-  | 'self_care'
-  | 'unknown'
+export type SummaryTriage = z.infer<typeof SummaryTriageSchema>
 
 export interface SummaryResponse {
   summaryId: string
-  urgencyLevel: UrgencyLevel
-  humanReviewRequired: boolean
+
+  triage?: SummaryTriage
 
   aiReviewSummary: {
     plainLanguage: string
     professionalSummary: string
-    detectedRedFlags: string[]
-    missingInformation: string[]
-  }
-
-  recommendation: {
-    nextStep: string
-    message: string
   }
 
   fhirPreview: {

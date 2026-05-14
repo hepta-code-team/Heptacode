@@ -26,9 +26,28 @@ export function createSummaryPdfBuffer(summary: SummaryResponse): Promise<Buffer
     doc.moveDown()
 
     doc.fontSize(12).text(`Summary-ID: ${summary.summaryId}`)
-    doc.text(`Dringlichkeitsstufe: ${summary.urgencyLevel}`)
-    doc.text(`Human Review erforderlich: ${summary.humanReviewRequired ? 'Ja' : 'Nein'}`)
     doc.moveDown()
+
+    if (summary.triage) {
+      doc.fontSize(16).text('Triage-Einstufung')
+      doc.moveDown(0.5)
+
+      doc.fontSize(12).text(`Care Level: ${formatCareLevel(summary.triage.careLevel)}`)
+      doc.text(`Empfohlene Fachrichtung: ${summary.triage.recommendedSpecialty}`)
+
+      doc.moveDown(0.5)
+      doc.text('Begründung:')
+
+      if (summary.triage.reasons.length > 0) {
+        summary.triage.reasons.forEach((reason) => {
+          doc.text(`- ${reason}`)
+        })
+      } else {
+        doc.text('- Keine Begründung übergeben.')
+      }
+
+      doc.moveDown()
+    }
 
     doc.fontSize(16).text('Laienverständliche Zusammenfassung')
     doc.moveDown(0.5)
@@ -44,38 +63,6 @@ export function createSummaryPdfBuffer(summary: SummaryResponse): Promise<Buffer
     })
     doc.moveDown()
 
-    doc.fontSize(16).text('Erkannte Warnsignale')
-    doc.moveDown(0.5)
-
-    if (summary.aiReviewSummary.detectedRedFlags.length > 0) {
-      summary.aiReviewSummary.detectedRedFlags.forEach((redFlag) => {
-        doc.fontSize(12).text(`- ${redFlag}`)
-      })
-    } else {
-      doc.fontSize(12).text('Keine Warnsignale erkannt.')
-    }
-
-    doc.moveDown()
-
-    doc.fontSize(16).text('Fehlende Informationen')
-    doc.moveDown(0.5)
-
-    if (summary.aiReviewSummary.missingInformation.length > 0) {
-      summary.aiReviewSummary.missingInformation.forEach((item) => {
-        doc.fontSize(12).text(`- ${item}`)
-      })
-    } else {
-      doc.fontSize(12).text('Keine fehlenden Informationen.')
-    }
-
-    doc.moveDown()
-
-    doc.fontSize(16).text('Empfehlung')
-    doc.moveDown(0.5)
-    doc.fontSize(12).text(`Nächster Schritt: ${summary.recommendation.nextStep}`)
-    doc.text(summary.recommendation.message)
-    doc.moveDown()
-
     doc.fontSize(16).text('FHIR-Hinweis')
     doc.moveDown(0.5)
     doc.fontSize(12).text(`Resource Type: ${summary.fhirPreview.resourceType}`)
@@ -89,4 +76,17 @@ export function createSummaryPdfBuffer(summary: SummaryResponse): Promise<Buffer
 
     doc.end()
   })
+}
+
+function formatCareLevel(careLevel: string): string {
+  switch (careLevel) {
+    case 'emergency':
+      return 'Notfallversorgung'
+    case 'doctor':
+      return 'ärztliche Abklärung'
+    case 'selfcare':
+      return 'Selbstversorgung'
+    default:
+      return careLevel
+  }
 }

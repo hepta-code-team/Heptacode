@@ -1,10 +1,9 @@
-import { buildApp } from './app.js'
 import { env } from './config/env.js'
 import Fastify from 'fastify'
 import cors from '@fastify/cors'
 import helmet from '@fastify/helmet'
 import { z } from 'zod'
-
+import { summaryRoutes } from './api/summary/summary.routes.js'
 
 const app = Fastify({ logger: true })
 
@@ -83,8 +82,12 @@ function getHighestCareLevel(levels: CareLevel[]): CareLevel {
 
 function buildReasons(careLevel: CareLevel, symptoms: Symptom[]) {
   const intenseSymptoms = symptoms.filter((symptom) => symptom.measurementValue >= 8)
-  const moderateSymptoms = symptoms.filter((symptom) => symptom.measurementValue >= 5 && symptom.measurementValue < 8)
-  const feverSymptoms = symptoms.filter((symptom) => symptom.measurementType === 'temperature' && symptom.measurementValue >= 39)
+  const moderateSymptoms = symptoms.filter(
+    (symptom) => symptom.measurementValue >= 5 && symptom.measurementValue < 8,
+  )
+  const feverSymptoms = symptoms.filter(
+    (symptom) => symptom.measurementType === 'temperature' && symptom.measurementValue >= 39,
+  )
 
   if (careLevel === 'emergency') {
     return [
@@ -111,7 +114,6 @@ function buildReasons(careLevel: CareLevel, symptoms: Symptom[]) {
     'Beobachten Sie den Verlauf und suchen Sie bei Verschlechterung medizinische Hilfe.',
   ]
 }
-
 
 // Routes
 app.get('/health', async () => ({ status: 'ok' }))
@@ -144,6 +146,9 @@ app.post('/assessments', async (request, reply) => {
     createdAt: new Date().toISOString(),
   })
 })
+
+// Summary Routes
+await app.register(summaryRoutes, { prefix: '/api/v1' })
 
 // Start
 try {
