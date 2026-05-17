@@ -8,6 +8,7 @@ import Button from "../components/Button";
 import { useAssessment } from "../lib/AssessmentContext";
 import { getMeasurementConfig } from "../features/symptoms/symptoms.constants";
 import type { Symptom } from "../types/assessment";
+import { handleSubmitAssessment } from "../features/symptoms/handleSubmitAssessment";
 
 export default function SymptomDetailsPage() {
   const navigate = useNavigate();
@@ -83,30 +84,15 @@ export default function SymptomDetailsPage() {
     setIsAddModalOpen(false);
   };
 
-  const handleContinue = async () => {
-    const activeSymptoms = symptomDetails.filter((symptom) => symptom.active);
-
-    if (activeSymptoms.some((symptom) => symptom.duration === "")) {
-      setShowValidationErrors(true);
-      return;
-    }
-
-    setSubmitError(null);
-    setIsSubmitting(true);
-
-    try {
-      await submitAssessment(activeSymptoms);
-      navigate("/result");
-    } catch (error) {
-      setSubmitError(
-        error instanceof Error
-          ? error.message
-          : "Die Daten konnten nicht an das Backend gesendet werden.",
-      );
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
+  const handleContinue = () =>
+  handleSubmitAssessment({
+    symptomDetails,
+    submitAssessment,
+    navigate,
+    setShowValidationErrors,
+    setSubmitError,
+    setIsSubmitting,
+  });
 
   const activeSymptomDetails = symptomDetails.filter((symptom) => symptom.active);
   const canContinue = activeSymptomDetails.length > 0 && activeSymptomDetails.every((symptom) => {
