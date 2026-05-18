@@ -52,22 +52,25 @@ function createProfessionalSummary(data: SummaryRequest): string {
   const { patient, symptoms, triage } = data
 
   const patientLines = [
-    'Patientendaten:',
-    `Alter: ${patient.age}`,
-    `Geschlecht: ${patient.sex}`,
-    patient.pregnant !== undefined
-      ? `Schwangerschaft: ${patient.pregnant ? 'ja' : 'nein'}`
-      : null,
-    patient.knownConditions?.length
-      ? `Vorerkrankungen: ${patient.knownConditions.join(', ')}`
-      : 'Vorerkrankungen: keine Angabe',
-    patient.medications?.length
-      ? `Medikation: ${patient.medications.join(', ')}`
-      : 'Medikation: keine Angabe',
-    patient.allergies?.length
-      ? `Allergien: ${patient.allergies.join(', ')}`
-      : 'Allergien: keine Angabe',
-  ]
+  'Patientendaten:',
+  `Alter: ${patient.age}`,
+  `Geschlecht: ${patient.sex}`,
+  patient.pregnant !== undefined
+    ? `Schwangerschaft: ${patient.pregnant ? 'ja' : 'nein'}`
+    : null,
+  patient.breastfeeding !== undefined
+    ? `Stillend: ${patient.breastfeeding ? 'ja' : 'nein'}`
+    : null,
+  patient.knownConditions?.length
+    ? `Vorerkrankungen: ${patient.knownConditions.join(', ')}`
+    : 'Vorerkrankungen: keine Angabe',
+  patient.medications?.length
+    ? `Medikation: ${patient.medications.join(', ')}`
+    : 'Medikation: keine Angabe',
+  patient.allergies?.length
+    ? `Allergien: ${patient.allergies.join(', ')}`
+    : 'Allergien: keine Angabe',
+]
 
   const symptomLines = [
     '',
@@ -109,6 +112,8 @@ function formatCareLevel(careLevel: SummaryTriage['careLevel']): string {
       return 'Notfallversorgung'
     case 'doctor':
       return 'ärztliche Abklärung'
+    case 'specialist':
+      return 'fachärztliche Abklärung'
     case 'selfcare':
       return 'Selbstversorgung'
     default:

@@ -2,7 +2,7 @@ import { z } from 'zod'
 import { medicalSpecialtySchema } from '../../modules/triage/triage.types.js'
 
 export const SummaryTriageSchema = z.object({
-  careLevel: z.enum(['emergency', 'doctor', 'selfcare']),
+  careLevel: z.enum(['emergency', 'doctor', 'specialist', 'selfcare']),
   recommendedSpecialty: medicalSpecialtySchema,
   reasons: z.array(z.string().min(1)).max(5),
 })
@@ -10,8 +10,9 @@ export const SummaryTriageSchema = z.object({
 export const SummaryRequestSchema = z.object({
   patient: z.object({
     age: z.number().int().min(0).max(120),
-    sex: z.enum(['female', 'male', 'diverse', 'unknown']),
+    sex: z.enum(['female', 'male']),
     pregnant: z.boolean().optional(),
+    breastfeeding: z.boolean().optional(),
     knownConditions: z.array(z.string()).optional(),
     medications: z.array(z.string()).optional(),
     allergies: z.array(z.string()).optional(),

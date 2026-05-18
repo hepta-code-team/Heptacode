@@ -1,7 +1,9 @@
-import { getSummaryById } from './summary.service'
-import { createSummaryPdfBuffer } from './summary.pdf.service'
 import type { FastifyReply, FastifyRequest } from 'fastify'
-import { createSummaryService } from './summary.service.js'
+import {
+  createSummaryService,
+  getSummaryById,
+} from './summary.service.js'
+import { createSummaryPdfBuffer } from './summary.pdf.service.js'
 import { SummaryRequestSchema } from './summary.types.js'
 
 export async function createSummaryController(
@@ -44,6 +46,7 @@ export async function createSummaryController(
     })
   }
 }
+
 export async function downloadSummaryPdfController(
   request: FastifyRequest,
   reply: FastifyReply
