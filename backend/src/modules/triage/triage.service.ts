@@ -5,7 +5,6 @@ import type {
   CareLevel,
   MedicalSpecialty,
   PatientData,
-  ReviewSummary,
   TriageResponse,
   TriageSymptom,
 } from './triage.types.js'
@@ -26,30 +25,6 @@ const DURATION_LABELS: Record<NonNullable<TriageSymptom['duration']>, string> = 
   weeks: 'Seit mehr als 2 Wochen',
 }
 
-<<<<<<< HEAD
-// Prompt von ChatGPT erstellt:
-// Die KI waehlt Versorgungsangebot, Begruendungen und Review Summary.
-// Die erlaubten Werte werden zusaetzlich ueber Zod validiert.
-const triageInstructions = [
-  'Du bewertest strukturierte medizinische Angaben und ordnest sie genau einer Versorgungsebene zu.',
-  'Erlaubte careLevel-Werte sind ausschliesslich: emergency, doctor, specialist, selfcare.',
-  `Erlaubte recommendedSpecialty-Werte sind ausschliesslich: ${medicalSpecialtySchema.options.join(', ')}.`,
-  'Waehle recommendedSpecialty selbst passend zu den Angaben aus.',
-  'home_care steht fuer haeusliche Versorgung.',
-  'emergency_medicine steht fuer Notfallversorgung.',
-  'general_practice steht fuer hausärztliche Abklärung.',
-  'Alle anderen medizinischen Fachrichtungen stehen fuer fachärztliche Abklärung.',
-  'careLevel muss zur Empfehlung passen: emergency_medicine -> emergency, home_care -> selfcare, general_practice -> doctor, alle anderen Fachrichtungen -> specialist.',
-  'Beruecksichtige die uebergebenen Symptome, optionale Schmerzintensitaeten, Dauern und die Stammdaten.',
-  'Handle sicherheitsorientiert. Bei klaren Warnzeichen oder hohem Risiko waehle die hoehere Versorgungsebene.',
-  'Gib kurze, konkrete Begruendungen auf Deutsch zurueck.',
-  'Erstelle zusaetzlich eine reviewSummary mit plainLanguage und professionalSummary.',
-  'plainLanguage soll fuer Patientinnen und Patienten leicht verständlich sein.',
-  'professionalSummary soll medizinisch strukturiert formuliert sein.',
-  'Erfinde keine zusaetzlichen Symptome oder Stammdaten.',
-].join('\n')
-=======
->>>>>>> dev
 
 // Funktion um die Patientendaten fuer die KI zu formatieren
 function formatPatientData(patientData?: PatientData): string {
@@ -117,66 +92,13 @@ function ensureConsistentCareLevel(result: TriageResponse): TriageResponse {
   }
 }
 
-function formatCareLevel(careLevel: CareLevel): string {
-  switch (careLevel) {
-    case 'emergency':
-      return 'Notfallversorgung'
-    case 'doctor':
-      return 'hausärztliche Abklärung'
-    case 'specialist':
-      return 'fachärztliche Abklärung'
-    case 'selfcare':
-      return 'Selbstversorgung'
-    default:
-      return careLevel
-  }
-}
-
-function createFallbackReviewSummary(
-  patientData: PatientData | undefined,
-  symptoms: TriageSymptom[],
-  result: Pick<TriageResponse, 'careLevel' | 'recommendedSpecialty' | 'reasons'>,
-): ReviewSummary {
-  const symptomText =
-    symptoms.length > 0
-      ? formatSymptoms(symptoms)
-      : 'Keine konkreten Symptome uebergeben.'
-
-  const patientText = patientData
-    ? formatPatientData(patientData)
-    : 'Keine Stammdaten uebergeben.'
-
-  return {
-    plainLanguage: `Die Angaben wurden ausgewertet. Die empfohlene Versorgungsebene ist: ${formatCareLevel(result.careLevel)}. Die empfohlene Fachrichtung ist: ${result.recommendedSpecialty}.`,
-    professionalSummary: [
-      'Patientendaten:',
-      patientText,
-      '',
-      'Beschwerden:',
-      symptomText,
-      '',
-      'Triage-Einstufung:',
-      `Care Level: ${formatCareLevel(result.careLevel)}`,
-      `Empfohlene Fachrichtung: ${result.recommendedSpecialty}`,
-      result.reasons.length > 0
-        ? `Begründungen: ${result.reasons.join('; ')}`
-        : 'Begründungen: keine Angabe',
-    ].join('\n'),
-  }
-}
-
 // Funktion um Versorgungsebene, Fachrichtung und Review Summary vom AI zu requesten
 async function requestTriageFromAi(
   patientData: PatientData | undefined,
   symptoms: TriageSymptom[],
 ): Promise<TriageResponse> {
-<<<<<<< HEAD
-  const completion = await aiClient.beta.chat.completions.parse({
-    model: env.aiModel,
-=======
   // Die KI erhaelt bereits strukturierte Eingaben und muss eine validierbare JSON-Antwort liefern.
   const parsed = await requestStructuredAiResponse({
->>>>>>> dev
     messages: [
       { role: 'system', content: triageInstructions },
       {
@@ -198,19 +120,6 @@ async function requestTriageFromAi(
   return ensureConsistentCareLevel(parsed)
 }
 
-<<<<<<< HEAD
-  if (!parsed) {
-    throw new Error('AI triage returned no structured result')
-  }
-
-  const consistentResult = ensureConsistentCareLevel(parsed)
-
-  return {
-    ...consistentResult,
-    reviewSummary:
-      consistentResult.reviewSummary ??
-      createFallbackReviewSummary(patientData, symptoms, consistentResult),
-=======
 // Fallback fuer strukturierte Symptome: Ohne KI wird anhand der staerksten Schmerzangabe entschieden.
 // Der Fallback ist bewusst vorsichtig, damit im Zweifel eher aerztlich abgeklaert wird.
 function createFallbackTriage(symptoms: TriageSymptom[]): TriageResponse {
@@ -279,7 +188,6 @@ async function requestTriageWithFallback(
     }
 
     return createFallbackTriage(symptoms)
->>>>>>> dev
   }
 }
 
@@ -338,12 +246,12 @@ export async function evaluateTriage(
           'Keine Symptome uebergeben. Care Level: Selbstversorgung. Empfohlene Fachrichtung: home_care.',
       },
     }
+      return requestTriageFromAi(patientData, triageSymptoms)
   }
 
-<<<<<<< HEAD
-  return requestTriageFromAi(patientData, triageSymptoms)
+return requestTriageWithFallback(patientData, triageSymptoms)
+  
+
 }
-=======
-  return requestTriageWithFallback(patientData, triageSymptoms)
-}
->>>>>>> dev
+
+
