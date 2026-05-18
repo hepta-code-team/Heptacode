@@ -2,7 +2,7 @@ import type { Symptom } from "../../types/assessment";
 
 type HandleSubmitAssessmentArgs = {
   symptomDetails: Symptom[];
-  submitAssessment: (symptoms: Symptom[]) => Promise<void>;
+  submitAssessment: (symptoms: Symptom[]) => Promise<unknown>;
   navigate: (path: string) => void;
   setShowValidationErrors: (value: boolean) => void;
   setSubmitError: (value: string | null) => void;
