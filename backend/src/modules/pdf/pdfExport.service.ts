@@ -1,10 +1,6 @@
-import type {
-  PdfExportRequest,
-  PdfExportResult,
-  PdfSection,
-  PdfTriageResult,
-} from './pdf.types.js'
-import type { PatientData, TriageSymptom } from '../triage/triage.types.js'
+import type { PatientData } from '../../../../shared/patientData.types.js'
+import type { TriageSymptom } from '../../../../shared/symptom.types.js'
+import type { PdfExportRequest, PdfExportResult, PdfSection, PdfTriageResult } from './pdf.types.js'
 
 const DURATION_LABELS: Record<string, string> = {
   today: 'Seit heute',

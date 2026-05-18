@@ -1,15 +1,8 @@
 import { z } from 'zod'
-import {
-  medicalSpecialtySchema,
-  patientDataSchema,
-  reviewSummarySchema,
-  triageSymptomSchema,
-  type CareLevel,
-  type MedicalSpecialty,
-  type PatientData,
-  type ReviewSummary,
-  type TriageSymptom,
-} from '../triage/triage.types.js'
+import { patientDataSchema, triageSymptomSchema, reviewSummarySchema, medicalSpecialtySchema } from '../triage/triage.types.js'
+import type { PatientData } from '../../../../shared/patientData.types.js'
+import type { TriageSymptom } from '../../../../shared/symptom.types.js'
+import type { CareLevel, MedicalSpecialty, ReviewSummary } from '../triage/triage.types.js'
 
 export interface PdfSection {
   title: string

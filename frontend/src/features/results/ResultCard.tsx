@@ -1,4 +1,4 @@
-import type { ResultConfig } from "./result.types";
+import type { ResultConfig } from "../../../../shared/result.types";
 
 type ResultCardConfig = ResultConfig & {
   titleSupplement?: string;

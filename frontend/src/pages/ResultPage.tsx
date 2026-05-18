@@ -22,14 +22,16 @@ export default function ResultPage() {
   const getSymptomCareLevel = (symptom: Symptom): CareLevel => {
     const config = getMeasurementConfig(symptom.region, symptom.side);
 
+    const value = symptom.painLevel ?? 0;
+
     if (config.type === "temperature") {
-      if (symptom.measurementValue >= 40 && isMultipleDays(symptom.duration)) return "emergency";
-      if (symptom.measurementValue >= 39) return "doctor";
+      if (symptom.duration && value >= 40 && isMultipleDays(symptom.duration)) return "emergency";
+      if (value >= 39) return "doctor";
       return "selfcare";
     }
 
-    if (symptom.measurementValue >= 8) return "emergency";
-    if (symptom.measurementValue >= 5) return "doctor";
+    if (value >= 8) return "emergency";
+    if (value >= 5) return "doctor";
     return "selfcare";
   };
 
@@ -46,15 +48,11 @@ export default function ResultPage() {
     return getHighestCareLevel(symptomDetails.map(getSymptomCareLevel));
   };
 
-<<<<<<< HEAD
-  const careLevel = assessmentResult?.careLevel ?? calculateCareLevel();
-  const config = TRIAGE_CONFIGS[careLevel];
-=======
+
   const careLevel = calculateCareLevel();
   const specialtyParam = searchParams.get("specialty");
   const recommendedSpecialty = isMedicalSpecialty(specialtyParam) ? specialtyParam : null;
   const config = recommendedSpecialty ? createSpecialtyConfig(recommendedSpecialty) : TRIAGE_CONFIGS[careLevel];
->>>>>>> dev
   const callAction =
     careLevel === "emergency"
       ? { href: "tel:112", label: "112 anrufen", description: "Notruf" }
@@ -73,12 +71,13 @@ export default function ResultPage() {
 
   const getMeasurementSummary = (symptom: Symptom) => {
     const config = getMeasurementConfig(symptom.region, symptom.side);
+    const value = symptom.painLevel ?? 0;
 
     if (config.type === "temperature") {
-      return `${config.title} ${symptom.measurementValue.toFixed(1)} ${config.unit}`;
+      return `${config.title} ${value.toFixed(1)} ${config.unit}`;
     }
 
-    return `${config.title} ${symptom.measurementValue}/10`;
+    return `${config.title} ${value}/10`;
   };
 
   return (
@@ -112,7 +111,7 @@ export default function ResultPage() {
           Begründung
         </p>
         <ul className="space-y-1.5">
-<<<<<<< HEAD
+
           {(assessmentResult?.reasons?.length
             ? assessmentResult.reasons
             : [
@@ -128,7 +127,7 @@ export default function ResultPage() {
               • {reason}
             </li>
           ))}
-=======
+
           <li
             className="font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-body text-sm leading-relaxed"
             style={{ fontVariationSettings: "'opsz' 14" }}
@@ -141,7 +140,6 @@ export default function ResultPage() {
           >
             • Die Dauer und Intensität Ihrer Beschwerden sollten ärztlich abgeklärt werden
           </li>
->>>>>>> dev
         </ul>
       </div>
 
