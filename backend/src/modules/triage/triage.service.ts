@@ -7,7 +7,8 @@ import type {
   TriageResponse,
   TriageSymptom,
 } from './triage.types.js'
-import { medicalSpecialtySchema, triageAiResultSchema } from './triage.types.js'
+import { triageAiResultSchema } from './triage.types.js'
+import { triageInstructions } from '../prompt/triage.prompt.js'
 
 function createBadRequestError(message: string): Error & { statusCode: number } {
   const error = new Error(message) as Error & { statusCode: number }
@@ -23,20 +24,6 @@ const DURATION_LABELS: Record<NonNullable<TriageSymptom['duration']>, string> = 
   weeks: 'Seit mehr als 2 Wochen',
 }
 
-// Prompt von ChatGPT erstellt:
-// Die KI waehlt Versorgungsangebot und Begruendungen.
-// Die erlaubten Werte werden zusaetzlich ueber Zod validiert.
-const triageInstructions = [
-  'Du bewertest strukturierte medizinische Angaben und ordnest sie genau einer Versorgungsebene zu.',
-  'Erlaubte careLevel-Werte sind ausschliesslich: emergency, doctor, selfcare.',
-  `Erlaubte recommendedSpecialty-Werte sind ausschliesslich: ${medicalSpecialtySchema.options.join(', ')}.`,
-  'Waehle recommendedSpecialty selbst passend zu den Angaben aus; home_care steht fuer haeusliche Versorgung.',
-  'careLevel muss zur Empfehlung passen: emergency_medicine -> emergency, home_care -> selfcare, alle anderen Empfehlungen -> doctor.',
-  'Beruecksichtige die uebergebenen Symptome, optionale Schmerzintensitaeten, Dauern und die Stammdaten.',
-  'Handle sicherheitsorientiert. Bei klaren Warnzeichen oder hohem Risiko waehle die hoehere Versorgungsebene.',
-  'Gib kurze, konkrete Begruendungen auf Deutsch zurueck.',
-  'Erfinde keine zusaetzlichen Symptome oder Stammdaten.',
-].join('\n')
 
 // Funktion um die Patientendaten fuer die KI zu formatieren
 function formatPatientData(patientData?: PatientData): string {
