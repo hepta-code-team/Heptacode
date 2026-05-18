@@ -5,6 +5,7 @@ import { symptomExtractionRequestSchema } from '../modules/symptom-extraction/sy
 export const symptomExtractionRoutes: FastifyPluginAsync = async (app) => {
   app.post('/api/v1/symptoms/extraction', async (request, reply) => {
     const body = symptomExtractionRequestSchema.parse(request.body)
+<<<<<<< HEAD
 
     const result = await extractSymptoms(
       body.text ?? body.input ?? '',
@@ -12,5 +13,9 @@ export const symptomExtractionRoutes: FastifyPluginAsync = async (app) => {
     )
 
     return reply.send(result)
+=======
+    const result = await extractSymptoms(body.symptomText ?? body.text ?? body.input ?? '', body.inputType)
+    void reply.send(result)
+>>>>>>> dev
   })
 }

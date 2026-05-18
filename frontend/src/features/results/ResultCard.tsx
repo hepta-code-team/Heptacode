@@ -1,7 +1,11 @@
 import type { ResultConfig } from "./result.types";
 
+type ResultCardConfig = ResultConfig & {
+  titleSupplement?: string;
+};
+
 interface ResultCardProps {
-  config: ResultConfig;
+  config: ResultCardConfig;
 }
 
 export default function ResultCard({ config }: ResultCardProps) {
@@ -27,6 +31,11 @@ export default function ResultCard({ config }: ResultCardProps) {
           style={{ fontVariationSettings: "'opsz' 14", color: config.color }}
         >
           {config.title}
+          {config.titleSupplement && (
+            <span className="block font-['DM_Sans:Medium',sans-serif] font-light">
+              {" "}({config.titleSupplement})
+            </span>
+          )}
         </p>
       </div>
 

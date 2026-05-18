@@ -71,7 +71,12 @@ export interface TriageResponse {
   careLevel: CareLevel
   recommendedSpecialty: MedicalSpecialty
   reasons: string[]
+<<<<<<< HEAD
   reviewSummary?: ReviewSummary
+=======
+  // TA 1.8: true bedeutet, dass die Empfehlung aus dem definierten Fallback kommt.
+  aiUnavailable?: boolean
+>>>>>>> dev
 }
 
 // Schema für die Patientendaten

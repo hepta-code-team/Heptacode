@@ -1,74 +1,38 @@
+import { zodResponseFormat } from 'openai/helpers/zod'
+import type { ChatCompletionMessageParam } from 'openai/resources/chat/completions'
+import type { z } from 'zod'
 import { aiClient, aiModel } from './client.js'
-import type {
-  ReviewSummaryInput,
-  ReviewSummaryResult,
-  SymptomExtractionResult,
-} from './types.js'
+import { AI_REQUEST_OPTIONS, AiResponseError } from './timeout.js'
 
-function readAiText(content: unknown): string {
-  if (typeof content === 'string') {
-    return content
-  }
-
-  return ''
+type StructuredAiRequest<TSchema extends z.ZodTypeAny> = {
+  messages: ChatCompletionMessageParam[]
+  schema: TSchema
+  schemaName: string
+  temperature?: number
 }
 
-// Funktion schon in symptomExtraction.service.ts verwendet (überflüssig)
-export async function extractSymptoms(
-  symptomText: string,
-): Promise<SymptomExtractionResult> {
-  const response = await aiClient.chat.completions.create({
-    model: aiModel,
-    temperature: 0,
-    messages: [
-      {
-        role: 'system',
-        // TODO(TA2): Das Prompting spaeter durch ein finales Prompt-Template ersetzen.
-        content:
-          'Du bist ein deutschsprachiger medizinischer Assistent. Extrahiere die Symptome aus dem Patiententext. Antworte auf Deutsch.',
-      },
-      {
-        role: 'user',
-        content: symptomText,
-      },
-    ],
-  })
+// Funktion um strukturierte Antworten von der KI zu erhalten, basierend auf einem bereitgestellten Zod-Schema.
+export async function requestStructuredAiResponse<TSchema extends z.ZodTypeAny>({
+  messages,
+  schema,
+  schemaName,
+  temperature = 0.2,
+}: StructuredAiRequest<TSchema>): Promise<z.infer<TSchema>> {
+  const completion = await aiClient.beta.chat.completions.parse(
+    {
+      model: aiModel,
+      messages,
+      response_format: zodResponseFormat(schema, schemaName),
+      temperature,
+    },
+    AI_REQUEST_OPTIONS,
+  )
 
-  const rawText = readAiText(response.choices[0]?.message?.content)
+  const parsed = completion.choices[0]?.message.parsed
 
-  if (!rawText) {
-    throw new Error('AI returned an empty symptom extraction response')
+  if (!parsed) {
+    throw new AiResponseError(`AI returned no structured result for ${schemaName}`)
   }
 
-  // TODO(TA2): Die rohe KI-Antwort spaeter strukturiert parsen und validieren.
-  return { rawText }
-}
-
-export async function generateReviewSummary(
-  input: ReviewSummaryInput,
-): Promise<ReviewSummaryResult> {
-  const response = await aiClient.chat.completions.create({
-    model: aiModel,
-    temperature: 0,
-    messages: [
-      {
-        role: 'system',
-        // TODO(TA2): Spaeter durch ein finales Review-Summary-Prompt-Template ersetzen.
-        content:
-          'Du bist ein deutschsprachiger medizinischer Assistent. Erstelle eine kurze Review Summary fuer medizinisches Fachpersonal.',
-      },
-      {
-        role: 'user',
-        content: JSON.stringify(input),
-      },
-    ],
-  })
-
-  const summaryText = readAiText(response.choices[0]?.message?.content)
-
-  if (!summaryText) {
-    throw new Error('AI returned an empty review summary response')
-  }
-
-  return { summaryText }
+  return parsed
 }

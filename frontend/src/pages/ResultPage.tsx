@@ -3,7 +3,7 @@ import { PhoneCall } from "lucide-react";
 import PageShell from "../components/PageShell";
 import ResultCard from "../features/results/ResultCard";
 import Button from "../components/Button";
-import { TRIAGE_CONFIGS } from "../types/triage";
+import { createSpecialtyConfig, isMedicalSpecialty, TRIAGE_CONFIGS } from "../types/triage";
 import { useAssessment } from "../lib/AssessmentContext";
 import type { CareLevel } from "../types/triage";
 import { DURATIONS, getMeasurementConfig } from "../features/symptoms/symptoms.constants";
@@ -46,8 +46,15 @@ export default function ResultPage() {
     return getHighestCareLevel(symptomDetails.map(getSymptomCareLevel));
   };
 
+<<<<<<< HEAD
   const careLevel = assessmentResult?.careLevel ?? calculateCareLevel();
   const config = TRIAGE_CONFIGS[careLevel];
+=======
+  const careLevel = calculateCareLevel();
+  const specialtyParam = searchParams.get("specialty");
+  const recommendedSpecialty = isMedicalSpecialty(specialtyParam) ? specialtyParam : null;
+  const config = recommendedSpecialty ? createSpecialtyConfig(recommendedSpecialty) : TRIAGE_CONFIGS[careLevel];
+>>>>>>> dev
   const callAction =
     careLevel === "emergency"
       ? { href: "tel:112", label: "112 anrufen", description: "Notruf" }
@@ -105,6 +112,7 @@ export default function ResultPage() {
           Begründung
         </p>
         <ul className="space-y-1.5">
+<<<<<<< HEAD
           {(assessmentResult?.reasons?.length
             ? assessmentResult.reasons
             : [
@@ -120,6 +128,20 @@ export default function ResultPage() {
               • {reason}
             </li>
           ))}
+=======
+          <li
+            className="font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-body text-sm leading-relaxed"
+            style={{ fontVariationSettings: "'opsz' 14" }}
+          >
+            • Ihre Symptome deuten auf eine behandlungsbedürftige Erkrankung hin
+          </li>
+          <li
+            className="font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-body text-sm leading-relaxed"
+            style={{ fontVariationSettings: "'opsz' 14" }}
+          >
+            • Die Dauer und Intensität Ihrer Beschwerden sollten ärztlich abgeklärt werden
+          </li>
+>>>>>>> dev
         </ul>
       </div>
 

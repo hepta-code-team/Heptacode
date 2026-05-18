@@ -1,44 +1,15 @@
-import { zodResponseFormat } from 'openai/helpers/zod'
-import { aiClient } from '../../ai/client.js'
-import { env } from '../../config/env.js'
+import { requestStructuredAiResponse } from '../../ai/llmAdapter.js'
+import { isAiRequestError } from '../../ai/timeout.js'
 import type { SymptomExtractionResponse } from './symptomExtraction.types.js'
 import {
   symptomExtractionAiResultSchema,
   symptomInputValidationAiResultSchema,
 } from './symptomExtraction.types.js'
+import {
+  symptomExtractionInstructions,
+  symptomValidationInstructions,
+} from '../prompt/symptomExtraction.prompt.js'
 
-const symptomExtractionInstructions = [
-  //Prompt von ChatGPT erstellt:
-  'Du extrahierst aus deutschem medizinischem Freitext bis zu drei Beschwerden in Erwähnungsreihenfolge.',
-  'Gib ausschließlich Beschwerden zurück, die auf die vorhandenen Frontend-Optionen passen.',
-  'Wenn im Text eine Schmerzintensität genannt wird, gib sie als painLevel mit einer ganzen Zahl von 1 bis 10 zurück.',
-  'Wenn keine Schmerzintensität genannt wird oder die Beschwerde keine Schmerzangabe hat, lasse painLevel weg.',
-  'Wenn im Text eine Dauer genannt wird, gib sie als duration mit genau einer dieser vier Optionen zurück: today, days, week, weeks.',
-  'Ordne die Dauer so zu: today = Seit heute, days = Seit ein paar Tagen, week = Seit einer Woche, weeks = Seit mehr als 2 Wochen.',
-  'Wenn keine Dauer genannt wird oder sie nicht sicher zuordenbar ist, lasse duration weg.',
-  'Verwende nur diese Regionen: Kopf, Brust, Rücken, Arme, Bauch, Beine, Verbrennung, Allgemein, Psychische Probleme.',
-  'Verwende nur diese Seiten/Unteroptionen, wenn sie eindeutig genannt oder sicher ableitbar sind:',
-  'Kopf: Stirn, Schläfen, Hinterkopf, Gesicht.',
-  'Brust: Brustmitte, Linksseitig, Rechtsseitig, Rippen, Atemabhängig.',
-  'Rücken: Nacken, Oberer Rücken, Mittlerer Rücken, Unterer Rücken, Steißbein.',
-  'Arme: Schulter, Oberarm, Ellenbogen, Unterarm, Hand/Handgelenk, Finger.',
-  'Bauch: Oberbauch, Unterbauch, Rechts oben, Rechts unten, Links oben, Links unten.',
-  'Beine: Hüfte, Oberschenkel, Knie, Wade, Fuß/Knöchel, Zehen.',
-  'Verbrennung: Große Fläche, Kleine Fläche, Blasenbildung.',
-  'Allgemein: Fieber, Übelkeit/Schwindel, Schwäche, Verwirrtheit.',
-  'Psychische Probleme: Angst/Panik, Suizidgedanken, Niedergeschlagenheit.',
-  'Wenn keine Unteroption sicher ist, gib nur die Region zurück.',
-  'Übernimm keine Dauer, Temperatur oder andere Messwerte in painLevel.',
-  'Erfinde nichts. Wenn kein passendes Symptom erkennbar ist, gib eine leere Liste zurück.',
-].join('\n')
-
-const symptomValidationInstructions = [
-  //Prompt von ChatGPT erstellt:
-  'Du bewertest, ob ein deutscher Freitext eine sinnvolle medizinische Beschreibung von Beschwerden enthält.',
-  'Ungültig sind insbesondere Buchstabensalat, Songtexte, Gedichte, themenfremde Fragen, allgemeiner Smalltalk und sonstige nicht-medizinische Inhalte.',
-  'Gültig sind Texte, die erkennbare gesundheitliche Beschwerden, Symptome oder relevante medizinische Kontexte beschreiben.',
-  'Antworte nur mit dem vorgegebenen JSON-Format.',
-].join('\n')
 
 function normalizeText(value: string): string {
   return value
@@ -89,8 +60,7 @@ function detectHeuristicInvalidInput(text: string): string | null {
 
 async function requestInputValidationFromAi(text: string, inputType: 'text' | 'speech') {
   // Die KI prüft hier nur, ob der Inhalt überhaupt medizinisch sinnvoll ist.
-  const completion = await aiClient.beta.chat.completions.parse({
-    model: env.aiModel,
+  return requestStructuredAiResponse({
     messages: [
       { role: 'system', content: symptomValidationInstructions },
       {
@@ -98,27 +68,15 @@ async function requestInputValidationFromAi(text: string, inputType: 'text' | 's
         content: `Input-Typ: ${inputType}\nFreitext: ${text}`,
       },
     ],
-    response_format: zodResponseFormat(
-      symptomInputValidationAiResultSchema,
-      'symptom_input_validation_result',
-    ),
+    schema: symptomInputValidationAiResultSchema,
+    schemaName: 'symptom_input_validation_result',
     temperature: 0,
   })
-
-  const parsed = completion.choices[0]?.message.parsed
-
-  if (!parsed) {
-    // Fehlende strukturierte Ausgabe wird als Integration-Fehler behandelt.
-    throw new Error('AI symptom input validation returned no structured result')
-  }
-
-  return parsed
 }
 
 async function requestSymptomsFromAi(text: string, inputType: 'text' | 'speech') {
   // Das model ist auf unsere feste Symptomtaxonomie beschränkt, so dass das Frontend die Ergebnis direkt verarbeiten kann.
-  const completion = await aiClient.beta.chat.completions.parse({
-    model: env.aiModel,
+  return requestStructuredAiResponse({
     messages: [
       { role: 'system', content: symptomExtractionInstructions },
       {
@@ -126,21 +84,10 @@ async function requestSymptomsFromAi(text: string, inputType: 'text' | 'speech')
         content: `Input-Typ: ${inputType}\nFreitext: ${text}`,
       },
     ],
-    response_format: zodResponseFormat(
-      symptomExtractionAiResultSchema,
-      'symptom_extraction_result',
-    ),
+    schema: symptomExtractionAiResultSchema,
+    schemaName: 'symptom_extraction_result',
     temperature: 0,
   })
-
-  const parsed = completion.choices[0]?.message.parsed
-
-  if (!parsed) {
-    // Fehlende strukturierte Ausgabe wird als Integration-Fehler behandelt.
-    throw new Error('AI symptom extraction returned no structured result')
-  }
-
-  return parsed
 }
 
 export async function extractSymptoms(
@@ -159,9 +106,18 @@ export async function extractSymptoms(
     }
   }
 
-  const validationResult = await requestInputValidationFromAi(text, inputType)
+  let validationResult: Awaited<ReturnType<typeof requestInputValidationFromAi>> | null = null
 
-  if (!validationResult.isValidMedicalInput) {
+  try {
+    validationResult = await requestInputValidationFromAi(text, inputType)
+  } catch (error) {
+    // TA 1.8: Wenn nur die Validierungs-KI ausfaellt, versuchen wir trotzdem die Extraktion.
+    if (!isAiRequestError(error)) {
+      throw error
+    }
+  }
+
+  if (validationResult && !validationResult.isValidMedicalInput) {
     return {
       text,
       inputType,
@@ -171,7 +127,24 @@ export async function extractSymptoms(
     }
   }
 
-  const result = await requestSymptomsFromAi(text, inputType)
+  let result: Awaited<ReturnType<typeof requestSymptomsFromAi>>
+
+  try {
+    result = await requestSymptomsFromAi(text, inputType)
+  } catch (error) {
+    // TA 1.8: Wenn die Extraktion ausfaellt, antwortet die API kontrolliert statt mit 500.
+    if (!isAiRequestError(error)) {
+      throw error
+    }
+
+    return {
+      text,
+      inputType,
+      symptoms: [],
+      aiUnavailable: true,
+      message: 'Die KI-Auswertung ist aktuell nicht verfuegbar. Bitte versuchen Sie es erneut oder waehlen Sie Symptome manuell aus.',
+    }
+  }
 
   return {
     text,
