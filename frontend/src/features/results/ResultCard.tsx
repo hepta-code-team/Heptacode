@@ -1,7 +1,11 @@
 import type { ResultConfig } from "./result.types";
 
+type ResultCardConfig = ResultConfig & {
+  titleSupplement?: string;
+};
+
 interface ResultCardProps {
-  config: ResultConfig;
+  config: ResultCardConfig;
 }
 
 export default function ResultCard({ config }: ResultCardProps) {
@@ -16,7 +20,7 @@ export default function ResultCard({ config }: ResultCardProps) {
           style={{ backgroundColor: config.color }}
         >
           <p
-            className="font-['DM_Sans:Bold',sans-serif] font-bold text-white text-xl"
+            className="font-['DM_Sans:Bold',sans-serif] font-bold text-app-text-on-primary text-xl"
             style={{ fontVariationSettings: "'opsz' 14" }}
           >
             !
@@ -27,11 +31,16 @@ export default function ResultCard({ config }: ResultCardProps) {
           style={{ fontVariationSettings: "'opsz' 14", color: config.color }}
         >
           {config.title}
+          {config.titleSupplement && (
+            <span className="block font-['DM_Sans:Medium',sans-serif] font-light">
+              {" "}({config.titleSupplement})
+            </span>
+          )}
         </p>
       </div>
 
       <p
-        className="font-['DM_Sans:Medium',sans-serif] font-medium text-[#3e3e3e] text-sm md:text-base leading-relaxed"
+        className="font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-body text-sm md:text-base leading-relaxed"
         style={{ fontVariationSettings: "'opsz' 14" }}
       >
         {config.description}

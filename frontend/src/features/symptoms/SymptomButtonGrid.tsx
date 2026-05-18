@@ -123,19 +123,19 @@ export default function SymptomButtonGrid({
               />
             )}
             {region.id === "other" && (
-              <Mic className="absolute left-8 top-1/2 size-10 -translate-y-1/2 text-[#828b93]" aria-hidden="true" />
+              <Mic className="absolute left-8 top-1/2 size-10 -translate-y-1/2 text-app-text-muted" aria-hidden="true" />
             )}
             <div className="px-20 lg:px-24">
               {"isInlineOption" in region && (
                 <p
-                  className="font-['DM_Sans:Medium',sans-serif] font-medium text-[#486284] text-xs mb-0.5"
+                  className="font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-primary text-xs mb-0.5"
                   style={{ fontVariationSettings: "'opsz' 14" }}
                 >
                   {region.parentName}
                 </p>
               )}
               <p
-                className="font-['DM_Sans:Bold',sans-serif] font-bold text-[#3e3e3e] text-base"
+                className="font-['DM_Sans:Bold',sans-serif] font-bold text-app-text-body text-base"
                 style={{ fontVariationSettings: "'opsz' 14" }}
               >
                 {region.name}
@@ -143,7 +143,7 @@ export default function SymptomButtonGrid({
             </div>
             {"options" in region && region.options?.length && (
               <svg
-                className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-[#486284]"
+                className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-app-text-primary"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -166,7 +166,7 @@ export default function SymptomButtonGrid({
                   onClick={() => handleOptionClick(region.name, option)}
                   className="w-full p-3 text-left hover:bg-[#eff2f6] transition-all border-b border-gray-200 last:border-b-0"
                 >
-                  <span className="font-['DM_Sans:Medium',sans-serif] font-medium text-sm text-[#3e3e3e]">
+                  <span className="font-['DM_Sans:Medium',sans-serif] font-medium text-sm text-app-text-body">
                     {option}
                   </span>
                 </button>

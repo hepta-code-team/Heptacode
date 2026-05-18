@@ -34,7 +34,7 @@ export default function PageShell({
         {onBack && (
           <button
             onClick={onBack}
-            className="flex items-center gap-2 text-[#486284] hover:text-[#3a4d68] mb-3 transition-all"
+            className="flex items-center gap-2 text-app-text-primary hover:text-app-text-primary-strong mb-3 transition-all"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
@@ -45,7 +45,7 @@ export default function PageShell({
 
         {title && (
           <h1
-            className="font-['DM_Sans:Bold',sans-serif] font-bold text-[#486284] text-xl md:text-2xl mb-2"
+            className="font-['DM_Sans:Bold',sans-serif] font-bold text-app-text-primary text-xl md:text-2xl mb-2"
             style={{ fontVariationSettings: "'opsz' 14" }}
           >
             {title}
@@ -54,7 +54,7 @@ export default function PageShell({
 
         {subtitle && (
           <p
-            className="font-['DM_Sans:Medium',sans-serif] font-medium text-[#486284] text-sm mb-4"
+            className="font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-primary text-sm mb-4"
             style={{ fontVariationSettings: "'opsz' 14" }}
           >
             {subtitle}

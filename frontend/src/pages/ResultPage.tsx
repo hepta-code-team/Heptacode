@@ -3,7 +3,7 @@ import { PhoneCall } from "lucide-react";
 import PageShell from "../components/PageShell";
 import ResultCard from "../features/results/ResultCard";
 import Button from "../components/Button";
-import { TRIAGE_CONFIGS } from "../types/triage";
+import { createSpecialtyConfig, isMedicalSpecialty, TRIAGE_CONFIGS } from "../types/triage";
 import { useAssessment } from "../lib/AssessmentContext";
 import type { CareLevel } from "../types/triage";
 import { DURATIONS, getMeasurementConfig } from "../features/symptoms/symptoms.constants";
@@ -47,7 +47,9 @@ export default function ResultPage() {
   };
 
   const careLevel = calculateCareLevel();
-  const config = TRIAGE_CONFIGS[careLevel];
+  const specialtyParam = searchParams.get("specialty");
+  const recommendedSpecialty = isMedicalSpecialty(specialtyParam) ? specialtyParam : null;
+  const config = recommendedSpecialty ? createSpecialtyConfig(recommendedSpecialty) : TRIAGE_CONFIGS[careLevel];
   const callAction =
     careLevel === "emergency"
       ? { href: "tel:112", label: "112 anrufen", description: "Notruf" }
@@ -84,7 +86,7 @@ export default function ResultPage() {
       {callAction && (
         <a
           href={callAction.href}
-          className="md:hidden mb-4 flex min-h-[56px] w-full items-center justify-center gap-3 rounded-[14px] px-5 py-3 text-white shadow-sm transition-all hover:opacity-90"
+          className="md:hidden mb-4 flex min-h-[56px] w-full items-center justify-center gap-3 rounded-[14px] px-5 py-3 text-app-text-on-primary shadow-sm transition-all hover:opacity-90"
           style={{ backgroundColor: config.color }}
           aria-label={callAction.label}
         >
@@ -99,20 +101,20 @@ export default function ResultPage() {
       {/* Begründung */}
       <div className="bg-[#eff2f6] rounded-[16px] p-5 md:p-6 mb-4">
         <p
-          className="font-['DM_Sans:Bold',sans-serif] font-bold text-[#486284] text-lg mb-3"
+          className="font-['DM_Sans:Bold',sans-serif] font-bold text-app-text-primary text-lg mb-3"
           style={{ fontVariationSettings: "'opsz' 14" }}
         >
           Begründung
         </p>
         <ul className="space-y-1.5">
           <li
-            className="font-['DM_Sans:Medium',sans-serif] font-medium text-[#3e3e3e] text-sm leading-relaxed"
+            className="font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-body text-sm leading-relaxed"
             style={{ fontVariationSettings: "'opsz' 14" }}
           >
             • Ihre Symptome deuten auf eine behandlungsbedürftige Erkrankung hin
           </li>
           <li
-            className="font-['DM_Sans:Medium',sans-serif] font-medium text-[#3e3e3e] text-sm leading-relaxed"
+            className="font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-body text-sm leading-relaxed"
             style={{ fontVariationSettings: "'opsz' 14" }}
           >
             • Die Dauer und Intensität Ihrer Beschwerden sollten ärztlich abgeklärt werden
@@ -124,14 +126,15 @@ export default function ResultPage() {
       <div className="bg-white border-2 border-[#486284] rounded-[16px] p-5 md:p-6 mb-4">
         <div className="flex items-center justify-between mb-4">
           <p
-            className="font-['DM_Sans:Bold',sans-serif] font-bold text-[#486284] text-lg"
+            className="font-['DM_Sans:Bold',sans-serif] font-bold text-app-text-primary text-lg"
             style={{ fontVariationSettings: "'opsz' 14" }}
           >
             Medizinische Zusammenfassung
           </p>
           <button
             onClick={() => alert('PDF-Download würde hier starten')}
-            className="bg-[#486284] text-white rounded-[10px] px-4 py-2 hover:bg-[#3a4d68] transition-all flex items-center gap-2"
+            aria-label="download-summary"
+            className="bg-[#486284] text-app-text-on-primary rounded-[10px] px-4 py-2 hover:bg-[#3a4d68] transition-all flex items-center gap-2"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -150,53 +153,53 @@ export default function ResultPage() {
           {patientData && (
             <div>
               <p
-                className="font-['DM_Sans:Bold',sans-serif] font-bold text-[#3e3e3e] text-sm mb-2"
+                className="font-['DM_Sans:Bold',sans-serif] font-bold text-app-text-body text-sm mb-2"
                 style={{ fontVariationSettings: "'opsz' 14" }}
               >
                 Stammdaten
               </p>
               <div className="bg-[#eff2f6] rounded-[10px] p-3 space-y-1">
-                <p className="font-['DM_Sans:Medium',sans-serif] font-medium text-[#3e3e3e] text-xs">
+                <p className="font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-body text-xs">
                   <strong>Geburtsdatum:</strong> {patientData.birthMonth}/{patientData.birthYear}
                 </p>
-                <p className="font-['DM_Sans:Medium',sans-serif] font-medium text-[#3e3e3e] text-xs">
+                <p className="font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-body text-xs">
                   <strong>Größe/Gewicht:</strong> {patientData.height} cm / {patientData.weight} kg
                 </p>
-                <p className="font-['DM_Sans:Medium',sans-serif] font-medium text-[#3e3e3e] text-xs">
+                <p className="font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-body text-xs">
                   <strong>Geschlecht:</strong> {patientData.gender}
                 </p>
                 {patientData.isPregnant && (
-                  <p className="font-['DM_Sans:Medium',sans-serif] font-medium text-[#3e3e3e] text-xs">
+                  <p className="font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-body text-xs">
                     <strong>Schwanger:</strong> Ja
                   </p>
                 )}
                 {patientData.isBreastfeeding && (
-                  <p className="font-['DM_Sans:Medium',sans-serif] font-medium text-[#3e3e3e] text-xs">
+                  <p className="font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-body text-xs">
                     <strong>Stillend:</strong> Ja
                   </p>
                 )}
                 {patientData.allergies && (
-                  <p className="font-['DM_Sans:Medium',sans-serif] font-medium text-[#3e3e3e] text-xs">
+                  <p className="font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-body text-xs">
                     <strong>Allergien:</strong> {patientData.allergies}
                   </p>
                 )}
                 {patientData.medications && (
-                  <p className="font-['DM_Sans:Medium',sans-serif] font-medium text-[#3e3e3e] text-xs">
+                  <p className="font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-body text-xs">
                     <strong>Medikamente:</strong> {patientData.medications}
                   </p>
                 )}
                 {patientData.substanceInfluence && patientData.substanceInfluence !== "Nein" && (
-                  <p className="font-['DM_Sans:Medium',sans-serif] font-medium text-[#3e3e3e] text-xs">
+                  <p className="font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-body text-xs">
                     <strong>Einfluss:</strong> {patientData.substanceInfluence}
                   </p>
                 )}
                 {patientData.recentAbroad && (
-                  <p className="font-['DM_Sans:Medium',sans-serif] font-medium text-[#3e3e3e] text-xs">
+                  <p className="font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-body text-xs">
                     <strong>Ausland letzte 3 Monate:</strong> Ja{patientData.recentAbroadDetails && ` (${patientData.recentAbroadDetails})`}
                   </p>
                 )}
                 {patientData.conditions.length > 0 && (
-                  <p className="font-['DM_Sans:Medium',sans-serif] font-medium text-[#3e3e3e] text-xs">
+                  <p className="font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-body text-xs">
                     <strong>Vorerkrankungen:</strong> {patientData.conditions.join(", ")}
                   </p>
                 )}
@@ -212,14 +215,14 @@ export default function ResultPage() {
             <div>
               <div className="flex items-center justify-between mb-2">
                 <p
-                  className="font-['DM_Sans:Bold',sans-serif] font-bold text-[#3e3e3e] text-sm"
+                  className="font-['DM_Sans:Bold',sans-serif] font-bold text-app-text-body text-sm"
                   style={{ fontVariationSettings: "'opsz' 14" }}
                 >
                   Beschwerden
                 </p>
               </div>
               <div className="bg-[#eff2f6] rounded-[10px] p-3">
-                <p className="font-['DM_Sans:Medium',sans-serif] font-medium text-[#3e3e3e] text-xs leading-relaxed">
+                <p className="font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-body text-xs leading-relaxed">
                   Patient klagt über{" "}
                   {symptomDetails.map((symptom, index) => (
                     <span key={symptom.id}>
@@ -238,7 +241,7 @@ export default function ResultPage() {
 
           {/* Zeitstempel */}
           <div className="pt-3 border-t border-gray-200">
-            <p className="font-['DM_Sans:Medium',sans-serif] font-medium text-gray-500 text-xs">
+            <p className="font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-subtle text-xs">
               Erstellt am: {new Date().toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
             </p>
           </div>
@@ -248,18 +251,18 @@ export default function ResultPage() {
       {/* Disclaimer */}
       <div className="bg-[#FEF3C7] border-l-4 border-[#F59E0B] rounded-[16px] p-5 md:p-6 mt-4">
         <div className="flex items-start gap-3">
-          <svg className="w-6 h-6 text-[#F59E0B] flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg className="w-6 h-6 text-app-text-warning flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
           </svg>
           <div>
             <p
-              className="font-['DM_Sans:Bold',sans-serif] font-bold text-[#92400E] text-base mb-2"
+              className="font-['DM_Sans:Bold',sans-serif] font-bold text-app-text-warning-strong text-base mb-2"
               style={{ fontVariationSettings: "'opsz' 14" }}
             >
               Wichtiger Hinweis
             </p>
             <p
-              className="font-['DM_Sans:Medium',sans-serif] font-medium text-[#92400E] text-sm leading-relaxed"
+              className="font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-warning-strong text-sm leading-relaxed"
               style={{ fontVariationSettings: "'opsz' 14" }}
             >
               Diese Einschätzung ist <strong>keine medizinische Diagnose</strong> und ersetzt nicht den Besuch bei einem Arzt.

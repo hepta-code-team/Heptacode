@@ -68,25 +68,25 @@ function MedicalAccordionPanel({
                 className="w-full flex items-center gap-3 text-left"
                 aria-expanded={isOpen}
             >
-                <span className="flex size-9 flex-shrink-0 items-center justify-center rounded-full bg-white text-[#486284]">
+                <span className="flex size-9 flex-shrink-0 items-center justify-center rounded-full bg-white text-app-text-primary">
                     <Icon className="size-5" aria-hidden="true"/>
                 </span>
                 <span className="min-w-0 flex-1">
                     <span
-                        className="font-['DM_Sans:Bold',sans-serif] font-bold text-[#3e3e3e] text-sm block"
+                        className="font-['DM_Sans:Bold',sans-serif] font-bold text-app-text-body text-sm block"
                         style={{fontVariationSettings: "'opsz' 14"}}
                     >
                         {title}
                     </span>
                     <span
-                        className="font-['DM_Sans:Medium',sans-serif] font-medium text-[#486284] text-xs block truncate"
+                        className="font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-primary text-xs block truncate"
                         style={{fontVariationSettings: "'opsz' 14"}}
                     >
                         {summary}
                     </span>
                 </span>
                 <ChevronDown
-                    className={`size-5 flex-shrink-0 text-[#486284] transition-transform ${isOpen ? "rotate-180" : ""}`}
+                    className={`size-5 flex-shrink-0 text-app-text-primary transition-transform ${isOpen ? "rotate-180" : ""}`}
                     aria-hidden="true"
                 />
             </button>
@@ -197,7 +197,7 @@ export default function PatientDataPage() {
                 <div className="bg-[#eff2f6] rounded-[14px] p-3">
                     <Label
                         htmlFor="birthMonth"
-                        className="font-['DM_Sans:Bold',sans-serif] font-bold text-[#3e3e3e] text-sm mb-1.5 block"
+                        className="font-['DM_Sans:Bold',sans-serif] font-bold text-app-text-body text-sm mb-1.5 block"
                         style={{fontVariationSettings: "'opsz' 14"}}
                     >
                         Geburtsdatum
@@ -218,11 +218,11 @@ export default function PatientDataPage() {
                                         : "border-none"
                                 }`}
                             />
-                            <p className="font-['DM_Sans:Medium',sans-serif] font-medium text-[#3e3e3e] text-xs mt-0.5">
+                            <p className="font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-body text-xs mt-0.5">
                                 Monat
                             </p>
                             {hasBirthMonthError && (
-                                <p id="birth-month-error" className="mt-1 text-xs font-medium text-red-600">
+                                <p id="birth-month-error" className="mt-1 text-xs font-medium text-app-text-danger">
                                     Bitte Monat zwischen 1-12 wählen.
                                 </p>
                             )}
@@ -244,11 +244,11 @@ export default function PatientDataPage() {
                                         : "border-none"
                                 }`}
                             />
-                            <p className="font-['DM_Sans:Medium',sans-serif] font-medium text-[#3e3e3e] text-xs mt-0.5">
+                            <p className="font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-body text-xs mt-0.5">
                                 Jahr
                             </p>
                             {hasBirthYearError && (
-                                <p id="birth-year-error" className="mt-1 text-xs font-medium text-red-600">
+                                <p id="birth-year-error" className="mt-1 text-xs font-medium text-app-text-danger">
                                     Bitte Jahr zwischen {birthYearMin} und {currentYear} angeben.
                                 </p>
                             )}
@@ -259,7 +259,7 @@ export default function PatientDataPage() {
                 <div className="bg-[#eff2f6] rounded-[14px] p-3">
                     <Label
                         htmlFor="height"
-                        className="font-['DM_Sans:Bold',sans-serif] font-bold text-[#3e3e3e] text-sm mb-1.5 block"
+                        className="font-['DM_Sans:Bold',sans-serif] font-bold text-app-text-body text-sm mb-1.5 block"
                         style={{fontVariationSettings: "'opsz' 14"}}
                     >
                         Körpergröße & Gewicht
@@ -284,14 +284,14 @@ export default function PatientDataPage() {
                                     }`}
                                 />
                                 <p
-                                    className="font-['DM_Sans:Medium',sans-serif] font-medium text-[#3e3e3e] text-xs mt-0.5"
+                                    className="font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-body text-xs mt-0.5"
                                     style={{fontVariationSettings: "'opsz' 14"}}
                                 >
                                     cm
                                 </p>
                             </div>
                             {hasHeightError && (
-                                <p id="height-error" className="mt-1 text-xs font-medium text-red-600">
+                                <p id="height-error" className="mt-1 text-xs font-medium text-app-text-danger">
                                     Bitte Körpergröße zwischen {HEIGHT_MIN} und {HEIGHT_MAX} cm angeben.
                                 </p>
                             )}
@@ -315,14 +315,14 @@ export default function PatientDataPage() {
                                     }`}
                                 />
                                 <p
-                                    className="font-['DM_Sans:Medium',sans-serif] font-medium text-[#3e3e3e] text-xs mt-0.5"
+                                    className="font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-body text-xs mt-0.5"
                                     style={{fontVariationSettings: "'opsz' 14"}}
                                 >
                                     kg
                                 </p>
                             </div>
                             {hasWeightError && (
-                                <p id="weight-error" className="mt-1 text-xs font-medium text-red-600">
+                                <p id="weight-error" className="mt-1 text-xs font-medium text-app-text-danger">
                                     Bitte Gewicht zwischen {WEIGHT_MIN} und {WEIGHT_MAX} kg angeben.
                                 </p>
                             )}
@@ -333,7 +333,7 @@ export default function PatientDataPage() {
                 <div className="bg-[#eff2f6] rounded-[14px] p-3">
                     <p
                         className={`font-['DM_Sans:Bold',sans-serif] font-bold text-sm mb-1.5 ${
-                            hasGenderError ? "text-red-700" : "text-[#3e3e3e]"
+                            hasGenderError ? "text-app-text-danger-strong" : "text-app-text-body"
                         }`}
                         style={{fontVariationSettings: "'opsz' 14"}}
                     >
@@ -346,8 +346,8 @@ export default function PatientDataPage() {
                                 onClick={() => setFormData({...formData, gender, isPregnant: false, isBreastfeeding: false})}
                                 className={`p-2 rounded-[8px] text-left transition-all ${
                                     formData.gender === gender
-                                        ? "bg-[#486284] text-white"
-                                        : `bg-white text-[#3e3e3e] hover:bg-[#dde3ea] ${
+                                        ? "bg-[#486284] text-app-text-on-primary"
+                                        : `bg-white text-app-text-body hover:bg-[#dde3ea] ${
                                             hasGenderError ? "border border-red-200" : ""
                                         }`
                                 }`}
@@ -362,7 +362,7 @@ export default function PatientDataPage() {
                         ))}
                     </div>
                     {hasGenderError && (
-                        <p className="mt-1.5 text-xs font-medium text-red-600">
+                        <p className="mt-1.5 text-xs font-medium text-app-text-danger">
                             Bitte Geschlecht auswählen.
                         </p>
                     )}
@@ -372,7 +372,7 @@ export default function PatientDataPage() {
             {formData.gender === "Weiblich" && (
                 <div className="mt-3 bg-[#eff2f6] rounded-[14px] p-3">
                     <p
-                        className="font-['DM_Sans:Bold',sans-serif] font-bold text-[#3e3e3e] text-sm mb-2"
+                        className="font-['DM_Sans:Bold',sans-serif] font-bold text-app-text-body text-sm mb-2"
                         style={{fontVariationSettings: "'opsz' 14"}}
                     >
                         Schwangerschaft / Stillen
@@ -392,12 +392,12 @@ export default function PatientDataPage() {
                                     onClick={() => setFormData({...formData, [key]: !formData[key]})}
                                     className={`w-full p-3 rounded-[12px] text-left transition-all flex items-center gap-3 ${
                                         isSelected
-                                            ? "bg-[#486284] text-white"
-                                            : "bg-white text-[#3e3e3e] hover:bg-[#dde3ea]"
+                                            ? "bg-[#486284] text-app-text-on-primary"
+                                            : "bg-white text-app-text-body hover:bg-[#dde3ea]"
                                     }`}
                                 >
                                     <Icon
-                                        className={`size-5 flex-shrink-0 ${isSelected ? "text-white" : "text-[#486284]"}`}
+                                        className={`size-5 flex-shrink-0 ${isSelected ? "text-app-text-on-primary" : "text-app-text-primary"}`}
                                         aria-hidden="true"
                                     />
                                     <span
@@ -416,7 +416,7 @@ export default function PatientDataPage() {
 
             <div className="mt-4">
                 <p
-                    className="font-['DM_Sans:Bold',sans-serif] font-bold text-[#486284] text-lg mb-2"
+                    className="font-['DM_Sans:Bold',sans-serif] font-bold text-app-text-primary text-lg mb-2"
                     style={{fontVariationSettings: "'opsz' 14"}}
                 >
                     Weitere medizinische Angaben
@@ -486,8 +486,8 @@ export default function PatientDataPage() {
                                         onClick={() => setFormData({...formData, substanceInfluence: option})}
                                         className={`p-2 rounded-[10px] text-left transition-all flex items-center gap-2 ${
                                             isSelected
-                                                ? "bg-[#486284] text-white"
-                                                : "bg-white text-[#3e3e3e] hover:bg-[#dde3ea]"
+                                                ? "bg-[#486284] text-app-text-on-primary"
+                                                : "bg-white text-app-text-body hover:bg-[#dde3ea]"
                                         }`}
                                     >
                                     <span
@@ -527,8 +527,8 @@ export default function PatientDataPage() {
                                         })}
                                         className={`p-2 rounded-[10px] text-left transition-all flex items-center gap-2 ${
                                             isSelected
-                                                ? "bg-[#486284] text-white"
-                                                : "bg-white text-[#3e3e3e] hover:bg-[#dde3ea]"
+                                                ? "bg-[#486284] text-app-text-on-primary"
+                                                : "bg-white text-app-text-body hover:bg-[#dde3ea]"
                                         }`}
                                     >
                                     <span
@@ -557,7 +557,7 @@ export default function PatientDataPage() {
 
             <div className="mt-4">
                 <p
-                    className="font-['DM_Sans:Bold',sans-serif] font-bold text-[#486284] text-lg mb-2"
+                    className="font-['DM_Sans:Bold',sans-serif] font-bold text-app-text-primary text-lg mb-2"
                     style={{fontVariationSettings: "'opsz' 14"}}
                 >
                     Vorerkrankungen
@@ -579,12 +579,12 @@ export default function PatientDataPage() {
                                 }`}
                             >
                                 <Icon
-                                    className={`size-6 ${isSelected ? "text-[#486284]" : "text-[#828b93]"}`}
+                                    className={`size-6 ${isSelected ? "text-app-text-primary" : "text-app-text-muted"}`}
                                     strokeWidth={2.2}
                                     aria-hidden="true"
                                 />
                                 <p
-                                    className="font-['DM_Sans:Bold',sans-serif] font-bold text-[#3e3e3e] text-xs leading-tight"
+                                    className="font-['DM_Sans:Bold',sans-serif] font-bold text-app-text-body text-xs leading-tight"
                                     style={{fontVariationSettings: "'opsz' 14"}}
                                 >
                                     {condition}

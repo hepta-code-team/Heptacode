@@ -31,18 +31,18 @@ export default function LandingPage() {
           >
             <div className="mb-5 flex justify-center">
               <div className="flex size-14 items-center justify-center rounded-full bg-[#FEF3C7]">
-                <AlertTriangle className="size-7 text-[#F59E0B]" aria-hidden="true" />
+                <AlertTriangle className="size-7 text-app-text-warning" aria-hidden="true" />
               </div>
             </div>
             <h2
               id="landing-disclaimer-title"
-              className="font-['DM_Sans:Bold',sans-serif] font-bold text-[#486284] text-2xl mb-3 text-center"
+              className="font-['DM_Sans:Bold',sans-serif] font-bold text-app-text-primary text-2xl mb-3 text-center"
               style={{ fontVariationSettings: "'opsz' 14" }}
             >
               Wichtiger Hinweis
             </h2>
             <p
-              className="font-['DM_Sans:Medium',sans-serif] font-medium text-[#3e3e3e] text-sm leading-relaxed text-center mb-5"
+              className="font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-body text-sm leading-relaxed text-center mb-5"
               style={{ fontVariationSettings: "'opsz' 14" }}
             >
               Diese Einschätzung ist <strong>keine medizinische Diagnose</strong> und ersetzt nicht den Besuch bei einem Arzt.
@@ -51,7 +51,7 @@ export default function LandingPage() {
             </p>
             <button
               onClick={() => setIsDisclaimerOpen(false)}
-              className="flex w-full items-center justify-center gap-2 rounded-[14px] bg-[#10B981] px-5 py-3 text-white transition-all hover:bg-[#059669]"
+              className="flex w-full items-center justify-center gap-2 rounded-[14px] bg-[#10B981] px-5 py-3 text-app-text-on-primary transition-all hover:bg-[#059669]"
             >
               <CheckCircle2 className="size-5" aria-hidden="true" />
               <span
@@ -68,27 +68,27 @@ export default function LandingPage() {
       {/* Mobile */}
       <div className="block lg:hidden">
         <div className="mb-3 flex items-start gap-2">
-          <h1 className="font-['DM_Sans:Bold',sans-serif] font-bold text-[#486284] text-2xl" style={{ fontVariationSettings: "'opsz' 14" }}>
+          <h1 className="font-['DM_Sans:Bold',sans-serif] font-bold text-app-text-primary text-2xl" style={{ fontVariationSettings: "'opsz' 14" }}>
             Leiden Sie unter einem dieser Symptome?
           </h1>
           <button
             type="button"
             onClick={() => setIsEmergencyInfoOpen(true)}
-            className="mt-1 flex size-7 flex-shrink-0 items-center justify-center rounded-full bg-[#eff2f6] text-[#486284] transition-all hover:bg-[#dde3ea]"
+            className="mt-1 flex size-7 flex-shrink-0 items-center justify-center rounded-full bg-[#eff2f6] text-app-text-primary transition-all hover:bg-[#dde3ea]"
             aria-label="Informationen zu Notfall-Symptomen"
           >
             <CircleHelp className="size-4" aria-hidden="true" />
           </button>
         </div>
-        <p className="font-['DM_Sans:Medium',sans-serif] font-medium text-[#486284] text-base mb-5" style={{ fontVariationSettings: "'opsz' 14" }}>
+        <p className="font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-primary text-base mb-5" style={{ fontVariationSettings: "'opsz' 14" }}>
           Bitte wählen Sie das Symptom aus, unter dem Sie leiden oder Überspringen Sie diese Seite.
         </p>
 
         <EmergencySymptomGrid onSymptomClick={handleEmergencySymptom} variant="mobile" />
 
         <button onClick={handleContinue} className="bg-[#ffcdcd] rounded-[16px] px-4 py-3 mb-3 hover:bg-[#ffb8b8] transition-all w-full flex items-center justify-center gap-2">
-          <X className="size-8 flex-shrink-0 text-[#ff2546]" strokeWidth={3} aria-hidden="true" />
-          <p className="font-['DM_Sans:SemiBold',sans-serif] font-semibold text-[#3e3e3e] text-base">Keines davon/Ich weiß es nicht</p>
+          <X className="size-8 flex-shrink-0 text-app-text-emergency" strokeWidth={3} aria-hidden="true" />
+          <p className="font-['DM_Sans:SemiBold',sans-serif] font-semibold text-app-text-body text-base">Keines davon/Ich weiß es nicht</p>
         </button>
       </div>
 
@@ -96,7 +96,7 @@ export default function LandingPage() {
       <div className="hidden lg:block">
         <div className="mb-2 flex items-center gap-2">
           <h1
-            className="font-['DM_Sans:Bold',sans-serif] font-bold text-[#486284] text-2xl md:text-3xl"
+            className="font-['DM_Sans:Bold',sans-serif] font-bold text-app-text-primary text-2xl md:text-3xl"
             style={{ fontVariationSettings: "'opsz' 14" }}
           >
             Leiden Sie unter einem dieser Symptome?
@@ -104,14 +104,14 @@ export default function LandingPage() {
           <button
             type="button"
             onClick={() => setIsEmergencyInfoOpen(true)}
-            className="flex size-8 flex-shrink-0 items-center justify-center rounded-full bg-[#eff2f6] text-[#486284] transition-all hover:bg-[#dde3ea]"
+            className="flex size-8 flex-shrink-0 items-center justify-center rounded-full bg-[#eff2f6] text-app-text-primary transition-all hover:bg-[#dde3ea]"
             aria-label="Informationen zu Notfall-Symptomen"
           >
             <CircleHelp className="size-5" aria-hidden="true" />
           </button>
         </div>
         <p
-          className="font-['DM_Sans:Medium',sans-serif] font-medium text-[#486284] text-base md:text-lg mb-4"
+          className="font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-primary text-base md:text-lg mb-4"
           style={{ fontVariationSettings: "'opsz' 14" }}
         >
           Bitte wählen Sie das Symptom aus, unter dem Sie leiden oder Überspringen Sie diese Seite.
@@ -124,9 +124,9 @@ export default function LandingPage() {
             onClick={handleContinue}
             className="bg-[#ffcdcd] rounded-[16px] p-4 min-h-[80px] flex items-center justify-center hover:bg-[#ffb8b8] transition-all gap-2"
           >
-            <X className="size-[38px] flex-shrink-0 text-[#ff2546]" strokeWidth={3} aria-hidden="true" />
+            <X className="size-[38px] flex-shrink-0 text-app-text-emergency" strokeWidth={3} aria-hidden="true" />
             <p
-              className="font-['DM_Sans:SemiBold',sans-serif] font-semibold text-[#3e3e3e] text-base"
+              className="font-['DM_Sans:SemiBold',sans-serif] font-semibold text-app-text-body text-base"
               style={{ fontVariationSettings: "'opsz' 14" }}
             >
               Keines davon/Ich weiß es nicht
@@ -142,7 +142,7 @@ export default function LandingPage() {
         subtitle="Die hier gezeigten Warnsymptome orientieren sich an öffentlich zugänglichen Informationen des Bundesministeriums für Gesundheit zu medizinischen Notfällen."
         maxWidth="max-w-lg"
       >
-        <div className="space-y-3 text-sm font-['DM_Sans:Medium',sans-serif] font-medium text-[#3e3e3e]">
+        <div className="space-y-3 text-sm font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-body">
           <p>
             Symptome wie akute Atemnot, starke Brustschmerzen, starke Blutungen oder plötzliche Lähmungs-,
             Seh- oder Sprachstörungen können Hinweise auf eine akute Notfallsituation sein.
@@ -154,7 +154,7 @@ export default function LandingPage() {
           <button
             type="button"
             onClick={() => setIsEmergencyInfoOpen(false)}
-            className="mt-2 w-full rounded-[14px] bg-[#486284] px-5 py-3 text-white transition-all hover:bg-[#3a4d68]"
+            className="mt-2 w-full rounded-[14px] bg-[#486284] px-5 py-3 text-app-text-on-primary transition-all hover:bg-[#3a4d68]"
           >
             Verstanden
           </button>
