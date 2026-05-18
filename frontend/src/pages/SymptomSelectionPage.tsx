@@ -15,7 +15,7 @@ import {
   MAX_SYMPTOMS,
   type BodyAreaCategory,
 } from "../features/symptoms/symptoms.constants";
-import type { TriageSymptom } from "../types/assessment";
+import type { TriageSymptom } from "../../../shared/symptom.types";
 
 const supportingAreas = [
   {

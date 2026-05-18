@@ -7,7 +7,8 @@ import Modal from "../components/Modal";
 import Button from "../components/Button";
 import { useAssessment } from "../lib/AssessmentContext";
 import { getMeasurementConfig } from "../features/symptoms/symptoms.constants";
-import type { SymptomMeasurementType, TriageSymptom } from "../types/assessment";
+import type { SymptomMeasurementType } from "../types/assessment";
+import type { TriageSymptom } from "../../../shared/symptom.types";
 
 type SymptomDraft = TriageSymptom & {
   id: string;

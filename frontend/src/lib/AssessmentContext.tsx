@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, ReactNode } from "react";
-import type { TriageSymptom } from "../types/assessment";
+import type { TriageSymptom } from "../../../shared/symptom.types";
 import type { PatientData } from "../../../shared/patientData.types";
 
 interface AssessmentContextType {

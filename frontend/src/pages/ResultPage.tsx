@@ -5,9 +5,9 @@ import ResultCard from "../features/results/ResultCard";
 import Button from "../components/Button";
 import { createSpecialtyConfig, isMedicalSpecialty, TRIAGE_CONFIGS } from "../features/triage/triage";
 import { useAssessment } from "../lib/AssessmentContext";
-import type { CareLevel } from "../features/triage/triage";
+import type { CareLevel } from "../../../shared/result.types";
 import { DURATIONS, getMeasurementConfig } from "../features/symptoms/symptoms.constants";
-import type { TriageSymptom } from "../types/assessment";
+import type { TriageSymptom } from "../../../shared/symptom.types";
 
 export default function ResultPage() {
   const navigate = useNavigate();

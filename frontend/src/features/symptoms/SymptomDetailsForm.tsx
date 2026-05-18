@@ -1,7 +1,8 @@
 import PainScaleSelector from "./PainScaleSelector";
 import DurationSelector from "./DurationSelector";
 import { getMeasurementConfig } from "./symptoms.constants";
-import type { SymptomMeasurementType, TriageSymptom } from "../../types/assessment";
+import type { SymptomMeasurementType } from "../../types/assessment";
+import type { TriageSymptom } from "../../../../shared/symptom.types";
 
 type SymptomDraft = TriageSymptom & {
   id: string;
