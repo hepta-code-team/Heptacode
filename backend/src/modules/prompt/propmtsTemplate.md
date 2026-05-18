@@ -31,5 +31,5 @@
 
 **Sprache/Stil**
 ---
-Formuliere kurze, klare Begründungen auf Deutsch
+Formuliere kurze, klare und leicht verständliche Begründungen auf Deutsch
 
