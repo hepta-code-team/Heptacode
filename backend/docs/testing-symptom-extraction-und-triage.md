@@ -5,22 +5,27 @@ Diese Anleitung beschreibt, wie die beiden Backend-Funktionen lokal getestet wer
 - `POST /api/v1/symptoms/extraction`
 - `POST /api/v1/triage/evaluate`
 
+Für die ausführliche technische Dokumentation der beiden Module siehe auch [triage-und-symptom-extraction.md](./triage-und-symptom-extraction.md).
+
 ## Voraussetzungen
 
 Das Backend benötigt Zugriff auf das KI-Modell.
 
-Die KI-URL muss per `http://` oder `https://` erreichbar sein.
+Beispiel mit LiteLLM / MedGemma:
 
 Bestehende lokale `.env.local`-Dateien mit den älteren Variablennamen `Base_URL` und `API_KEY`
 werden weiterhin unterstützt. Bevorzugt werden aber `AI_API_URL` und `AI_API_KEY`.
 Beispiel env.local:
 
-NODE_ENV=development
-PORT=3000
-CORS_ORIGIN=http://localhost:5173/
-AI_API_URL=url
-AI_API_KEY=key
-AI_MODEL=medgemma:4b
+```bash
+cd /Users/christianscheider/Dev/Heptacode/backend
+
+export AI_API_URL="http://141.19.141.155:4000"
+export AI_API_KEY="<virtual-api-key>"
+export AI_MODEL="medgemma:27b"
+
+npm run dev
+```
 
 ## Erreichbarkeit prüfen
 

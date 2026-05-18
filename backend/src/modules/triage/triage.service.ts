@@ -1,6 +1,5 @@
-import { zodResponseFormat } from 'openai/helpers/zod'
-import { aiClient } from '../../ai/client.js'
-import { env } from '../../config/env.js'
+import { requestStructuredAiResponse } from '../../ai/llmAdapter.js'
+import { isAiRequestError } from '../../ai/timeout.js'
 import { extractSymptoms } from '../symptom-extraction/symptomExtraction.service.js'
 import type {
   CareLevel,
@@ -9,7 +8,8 @@ import type {
   TriageResponse,
   TriageSymptom,
 } from './triage.types.js'
-import { medicalSpecialtySchema, triageAiResultSchema } from './triage.types.js'
+import { triageAiResultSchema } from './triage.types.js'
+import { triageInstructions } from '../prompt/triage.prompt.js'
 
 function createBadRequestError(message: string): Error & { statusCode: number } {
   const error = new Error(message) as Error & { statusCode: number }
@@ -25,20 +25,6 @@ const DURATION_LABELS: Record<NonNullable<TriageSymptom['duration']>, string> = 
   weeks: 'Seit mehr als 2 Wochen',
 }
 
-// Prompt von ChatGPT erstellt:
-// Die KI waehlt Versorgungsangebot und Begruendungen.
-// Die erlaubten Werte werden zusaetzlich ueber Zod validiert.
-const triageInstructions = [
-  'Du bewertest strukturierte medizinische Angaben und ordnest sie genau einer Versorgungsebene zu.',
-  'Erlaubte careLevel-Werte sind ausschliesslich: emergency, doctor, selfcare.',
-  `Erlaubte recommendedSpecialty-Werte sind ausschliesslich: ${medicalSpecialtySchema.options.join(', ')}.`,
-  'Waehle recommendedSpecialty selbst passend zu den Angaben aus; home_care steht fuer haeusliche Versorgung.',
-  'careLevel muss zur Empfehlung passen: emergency_medicine -> emergency, home_care -> selfcare, alle anderen Empfehlungen -> doctor.',
-  'Beruecksichtige die uebergebenen Symptome, optionale Schmerzintensitaeten, Dauern und die Stammdaten.',
-  'Handle sicherheitsorientiert. Bei klaren Warnzeichen oder hohem Risiko waehle die hoehere Versorgungsebene.',
-  'Gib kurze, konkrete Begruendungen auf Deutsch zurueck.',
-  'Erfinde keine zusaetzlichen Symptome oder Stammdaten.',
-].join('\n')
 
 // Funktion um die Patientendaten fuer die KI zu formatieren
 function formatPatientData(patientData?: PatientData): string {
@@ -108,8 +94,7 @@ async function requestTriageFromAi(
   symptoms: TriageSymptom[],
 ): Promise<TriageResponse> {
   // Die KI erhaelt bereits strukturierte Eingaben und muss eine validierbare JSON-Antwort liefern.
-  const completion = await aiClient.beta.chat.completions.parse({
-    model: env.aiModel,
+  const parsed = await requestStructuredAiResponse({
     messages: [
       { role: 'system', content: triageInstructions },
       {
@@ -123,18 +108,83 @@ async function requestTriageFromAi(
         ].join('\n'),
       },
     ],
-    response_format: zodResponseFormat(triageAiResultSchema, 'triage_result'),
+    schema: triageAiResultSchema,
+    schemaName: 'triage_result',
     temperature: 0,
   })
 
-  const parsed = completion.choices[0]?.message.parsed
+  return ensureConsistentCareLevel(parsed)
+}
 
-  if (!parsed) {
-    // Fehlende strukturierte Ausgabe wird als Integrationsfehler behandelt.
-    throw new Error('AI triage returned no structured result')
+// Fallback fuer strukturierte Symptome: Ohne KI wird anhand der staerksten Schmerzangabe entschieden.
+// Der Fallback ist bewusst vorsichtig, damit im Zweifel eher aerztlich abgeklaert wird.
+function createFallbackTriage(symptoms: TriageSymptom[]): TriageResponse {
+  const strongestPainLevel = Math.max(
+    0,
+    ...symptoms.map((symptom) => symptom.painLevel ?? 0),
+  )
+
+  if (strongestPainLevel >= 8) {
+    return {
+      careLevel: 'emergency',
+      recommendedSpecialty: 'emergency_medicine',
+      reasons: [
+        'Die KI-Auswertung ist aktuell nicht verfuegbar.',
+        'Aufgrund der sehr starken Beschwerden wird sicherheitshalber eine Notfallabklaerung empfohlen.',
+      ],
+      aiUnavailable: true,
+    }
   }
 
-  return ensureConsistentCareLevel(parsed)
+  if (strongestPainLevel >= 5 || symptoms.length > 0) {
+    return {
+      careLevel: 'doctor',
+      recommendedSpecialty: 'general_practice',
+      reasons: [
+        'Die KI-Auswertung ist aktuell nicht verfuegbar.',
+        'Bitte lassen Sie die Beschwerden aerztlich einschaetzen, besonders bei Verschlechterung oder anhaltenden Symptomen.',
+      ],
+      aiUnavailable: true,
+    }
+  }
+
+  return {
+    careLevel: 'selfcare',
+    recommendedSpecialty: 'home_care',
+    reasons: ['Die KI-Auswertung ist aktuell nicht verfuegbar. Ohne erkannte Symptome ist keine hoehere Dringlichkeit ableitbar.'],
+    aiUnavailable: true,
+  }
+}
+
+// Spezieller Fallback fuer Freitext: Wenn die KI keine Symptome extrahieren kann,
+// ist eine sichere Selfcare-Einstufung nicht moeglich.
+function createTextExtractionFallbackTriage(): TriageResponse {
+  return {
+    careLevel: 'doctor',
+    recommendedSpecialty: 'general_practice',
+    reasons: [
+      'Die KI-Auswertung ist aktuell nicht verfuegbar.',
+      'Die Freitext-Beschreibung konnte nicht sicher in Symptome ueberfuehrt werden. Bitte waehlen Sie die Symptome manuell aus oder lassen Sie die Beschwerden aerztlich einschaetzen.',
+    ],
+    aiUnavailable: true,
+  }
+}
+
+// Wrapper fuer den KI-Call: bekannte KI-Ausfaelle werden abgefangen, echte Programmierfehler nicht.
+async function requestTriageWithFallback(
+  patientData: PatientData | undefined,
+  symptoms: TriageSymptom[],
+): Promise<TriageResponse> {
+  try {
+    return await requestTriageFromAi(patientData, symptoms)
+  } catch (error) {
+    // Nur Timeout/API/Antwortformat-Fehler loesen den medizinischen Fallback aus.
+    if (!isAiRequestError(error)) {
+      throw error
+    }
+
+    return createFallbackTriage(symptoms)
+  }
 }
 
 // Funktion um die Versorgungsebene zu evaluieren
@@ -164,7 +214,11 @@ export async function evaluateTriage(
       )
     }
 
-    return requestTriageFromAi(patientData, extractionResult.symptoms)
+    if (extractionResult.aiUnavailable) {
+      return createTextExtractionFallbackTriage()
+    }
+
+    return requestTriageWithFallback(patientData, extractionResult.symptoms)
   }
 
   const triageSymptoms = symptoms ?? []
@@ -178,5 +232,5 @@ export async function evaluateTriage(
     }
   }
 
-  return requestTriageFromAi(patientData, triageSymptoms)
+  return requestTriageWithFallback(patientData, triageSymptoms)
 }
