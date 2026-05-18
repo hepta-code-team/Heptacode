@@ -7,23 +7,24 @@ import Modal from "../components/Modal";
 import Button from "../components/Button";
 import { useAssessment } from "../lib/AssessmentContext";
 import { getMeasurementConfig } from "../features/symptoms/symptoms.constants";
-<<<<<<< HEAD
-import type { Symptom } from "../types/assessment";
-import { handleSubmitAssessment } from "../features/symptoms/handleSubmitAssessment";
-=======
 import type { SymptomMeasurementType } from "../types/assessment";
 import type { TriageSymptom } from "../../../shared/symptom.types";
+import { handleSubmitAssessment } from "../features/symptoms/handleSubmitAssessment";
 
 type SymptomDraft = TriageSymptom & {
   id: string;
   active: boolean;
   measurementType: SymptomMeasurementType;
 };
->>>>>>> origin/dev
 
 export default function SymptomDetailsPage() {
   const navigate = useNavigate();
-  const { selectedSymptoms, symptomDetails: contextDetails, submitAssessment } = useAssessment();
+  const {
+    selectedSymptoms,
+    symptomDetails: contextDetails,
+    setSymptomDetails: setContextDetails,
+    submitAssessment,
+  } = useAssessment();
 
   const createSymptomDetails = (region: string, side: string | undefined, index: number): SymptomDraft => {
     const measurementConfig = getMeasurementConfig(region, side);
@@ -52,13 +53,9 @@ export default function SymptomDetailsPage() {
     };
   };
 
-<<<<<<< HEAD
-  const [symptomDetails, setSymptomDetails] = useState<Symptom[]>(() => {
-=======
   // Initialize symptomDetails from selectedSymptoms
   const [symptomDetails, setSymptomDetails] = useState<SymptomDraft[]>(() => {
     // If context already has details, use them
->>>>>>> origin/dev
     if (contextDetails.length > 0) {
       return contextDetails.map(normalizeSymptom);
     }
@@ -101,29 +98,9 @@ export default function SymptomDetailsPage() {
     setIsAddModalOpen(false);
   };
 
-  const handleContinue = () =>
-  handleSubmitAssessment({
-    symptomDetails,
-    submitAssessment,
-    navigate,
-    setShowValidationErrors,
-    setSubmitError,
-    setIsSubmitting,
-  });
+  const handleContinue = () => {
+    const activeSymptoms = symptomDetails.filter((symptom) => symptom.active);
 
-<<<<<<< HEAD
-  const activeSymptomDetails = symptomDetails.filter((symptom) => symptom.active);
-  const canContinue = activeSymptomDetails.length > 0 && activeSymptomDetails.every((symptom) => {
-    const config = getMeasurementConfig(symptom.region, symptom.side);
-    return symptom.measurementValue >= config.min && symptom.measurementValue <= config.max;
-  });
-=======
-    if (activeSymptoms.some((symptom) => !symptom.duration)) {
-      setShowValidationErrors(true);
-      return;
-    }
-
-    // Save only active symptoms to context
     setContextDetails(
       activeSymptoms.map((symptom) => ({
         region: symptom.region,
@@ -132,7 +109,15 @@ export default function SymptomDetailsPage() {
         duration: symptom.duration,
       })),
     );
-    navigate("/result");
+
+    void handleSubmitAssessment({
+      symptomDetails,
+      submitAssessment,
+      navigate,
+      setShowValidationErrors,
+      setSubmitError,
+      setIsSubmitting,
+    });
   };
 
   const canContinue = symptomDetails
@@ -141,7 +126,6 @@ export default function SymptomDetailsPage() {
       const config = getMeasurementConfig(symptom.region, symptom.side);
       return (symptom.painLevel ?? 0) >= config.min && (symptom.painLevel ?? 0) <= config.max;
     });
->>>>>>> origin/dev
 
   return (
     <PageShell

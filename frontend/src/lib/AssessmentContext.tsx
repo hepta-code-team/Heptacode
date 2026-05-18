@@ -1,29 +1,18 @@
-import { createContext, useContext, useState, ReactNode } from "react";
-<<<<<<< HEAD
-import type { AssessmentPayload, AssessmentResult, PatientData, SelectedSymptom, Symptom } from "../types/assessment";
+import { createContext, useContext, useState, type ReactNode } from "react";
 import { apiClient } from "./apiClient";
-=======
 import type { TriageSymptom } from "../../../shared/symptom.types";
 import type { PatientData } from "../../../shared/patientData.types";
->>>>>>> origin/dev
+import type { AssessmentPayload, AssessmentResult } from "../types/assessment";
 
 interface AssessmentContextType {
   patientData: PatientData | null;
   setPatientData: (data: PatientData) => void;
-<<<<<<< HEAD
-  selectedSymptoms: SelectedSymptom[];
-  setSelectedSymptoms: (symptoms: SelectedSymptom[]) => void;
-  symptomDetails: Symptom[];
-  setSymptomDetails: (details: Symptom[]) => void;
-  assessmentResult: AssessmentResult | null;
-  setAssessmentResult: (result: AssessmentResult | null) => void;
-  submitAssessment: (details: Symptom[]) => Promise<AssessmentResult>;
-=======
   selectedSymptoms: TriageSymptom[];
   setSelectedSymptoms: (symptoms: TriageSymptom[]) => void;
   symptomDetails: TriageSymptom[];
   setSymptomDetails: (details: TriageSymptom[]) => void;
->>>>>>> origin/dev
+  assessmentResult: AssessmentResult | null;
+  submitAssessment: (symptoms: AssessmentPayload["symptomDetails"]) => Promise<AssessmentResult>;
   resetAssessment: () => void;
 }
 
@@ -31,35 +20,27 @@ const AssessmentContext = createContext<AssessmentContextType | undefined>(undef
 
 export function AssessmentProvider({ children }: { children: ReactNode }) {
   const [patientData, setPatientData] = useState<PatientData | null>(null);
-<<<<<<< HEAD
-  const [selectedSymptoms, setSelectedSymptoms] = useState<SelectedSymptom[]>([]);
-  const [symptomDetails, setSymptomDetails] = useState<Symptom[]>([]);
+  const [selectedSymptoms, setSelectedSymptoms] = useState<TriageSymptom[]>([]);
+  const [symptomDetails, setSymptomDetails] = useState<TriageSymptom[]>([]);
   const [assessmentResult, setAssessmentResult] = useState<AssessmentResult | null>(null);
 
-  const submitAssessment = async (details: Symptom[]) => {
+  const submitAssessment = async (symptoms: AssessmentPayload["symptomDetails"]) => {
     if (!patientData) {
-      throw new Error("Patientendaten fehlen. Bitte gehen Sie zurück und füllen Sie die Stammdaten aus.");
+      throw new Error("Patientendaten fehlen.");
     }
+
+    setSymptomDetails(symptoms);
 
     const payload: AssessmentPayload = {
       patientData,
       selectedSymptoms,
-      symptomDetails: details,
+      symptomDetails: symptoms,
     };
 
-    console.log("Assessment payload", payload);
-
     const result = await apiClient.post<AssessmentResult>("/assessments", payload);
-
-    setSymptomDetails(details);
     setAssessmentResult(result);
-
     return result;
   };
-=======
-  const [selectedSymptoms, setSelectedSymptoms] = useState<TriageSymptom[]>([]);
-  const [symptomDetails, setSymptomDetails] = useState<TriageSymptom[]>([]);
->>>>>>> origin/dev
 
   const resetAssessment = () => {
     setPatientData(null);
@@ -78,7 +59,6 @@ export function AssessmentProvider({ children }: { children: ReactNode }) {
         symptomDetails,
         setSymptomDetails,
         assessmentResult,
-        setAssessmentResult,
         submitAssessment,
         resetAssessment,
       }}

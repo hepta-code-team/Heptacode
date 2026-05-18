@@ -1,8 +1,20 @@
-import type { Symptom } from "../../types/assessment";
+import type { SymptomDetailPayload } from "../../types/assessment";
+import type { SymptomMeasurementType } from "../../types/assessment";
+import { getMeasurementConfig } from "./symptoms.constants";
+
+type SymptomDraft = {
+  id: string;
+  region: string;
+  side?: string;
+  painLevel?: number;
+  duration?: string;
+  active: boolean;
+  measurementType: SymptomMeasurementType;
+};
 
 type HandleSubmitAssessmentArgs = {
-  symptomDetails: Symptom[];
-  submitAssessment: (symptoms: Symptom[]) => Promise<unknown>;
+  symptomDetails: SymptomDraft[];
+  submitAssessment: (symptoms: SymptomDetailPayload[]) => Promise<unknown>;
   navigate: (path: string) => void;
   setShowValidationErrors: (value: boolean) => void;
   setSubmitError: (value: string | null) => void;
@@ -19,16 +31,26 @@ export async function handleSubmitAssessment({
 }: HandleSubmitAssessmentArgs) {
   const activeSymptoms = symptomDetails.filter((symptom) => symptom.active);
 
-  if (activeSymptoms.some((symptom) => symptom.duration === "")) {
+  if (activeSymptoms.some((symptom) => !symptom.duration)) {
     setShowValidationErrors(true);
     return;
   }
+
+  const payloadSymptoms: SymptomDetailPayload[] = activeSymptoms.map((symptom) => ({
+    id: symptom.id,
+    region: symptom.region,
+    side: symptom.side,
+    measurementType: symptom.measurementType,
+    measurementValue: symptom.painLevel ?? getMeasurementConfig(symptom.region, symptom.side).defaultValue,
+    duration: symptom.duration ?? "today",
+    active: true,
+  }));
 
   setSubmitError(null);
   setIsSubmitting(true);
 
   try {
-    await submitAssessment(activeSymptoms);
+    await submitAssessment(payloadSymptoms);
     navigate("/result");
   } catch (error) {
     setSubmitError(
