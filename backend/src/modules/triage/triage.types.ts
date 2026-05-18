@@ -1,12 +1,21 @@
 import { z } from 'zod'
-import { CARE_LEVELS, MEDICAL_SPECIALTIES as SHARED_MEDICAL_SPECIALTIES } from "../../../../shared/result.types.js";
-import type { CareLevel } from "../../../../shared/result.types.js";
-import type { PatientData } from "../../../../shared/patientData.types.js";
-import type { TriageSymptom } from "../../../../shared/symptom.types.js";
-export type { CareLevel } from "../../../../shared/result.types.js";
-export type { PatientData } from "../../../../shared/patientData.types.js";
-export type { TriageSymptom } from "../../../../shared/symptom.types.js";
+import type { PatientData } from '../../../../shared/patientData.types.js'
+import type { TriageSymptom } from '../../../../shared/symptom.types.js'
 
+export type { PatientData } from '../../../../shared/patientData.types.js'
+export type { TriageSymptom } from '../../../../shared/symptom.types.js'
+
+// Versorgungsebenen für die Triage
+export const CARE_LEVELS = [
+  'emergency',
+  'doctor',
+  'specialist',
+  'selfcare',
+] as const
+
+export type CareLevel = (typeof CARE_LEVELS)[number]
+
+// Typ für die Review Summary
 export interface ReviewSummary {
   plainLanguage: string
   professionalSummary: string
@@ -14,16 +23,28 @@ export interface ReviewSummary {
 
 export const careLevelSchema = z.enum(CARE_LEVELS)
 
-const TRIAGE_MEDICAL_SPECIALTIES = [
+// Medizinische Versorgungsangebote
+export const medicalSpecialtySchema = z.enum([
   'home_care',
   'emergency_medicine',
   'general_practice',
-  ...SHARED_MEDICAL_SPECIALTIES,
-] as const;
+  'internal_medicine',
+  'cardiology',
+  'neurology',
+  'orthopedics',
+  'gastroenterology',
+  'pulmonology',
+  'dermatology',
+  'urology',
+  'gynecology',
+  'psychiatry',
+  'pediatrics',
+  'dentistry',
+  'ophthalmology',
+  'otolaryngology',
+])
 
-export type MedicalSpecialty = (typeof TRIAGE_MEDICAL_SPECIALTIES)[number];
-
-export const medicalSpecialtySchema = z.enum(TRIAGE_MEDICAL_SPECIALTIES)
+export type MedicalSpecialty = z.infer<typeof medicalSpecialtySchema>
 
 // Typ für die Anfrage
 export interface TriageRequest {
@@ -40,6 +61,7 @@ export interface TriageResponse {
   recommendedSpecialty: MedicalSpecialty
   reasons: string[]
   reviewSummary?: ReviewSummary
+
   // TA 1.8: true bedeutet, dass die Empfehlung aus dem definierten Fallback kommt.
   aiUnavailable?: boolean
 }
@@ -75,7 +97,7 @@ export const reviewSummarySchema = z.object({
   professionalSummary: z.string().min(1),
 })
 
-// Schema für die Antwort des AI
+// Schema für die Antwort der KI
 export const triageAiResultSchema = z.object({
   careLevel: careLevelSchema,
   recommendedSpecialty: medicalSpecialtySchema,

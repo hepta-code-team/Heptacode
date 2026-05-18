@@ -21,7 +21,6 @@ export default function ResultPage() {
 
   const getSymptomCareLevel = (symptom: Symptom): CareLevel => {
     const config = getMeasurementConfig(symptom.region, symptom.side);
-
     const value = symptom.painLevel ?? 0;
 
     if (config.type === "temperature") {
@@ -48,11 +47,11 @@ export default function ResultPage() {
     return getHighestCareLevel(symptomDetails.map(getSymptomCareLevel));
   };
 
-
   const careLevel = calculateCareLevel();
   const specialtyParam = searchParams.get("specialty");
   const recommendedSpecialty = isMedicalSpecialty(specialtyParam) ? specialtyParam : null;
   const config = recommendedSpecialty ? createSpecialtyConfig(recommendedSpecialty) : TRIAGE_CONFIGS[careLevel];
+
   const callAction =
     careLevel === "emergency"
       ? { href: "tel:112", label: "112 anrufen", description: "Notruf" }
@@ -66,7 +65,7 @@ export default function ResultPage() {
   };
 
   const getDurationLabel = (durationId: string) => {
-    return DURATIONS.find(d => d.id === durationId)?.label || durationId;
+    return DURATIONS.find((d) => d.id === durationId)?.label || durationId;
   };
 
   const getMeasurementSummary = (symptom: Symptom) => {
@@ -78,6 +77,167 @@ export default function ResultPage() {
     }
 
     return `${config.title} ${value}/10`;
+  };
+
+  const handlePdfDownload = async () => {
+    try {
+      const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:3000";
+
+      const result = assessmentResult as
+        | {
+            careLevel?: string;
+            recommendedSpecialty?: string;
+            reasons?: string[];
+            reviewSummary?: {
+              plainLanguage: string;
+              professionalSummary: string;
+            };
+            summary?: string;
+          }
+        | undefined;
+
+      const validCareLevels = ["emergency", "doctor", "specialist", "selfcare"];
+
+      const validMedicalSpecialties = [
+        "home_care",
+        "emergency_medicine",
+        "general_practice",
+        "internal_medicine",
+        "cardiology",
+        "neurology",
+        "orthopedics",
+        "gastroenterology",
+        "pulmonology",
+        "dermatology",
+        "urology",
+        "gynecology",
+        "psychiatry",
+        "pediatrics",
+        "dentistry",
+        "ophthalmology",
+        "otolaryngology",
+      ];
+
+      const fallbackRecommendedSpecialty =
+        careLevel === "emergency"
+          ? "emergency_medicine"
+          : careLevel === "selfcare"
+            ? "home_care"
+            : "general_practice";
+
+      const safeCareLevel = validCareLevels.includes(result?.careLevel ?? "")
+        ? result?.careLevel
+        : careLevel;
+
+      const safeRecommendedSpecialty = validMedicalSpecialties.includes(
+        result?.recommendedSpecialty ?? "",
+      )
+        ? result?.recommendedSpecialty
+        : recommendedSpecialty ?? fallbackRecommendedSpecialty;
+
+      const fallbackReasons =
+        result?.reasons?.length
+          ? result.reasons.slice(0, 5)
+          : [
+              "Ihre Angaben wurden ausgewertet.",
+              "Bei Verschlechterung oder Unsicherheit sollten Sie medizinische Hilfe suchen.",
+            ];
+
+      const plainLanguage =
+        result?.reviewSummary?.plainLanguage?.trim() ||
+        result?.summary?.trim() ||
+        "Die Angaben wurden aufgenommen und strukturiert zusammengefasst.";
+
+      const professionalSummary =
+        result?.reviewSummary?.professionalSummary?.trim() ||
+        [
+          "Patientendaten:",
+          patientData
+            ? [
+                `Geburtsdatum: ${patientData.birthMonth}/${patientData.birthYear}`,
+                `Größe/Gewicht: ${patientData.height} cm / ${patientData.weight} kg`,
+                `Geschlecht: ${patientData.gender}`,
+                patientData.isPregnant ? "Schwanger: Ja" : null,
+                patientData.isBreastfeeding ? "Stillend: Ja" : null,
+                patientData.allergies ? `Allergien: ${patientData.allergies}` : null,
+                patientData.medications ? `Medikamente: ${patientData.medications}` : null,
+                patientData.conditions.length > 0
+                  ? `Vorerkrankungen: ${patientData.conditions.join(", ")}`
+                  : null,
+              ]
+                .filter(Boolean)
+                .join("\n")
+            : "Keine Stammdaten vorhanden.",
+          "",
+          "Beschwerden:",
+          symptomDetails.length > 0
+            ? symptomDetails
+                .map((symptom) => {
+                  const label = symptom.side
+                    ? `${symptom.region} (${symptom.side})`
+                    : symptom.region;
+
+                  return `${label}, ${getMeasurementSummary(symptom)}${
+                    symptom.duration ? `, ${getDurationLabel(symptom.duration)}` : ""
+                  }`;
+                })
+                .join("\n")
+            : "Keine Beschwerden vorhanden.",
+        ].join("\n");
+
+      const pdfPayload = {
+        reviewSummary: {
+          plainLanguage,
+          professionalSummary,
+        },
+        triage: {
+          careLevel: safeCareLevel,
+          recommendedSpecialty: safeRecommendedSpecialty,
+          reasons: fallbackReasons,
+        },
+        ...(patientData ? { patientData } : {}),
+        ...(symptomDetails.length > 0
+          ? {
+              symptoms: symptomDetails.slice(0, 3).map((symptom) => ({
+                region: symptom.region,
+                ...(symptom.side ? { side: symptom.side } : {}),
+                ...(symptom.painLevel !== undefined ? { painLevel: symptom.painLevel } : {}),
+                ...(symptom.duration ? { duration: symptom.duration } : {}),
+              })),
+            }
+          : {}),
+      };
+
+      console.log("PDF Payload:", pdfPayload);
+
+      const response = await fetch(`${apiBaseUrl}/api/v1/pdf/export`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(pdfPayload),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`PDF konnte nicht erstellt werden: ${errorText}`);
+      }
+
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = "triage-review-summary.pdf";
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error(error);
+      alert("Das PDF konnte nicht heruntergeladen werden.");
+    }
   };
 
   return (
@@ -111,7 +271,6 @@ export default function ResultPage() {
           Begründung
         </p>
         <ul className="space-y-1.5">
-
           {(assessmentResult?.reasons?.length
             ? assessmentResult.reasons
             : [
@@ -153,12 +312,17 @@ export default function ResultPage() {
             Medizinische Zusammenfassung
           </p>
           <button
-            onClick={() => alert('PDF-Download würde hier starten')}
+            onClick={handlePdfDownload}
             aria-label="download-summary"
             className="bg-[#486284] text-app-text-on-primary rounded-[10px] px-4 py-2 hover:bg-[#3a4d68] transition-all flex items-center gap-2"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+              />
             </svg>
             <span
               className="font-['DM_Sans:Bold',sans-serif] font-bold text-sm"
@@ -216,7 +380,8 @@ export default function ResultPage() {
                 )}
                 {patientData.recentAbroad && (
                   <p className="font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-body text-xs">
-                    <strong>Ausland letzte 3 Monate:</strong> Ja{patientData.recentAbroadDetails && ` (${patientData.recentAbroadDetails})`}
+                    <strong>Ausland letzte 3 Monate:</strong> Ja
+                    {patientData.recentAbroadDetails && ` (${patientData.recentAbroadDetails})`}
                   </p>
                 )}
                 {patientData.conditions.length > 0 && (
@@ -227,10 +392,6 @@ export default function ResultPage() {
               </div>
             </div>
           )}
-
-          {/* Symptome
-          TODO: AI will do this as well
-          */}
 
           {assessmentResult?.summary && (
             <div>
@@ -268,9 +429,11 @@ export default function ResultPage() {
                       </strong>
                       {" "}({getMeasurementSummary(symptom)}
                       {symptom.duration && `, ${getDurationLabel(symptom.duration)}`})
-                      {index < symptomDetails.length - 1 && (index === symptomDetails.length - 2 ? " und " : ", ")}
+                      {index < symptomDetails.length - 1 &&
+                        (index === symptomDetails.length - 2 ? " und " : ", ")}
                     </span>
-                  ))}.
+                  ))}
+                  .
                 </p>
               </div>
             </div>
@@ -279,7 +442,14 @@ export default function ResultPage() {
           {/* Zeitstempel */}
           <div className="pt-3 border-t border-gray-200">
             <p className="font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-subtle text-xs">
-              Erstellt am: {new Date().toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+              Erstellt am:{" "}
+              {new Date().toLocaleDateString("de-DE", {
+                day: "2-digit",
+                month: "2-digit",
+                year: "numeric",
+                hour: "2-digit",
+                minute: "2-digit",
+              })}
             </p>
           </div>
         </div>
@@ -289,7 +459,12 @@ export default function ResultPage() {
       <div className="bg-[#FEF3C7] border-l-4 border-[#F59E0B] rounded-[16px] p-5 md:p-6 mt-4">
         <div className="flex items-start gap-3">
           <svg className="w-6 h-6 text-app-text-warning flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+            />
           </svg>
           <div>
             <p
