@@ -1,55 +1,11 @@
 import { z } from 'zod'
+import { CARE_LEVELS, MEDICAL_SPECIALTIES } from "../../../../shared/result.types.js";
+import type { CareLevel, MedicalSpecialty } from "../../../../shared/result.types.js";
+import type { PatientData } from "../../../../shared/patientData.types.js";
+import type { TriageSymptom } from "../../../../shared/symptom.types.js";
 
-// Typ für die Patientendaten
-export interface PatientData {
-  birthMonth: string
-  birthYear: string
-  height: string
-  weight: string
-  gender: string
-  isPregnant: boolean
-  isBreastfeeding: boolean
-  allergies: string
-  medications: string
-  substanceInfluence: string
-  recentAbroad: boolean
-  recentAbroadDetails: string
-  conditions: string[]
-}
-
-// Typ für das ausgewählte Symptom
-export interface TriageSymptom {
-  region: string
-  side?: string
-  painLevel?: number
-  duration?: 'today' | 'days' | 'week' | 'weeks'
-}
-
-// Typ für die Versorgungsebene
-export type CareLevel = 'emergency' | 'doctor' | 'selfcare'
-
-// Schema fuer die erlaubten medizinischen Versorgungsangebote
-export const medicalSpecialtySchema = z.enum([
-  'home_care',
-  'emergency_medicine',
-  'general_practice',
-  'internal_medicine',
-  'cardiology',
-  'neurology',
-  'orthopedics',
-  'gastroenterology',
-  'pulmonology',
-  'dermatology',
-  'urology',
-  'gynecology',
-  'psychiatry',
-  'pediatrics',
-  'dentistry',
-  'ophthalmology',
-  'otolaryngology',
-])
-
-export type MedicalSpecialty = z.infer<typeof medicalSpecialtySchema>
+export const careLevelSchema = z.enum(CARE_LEVELS)
+export const medicalSpecialtySchema = z.enum(MEDICAL_SPECIALTIES)
 
 // Typ für die Anfrage
 export interface TriageRequest {
@@ -63,7 +19,7 @@ export interface TriageRequest {
 // Typ für die Antwort
 export interface TriageResponse {
   careLevel: CareLevel
-  recommendedSpecialty: MedicalSpecialty
+  recommendedSpecialty?: MedicalSpecialty
   reasons: string[]
   // TA 1.8: true bedeutet, dass die Empfehlung aus dem definierten Fallback kommt.
   aiUnavailable?: boolean
@@ -96,8 +52,8 @@ export const triageSymptomSchema = z.object({
 
 // Schema für die Antwort des AI
 export const triageAiResultSchema = z.object({
-  careLevel: z.enum(['emergency', 'doctor', 'selfcare']),
-  recommendedSpecialty: medicalSpecialtySchema,
+  careLevel: careLevelSchema,
+  recommendedSpecialty: medicalSpecialtySchema.optional(),
   reasons: z.array(z.string().min(1)).max(5),
 })
 

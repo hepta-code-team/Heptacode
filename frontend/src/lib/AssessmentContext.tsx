@@ -1,13 +1,14 @@
 import { createContext, useContext, useState, ReactNode } from "react";
-import type { PatientData, SelectedSymptom, Symptom } from "../types/assessment";
+import type { TriageSymptom } from "../../../shared/symptom.types";
+import type { PatientData } from "../../../shared/patientData.types";
 
 interface AssessmentContextType {
   patientData: PatientData | null;
   setPatientData: (data: PatientData) => void;
-  selectedSymptoms: SelectedSymptom[];
-  setSelectedSymptoms: (symptoms: SelectedSymptom[]) => void;
-  symptomDetails: Symptom[];
-  setSymptomDetails: (details: Symptom[]) => void;
+  selectedSymptoms: TriageSymptom[];
+  setSelectedSymptoms: (symptoms: TriageSymptom[]) => void;
+  symptomDetails: TriageSymptom[];
+  setSymptomDetails: (details: TriageSymptom[]) => void;
   resetAssessment: () => void;
 }
 
@@ -25,8 +26,8 @@ So a browser-reload or app-reload clears the state. This could be fixed using se
 
 export function AssessmentProvider({ children }: { children: ReactNode }) {
   const [patientData, setPatientData] = useState<PatientData | null>(null);
-  const [selectedSymptoms, setSelectedSymptoms] = useState<SelectedSymptom[]>([]);
-  const [symptomDetails, setSymptomDetails] = useState<Symptom[]>([]);
+  const [selectedSymptoms, setSelectedSymptoms] = useState<TriageSymptom[]>([]);
+  const [symptomDetails, setSymptomDetails] = useState<TriageSymptom[]>([]);
 
   const resetAssessment = () => {
     setPatientData(null);

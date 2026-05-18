@@ -1,5 +1,7 @@
 import { z } from 'zod'
-import { patientDataSchema, triageSymptomSchema, type PatientData, type TriageSymptom } from '../triage/triage.types.js'
+import { patientDataSchema, triageSymptomSchema } from '../triage/triage.types.js'
+import type { PatientData } from '../../../../shared/patientData.types.js'
+import type { TriageSymptom } from '../../../../shared/symptom.types.js'
 
 export interface PdfSection {
   title: string

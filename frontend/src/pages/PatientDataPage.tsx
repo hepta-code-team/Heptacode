@@ -24,7 +24,7 @@ import {useAssessment} from "../lib/AssessmentContext";
 import {Input} from "../components/ui/input";
 import {Label} from "../components/ui/label";
 import {PRE_EXISTING_CONDITIONS} from "../features/symptoms/symptoms.constants";
-import type {PatientData} from "../types/assessment";
+import type {PatientData} from "../../../shared/patientData.types";
 
 const HEIGHT_MIN = 50;
 const HEIGHT_MAX = 250;
