@@ -1,11 +1,18 @@
 import PainScaleSelector from "./PainScaleSelector";
 import DurationSelector from "./DurationSelector";
 import { getMeasurementConfig } from "./symptoms.constants";
-import type { Symptom } from "../../types/assessment";
+import type { SymptomMeasurementType } from "../../types/assessment";
+import type { TriageSymptom } from "../../../../shared/symptom.types";
+
+type SymptomDraft = TriageSymptom & {
+  id: string;
+  active: boolean;
+  measurementType: SymptomMeasurementType;
+};
 
 interface SymptomDetailsFormProps {
-  symptom: Symptom;
-  onUpdate: (field: keyof Symptom, value: Symptom[keyof Symptom]) => void;
+  symptom: SymptomDraft;
+  onUpdate: (field: keyof SymptomDraft, value: SymptomDraft[keyof SymptomDraft]) => void;
   onRemove: () => void;
   showDurationError?: boolean;
 }
@@ -39,14 +46,14 @@ export default function SymptomDetailsForm({
 
       <PainScaleSelector
         config={measurementConfig}
-        value={symptom.measurementValue}
-        onValueChange={(value) => onUpdate("measurementValue", value)}
+        value={symptom.painLevel ?? measurementConfig.defaultValue}
+        onValueChange={(value) => onUpdate("painLevel", value)}
       />
 
       <DurationSelector
         selectedDuration={symptom.duration}
         onDurationChange={(duration) => onUpdate("duration", duration)}
-        showError={showDurationError && symptom.duration === ""}
+        showError={showDurationError && !symptom.duration}
       />
     </div>
   );

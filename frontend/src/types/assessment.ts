@@ -1,33 +1,5 @@
-export interface PatientData {
-  birthMonth: string;
-  birthYear: string;
-  height: string;
-  weight: string;
-  gender: string;
-  isPregnant: boolean;
-  isBreastfeeding: boolean;
-  allergies: string;
-  medications: string;
-  substanceInfluence: string;
-  recentAbroad: boolean;
-  recentAbroadDetails: string;
-  conditions: string[];
-}
-
-export interface SelectedSymptom {
-  region: string;
-  side?: string;
-}
-
-export interface Symptom {
-  id: string;
-  region: string;
-  side?: string;
-  measurementType: SymptomMeasurementType;
-  measurementValue: number;
-  duration: string;
-  active: boolean;
-}
+import type { PatientData } from "../../../shared/patientData.types";
+import type { TriageSymptom } from "../../../shared/symptom.types";
 
 export type SymptomMeasurementType = "pain" | "temperature" | "feeling" | "severity";
 export type CareLevel = "emergency" | "doctor" | "selfcare";
@@ -47,7 +19,12 @@ export interface AssessmentResult {
 
 export interface Assessment {
   patientData?: PatientData;
+<<<<<<< HEAD
   selectedSymptoms: SelectedSymptom[];
   symptomDetails: Symptom[];
   result?: AssessmentResult | null;
+=======
+  selectedSymptoms: TriageSymptom[];
+  symptomDetails: TriageSymptom[];
+>>>>>>> origin/dev
 }
