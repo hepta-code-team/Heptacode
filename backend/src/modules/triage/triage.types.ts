@@ -26,7 +26,13 @@ export interface TriageSymptom {
 }
 
 // Typ für die Versorgungsebene
-export type CareLevel = 'emergency' | 'doctor' | 'selfcare'
+export type CareLevel = 'emergency' | 'doctor' | 'specialist' | 'selfcare'
+
+// Typ für die Review Summary
+export interface ReviewSummary {
+  plainLanguage: string
+  professionalSummary: string
+}
 
 // Schema fuer die erlaubten medizinischen Versorgungsangebote
 export const medicalSpecialtySchema = z.enum([
@@ -65,6 +71,7 @@ export interface TriageResponse {
   careLevel: CareLevel
   recommendedSpecialty: MedicalSpecialty
   reasons: string[]
+  reviewSummary?: ReviewSummary
 }
 
 // Schema für die Patientendaten
@@ -92,21 +99,36 @@ export const triageSymptomSchema = z.object({
   duration: z.enum(['today', 'days', 'week', 'weeks']).optional(),
 })
 
+// Schema für Review Summary
+export const reviewSummarySchema = z.object({
+  plainLanguage: z.string().min(1),
+  professionalSummary: z.string().min(1),
+})
+
 // Schema für die Antwort des AI
 export const triageAiResultSchema = z.object({
-  careLevel: z.enum(['emergency', 'doctor', 'selfcare']),
+  careLevel: z.enum(['emergency', 'doctor', 'specialist', 'selfcare']),
   recommendedSpecialty: medicalSpecialtySchema,
   reasons: z.array(z.string().min(1)).max(5),
+  reviewSummary: reviewSummarySchema.optional(),
 })
 
 // Schema für die Anfrage
-export const triageRequestSchema = z.object({
-  patientData: patientDataSchema.optional(),
-  symptoms: z.array(triageSymptomSchema).max(3).optional(),
-  text: z.string().trim().min(1).optional(),
-  inputType: z.enum(['text', 'speech']).optional(),
-  emergencyFromLanding: z.boolean().optional(),
-}).refine((value) => Boolean(value.text) || Boolean(value.symptoms && value.symptoms.length > 0), {
-  message: 'text oder symptoms ist erforderlich',
-  path: ['text'],
-})
+export const triageRequestSchema = z
+  .object({
+    patientData: patientDataSchema.optional(),
+    symptoms: z.array(triageSymptomSchema).max(3).optional(),
+    text: z.string().trim().min(1).optional(),
+    inputType: z.enum(['text', 'speech']).optional(),
+    emergencyFromLanding: z.boolean().optional(),
+  })
+  .refine(
+    (value) =>
+      Boolean(value.text) ||
+      Boolean(value.symptoms && value.symptoms.length > 0) ||
+      value.emergencyFromLanding === true,
+    {
+      message: 'text oder symptoms ist erforderlich',
+      path: ['text'],
+    },
+  )

@@ -6,6 +6,7 @@ import type {
   CareLevel,
   MedicalSpecialty,
   PatientData,
+  ReviewSummary,
   TriageResponse,
   TriageSymptom,
 } from './triage.types.js'
@@ -26,17 +27,24 @@ const DURATION_LABELS: Record<NonNullable<TriageSymptom['duration']>, string> = 
 }
 
 // Prompt von ChatGPT erstellt:
-// Die KI waehlt Versorgungsangebot und Begruendungen.
+// Die KI waehlt Versorgungsangebot, Begruendungen und Review Summary.
 // Die erlaubten Werte werden zusaetzlich ueber Zod validiert.
 const triageInstructions = [
   'Du bewertest strukturierte medizinische Angaben und ordnest sie genau einer Versorgungsebene zu.',
-  'Erlaubte careLevel-Werte sind ausschliesslich: emergency, doctor, selfcare.',
+  'Erlaubte careLevel-Werte sind ausschliesslich: emergency, doctor, specialist, selfcare.',
   `Erlaubte recommendedSpecialty-Werte sind ausschliesslich: ${medicalSpecialtySchema.options.join(', ')}.`,
-  'Waehle recommendedSpecialty selbst passend zu den Angaben aus; home_care steht fuer haeusliche Versorgung.',
-  'careLevel muss zur Empfehlung passen: emergency_medicine -> emergency, home_care -> selfcare, alle anderen Empfehlungen -> doctor.',
+  'Waehle recommendedSpecialty selbst passend zu den Angaben aus.',
+  'home_care steht fuer haeusliche Versorgung.',
+  'emergency_medicine steht fuer Notfallversorgung.',
+  'general_practice steht fuer hausärztliche Abklärung.',
+  'Alle anderen medizinischen Fachrichtungen stehen fuer fachärztliche Abklärung.',
+  'careLevel muss zur Empfehlung passen: emergency_medicine -> emergency, home_care -> selfcare, general_practice -> doctor, alle anderen Fachrichtungen -> specialist.',
   'Beruecksichtige die uebergebenen Symptome, optionale Schmerzintensitaeten, Dauern und die Stammdaten.',
   'Handle sicherheitsorientiert. Bei klaren Warnzeichen oder hohem Risiko waehle die hoehere Versorgungsebene.',
   'Gib kurze, konkrete Begruendungen auf Deutsch zurueck.',
+  'Erstelle zusaetzlich eine reviewSummary mit plainLanguage und professionalSummary.',
+  'plainLanguage soll fuer Patientinnen und Patienten leicht verständlich sein.',
+  'professionalSummary soll medizinisch strukturiert formuliert sein.',
   'Erfinde keine zusaetzlichen Symptome oder Stammdaten.',
 ].join('\n')
 
@@ -91,7 +99,11 @@ function toCareLevel(recommendedSpecialty: MedicalSpecialty): CareLevel {
     return 'selfcare'
   }
 
-  return 'doctor'
+  if (recommendedSpecialty === 'general_practice') {
+    return 'doctor'
+  }
+
+  return 'specialist'
 }
 
 // Funktion um widerspruechliche KI-Antworten zwischen careLevel und Empfehlung zu vermeiden
@@ -102,12 +114,59 @@ function ensureConsistentCareLevel(result: TriageResponse): TriageResponse {
   }
 }
 
-// Funktion um Versorgungsebene und Fachrichtung vom AI zu requesten
+function formatCareLevel(careLevel: CareLevel): string {
+  switch (careLevel) {
+    case 'emergency':
+      return 'Notfallversorgung'
+    case 'doctor':
+      return 'hausärztliche Abklärung'
+    case 'specialist':
+      return 'fachärztliche Abklärung'
+    case 'selfcare':
+      return 'Selbstversorgung'
+    default:
+      return careLevel
+  }
+}
+
+function createFallbackReviewSummary(
+  patientData: PatientData | undefined,
+  symptoms: TriageSymptom[],
+  result: Pick<TriageResponse, 'careLevel' | 'recommendedSpecialty' | 'reasons'>,
+): ReviewSummary {
+  const symptomText =
+    symptoms.length > 0
+      ? formatSymptoms(symptoms)
+      : 'Keine konkreten Symptome uebergeben.'
+
+  const patientText = patientData
+    ? formatPatientData(patientData)
+    : 'Keine Stammdaten uebergeben.'
+
+  return {
+    plainLanguage: `Die Angaben wurden ausgewertet. Die empfohlene Versorgungsebene ist: ${formatCareLevel(result.careLevel)}. Die empfohlene Fachrichtung ist: ${result.recommendedSpecialty}.`,
+    professionalSummary: [
+      'Patientendaten:',
+      patientText,
+      '',
+      'Beschwerden:',
+      symptomText,
+      '',
+      'Triage-Einstufung:',
+      `Care Level: ${formatCareLevel(result.careLevel)}`,
+      `Empfohlene Fachrichtung: ${result.recommendedSpecialty}`,
+      result.reasons.length > 0
+        ? `Begründungen: ${result.reasons.join('; ')}`
+        : 'Begründungen: keine Angabe',
+    ].join('\n'),
+  }
+}
+
+// Funktion um Versorgungsebene, Fachrichtung und Review Summary vom AI zu requesten
 async function requestTriageFromAi(
   patientData: PatientData | undefined,
   symptoms: TriageSymptom[],
 ): Promise<TriageResponse> {
-  // Die KI erhaelt bereits strukturierte Eingaben und muss eine validierbare JSON-Antwort liefern.
   const completion = await aiClient.beta.chat.completions.parse({
     model: env.aiModel,
     messages: [
@@ -130,11 +189,17 @@ async function requestTriageFromAi(
   const parsed = completion.choices[0]?.message.parsed
 
   if (!parsed) {
-    // Fehlende strukturierte Ausgabe wird als Integrationsfehler behandelt.
     throw new Error('AI triage returned no structured result')
   }
 
-  return ensureConsistentCareLevel(parsed)
+  const consistentResult = ensureConsistentCareLevel(parsed)
+
+  return {
+    ...consistentResult,
+    reviewSummary:
+      consistentResult.reviewSummary ??
+      createFallbackReviewSummary(patientData, symptoms, consistentResult),
+  }
 }
 
 // Funktion um die Versorgungsebene zu evaluieren
@@ -146,11 +211,19 @@ export async function evaluateTriage(
   inputType: 'text' | 'speech' = 'text',
 ): Promise<TriageResponse> {
   if (emergencyFromLanding) {
-    return {
+    const result: TriageResponse = {
       careLevel: 'emergency',
       recommendedSpecialty: 'emergency_medicine',
       reasons: ['Notfallmodus ueber die Startseite ausgewaehlt.'],
+      reviewSummary: {
+        plainLanguage:
+          'Es wurde ein Notfallsymptom auf der Startseite ausgewaehlt. Bitte nehmen Sie umgehend medizinische Hilfe in Anspruch.',
+        professionalSummary:
+          'Notfallmodus ueber die Startseite ausgewaehlt. Care Level: Notfallversorgung. Empfohlene Fachrichtung: emergency_medicine.',
+      },
     }
+
+    return result
   }
 
   // Wenn Freitext uebergeben wurde, wird zuerst die Symptom-Extraktion ausgefuehrt und deren Ergebnis fuer die Triage verwendet.
@@ -158,7 +231,6 @@ export async function evaluateTriage(
     const extractionResult = await extractSymptoms(text, inputType)
 
     if (extractionResult.invalidInput) {
-      // Ungueltiger Freitext soll in der Triage als Eingabefehler sichtbar werden.
       throw createBadRequestError(
         extractionResult.message ?? 'Bitte beschreiben Sie konkrete gesundheitliche Beschwerden.',
       )
@@ -170,11 +242,16 @@ export async function evaluateTriage(
   const triageSymptoms = symptoms ?? []
 
   if (triageSymptoms.length === 0) {
-    // Ohne Symptome bleibt die Empfehlung bei Selfcare, ohne dass ein KI-Call noetig ist.
     return {
       careLevel: 'selfcare',
       recommendedSpecialty: 'home_care',
       reasons: [],
+      reviewSummary: {
+        plainLanguage:
+          'Es wurden keine konkreten Beschwerden uebergeben. Eine medizinische Ersteinschaetzung ist dadurch nur eingeschraenkt moeglich.',
+        professionalSummary:
+          'Keine Symptome uebergeben. Care Level: Selbstversorgung. Empfohlene Fachrichtung: home_care.',
+      },
     }
   }
 
