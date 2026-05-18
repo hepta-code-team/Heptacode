@@ -2,8 +2,6 @@ import { requestStructuredAiResponse } from '../../ai/llmAdapter.js'
 import { isAiRequestError } from '../../ai/timeout.js'
 import { extractSymptoms } from '../symptom-extraction/symptomExtraction.service.js'
 import type {
-  CareLevel,
-  MedicalSpecialty,
   PatientData,
   TriageResponse,
   TriageSymptom,
@@ -67,27 +65,6 @@ function formatSymptoms(symptoms: TriageSymptom[]): string {
     .join('\n')
 }
 
-// Funktion um das empfohlene Versorgungsangebot auf die grobe Ebene abzubilden
-function toCareLevel(recommendedSpecialty: MedicalSpecialty): CareLevel {
-  if (recommendedSpecialty === 'emergency_medicine') {
-    return 'emergency'
-  }
-
-  if (recommendedSpecialty === 'home_care') {
-    return 'selfcare'
-  }
-
-  return 'doctor'
-}
-
-// Funktion um widerspruechliche KI-Antworten zwischen careLevel und Empfehlung zu vermeiden
-function ensureConsistentCareLevel(result: TriageResponse): TriageResponse {
-  return {
-    ...result,
-    careLevel: toCareLevel(result.recommendedSpecialty),
-  }
-}
-
 // Funktion um Versorgungsebene und Fachrichtung vom AI zu requesten
 async function requestTriageFromAi(
   patientData: PatientData | undefined,
@@ -113,7 +90,14 @@ async function requestTriageFromAi(
     temperature: 0,
   })
 
-  return ensureConsistentCareLevel(parsed)
+  if (parsed.careLevel !== 'specialist') {
+    return {
+      ...parsed,
+      recommendedSpecialty: undefined,
+    }
+  }
+
+  return parsed
 }
 
 // Fallback fuer strukturierte Symptome: Ohne KI wird anhand der staerksten Schmerzangabe entschieden.
@@ -127,7 +111,6 @@ function createFallbackTriage(symptoms: TriageSymptom[]): TriageResponse {
   if (strongestPainLevel >= 8) {
     return {
       careLevel: 'emergency',
-      recommendedSpecialty: 'emergency_medicine',
       reasons: [
         'Die KI-Auswertung ist aktuell nicht verfuegbar.',
         'Aufgrund der sehr starken Beschwerden wird sicherheitshalber eine Notfallabklaerung empfohlen.',
@@ -139,7 +122,6 @@ function createFallbackTriage(symptoms: TriageSymptom[]): TriageResponse {
   if (strongestPainLevel >= 5 || symptoms.length > 0) {
     return {
       careLevel: 'doctor',
-      recommendedSpecialty: 'general_practice',
       reasons: [
         'Die KI-Auswertung ist aktuell nicht verfuegbar.',
         'Bitte lassen Sie die Beschwerden aerztlich einschaetzen, besonders bei Verschlechterung oder anhaltenden Symptomen.',
@@ -150,7 +132,6 @@ function createFallbackTriage(symptoms: TriageSymptom[]): TriageResponse {
 
   return {
     careLevel: 'selfcare',
-    recommendedSpecialty: 'home_care',
     reasons: ['Die KI-Auswertung ist aktuell nicht verfuegbar. Ohne erkannte Symptome ist keine hoehere Dringlichkeit ableitbar.'],
     aiUnavailable: true,
   }
@@ -161,7 +142,6 @@ function createFallbackTriage(symptoms: TriageSymptom[]): TriageResponse {
 function createTextExtractionFallbackTriage(): TriageResponse {
   return {
     careLevel: 'doctor',
-    recommendedSpecialty: 'general_practice',
     reasons: [
       'Die KI-Auswertung ist aktuell nicht verfuegbar.',
       'Die Freitext-Beschreibung konnte nicht sicher in Symptome ueberfuehrt werden. Bitte waehlen Sie die Symptome manuell aus oder lassen Sie die Beschwerden aerztlich einschaetzen.',
@@ -198,7 +178,6 @@ export async function evaluateTriage(
   if (emergencyFromLanding) {
     return {
       careLevel: 'emergency',
-      recommendedSpecialty: 'emergency_medicine',
       reasons: ['Notfallmodus ueber die Startseite ausgewaehlt.'],
     }
   }
@@ -227,7 +206,6 @@ export async function evaluateTriage(
     // Ohne Symptome bleibt die Empfehlung bei Selfcare, ohne dass ein KI-Call noetig ist.
     return {
       careLevel: 'selfcare',
-      recommendedSpecialty: 'home_care',
       reasons: [],
     }
   }

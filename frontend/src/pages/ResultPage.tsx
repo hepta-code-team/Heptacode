@@ -3,9 +3,9 @@ import { PhoneCall } from "lucide-react";
 import PageShell from "../components/PageShell";
 import ResultCard from "../features/results/ResultCard";
 import Button from "../components/Button";
-import { createSpecialtyConfig, isMedicalSpecialty, TRIAGE_CONFIGS } from "../types/triage";
+import { createSpecialtyConfig, isMedicalSpecialty, TRIAGE_CONFIGS } from "../features/triage/triage";
 import { useAssessment } from "../lib/AssessmentContext";
-import type { CareLevel } from "../types/triage";
+import type { CareLevel } from "../features/triage/triage";
 import { DURATIONS, getMeasurementConfig } from "../features/symptoms/symptoms.constants";
 import type { Symptom } from "../types/assessment";
 

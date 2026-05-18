@@ -1,20 +1,5 @@
-export type CareLevel = "selfcare" | "doctor" | "specialist" | "emergency";
+import {CareLevel, MedicalSpecialty} from "../../../../shared/result.types"
 
-export type MedicalSpecialty =
-  | "internal_medicine"
-  | "cardiology"
-  | "neurology"
-  | "orthopedics"
-  | "gastroenterology"
-  | "pulmonology"
-  | "dermatology"
-  | "urology"
-  | "gynecology"
-  | "psychiatry"
-  | "pediatrics"
-  | "dentistry"
-  | "ophthalmology"
-  | "otolaryngology";
 
 // This creates the visual result card displayed on the last page
 export interface TriageResult {
