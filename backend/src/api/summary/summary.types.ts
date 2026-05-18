@@ -48,7 +48,6 @@ export interface SummaryResponse {
   aiReviewSummary: {
     plainLanguage: string
     professionalSummary: string
-    detectedRedFlags: string[]
     missingInformation: string[]
   }
 

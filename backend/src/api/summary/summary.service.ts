@@ -11,8 +11,7 @@ export async function createSummaryService(
     throw new Error('CONSENT_REQUIRED')
   }
 
-  const detectedRedFlags = detectRedFlags(data)
-  const urgencyLevel = determineUrgencyLevel(data, detectedRedFlags)
+  const urgencyLevel = determineUrgencyLevel(data)
 
   return {
     summaryId: `summary_${Date.now()}`,
@@ -22,7 +21,6 @@ export async function createSummaryService(
     aiReviewSummary: {
       plainLanguage: createPlainLanguageSummary(data, urgencyLevel),
       professionalSummary: createProfessionalSummary(data),
-      detectedRedFlags,
       missingInformation: createMissingInformationList(data),
     },
 
@@ -43,82 +41,16 @@ export async function createSummaryService(
   }
 }
 
-function detectRedFlags(data: SummaryRequest): string[] {
-  const redFlags: string[] = []
-
-  const freeText = data.symptoms.freeText.toLowerCase()
-  const selectedSymptoms = data.symptoms.selectedSymptoms ?? []
-
-  const hasSymptom = (symptom: string) =>
-    selectedSymptoms.includes(symptom) || freeText.includes(symptom)
-
-  if (
-    hasSymptom('chest_pain') ||
-    hasSymptom('chest_pressure') ||
-    freeText.includes('brustschmerz') ||
-    freeText.includes('druck auf der brust')
-  ) {
-    redFlags.push('chest_pain_or_pressure')
-  }
-
-  if (
-    hasSymptom('shortness_of_breath') ||
-    freeText.includes('atemnot') ||
-    freeText.includes('schwer luft')
-  ) {
-    redFlags.push('shortness_of_breath')
-  }
-
-  if (
-    hasSymptom('unconsciousness') ||
-    freeText.includes('ohnmacht') ||
-    freeText.includes('bewusstlos')
-  ) {
-    redFlags.push('loss_of_consciousness')
-  }
-
-  if (
-    hasSymptom('severe_bleeding') ||
-    freeText.includes('starke blutung') ||
-    freeText.includes('blutet stark')
-  ) {
-    redFlags.push('severe_bleeding')
-  }
-
+function determineUrgencyLevel(data: SummaryRequest): UrgencyLevel {
   if (data.symptoms.severity !== undefined && data.symptoms.severity >= 8) {
-    redFlags.push('high_severity')
-  }
-
-  if (data.symptoms.progression === 'worse') {
-    redFlags.push('worsening_symptoms')
-  }
-
-  return redFlags
-}
-
-function determineUrgencyLevel(
-  data: SummaryRequest,
-  redFlags: string[]
-): UrgencyLevel {
-  if (
-    redFlags.includes('chest_pain_or_pressure') &&
-    redFlags.includes('shortness_of_breath')
-  ) {
-    return 'emergency'
-  }
-
-  if (
-    redFlags.includes('loss_of_consciousness') ||
-    redFlags.includes('severe_bleeding')
-  ) {
-    return 'emergency'
-  }
-
-  if (redFlags.length >= 2) {
     return 'urgent'
   }
 
   if (data.symptoms.severity !== undefined && data.symptoms.severity >= 5) {
+    return 'soon'
+  }
+
+  if (data.symptoms.progression === 'worse') {
     return 'soon'
   }
 
