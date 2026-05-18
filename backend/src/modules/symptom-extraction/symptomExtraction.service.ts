@@ -1,4 +1,5 @@
 import { requestStructuredAiResponse } from '../../ai/llmAdapter.js'
+import { isAiRequestError } from '../../ai/timeout.js'
 import type { SymptomExtractionResponse } from './symptomExtraction.types.js'
 import {
   symptomExtractionAiResultSchema,
@@ -105,9 +106,18 @@ export async function extractSymptoms(
     }
   }
 
-  const validationResult = await requestInputValidationFromAi(text, inputType)
+  let validationResult: Awaited<ReturnType<typeof requestInputValidationFromAi>> | null = null
 
-  if (!validationResult.isValidMedicalInput) {
+  try {
+    validationResult = await requestInputValidationFromAi(text, inputType)
+  } catch (error) {
+    // TA 1.8: Wenn nur die Validierungs-KI ausfaellt, versuchen wir trotzdem die Extraktion.
+    if (!isAiRequestError(error)) {
+      throw error
+    }
+  }
+
+  if (validationResult && !validationResult.isValidMedicalInput) {
     return {
       text,
       inputType,
@@ -117,7 +127,24 @@ export async function extractSymptoms(
     }
   }
 
-  const result = await requestSymptomsFromAi(text, inputType)
+  let result: Awaited<ReturnType<typeof requestSymptomsFromAi>>
+
+  try {
+    result = await requestSymptomsFromAi(text, inputType)
+  } catch (error) {
+    // TA 1.8: Wenn die Extraktion ausfaellt, antwortet die API kontrolliert statt mit 500.
+    if (!isAiRequestError(error)) {
+      throw error
+    }
+
+    return {
+      text,
+      inputType,
+      symptoms: [],
+      aiUnavailable: true,
+      message: 'Die KI-Auswertung ist aktuell nicht verfuegbar. Bitte versuchen Sie es erneut oder waehlen Sie Symptome manuell aus.',
+    }
+  }
 
   return {
     text,

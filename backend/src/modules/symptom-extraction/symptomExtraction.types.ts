@@ -22,6 +22,8 @@ export interface SymptomExtractionResponse {
   inputType: 'text' | 'speech'
   symptoms: SelectedSymptom[]
   invalidInput?: boolean
+  // TA 1.8: true bedeutet, dass keine KI-Antwort rechtzeitig oder strukturiert verfuegbar war.
+  aiUnavailable?: boolean
   message?: string
 }
 

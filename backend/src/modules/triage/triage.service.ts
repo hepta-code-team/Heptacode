@@ -1,4 +1,5 @@
 import { requestStructuredAiResponse } from '../../ai/llmAdapter.js'
+import { isAiRequestError } from '../../ai/timeout.js'
 import { extractSymptoms } from '../symptom-extraction/symptomExtraction.service.js'
 import type {
   CareLevel,
@@ -115,6 +116,77 @@ async function requestTriageFromAi(
   return ensureConsistentCareLevel(parsed)
 }
 
+// Fallback fuer strukturierte Symptome: Ohne KI wird anhand der staerksten Schmerzangabe entschieden.
+// Der Fallback ist bewusst vorsichtig, damit im Zweifel eher aerztlich abgeklaert wird.
+function createFallbackTriage(symptoms: TriageSymptom[]): TriageResponse {
+  const strongestPainLevel = Math.max(
+    0,
+    ...symptoms.map((symptom) => symptom.painLevel ?? 0),
+  )
+
+  if (strongestPainLevel >= 8) {
+    return {
+      careLevel: 'emergency',
+      recommendedSpecialty: 'emergency_medicine',
+      reasons: [
+        'Die KI-Auswertung ist aktuell nicht verfuegbar.',
+        'Aufgrund der sehr starken Beschwerden wird sicherheitshalber eine Notfallabklaerung empfohlen.',
+      ],
+      aiUnavailable: true,
+    }
+  }
+
+  if (strongestPainLevel >= 5 || symptoms.length > 0) {
+    return {
+      careLevel: 'doctor',
+      recommendedSpecialty: 'general_practice',
+      reasons: [
+        'Die KI-Auswertung ist aktuell nicht verfuegbar.',
+        'Bitte lassen Sie die Beschwerden aerztlich einschaetzen, besonders bei Verschlechterung oder anhaltenden Symptomen.',
+      ],
+      aiUnavailable: true,
+    }
+  }
+
+  return {
+    careLevel: 'selfcare',
+    recommendedSpecialty: 'home_care',
+    reasons: ['Die KI-Auswertung ist aktuell nicht verfuegbar. Ohne erkannte Symptome ist keine hoehere Dringlichkeit ableitbar.'],
+    aiUnavailable: true,
+  }
+}
+
+// Spezieller Fallback fuer Freitext: Wenn die KI keine Symptome extrahieren kann,
+// ist eine sichere Selfcare-Einstufung nicht moeglich.
+function createTextExtractionFallbackTriage(): TriageResponse {
+  return {
+    careLevel: 'doctor',
+    recommendedSpecialty: 'general_practice',
+    reasons: [
+      'Die KI-Auswertung ist aktuell nicht verfuegbar.',
+      'Die Freitext-Beschreibung konnte nicht sicher in Symptome ueberfuehrt werden. Bitte waehlen Sie die Symptome manuell aus oder lassen Sie die Beschwerden aerztlich einschaetzen.',
+    ],
+    aiUnavailable: true,
+  }
+}
+
+// Wrapper fuer den KI-Call: bekannte KI-Ausfaelle werden abgefangen, echte Programmierfehler nicht.
+async function requestTriageWithFallback(
+  patientData: PatientData | undefined,
+  symptoms: TriageSymptom[],
+): Promise<TriageResponse> {
+  try {
+    return await requestTriageFromAi(patientData, symptoms)
+  } catch (error) {
+    // Nur Timeout/API/Antwortformat-Fehler loesen den medizinischen Fallback aus.
+    if (!isAiRequestError(error)) {
+      throw error
+    }
+
+    return createFallbackTriage(symptoms)
+  }
+}
+
 // Funktion um die Versorgungsebene zu evaluieren
 export async function evaluateTriage(
   patientData: PatientData | undefined,
@@ -142,7 +214,11 @@ export async function evaluateTriage(
       )
     }
 
-    return requestTriageFromAi(patientData, extractionResult.symptoms)
+    if (extractionResult.aiUnavailable) {
+      return createTextExtractionFallbackTriage()
+    }
+
+    return requestTriageWithFallback(patientData, extractionResult.symptoms)
   }
 
   const triageSymptoms = symptoms ?? []
@@ -156,5 +232,5 @@ export async function evaluateTriage(
     }
   }
 
-  return requestTriageFromAi(patientData, triageSymptoms)
+  return requestTriageWithFallback(patientData, triageSymptoms)
 }
