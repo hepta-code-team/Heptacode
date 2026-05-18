@@ -51,6 +51,12 @@ export interface SummaryResponse {
   aiReviewSummary: {
     plainLanguage: string
     professionalSummary: string
+    missingInformation: string[]
+  }
+
+  recommendation: {
+    nextStep: string
+    message: string
   }
 
   fhirPreview: {

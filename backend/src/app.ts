@@ -4,7 +4,6 @@ import Fastify, { type FastifyInstance } from 'fastify'
 import { ZodError } from 'zod'
 import { env } from './config/env.js'
 import { pdfRoutes } from './routes/pdf.routes.js'
-import { redflagsRoutes } from './routes/redflags.routes.js'
 import { symptomExtractionRoutes } from './routes/symptomExtraction.routes.js'
 import { triageRoutes } from './routes/triage.routes.js'
 import { summaryRoutes } from './api/summary/summary.routes.js'
@@ -42,7 +41,6 @@ export async function buildApp(): Promise<FastifyInstance> {
    app.get('/health', async () => ({ status: 'ok' }))
 
   await app.register(symptomExtractionRoutes)
-  await app.register(redflagsRoutes)
   await app.register(triageRoutes)
   await app.register(pdfRoutes)
   await app.register(summaryRoutes, { prefix: '/api/v1' })

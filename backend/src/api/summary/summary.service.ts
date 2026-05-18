@@ -12,7 +12,9 @@ export async function createSummaryService(
     throw new Error('CONSENT_REQUIRED')
   }
 
-  const summary: SummaryResponse = {
+  const urgencyLevel = determineUrgencyLevel(data)
+
+  return {
     summaryId: `summary_${Date.now()}`,
 
     triage: data.triage,
@@ -20,6 +22,12 @@ export async function createSummaryService(
     aiReviewSummary: {
       plainLanguage: createPlainLanguageSummary(data),
       professionalSummary: createProfessionalSummary(data),
+      missingInformation: createMissingInformationList(data),
+    },
+
+    recommendation: {
+      nextStep: createNextStep(urgencyLevel),
+      message: createRecommendationMessage(urgencyLevel),
     },
 
     fhirPreview: {
@@ -38,14 +46,45 @@ export async function createSummaryService(
   return summary
 }
 
-function createPlainLanguageSummary(data: SummaryRequest): string {
-  const symptomText = data.symptoms.freeText.trim()
-
-  if (data.triage) {
-    return `Die Angaben wurden aufgenommen und strukturiert zusammengefasst. Die Versorgungsebene wurde zuvor im Triage-Prozess als "${formatCareLevel(data.triage.careLevel)}" eingestuft. Beschrieben wurde: "${symptomText}".`
+function determineUrgencyLevel(data: SummaryRequest): UrgencyLevel {
+  if (data.symptoms.severity !== undefined && data.symptoms.severity >= 8) {
+    return 'urgent'
   }
 
-  return `Die Angaben wurden aufgenommen und strukturiert zusammengefasst. Beschrieben wurde: "${symptomText}".`
+  if (data.symptoms.severity !== undefined && data.symptoms.severity >= 5) {
+    return 'soon'
+  }
+
+  if (data.symptoms.progression === 'worse') {
+    return 'soon'
+  }
+
+  if (data.symptoms.freeText.trim().length > 0) {
+    return 'self_care'
+  }
+
+  return 'unknown'
+}
+
+function createPlainLanguageSummary(
+  data: SummaryRequest,
+  urgencyLevel: UrgencyLevel
+): string {
+  const symptomText = data.symptoms.freeText
+
+  if (urgencyLevel === 'emergency') {
+    return `Die beschriebenen Beschwerden wirken potenziell ernst. Besonders die Angabe "${symptomText}" sollte sofort medizinisch abgeklärt werden.`
+  }
+
+  if (urgencyLevel === 'urgent') {
+    return `Die Angaben deuten darauf hin, dass eine zeitnahe medizinische Einschätzung sinnvoll ist. Beschrieben wurde: "${symptomText}".`
+  }
+
+  if (urgencyLevel === 'soon') {
+    return `Die Beschwerden sollten beobachtet und ärztlich abgeklärt werden, wenn sie anhalten oder schlimmer werden. Beschrieben wurde: "${symptomText}".`
+  }
+
+  return `Die Beschwerden wurden aufgenommen und strukturiert zusammengefasst. Beschrieben wurde: "${symptomText}".`
 }
 
 function createProfessionalSummary(data: SummaryRequest): string {
@@ -116,6 +155,17 @@ function formatCareLevel(careLevel: SummaryTriage['careLevel']): string {
   }
 }
 
-export function getSummaryById(summaryId: string): SummaryResponse | undefined {
-  return getSummary(summaryId)
+function createRecommendationMessage(urgencyLevel: UrgencyLevel): string {
+  switch (urgencyLevel) {
+    case 'emergency':
+      return 'Bitte sofort medizinische Hilfe in Anspruch nehmen. Bei akuter Gefahr sollte der Notruf gewählt werden.'
+    case 'urgent':
+      return 'Bitte zeitnah medizinisch abklären lassen.'
+    case 'soon':
+      return 'Ein Arztkontakt in den nächsten Tagen ist sinnvoll, besonders wenn die Beschwerden anhalten oder schlimmer werden.'
+    case 'self_care':
+      return 'Die Beschwerden können zunächst beobachtet werden. Bei Verschlechterung sollte medizinischer Rat eingeholt werden.'
+    default:
+      return 'Es fehlen noch wichtige Informationen für eine sinnvolle Ersteinschätzung.'
+  }
 }
