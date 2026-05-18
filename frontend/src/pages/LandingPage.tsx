@@ -4,16 +4,20 @@ import { AlertTriangle, CheckCircle2, CircleHelp, X } from "lucide-react";
 import PageShell from "../components/PageShell";
 import Modal from "../components/Modal";
 import EmergencySymptomGrid from "../features/emergency/EmergencySymptomGrid";
+import { useAssessment } from "../lib/AssessmentContext";
+
 
 export default function LandingPage() {
   const navigate = useNavigate();
+  const { resetAssessment } = useAssessment();
   const [isDisclaimerOpen, setIsDisclaimerOpen] = useState(true);
   const [isEmergencyInfoOpen, setIsEmergencyInfoOpen] = useState(false);
 
-  const handleEmergencySymptom = () => {
-    // Red Flag symptoms always lead to emergency
-    navigate("/result?emergency=true");
-  };
+ const handleEmergencySymptom = () => {
+  resetAssessment();
+  navigate("/result?emergency=true");
+};
+
 
   const handleContinue = () => {
     navigate("/patient-data");

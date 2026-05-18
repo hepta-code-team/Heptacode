@@ -3,21 +3,30 @@ import { MapPin, Search } from "lucide-react";
 import type { RecommendedSpecialty } from "../../types/triage";
 
 interface NearbyPracticeSearchProps {
-  specialties: RecommendedSpecialty[];
+  specialties?: RecommendedSpecialty[];
+  emergencyMode?: boolean;
 }
 
-function createGoogleMapsSearchUrl(location: string, specialtyLabel: string) {
-  const query = `${specialtyLabel} Praxis in der Nähe von ${location}`;
+function createGoogleMapsSearchUrl(location: string, searchLabel: string) {
+  const query = `${searchLabel} in der Nähe von ${location}`;
   return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`;
 }
 
-export default function NearbyPracticeSearch({ specialties }: NearbyPracticeSearchProps) {
+export default function NearbyPracticeSearch({
+  specialties = [],
+  emergencyMode = false,
+}: NearbyPracticeSearchProps) {
   const [location, setLocation] = useState("");
   const [hasSearched, setHasSearched] = useState(false);
 
-  const searchableSpecialties = specialties.filter((specialty) => specialty.specialty !== "emergency");
+  const searchItems = emergencyMode
+    ? [{ key: "emergency", label: "Notaufnahme" }]
+    : specialties
+        .filter((specialty) => specialty.specialty !== "emergency")
+        .slice(0, 3)
+        .map((specialty) => ({ key: specialty.specialty, label: specialty.label }));
 
-  if (searchableSpecialties.length === 0) {
+  if (searchItems.length === 0) {
     return null;
   }
 
@@ -29,10 +38,10 @@ export default function NearbyPracticeSearch({ specialties }: NearbyPracticeSear
         </div>
         <div>
           <p className="font-['DM_Sans:Bold',sans-serif] font-bold text-[#486284] text-lg">
-            Praxen in Ihrer Nähe finden
+            {emergencyMode ? "Notaufnahme in Ihrer Nähe finden" : "Praxen in Ihrer Nähe finden"}
           </p>
           <p className="font-['DM_Sans:Medium',sans-serif] font-medium text-[#486284] text-sm">
-            Geben Sie Ihren Standort ein. Später kann hier das Backend echte Praxen liefern.
+            Geben Sie Ihren Standort ein.
           </p>
         </div>
       </div>
@@ -54,7 +63,7 @@ export default function NearbyPracticeSearch({ specialties }: NearbyPracticeSear
           disabled={location.trim().length < 3}
           className="h-11 rounded-[12px] bg-[#486284] px-5 text-white transition-all hover:bg-[#3a4d68] disabled:bg-gray-300 disabled:text-gray-500"
         >
-          <span className="flex items-center justify-center gap-2 font-['DM_Sans:Bold',sans-serif] font-bold text-sm">
+          <span className="flex items-center justify-center gap-2 font-bold text-sm">
             <Search className="size-4" aria-hidden="true" />
             Suchen
           </span>
@@ -63,19 +72,17 @@ export default function NearbyPracticeSearch({ specialties }: NearbyPracticeSear
 
       {hasSearched && (
         <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-3">
-          {searchableSpecialties.slice(0, 3).map((specialty) => (
+          {searchItems.map((item) => (
             <a
-              key={specialty.specialty}
-              href={createGoogleMapsSearchUrl(location, specialty.label)}
+              key={item.key}
+              href={createGoogleMapsSearchUrl(location, item.label)}
               target="_blank"
               rel="noreferrer"
               className="rounded-[14px] bg-white p-4 transition-all hover:bg-[#dde3ea]"
             >
-              <p className="font-['DM_Sans:Bold',sans-serif] font-bold text-[#3e3e3e] text-sm">
-                {specialty.label}
-              </p>
-              <p className="mt-1 font-['DM_Sans:Medium',sans-serif] font-medium text-[#486284] text-xs">
-                In Google Maps nach passenden Praxen suchen
+              <p className="font-bold text-[#3e3e3e] text-sm">{item.label}</p>
+              <p className="mt-1 font-medium text-[#486284] text-xs">
+                In Google Maps suchen
               </p>
             </a>
           ))}
