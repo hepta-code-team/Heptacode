@@ -17,13 +17,20 @@ const BIRTH_MONTH_MAX = 12;
 const MAX_PATIENT_AGE_YEARS = 125;
 
 type PatientDataForm = PatientData & {
-smokerStatus?: string;
-takesBloodThinners?: boolean;
-immuneSystemStatus?: string;
-immuneSystemDetails?: string;
-drugDetails?: string;
-
+  smokerStatus?: string;
+  takesBloodThinners?: boolean;
+  immuneSystemStatus?: string;
+  currentMood?: string;
 };
+
+const moodOptions = [
+  { value: "Sehr schlecht", emoji: "😣", label: "Sehr schlecht" },
+  { value: "Schlecht", emoji: "🙁", label: "Schlecht" },
+  { value: "Eher schlecht", emoji: "😐", label: "Eher schlecht" },
+  { value: "Okay", emoji: "🙂", label: "Okay" },
+  { value: "Gut", emoji: "😊", label: "Gut" },
+  { value: "Sehr gut", emoji: "😄", label: "Sehr gut" },
+];
 
 function SelectionMark({ selected }: { selected: boolean }) {
   return (
@@ -104,6 +111,7 @@ function createInitialPatientData(patientData?: Partial<PatientDataForm>): Patie
     gender: "",
     isPregnant: false,
     isBreastfeeding: false,
+    currentMood: "",
     smokerStatus: "Nicht angegeben",
     takesBloodThinners: false,
     immuneSystemStatus: "Nicht angegeben",
@@ -432,6 +440,44 @@ export default function PatientDataPage() {
           </div>
         </div>
       )}
+
+      <div className="mt-3 bg-[#eff2f6] rounded-[14px] p-3">
+        <p
+          className="font-['DM_Sans:Bold',sans-serif] font-bold text-[#3e3e3e] text-sm mb-2"
+          style={{ fontVariationSettings: "'opsz' 14" }}
+        >
+          Wie geht es Ihnen aktuell?
+        </p>
+
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2">
+          {moodOptions.map((mood) => {
+            const isSelected = formData.currentMood === mood.value;
+
+            return (
+              <button
+                key={mood.value}
+                type="button"
+                onClick={() => setFormData({ ...formData, currentMood: mood.value })}
+                className={`min-h-[86px] rounded-[12px] p-2 text-center transition-all flex flex-col items-center justify-center gap-1 ${
+                  isSelected
+                    ? "bg-[#486284] text-white"
+                    : "bg-white text-[#3e3e3e] hover:bg-[#dde3ea]"
+                }`}
+              >
+                <span className="text-3xl" aria-hidden="true">
+                  {mood.emoji}
+                </span>
+                <span
+                  className="font-['DM_Sans:SemiBold',sans-serif] font-semibold text-xs leading-tight"
+                  style={{ fontVariationSettings: "'opsz' 14" }}
+                >
+                  {mood.label}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
 
       <div className="mt-5 mb-5 flex justify-end">
         <Button onClick={handleContinue}>

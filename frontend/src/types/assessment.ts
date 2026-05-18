@@ -17,6 +17,9 @@ export interface PatientData {
 export interface SelectedSymptom {
   region: string;
   side?: string;
+  sides?: string[];
+  mainKey?: string;
+  isCritical?: boolean;
 }
 
 export interface Symptom {

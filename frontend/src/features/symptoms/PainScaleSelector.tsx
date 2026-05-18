@@ -29,14 +29,49 @@ export default function PainScaleSelector({ config, value, onValueChange }: Pain
   };
 
   const getButtonColor = (buttonLevel: number, selectedLevel: number) => {
-    if (buttonLevel > selectedLevel) {
-      return "#E5E7EB";
-    }
-    return getScaleColor(buttonLevel);
+    return buttonLevel > selectedLevel ? "#E5E7EB" : getScaleColor(buttonLevel);
   };
+
+  const infoButton = (
+    <button
+      type="button"
+      onClick={() => setIsScaleInfoOpen(true)}
+      className="inline-flex size-6 items-center justify-center rounded-full text-[#486284] transition-all hover:bg-[#dde3ea]"
+      aria-label={`Informationen zu ${config.title}`}
+    >
+      <CircleHelp className="size-4" aria-hidden="true" />
+    </button>
+  );
+
+  const infoModal = (
+    <Modal
+      isOpen={isScaleInfoOpen}
+      onClose={() => setIsScaleInfoOpen(false)}
+      title={config.infoTitle ?? config.title}
+      subtitle={config.infoText}
+      maxWidth="max-w-lg"
+    >
+      <div className="space-y-3 text-sm font-['DM_Sans:Medium',sans-serif] font-medium text-[#3e3e3e]">
+        <p>
+          Wählen Sie den Wert, der am besten zu Ihrer aktuellen Situation passt.
+        </p>
+        <p>
+          Niedrige Werte bedeuten leichte Beschwerden, hohe Werte bedeuten starke oder stark einschränkende Beschwerden.
+        </p>
+        <button
+          type="button"
+          onClick={() => setIsScaleInfoOpen(false)}
+          className="mt-2 w-full rounded-[14px] bg-[#486284] px-5 py-3 text-white transition-all hover:bg-[#3a4d68]"
+        >
+          Verstanden
+        </button>
+      </div>
+    </Modal>
+  );
 
   if (config.type === "temperature") {
     const temperatureOptions = [38, 38.5, 39, 39.5, 40, 40.5, 41, 41.5, 42, 42.5];
+
     const getTemperatureColor = (temperature: number) => {
       const colors = [
         "#ffd53e",
@@ -50,131 +85,95 @@ export default function PainScaleSelector({ config, value, onValueChange }: Pain
         "#991B1B",
         "#7F1D1D",
       ];
-      const index = Math.min(
-        Math.max(Math.round((temperature - 38) / 0.5), 0),
-        colors.length - 1,
-      );
 
+      const index = Math.min(Math.max(Math.round((temperature - 38) / 0.5), 0), colors.length - 1);
       return colors[index];
     };
 
     return (
       <div className="mb-4">
-        <div className="flex items-center justify-between mb-3">
-          <p
-            className="font-['DM_Sans:SemiBold',sans-serif] font-semibold text-[#3e3e3e] text-base"
-            style={{ fontVariationSettings: "'opsz' 14" }}
-          >
-            {config.title}
-          </p>
-          <p
-            className="font-['DM_Sans:Bold',sans-serif] font-bold text-2xl text-[#486284]"
-            style={{ fontVariationSettings: "'opsz' 14" }}
-          >
+        <div className="flex items-center justify-between gap-3 mb-3">
+          <div className="flex items-center gap-2">
+            <p className="font-['DM_Sans:SemiBold',sans-serif] font-semibold text-[#3e3e3e] text-base">
+              {config.title}
+            </p>
+            {infoButton}
+          </div>
+
+          <p className="font-['DM_Sans:Bold',sans-serif] font-bold text-2xl text-[#486284]">
             {value >= 42.5 ? ">42" : value.toFixed(1)} {config.unit}
           </p>
         </div>
+
         <div className="flex gap-1 mb-2">
           {temperatureOptions.map((temperature) => {
-            const isSelected = value === temperature;
             const label = temperature >= 42.5 ? ">42" : temperature.toFixed(1);
 
             return (
               <button
                 key={temperature}
+                type="button"
                 onClick={() => onValueChange(temperature)}
-                className={`flex-1 h-12 rounded-lg transition-all hover:opacity-90 flex items-center justify-center font-['DM_Sans:Bold',sans-serif] font-bold text-xs 
-                }`}
+                className="flex-1 h-12 rounded-lg transition-all hover:opacity-90 flex items-center justify-center font-['DM_Sans:Bold',sans-serif] font-bold text-xs"
                 style={{
                   backgroundColor: temperature > value ? "#E5E7EB" : getTemperatureColor(temperature),
                   color: temperature <= 38 ? "#3e3e3e" : "white",
-                  fontVariationSettings: "'opsz' 14",
                 }}
-                aria-pressed={isSelected}
               >
                 {label}
               </button>
             );
           })}
         </div>
+
         <div className="flex justify-between">
           <span className="text-xs text-gray-500">{config.minLabel}</span>
           <span className="text-xs text-gray-500">{config.maxLabel}</span>
         </div>
+
+        {infoModal}
       </div>
     );
   }
 
   return (
     <div className="mb-4">
-      <div className="flex items-center justify-between mb-3">
+      <div className="flex items-center justify-between gap-3 mb-3">
         <div className="flex items-center gap-2">
-          <p
-            className="font-['DM_Sans:SemiBold',sans-serif] font-semibold text-[#3e3e3e] text-base"
-            style={{ fontVariationSettings: "'opsz' 14" }}
-          >
+          <p className="font-['DM_Sans:SemiBold',sans-serif] font-semibold text-[#3e3e3e] text-base">
             {config.title}
           </p>
-          {config.type === "pain" && (
-            <button
-              type="button"
-              onClick={() => setIsScaleInfoOpen(true)}
-              className="inline-flex size-5 -translate-y-0.5 items-center justify-center rounded-full text-[#486284] transition-all hover:bg-[#dde3ea]"
-              aria-label="Informationen zur Schmerzskala"
-            >
-              <CircleHelp className="size-4" aria-hidden="true" />
-            </button>
-          )}
+          {infoButton}
         </div>
+
         <p
           className="font-['DM_Sans:Bold',sans-serif] font-bold text-2xl"
-          style={{
-            fontVariationSettings: "'opsz' 14",
-            color: getScaleColor(value),
-          }}
+          style={{ color: getScaleColor(value) }}
         >
           {value}/10
         </p>
       </div>
+
       <div className="flex gap-1 mb-2">
         {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((level) => (
           <button
             key={level}
+            type="button"
             onClick={() => onValueChange(level)}
             className="flex-1 h-12 rounded-lg transition-all hover:opacity-80 flex items-center justify-center font-['DM_Sans:Bold',sans-serif] font-bold text-white text-sm"
-            style={{
-              backgroundColor: getButtonColor(level, value),
-              fontVariationSettings: "'opsz' 14",
-            }}
+            style={{ backgroundColor: getButtonColor(level, value) }}
           >
             {level}
           </button>
         ))}
       </div>
+
       <div className="flex justify-between">
         <span className="text-xs text-gray-500">{config.minLabel}</span>
         <span className="text-xs text-gray-500">{config.maxLabel}</span>
       </div>
-      <Modal
-        isOpen={isScaleInfoOpen}
-        onClose={() => setIsScaleInfoOpen(false)}
-        title="Numerische Rating-Skala"
-        subtitle="Die Schmerzstärke wird hier mit der Numerischen Rating-Skala von 1 bis 10 abgefragt."
-        maxWidth="max-w-lg"
-      >
-        <div className="space-y-3 text-sm font-['DM_Sans:Medium',sans-serif] font-medium text-[#3e3e3e]">
-          <p>1 bis 3 steht eher für leichte Schmerzen, die noch gut auszuhalten sind.</p>
-          <p>4 bis 6 beschreibt mittlere Schmerzen, die deutlich stören oder einschränken.</p>
-          <p>7 bis 10 steht für starke bis sehr starke Schmerzen, die sehr belastend sind oder kaum auszuhalten wirken.</p>
-          <button
-            type="button"
-            onClick={() => setIsScaleInfoOpen(false)}
-            className="mt-2 w-full rounded-[14px] bg-[#486284] px-5 py-3 text-white transition-all hover:bg-[#3a4d68]"
-          >
-            Verstanden
-          </button>
-        </div>
-      </Modal>
+
+      {infoModal}
     </div>
   );
 }

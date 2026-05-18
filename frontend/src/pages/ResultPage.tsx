@@ -8,11 +8,15 @@ import { useAssessment } from "../lib/AssessmentContext";
 import type { CareLevel } from "../types/triage";
 import { DURATIONS, getMeasurementConfig } from "../features/symptoms/symptoms.constants";
 import type { Symptom } from "../types/assessment";
+import NearbyPracticeSearch from "../features/results/NearbyPracticeSearch";
+import { getFrontendTriageRecommendation } from "../lib/specialtyRecommendation";
+
 
 export default function ResultPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { patientData, symptomDetails, resetAssessment } = useAssessment();
+  const { patientData, selectedSymptoms, symptomDetails, resetAssessment } = useAssessment();
+
 
   // Check if this is an emergency from landing page
   const isEmergency = searchParams.get("emergency") === "true";
@@ -46,7 +50,14 @@ export default function ResultPage() {
     return getHighestCareLevel(symptomDetails.map(getSymptomCareLevel));
   };
 
-  const careLevel = calculateCareLevel();
+const specialtyRecommendation = getFrontendTriageRecommendation({
+  patientData,
+  selectedSymptoms,
+  symptomDetails,
+});
+
+
+ const careLevel = isEmergency ? "emergency" : specialtyRecommendation.careLevel;
   const config = TRIAGE_CONFIGS[careLevel];
   const callAction =
     careLevel === "emergency"
@@ -80,6 +91,37 @@ export default function ResultPage() {
       subtitle="Basierend auf Ihren Angaben haben wir folgende Empfehlung für Sie."
     >
       <ResultCard config={config} />
+
+      {specialtyRecommendation.recommendedSpecialties && specialtyRecommendation.recommendedSpecialties.length > 0 && (
+  <div className="bg-white border-2 border-[#486284] rounded-[16px] p-5 md:p-6 mb-4">
+    <p
+      className="font-['DM_Sans:Bold',sans-serif] font-bold text-[#486284] text-lg mb-3"
+      style={{ fontVariationSettings: "'opsz' 14" }}
+    >
+      Empfohlene Fachrichtung
+    </p>
+
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+      {specialtyRecommendation.recommendedSpecialties.slice(0, 3).map((specialty) => (
+        <div key={specialty.specialty} className="rounded-[14px] bg-[#eff2f6] p-4">
+          <p className="font-['DM_Sans:Bold',sans-serif] font-bold text-[#3e3e3e] text-sm">
+            {specialty.label}
+          </p>
+          <p className="mt-1 font-['DM_Sans:Medium',sans-serif] font-medium text-[#486284] text-xs leading-relaxed">
+            {specialty.reason}
+          </p>
+        </div>
+      ))}
+    </div>
+
+    <p className="mt-3 text-xs font-medium text-[#486284]">
+      Vorläufige Frontend-Einschätzung. Die finale Empfehlung soll später vom Backend/KI-System kommen.
+    </p>
+  </div>
+)}
+
+<NearbyPracticeSearch specialties={specialtyRecommendation.recommendedSpecialties ?? []} />
+
 
       {callAction && (
         <a
