@@ -1,4 +1,6 @@
-import {CareLevel, MedicalSpecialty} from "../../../../shared/result.types"
+import type { CareLevel, MedicalSpecialty } from "../../../../shared/result.types"
+
+export type { CareLevel, MedicalSpecialty } from "../../../../shared/result.types"
 
 
 // This creates the visual result card displayed on the last page

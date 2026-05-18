@@ -1,4 +1,5 @@
-import type { PatientData, TriageSymptom } from '../triage/triage.types.js'
+import type { PatientData } from '../../../../shared/patientData.types.js'
+import type { TriageSymptom } from '../../../../shared/symptom.types.js'
 import type { PdfAssessment, PdfExportResult, PdfSection } from './pdf.types.js'
 
 const DURATION_LABELS: Record<string, string> = {

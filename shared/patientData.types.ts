@@ -1,4 +1,4 @@
-// Typ für die Patientendaten
+// Patient Data
 export interface PatientData {
     birthMonth: string
     birthYear: string

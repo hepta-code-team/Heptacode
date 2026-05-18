@@ -2,17 +2,7 @@ import { z } from 'zod'
 import { CARE_LEVELS, MEDICAL_SPECIALTIES } from "../../../../shared/result.types.js";
 import type { CareLevel, MedicalSpecialty } from "../../../../shared/result.types.js";
 import type { PatientData } from "../../../../shared/patientData.types.js";
-
-export type { CareLevel, MedicalSpecialty } from "../../../../shared/result.types.js";
-export type { PatientData } from "../../../../shared/patientData.types.js";
-
-// Typ für das ausgewählte Symptom
-export interface TriageSymptom {
-  region: string
-  side?: string
-  painLevel?: number
-  duration?: 'today' | 'days' | 'week' | 'weeks'
-}
+import type { TriageSymptom } from "../../../../shared/symptom.types.js";
 
 export const careLevelSchema = z.enum(CARE_LEVELS)
 export const medicalSpecialtySchema = z.enum(MEDICAL_SPECIALTIES)

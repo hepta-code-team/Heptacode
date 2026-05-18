@@ -2,10 +2,10 @@ import { requestStructuredAiResponse } from '../../ai/llmAdapter.js'
 import { isAiRequestError } from '../../ai/timeout.js'
 import { extractSymptoms } from '../symptom-extraction/symptomExtraction.service.js'
 import type {
-  PatientData,
   TriageResponse,
-  TriageSymptom,
 } from './triage.types.js'
+import type { PatientData } from "../../../../shared/patientData.types.js"
+import type { TriageSymptom } from "../../../../shared/symptom.types.js"
 import { triageAiResultSchema } from './triage.types.js'
 import { triageInstructions } from '../prompt/triage.prompt.js'
 

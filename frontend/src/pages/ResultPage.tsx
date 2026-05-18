@@ -7,7 +7,7 @@ import { createSpecialtyConfig, isMedicalSpecialty, TRIAGE_CONFIGS } from "../fe
 import { useAssessment } from "../lib/AssessmentContext";
 import type { CareLevel } from "../features/triage/triage";
 import { DURATIONS, getMeasurementConfig } from "../features/symptoms/symptoms.constants";
-import type { Symptom } from "../types/assessment";
+import type { TriageSymptom } from "../types/assessment";
 
 export default function ResultPage() {
   const navigate = useNavigate();
@@ -19,17 +19,18 @@ export default function ResultPage() {
 
   const isMultipleDays = (duration: string) => ["days", "week", "weeks"].includes(duration);
 
-  const getSymptomCareLevel = (symptom: Symptom): CareLevel => {
+  const getSymptomCareLevel = (symptom: TriageSymptom): CareLevel => {
     const config = getMeasurementConfig(symptom.region, symptom.side);
+    const painLevel = symptom.painLevel ?? config.defaultValue;
 
     if (config.type === "temperature") {
-      if (symptom.measurementValue >= 40 && isMultipleDays(symptom.duration)) return "emergency";
-      if (symptom.measurementValue >= 39) return "doctor";
+      if (painLevel >= 40 && symptom.duration && isMultipleDays(symptom.duration)) return "emergency";
+      if (painLevel >= 39) return "doctor";
       return "selfcare";
     }
 
-    if (symptom.measurementValue >= 8) return "emergency";
-    if (symptom.measurementValue >= 5) return "doctor";
+    if (painLevel >= 8) return "emergency";
+    if (painLevel >= 5) return "doctor";
     return "selfcare";
   };
 
@@ -66,14 +67,15 @@ export default function ResultPage() {
     return DURATIONS.find(d => d.id === durationId)?.label || durationId;
   };
 
-  const getMeasurementSummary = (symptom: Symptom) => {
+  const getMeasurementSummary = (symptom: TriageSymptom) => {
     const config = getMeasurementConfig(symptom.region, symptom.side);
+    const painLevel = symptom.painLevel ?? config.defaultValue;
 
     if (config.type === "temperature") {
-      return `${config.title} ${symptom.measurementValue.toFixed(1)} ${config.unit}`;
+      return `${config.title} ${painLevel.toFixed(1)} ${config.unit}`;
     }
 
-    return `${config.title} ${symptom.measurementValue}/10`;
+    return `${config.title} ${painLevel}/10`;
   };
 
   return (
@@ -225,7 +227,7 @@ export default function ResultPage() {
                 <p className="font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-body text-xs leading-relaxed">
                   Patient klagt über{" "}
                   {symptomDetails.map((symptom, index) => (
-                    <span key={symptom.id}>
+                    <span key={`${symptom.region}-${symptom.side ?? "none"}-${index}`}>
                       <strong>
                         {symptom.side ? `${symptom.region} (${symptom.side})` : symptom.region}
                       </strong>

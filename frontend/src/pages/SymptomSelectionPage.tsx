@@ -15,7 +15,7 @@ import {
   MAX_SYMPTOMS,
   type BodyAreaCategory,
 } from "../features/symptoms/symptoms.constants";
-import type { SelectedSymptom } from "../types/assessment";
+import type { TriageSymptom } from "../types/assessment";
 
 const supportingAreas = [
   {
@@ -32,7 +32,7 @@ const supportingAreas = [
   },
 ];
 
-function getSymptomKey(symptom: SelectedSymptom) {
+function getSymptomKey(symptom: TriageSymptom) {
   return symptom.side ? `${symptom.region} (${symptom.side})` : symptom.region;
 }
 
@@ -180,7 +180,7 @@ export default function SymptomSelectionPage() {
     : null;
   const { selectedSymptoms: contextSymptoms, setSelectedSymptoms: setContextSymptoms } = useAssessment();
   const [selectedCategory, setSelectedCategory] = useState<BodyAreaCategory | null>(initialCategory);
-  const [selectedSymptoms, setSelectedSymptoms] = useState<SelectedSymptom[]>(contextSymptoms);
+  const [selectedSymptoms, setSelectedSymptoms] = useState<TriageSymptom[]>(contextSymptoms);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [symptomText, setSymptomText] = useState("");
   const symptomOptionsRef = useRef<HTMLDivElement | null>(null);

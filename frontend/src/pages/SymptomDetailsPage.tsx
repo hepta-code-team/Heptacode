@@ -7,41 +7,47 @@ import Modal from "../components/Modal";
 import Button from "../components/Button";
 import { useAssessment } from "../lib/AssessmentContext";
 import { getMeasurementConfig } from "../features/symptoms/symptoms.constants";
-import type { Symptom } from "../types/assessment";
+import type { SymptomMeasurementType, TriageSymptom } from "../types/assessment";
+
+type SymptomDraft = TriageSymptom & {
+  id: string;
+  active: boolean;
+  measurementType: SymptomMeasurementType;
+};
 
 export default function SymptomDetailsPage() {
   const navigate = useNavigate();
   const { selectedSymptoms, symptomDetails: contextDetails, setSymptomDetails: setContextDetails } = useAssessment();
 
-  const createSymptomDetails = (region: string, side: string | undefined, index: number): Symptom => {
+  const createSymptomDetails = (region: string, side: string | undefined, index: number): SymptomDraft => {
     const measurementConfig = getMeasurementConfig(region, side);
 
     return {
       id: `symptom-${Date.now()}-${index}`,
       region,
-      side: side || "",
+      side,
       measurementType: measurementConfig.type,
-      measurementValue: measurementConfig.defaultValue,
-      duration: "",
+      painLevel: measurementConfig.defaultValue,
       active: true,
     };
   };
 
-  const normalizeSymptom = (symptom: Symptom, index: number): Symptom => {
+  const normalizeSymptom = (symptom: TriageSymptom, index: number): SymptomDraft => {
     const measurementConfig = getMeasurementConfig(symptom.region, symptom.side);
 
     return {
       ...symptom,
-      id: symptom.id || `symptom-${Date.now()}-${index}`,
+      id: `symptom-${Date.now()}-${index}`,
+      active: true,
       measurementType: measurementConfig.type,
-      measurementValue: Number.isFinite(symptom.measurementValue)
-        ? symptom.measurementValue
+      painLevel: Number.isFinite(symptom.painLevel)
+        ? symptom.painLevel
         : measurementConfig.defaultValue,
     };
   };
 
   // Initialize symptomDetails from selectedSymptoms
-  const [symptomDetails, setSymptomDetails] = useState<Symptom[]>(() => {
+  const [symptomDetails, setSymptomDetails] = useState<SymptomDraft[]>(() => {
     // If context already has details, use them
     if (contextDetails.length > 0) {
       return contextDetails.map(normalizeSymptom);
@@ -61,7 +67,7 @@ export default function SymptomDetailsPage() {
     }
   }, [selectedSymptoms, navigate]);
 
-  const updateSymptom = (index: number, field: keyof Symptom, value: Symptom[keyof Symptom]) => {
+  const updateSymptom = (index: number, field: keyof SymptomDraft, value: SymptomDraft[keyof SymptomDraft]) => {
     const updated = [...symptomDetails];
     updated[index] = { ...updated[index], [field]: value };
     setSymptomDetails(updated);
@@ -88,13 +94,20 @@ export default function SymptomDetailsPage() {
   const handleContinue = () => {
     const activeSymptoms = symptomDetails.filter(s => s.active);
 
-    if (activeSymptoms.some((symptom) => symptom.duration === "")) {
+    if (activeSymptoms.some((symptom) => !symptom.duration)) {
       setShowValidationErrors(true);
       return;
     }
 
     // Save only active symptoms to context
-    setContextDetails(activeSymptoms);
+    setContextDetails(
+      activeSymptoms.map((symptom) => ({
+        region: symptom.region,
+        side: symptom.side,
+        painLevel: symptom.painLevel,
+        duration: symptom.duration,
+      })),
+    );
     navigate("/result");
   };
 
@@ -102,7 +115,7 @@ export default function SymptomDetailsPage() {
     .filter((symptom) => symptom.active)
     .every((symptom) => {
       const config = getMeasurementConfig(symptom.region, symptom.side);
-      return symptom.measurementValue >= config.min && symptom.measurementValue <= config.max;
+      return (symptom.painLevel ?? 0) >= config.min && (symptom.painLevel ?? 0) <= config.max;
     });
 
   return (
