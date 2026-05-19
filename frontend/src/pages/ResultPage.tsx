@@ -1,5 +1,5 @@
 import { useNavigate, useSearchParams } from "react-router";
-import { PhoneCall } from "lucide-react";
+import { PhoneCall, Download } from "lucide-react";
 import PageShell from "../components/PageShell";
 import ResultCard from "../features/results/ResultCard";
 import Button from "../components/Button";
@@ -510,7 +510,14 @@ export default function ResultPage() {
         </p>
       </div>
 
-      <div className="mt-6 mb-6">
+      <div className="mt-6 mb-6 flex flex-col sm:flex-row gap-3 justify-end">
+        <Button variant="secondary" onClick={handlePdfDownload}>
+          <Download className="size-5 mr-2" aria-hidden="true" />
+          <p className="font-['DM_Sans:Bold',sans-serif] font-bold text-base">
+            PDF herunterladen
+          </p>
+        </Button>
+
         <Button onClick={handleReset}>
           <p className="font-['DM_Sans:Bold',sans-serif] font-bold text-base">
             Neue Einschätzung starten
