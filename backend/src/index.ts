@@ -4,6 +4,9 @@ import Fastify from 'fastify'
 import { z, ZodError } from 'zod'
 import { env } from './config/env.js'
 import { assessmentRoutes } from './routes/assessment.routes.js'
+import { pdfRoutes } from './routes/pdf.routes.js'
+import { symptomExtractionRoutes } from './routes/symptomExtraction.routes.js'
+import { triageRoutes } from './routes/triage.routes.js'
 
 const app = Fastify({ logger: true })
 
@@ -44,7 +47,10 @@ app.post('/ping', async (request) => {
   return { pong: body.message }
 })
 
+await app.register(symptomExtractionRoutes)
+await app.register(triageRoutes)
 await app.register(assessmentRoutes)
+await app.register(pdfRoutes)
 
 try {
   await app.listen({ port: env.port, host: env.host })
