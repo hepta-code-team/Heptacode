@@ -75,4 +75,85 @@ describe('evaluateTriage', () => {
     })
     expect(result.reasons).toHaveLength(2)
   })
+
+  it('nutzt den Doctor-Fallback bei mittleren Beschwerden', async () => {
+    requestStructuredAiResponseMock.mockRejectedValueOnce(new AiResponseError('timeout'))
+
+    const result = await evaluateTriage(undefined, [
+      { region: 'Bauch', painLevel: 5, duration: 'days' },
+    ])
+
+    expect(result).toMatchObject({
+      careLevel: 'doctor',
+      aiUnavailable: true,
+    })
+  })
+
+  it('wandelt ungueltigen Freitext in einen Bad-Request-Fehler um', async () => {
+    extractSymptomsMock.mockResolvedValueOnce({
+      text: 'Hallo',
+      inputType: 'text',
+      symptoms: [],
+      invalidInput: true,
+      message: 'Bitte beschreiben Sie konkrete Beschwerden.',
+    })
+
+    await expect(
+      evaluateTriage(undefined, undefined, false, 'Hallo'),
+    ).rejects.toMatchObject({
+      message: 'Bitte beschreiben Sie konkrete Beschwerden.',
+      statusCode: 400,
+    })
+  })
+
+  it('nutzt den Freitext-Fallback, wenn die Symptom-Extraktion nicht verfuegbar ist', async () => {
+    extractSymptomsMock.mockResolvedValueOnce({
+      text: 'Ich habe starke Schmerzen.',
+      inputType: 'text',
+      symptoms: [],
+      aiUnavailable: true,
+    })
+
+    const result = await evaluateTriage(
+      undefined,
+      undefined,
+      false,
+      'Ich habe starke Schmerzen.',
+    )
+
+    expect(result).toMatchObject({
+      careLevel: 'doctor',
+      aiUnavailable: true,
+    })
+    expect(requestStructuredAiResponseMock).not.toHaveBeenCalled()
+  })
+
+  it('verwendet extrahierte Symptome fuer die KI-Triage', async () => {
+    extractSymptomsMock.mockResolvedValueOnce({
+      text: 'Ich habe seit Tagen Husten.',
+      inputType: 'speech',
+      symptoms: [{ region: 'Brust', painLevel: 4, duration: 'days' }],
+    })
+    requestStructuredAiResponseMock.mockResolvedValueOnce({
+      careLevel: 'doctor',
+      medicalSpecialty: null,
+      reasons: ['Die Beschwerden sollten aerztlich abgeklart werden.'],
+    })
+
+    const result = await evaluateTriage(
+      undefined,
+      undefined,
+      false,
+      'Ich habe seit Tagen Husten.',
+      'speech',
+    )
+
+    expect(result).toEqual({
+      careLevel: 'doctor',
+      recommendedSpecialty: undefined,
+      reasons: ['Die Beschwerden sollten aerztlich abgeklart werden.'],
+    })
+    expect(extractSymptomsMock).toHaveBeenCalledWith('Ich habe seit Tagen Husten.', 'speech')
+    expect(requestStructuredAiResponseMock).toHaveBeenCalledTimes(1)
+  })
 })
