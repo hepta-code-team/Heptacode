@@ -91,19 +91,32 @@ export const triageSymptomSchema = z.object({
   duration: z.enum(['today', 'days', 'week', 'weeks']).optional(),
 })
 
-// Schema für Review Summary
-export const reviewSummarySchema = z.object({
-  plainLanguage: z.string().min(1),
-  professionalSummary: z.string().min(1),
-})
+// TA 2.5: Schema fuer validierte KI-Responses mit CareLevel, MedicalSpecialty und reasons.
+export const triageAiResultSchema = z
+  .object({
+    careLevel: careLevelSchema,
+    medicalSpecialty: medicalSpecialtySchema.nullable(),
+    reasons: z.array(z.string().trim().min(1)).min(1).max(5),
+  })
+  .superRefine((value, ctx) => {
+    if (value.careLevel === 'specialist' && value.medicalSpecialty === null) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['medicalSpecialty'],
+        message: 'medicalSpecialty ist erforderlich, wenn careLevel specialist ist',
+      })
+    }
 
-// Schema für die Antwort der KI
-export const triageAiResultSchema = z.object({
-  careLevel: careLevelSchema,
-  recommendedSpecialty: medicalSpecialtySchema,
-  reasons: z.array(z.string().min(1)).max(5),
-  reviewSummary: reviewSummarySchema.optional(),
-})
+    if (value.careLevel !== 'specialist' && value.medicalSpecialty !== null) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['medicalSpecialty'],
+        message: 'medicalSpecialty muss null sein, wenn careLevel nicht specialist ist',
+      })
+    }
+  })
+
+export type TriageAiResponse = z.infer<typeof triageAiResultSchema>
 
 // Schema für die Anfrage
 export const triageRequestSchema = z

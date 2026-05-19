@@ -2,12 +2,10 @@ import { requestStructuredAiResponse } from '../../ai/llmAdapter.js'
 import { isAiRequestError } from '../../ai/timeout.js'
 import { extractSymptoms } from '../symptom-extraction/symptomExtraction.service.js'
 import type {
-  CareLevel,
-  MedicalSpecialty,
-  PatientData,
   TriageResponse,
-  TriageSymptom,
 } from './triage.types.js'
+import type { PatientData } from "../../../../shared/patientData.types.js"
+import type { TriageSymptom } from "../../../../shared/symptom.types.js"
 import { triageAiResultSchema } from './triage.types.js'
 import { triageInstructions } from '../prompt/triage.prompt.js'
 
@@ -67,30 +65,9 @@ function formatSymptoms(symptoms: TriageSymptom[]): string {
     .join('\n')
 }
 
-// Funktion um das empfohlene Versorgungsangebot auf die grobe Ebene abzubilden
-function toCareLevel(recommendedSpecialty: MedicalSpecialty): CareLevel {
-  if (recommendedSpecialty === 'emergency_medicine') {
-    return 'emergency'
-  }
 
-  if (recommendedSpecialty === 'home_care') {
-    return 'selfcare'
-  }
 
-  if (recommendedSpecialty === 'general_practice') {
-    return 'doctor'
-  }
 
-  return 'specialist'
-}
-
-// Funktion um widerspruechliche KI-Antworten zwischen careLevel und Empfehlung zu vermeiden
-function ensureConsistentCareLevel(result: TriageResponse): TriageResponse {
-  return {
-    ...result,
-    careLevel: toCareLevel(result.recommendedSpecialty),
-  }
-}
 
 // Funktion um Versorgungsebene, Fachrichtung und Review Summary vom AI zu requesten
 async function requestTriageFromAi(
@@ -113,11 +90,23 @@ async function requestTriageFromAi(
       },
     ],
     schema: triageAiResultSchema,
-    schemaName: 'triage_result',
+    schemaName: 'triage_ai_response',
     temperature: 0,
   })
 
-  return ensureConsistentCareLevel(parsed)
+  if (parsed.careLevel !== 'specialist') {
+    return {
+      careLevel: parsed.careLevel,
+      recommendedSpecialty: undefined,
+      reasons: parsed.reasons,
+    }
+  }
+
+  return {
+    careLevel: parsed.careLevel,
+    recommendedSpecialty: parsed.medicalSpecialty ?? undefined,
+    reasons: parsed.reasons,
+  }
 }
 
 // Fallback fuer strukturierte Symptome: Ohne KI wird anhand der staerksten Schmerzangabe entschieden.
