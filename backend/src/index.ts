@@ -3,7 +3,6 @@ import helmet from '@fastify/helmet'
 import Fastify from 'fastify'
 import { z, ZodError } from 'zod'
 import { env } from './config/env.js'
-import { summaryRoutes } from './api/summary/summary.routes.js'
 import { assessmentRoutes } from './routes/assessment.routes.js'
 
 const app = Fastify({ logger: true })
@@ -46,7 +45,6 @@ app.post('/ping', async (request) => {
 })
 
 await app.register(assessmentRoutes)
-await app.register(summaryRoutes, { prefix: '/api/v1' })
 
 try {
   await app.listen({ port: env.port, host: env.host })
