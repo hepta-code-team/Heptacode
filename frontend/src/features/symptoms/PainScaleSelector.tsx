@@ -13,18 +13,7 @@ export default function PainScaleSelector({ config, value, onValueChange }: Pain
   const [isScaleInfoOpen, setIsScaleInfoOpen] = useState(false);
 
   const getScaleColor = (level: number) => {
-    const colors = [
-      "#ACED40",
-      "#BDE635",
-      "#CAE63C",
-      "#D1DB42",
-      "#FACC15",
-      "#F5C147",
-      "#FB923C",
-      "#F97316",
-      "#EF4444",
-      "#DC2626",
-    ];
+    const colors = ["#ACED40", "#BDE635", "#CAE63C", "#D1DB42", "#FACC15", "#F5C147", "#FB923C", "#F97316", "#EF4444", "#DC2626"];
     return colors[level - 1] || colors[0];
   };
 
@@ -52,12 +41,24 @@ export default function PainScaleSelector({ config, value, onValueChange }: Pain
       maxWidth="max-w-lg"
     >
       <div className="space-y-3 text-sm font-['DM_Sans:Medium',sans-serif] font-medium text-[#3e3e3e]">
-        <p>
-          Wählen Sie den Wert, der am besten zu Ihrer aktuellen Situation passt.
-        </p>
-        <p>
-          Niedrige Werte bedeuten leichte Beschwerden, hohe Werte bedeuten starke oder stark einschränkende Beschwerden.
-        </p>
+        {config.type !== "temperature" ? (
+          <>
+            <p><strong>1-3:</strong> leichte Beschwerden. Spürbar, aber meist noch gut auszuhalten.</p>
+            <p><strong>4-6:</strong> mittelstarke Beschwerden. Sie stören deutlich, Alltag oder Bewegung sind eingeschränkt.</p>
+            <p><strong>7-8:</strong> starke Beschwerden. Sie sind sehr belastend und sollten ärztlich abgeklärt werden.</p>
+            <p><strong>9-10:</strong> extrem starke Beschwerden. Kaum auszuhalten, besonders ernst zu nehmen, vor allem zusammen mit Warnzeichen.</p>
+            <p>
+              Wichtig: Die Zahl beschreibt Ihre persönliche Wahrnehmung. Eine hohe Zahl bedeutet nicht automatisch Notaufnahme.
+              Entscheidend sind zusätzlich Dauer, Art der Beschwerde und Warnsymptome.
+            </p>
+          </>
+        ) : (
+          <>
+            <p>Wählen Sie die gemessene oder geschätzte Temperatur.</p>
+            <p>Sehr hohes Fieber, Fieber über mehrere Tage oder Fieber mit starkem Krankheitsgefühl sollte ärztlich abgeklärt werden.</p>
+          </>
+        )}
+
         <button
           type="button"
           onClick={() => setIsScaleInfoOpen(false)}
@@ -73,19 +74,7 @@ export default function PainScaleSelector({ config, value, onValueChange }: Pain
     const temperatureOptions = [38, 38.5, 39, 39.5, 40, 40.5, 41, 41.5, 42, 42.5];
 
     const getTemperatureColor = (temperature: number) => {
-      const colors = [
-        "#ffd53e",
-        "#ffb826",
-        "#ffa144",
-        "#FB923C",
-        "#F97316",
-        "#ff5141",
-        "#DC2626",
-        "#B91C1C",
-        "#991B1B",
-        "#7F1D1D",
-      ];
-
+      const colors = ["#ffd53e", "#ffb826", "#ffa144", "#FB923C", "#F97316", "#ff5141", "#DC2626", "#B91C1C", "#991B1B", "#7F1D1D"];
       const index = Math.min(Math.max(Math.round((temperature - 38) / 0.5), 0), colors.length - 1);
       return colors[index];
     };
@@ -146,10 +135,7 @@ export default function PainScaleSelector({ config, value, onValueChange }: Pain
           {infoButton}
         </div>
 
-        <p
-          className="font-['DM_Sans:Bold',sans-serif] font-bold text-2xl"
-          style={{ color: getScaleColor(value) }}
-        >
+        <p className="font-['DM_Sans:Bold',sans-serif] font-bold text-2xl" style={{ color: getScaleColor(value) }}>
           {value}/10
         </p>
       </div>

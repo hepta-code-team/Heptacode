@@ -11,6 +11,7 @@ import {
   BODY_AREA_LABELS,
   BODY_AREA_REGION_IDS,
   getBodyRegionsForCategory,
+  isAdministrativeSymptom,
   isCriticalSymptom,
   MAX_SYMPTOMS,
   type BodyAreaCategory,
@@ -27,7 +28,7 @@ const supportingAreas = [
   {
     id: "general" as const,
     label: BODY_AREA_LABELS.general,
-    description: "Fieber, Atemnot, Schüttelfrost oder Schwäche",
+    description: "Fieber, Atemnot, Schüttelfrost, Rezept oder Krankmeldung",
     icon: Sparkles,
   },
   {
@@ -233,6 +234,7 @@ export default function SymptomSelectionPage() {
     patientData,
     selectedSymptoms: contextSymptoms,
     setSelectedSymptoms: setContextSymptoms,
+    setSymptomDetails,
   } = useAssessment();
 
   const [selectedCategory, setSelectedCategory] = useState<BodyAreaCategory | null>(initialCategory);
@@ -268,7 +270,27 @@ export default function SymptomSelectionPage() {
     }
   };
 
+  const handleAdministrativeSelection = (regionName: string, side?: string, mainKey?: string) => {
+    const administrativeSymptom: SelectedSymptom = {
+      region: regionName,
+      side,
+      sides: side ? [side] : [],
+      mainKey: mainKey ?? (side ? `${regionName} (${side})` : regionName),
+      isCritical: false,
+    };
+
+    setSelectedSymptoms([administrativeSymptom]);
+    setContextSymptoms([administrativeSymptom]);
+    setSymptomDetails([]);
+    navigate("/result");
+  };
+
   const handleRegionSelect = (regionName: string, side?: string, meta?: SelectionMeta) => {
+    if (isAdministrativeSymptom(regionName, side)) {
+      handleAdministrativeSelection(regionName, side, meta?.mainKey);
+      return;
+    }
+
     const mainKey = meta?.mainKey ?? (meta?.countsAsMainTile && side ? `${regionName} (${side})` : regionName);
     const existingIndex = selectedSymptoms.findIndex((symptom) => getSymptomMainKey(symptom) === mainKey);
     const critical = isCriticalSymptom(regionName, side);
@@ -353,10 +375,7 @@ export default function SymptomSelectionPage() {
     >
       <div className="grid grid-cols-1 lg:grid-cols-[300px_minmax(0,1fr)] gap-5 xl:gap-6 items-start">
         <div className="rounded-[18px] bg-[#f5f7fa] p-4">
-          <p
-            className="mb-3 text-center font-['DM_Sans:Bold',sans-serif] font-bold text-[#486284] text-sm"
-            style={{ fontVariationSettings: "'opsz' 14" }}
-          >
+          <p className="mb-3 text-center font-['DM_Sans:Bold',sans-serif] font-bold text-[#486284] text-sm">
             Bereich wählen
           </p>
 
@@ -387,17 +406,13 @@ export default function SymptomSelectionPage() {
                     </div>
 
                     <div>
-                      <p
-                        className="font-['DM_Sans:Bold',sans-serif] font-bold text-sm"
-                        style={{ fontVariationSettings: "'opsz' 14" }}
-                      >
+                      <p className="font-['DM_Sans:Bold',sans-serif] font-bold text-sm">
                         {area.label}
                       </p>
                       <p
                         className={`font-['DM_Sans:Medium',sans-serif] font-medium text-xs leading-snug ${
                           isSelected ? "text-white/85" : "text-[#486284]"
                         }`}
-                        style={{ fontVariationSettings: "'opsz' 14" }}
                       >
                         {area.description}
                       </p>
@@ -418,16 +433,10 @@ export default function SymptomSelectionPage() {
                 </div>
 
                 <div>
-                  <p
-                    className="font-['DM_Sans:Bold',sans-serif] font-bold text-sm"
-                    style={{ fontVariationSettings: "'opsz' 14" }}
-                  >
+                  <p className="font-['DM_Sans:Bold',sans-serif] font-bold text-sm">
                     Symptome beschreiben
                   </p>
-                  <p
-                    className="font-['DM_Sans:Medium',sans-serif] font-medium text-[#486284] text-xs leading-snug"
-                    style={{ fontVariationSettings: "'opsz' 14" }}
-                  >
+                  <p className="font-['DM_Sans:Medium',sans-serif] font-medium text-[#486284] text-xs leading-snug">
                     Freitext oder Spracheingabe
                   </p>
                 </div>
@@ -439,16 +448,10 @@ export default function SymptomSelectionPage() {
         <div>
           <div className="mb-4 rounded-[18px] bg-[#f5f7fa] p-3">
             <div className="mb-2 flex items-center justify-between">
-              <p
-                className="font-['DM_Sans:Bold',sans-serif] font-bold text-[#486284] text-sm"
-                style={{ fontVariationSettings: "'opsz' 14" }}
-              >
+              <p className="font-['DM_Sans:Bold',sans-serif] font-bold text-[#486284] text-sm">
                 Ihre Auswahl
               </p>
-              <p
-                className="font-['DM_Sans:Medium',sans-serif] font-medium text-[#486284] text-xs"
-                style={{ fontVariationSettings: "'opsz' 14" }}
-              >
+              <p className="font-['DM_Sans:Medium',sans-serif] font-medium text-[#486284] text-xs">
                 {selectedSymptoms.length}/{MAX_SYMPTOMS}
               </p>
             </div>
@@ -468,16 +471,10 @@ export default function SymptomSelectionPage() {
                   >
                     <div className="flex items-center justify-between gap-2 md:items-start">
                       <div>
-                        <p
-                          className="hidden font-['DM_Sans:Bold',sans-serif] font-bold text-xs mb-1 md:block"
-                          style={{ fontVariationSettings: "'opsz' 14" }}
-                        >
+                        <p className="hidden font-['DM_Sans:Bold',sans-serif] font-bold text-xs mb-1 md:block">
                           Beschwerde {index + 1}
                         </p>
-                        <p
-                          className="font-['DM_Sans:SemiBold',sans-serif] font-semibold text-xs leading-tight md:text-sm"
-                          style={{ fontVariationSettings: "'opsz' 14" }}
-                        >
+                        <p className="font-['DM_Sans:SemiBold',sans-serif] font-semibold text-xs leading-tight md:text-sm">
                           {symptom ? getSymptomKey(symptom) : `${index + 1}. frei`}
                         </p>
                       </div>
@@ -504,16 +501,10 @@ export default function SymptomSelectionPage() {
           {selectedCategory ? (
             <>
               <div className="mb-3">
-                <p
-                  className="font-['DM_Sans:Bold',sans-serif] font-bold text-[#486284] text-lg"
-                  style={{ fontVariationSettings: "'opsz' 14" }}
-                >
+                <p className="font-['DM_Sans:Bold',sans-serif] font-bold text-[#486284] text-lg">
                   {selectedCategoryLabel}
                 </p>
-                <p
-                  className="font-['DM_Sans:Medium',sans-serif] font-medium text-[#486284] text-sm"
-                  style={{ fontVariationSettings: "'opsz' 14" }}
-                >
+                <p className="font-['DM_Sans:Medium',sans-serif] font-medium text-[#486284] text-sm">
                   {selectedSymptoms.length}/{MAX_SYMPTOMS} Hauptbeschwerden ausgewählt
                 </p>
               </div>
@@ -533,10 +524,7 @@ export default function SymptomSelectionPage() {
             </>
           ) : (
             <div className="flex min-h-[220px] items-center justify-center rounded-[18px] border-2 border-dashed border-[#cfd5dd] bg-[#f5f7fa] p-6 text-center">
-              <p
-                className="max-w-md font-['DM_Sans:Medium',sans-serif] font-medium text-[#486284] text-sm leading-relaxed"
-                style={{ fontVariationSettings: "'opsz' 14" }}
-              >
+              <p className="max-w-md font-['DM_Sans:Medium',sans-serif] font-medium text-[#486284] text-sm leading-relaxed">
                 Wählen Sie zuerst oben am Körper, bei Allgemein oder bei Psyche einen Bereich aus. Danach erscheinen hier die passenden Beschwerden.
               </p>
             </div>
@@ -544,10 +532,7 @@ export default function SymptomSelectionPage() {
 
           <div className="mt-6 flex justify-end">
             <Button onClick={handleContinue} disabled={selectedSymptoms.length === 0}>
-              <p
-                className="font-['DM_Sans:Bold',sans-serif] font-bold text-base"
-                style={{ fontVariationSettings: "'opsz' 14" }}
-              >
+              <p className="font-['DM_Sans:Bold',sans-serif] font-bold text-base">
                 Weiter
               </p>
             </Button>
@@ -569,7 +554,6 @@ export default function SymptomSelectionPage() {
           onChange={(event) => setSymptomText(event.target.value)}
           placeholder="z.B. Ich habe seit 3 Tagen starke Kopfschmerzen und zusätzlich Übelkeit."
           className="w-full h-40 bg-[#eff2f6] rounded-[16px] p-4 resize-none border-none outline-none focus:ring-2 focus:ring-[#486284] font-['DM_Sans:Medium',sans-serif] font-medium text-[#3e3e3e] text-base"
-          style={{ fontVariationSettings: "'opsz' 14" }}
         />
 
         <div className="flex justify-between items-center mt-6">

@@ -4,18 +4,12 @@ import PageShell from "../components/PageShell";
 import SymptomDetailsForm from "../features/symptoms/SymptomDetailsForm";
 import Button from "../components/Button";
 import { useAssessment } from "../lib/AssessmentContext";
-import { getMeasurementConfig } from "../features/symptoms/symptoms.constants";
+import { getMeasurementConfig, isAdministrativeSymptom } from "../features/symptoms/symptoms.constants";
 import type { SelectedSymptom, Symptom } from "../types/assessment";
 
 function getSymptomSides(symptom: SelectedSymptom) {
-  if (symptom.sides && symptom.sides.length > 0) {
-    return symptom.sides;
-  }
-
-  if (symptom.side) {
-    return symptom.side.split(",").map((side) => side.trim()).filter(Boolean);
-  }
-
+  if (symptom.sides && symptom.sides.length > 0) return symptom.sides;
+  if (symptom.side) return symptom.side.split(",").map((side) => side.trim()).filter(Boolean);
   return [];
 }
 
@@ -53,7 +47,9 @@ export default function SymptomDetailsPage() {
   const { selectedSymptoms, symptomDetails: contextDetails, setSymptomDetails } = useAssessment();
 
   const [localDetails, setLocalDetails] = useState<Symptom[]>(() => {
-    const expanded = expandSelectedSymptoms(selectedSymptoms);
+    const expanded = expandSelectedSymptoms(selectedSymptoms).filter(
+      (symptom) => !isAdministrativeSymptom(symptom.region, symptom.side)
+    );
 
     return expanded.map((symptom, index) => {
       const existing = contextDetails.find(
@@ -68,9 +64,21 @@ export default function SymptomDetailsPage() {
 
   useEffect(() => {
     if (selectedSymptoms.length === 0) {
-      navigate("/symptom-selection");
+      navigate("/symptom-selection", { replace: true });
+      return;
     }
-  }, [selectedSymptoms, navigate]);
+
+    const hasOnlyAdministrativeSymptoms = selectedSymptoms.every((symptom) =>
+      getSymptomSides(symptom).length > 0
+        ? getSymptomSides(symptom).every((side) => isAdministrativeSymptom(symptom.region, side))
+        : isAdministrativeSymptom(symptom.region, symptom.side)
+    );
+
+    if (hasOnlyAdministrativeSymptoms) {
+      setSymptomDetails([]);
+      navigate("/result", { replace: true });
+    }
+  }, [selectedSymptoms, setSymptomDetails, navigate]);
 
   const updateSymptom = (index: number, field: keyof Symptom, value: Symptom[keyof Symptom]) => {
     setLocalDetails((details) => {
@@ -121,10 +129,7 @@ export default function SymptomDetailsPage() {
 
       <div className="mt-6 mb-6 flex justify-end">
         <Button onClick={handleContinue} disabled={!canContinue}>
-          <p
-            className="font-['DM_Sans:Bold',sans-serif] font-bold text-base"
-            style={{ fontVariationSettings: "'opsz' 14" }}
-          >
+          <p className="font-['DM_Sans:Bold',sans-serif] font-bold text-base">
             Weiter
           </p>
         </Button>

@@ -16,9 +16,17 @@ const SPECIALTY_LABELS: Record<DoctorSpecialty, string> = {
   emergency: "Notaufnahme / Notruf",
 };
 
+function normalize(value: string) {
+  return value.toLowerCase();
+}
+
+function includesAny(text: string, terms: string[]) {
+  return terms.some((term) => text.includes(normalize(term)));
+}
+
 function textOf(symptom: Symptom | SelectedSymptom) {
   const sides = "sides" in symptom && symptom.sides?.length ? symptom.sides.join(" ") : symptom.side ?? "";
-  return `${symptom.region} ${sides}`.toLowerCase();
+  return normalize(`${symptom.region} ${sides}`);
 }
 
 function addSpecialty(
@@ -39,6 +47,26 @@ function addSpecialty(
   }
 }
 
+function hasAdministrativeRequest(text: string) {
+  return includesAny(text, ["rezept", "krankmeldung", "au-bescheinigung"]);
+}
+
+function hasPsychRequest(text: string) {
+  return includesAny(text, [
+    "psych",
+    "angst",
+    "panik",
+    "sucht",
+    "substanzverlangen",
+    "niedergeschlagenheit",
+    "suizid",
+  ]);
+}
+
+function hasHighSuicidalIdeation(symptomDetails: Symptom[]) {
+  return symptomDetails.some((symptom) => textOf(symptom).includes("suizid") && symptom.measurementValue >= 8);
+}
+
 export function getFrontendTriageRecommendation({
   patientData,
   selectedSymptoms,
@@ -52,57 +80,85 @@ export function getFrontendTriageRecommendation({
   const allTexts = [...selectedSymptoms.map(textOf), ...symptomDetails.map(textOf)].join(" ");
   const maxValue = symptomDetails.length ? Math.max(...symptomDetails.map((symptom) => symptom.measurementValue)) : 0;
 
+  const administrativeRequest = hasAdministrativeRequest(allTexts);
+
+  if (administrativeRequest) {
+    const recommendation: RecommendedSpecialty = {
+      specialty: "primary_care",
+      label: SPECIALTY_LABELS.primary_care,
+      reason: "Für Rezeptverlängerungen oder Krankmeldungen ist der Hausarzt bzw. die Allgemeinmedizin die passende Anlaufstelle.",
+      priority: 100,
+    };
+
+    return {
+      careLevel: "doctor",
+      title: recommendation.label,
+      color: "#F59E0B",
+      bgColor: "#FEF3C7",
+      description: "Für Ihr Anliegen ist eine ärztliche Versorgung über den Hausarzt sinnvoll.",
+      reasons: [recommendation.reason],
+      recommendedSpecialties: [recommendation],
+    };
+  }
+
   if (
-    allTexts.includes("atemnot") ||
-    allTexts.includes("druckgefühl") ||
-    allTexts.includes("enge") ||
-    allTexts.includes("suizidgedanken") ||
-    allTexts.includes("vaginale blutung") ||
-    maxValue >= 9
+    includesAny(allTexts, [
+      "atemnot",
+      "druckgefühl",
+      "enge",
+      "vaginale blutung",
+      "offener bruch",
+      "starke fehlstellung",
+    ]) ||
+    hasHighSuicidalIdeation(symptomDetails)
   ) {
     addSpecialty(specialties, "emergency", "Ein kritisches Warnsymptom wurde angegeben.", 100);
   }
 
-  if (allTexts.includes("brust") || allTexts.includes("herzrasen") || allTexts.includes("herzstechen")) {
+  if (includesAny(allTexts, ["druckgefühl", "enge", "herzrasen", "herzstechen", "brustmitte"])) {
     addSpecialty(specialties, "cardiology", "Beschwerden im Brust- oder Herzbereich können kardiologisch relevant sein.", 85);
   }
 
-  if (allTexts.includes("atemnot") || allTexts.includes("schmerz beim einatmen")) {
+  if (includesAny(allTexts, ["atemnot", "schmerz beim einatmen"])) {
     addSpecialty(specialties, "pulmonology", "Atembezogene Beschwerden können eine Lungenabklärung erfordern.", 80);
   }
 
-  if (allTexts.includes("haut") || allTexts.includes("juckreiz") || allTexts.includes("sonnenbrand") || allTexts.includes("verbrennung") || allTexts.includes("rötung")) {
+  if (includesAny(allTexts, ["bruch", "knochenbruch", "fehlstellung", "sportverletzung", "rücken", "nacken", "bein", "arm", "gelenk"])) {
+    addSpecialty(specialties, "orthopedics", "Beschwerden am Bewegungsapparat, Verletzungen oder Bruchverdacht passen zur Orthopädie.", 80);
+  }
+
+  if (includesAny(allTexts, ["haut", "juckreiz", "sonnenbrand", "verbrennung", "rötung", "ausschlag"])) {
     addSpecialty(specialties, "dermatology", "Haut-, Juckreiz-, Rötungs- oder Verbrennungsbeschwerden passen zur Dermatologie.", 75);
   }
 
-  if (allTexts.includes("kopf") || allTexts.includes("taubheit") || allTexts.includes("kribbeln") || allTexts.includes("sehstörungen") || allTexts.includes("verwirrtheit")) {
-    addSpecialty(specialties, "neurology", "Neurologische Beschwerden wie Taubheit, Verwirrtheit oder Sehstörungen sollten neurologisch eingeordnet werden.", 75);
+  if (includesAny(allTexts, ["taubheit", "kribbeln", "sehstörungen", "verwirrtheit", "desorientierung", "gehirnerschütterung"])) {
+    addSpecialty(specialties, "neurology", "Neurologische Beschwerden oder Kopfverletzungen sollten neurologisch eingeordnet werden.", 75);
   }
 
-  if (allTexts.includes("nase") || allTexts.includes("mund") || allTexts.includes("rachen") || allTexts.includes("ohr")) {
+  if (includesAny(allTexts, ["nase", "mund", "rachen", "ohr"])) {
     addSpecialty(specialties, "ent", "Beschwerden an Nase, Ohr, Mund oder Rachen passen zur HNO-Abklärung.", 65);
   }
 
-  if (allTexts.includes("rücken") || allTexts.includes("nacken") || allTexts.includes("bein") || allTexts.includes("arm") || allTexts.includes("sportverletzung")) {
-    addSpecialty(specialties, "orthopedics", "Beschwerden an Rücken, Armen, Beinen oder nach Sportverletzung passen zur Orthopädie.", 60);
+  if (includesAny(allTexts, ["bauch", "oberbauch", "unterbauch", "krämpfe", "koliken", "magen", "darm"])) {
+    addSpecialty(specialties, "gastroenterology", "Bauchbeschwerden, Krämpfe oder Koliken können gastroenterologisch relevant sein.", 65);
   }
 
-  if (allTexts.includes("bauch") || allTexts.includes("oberbauch") || allTexts.includes("unterbauch") || allTexts.includes("krämpfe") || allTexts.includes("koliken")) {
-    addSpecialty(specialties, "gastroenterology", "Bauchbeschwerden, Krämpfe oder Koliken können gastroenterologisch relevant sein.", 60);
-  }
-
-  if (allTexts.includes("urin") || allTexts.includes("hoden") || allTexts.includes("glied") || allTexts.includes("vorhaut") || allTexts.includes("flanke")) {
+  if (includesAny(allTexts, ["urin", "hoden", "glied", "vorhaut", "flanke"])) {
     addSpecialty(specialties, "urology", "Beschwerden beim Wasserlassen, an Hoden/Glied oder Flankenschmerzen passen zur Urologie.", 70);
   }
 
-  if (patientData?.gender.toLowerCase().startsWith("weib") || patientData?.isPregnant || patientData?.isBreastfeeding) {
-    if (allTexts.includes("intimbereich") || allTexts.includes("zyklus") || allTexts.includes("vaginal") || allTexts.includes("ausfluss") || allTexts.includes("brustwarzen")) {
+  if (
+    patientData?.gender.toLowerCase().startsWith("weib") ||
+    patientData?.isPregnant ||
+    patientData?.isBreastfeeding
+  ) {
+    if (includesAny(allTexts, ["intimbereich", "zyklus", "vaginal", "ausfluss", "brustwarzen", "unterleib"])) {
       addSpecialty(specialties, "gynecology", "Gynäkologische oder schwangerschafts-/stillzeitbezogene Beschwerden wurden angegeben.", 80);
     }
   }
 
-  if (allTexts.includes("angst") || allTexts.includes("panik") || allTexts.includes("sucht") || allTexts.includes("niedergeschlagenheit")) {
-    addSpecialty(specialties, "psychiatry", "Psychische Beschwerden oder Substanzverlangen können psychiatrisch/psychotherapeutisch relevant sein.", 65);
+  if (hasPsychRequest(allTexts)) {
+    addSpecialty(specialties, "psychiatry", "Psychische Beschwerden oder Substanzverlangen können psychiatrisch/psychotherapeutisch relevant sein.", 75);
   }
 
   if (specialties.size === 0) {
@@ -123,26 +179,9 @@ export function getFrontendTriageRecommendation({
 
   return {
     careLevel,
-    title:
-      careLevel === "specialist"
-        ? `Empfohlene Fachrichtung: ${topSpecialty.label}`
-        : topSpecialty.label,
-    color:
-      careLevel === "emergency"
-        ? "#FF2546"
-        : careLevel === "specialist"
-          ? "#486284"
-          : careLevel === "doctor"
-            ? "#F59E0B"
-            : "#10B981",
-    bgColor:
-      careLevel === "emergency"
-        ? "#ffcdcd"
-        : careLevel === "specialist"
-          ? "#E8EEF5"
-          : careLevel === "doctor"
-            ? "#FEF3C7"
-            : "#D1FAE5",
+    title: careLevel === "specialist" ? `Empfohlene Fachrichtung: ${topSpecialty.label}` : topSpecialty.label,
+    color: careLevel === "emergency" ? "#FF2546" : careLevel === "specialist" ? "#486284" : careLevel === "doctor" ? "#F59E0B" : "#10B981",
+    bgColor: careLevel === "emergency" ? "#ffcdcd" : careLevel === "specialist" ? "#E8EEF5" : careLevel === "doctor" ? "#FEF3C7" : "#D1FAE5",
     description:
       careLevel === "specialist"
         ? "Diese Empfehlung ist eine frontendseitige Vorab-Einschätzung und wird später durch Backend/KI ersetzt."

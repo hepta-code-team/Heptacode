@@ -17,10 +17,10 @@ const BIRTH_MONTH_MAX = 12;
 const MAX_PATIENT_AGE_YEARS = 125;
 
 type PatientDataForm = PatientData & {
+  currentMood?: string;
   smokerStatus?: string;
   takesBloodThinners?: boolean;
   immuneSystemStatus?: string;
-  currentMood?: string;
 };
 
 const moodOptions = [
@@ -72,6 +72,36 @@ function isBirthDateValid(birthMonth: string, birthYear: string, currentMonth: n
   }
 
   return true;
+}
+
+function calculateAge(birthMonth: string, birthYear: string, currentMonth: number, currentYear: number) {
+  const month = Number(birthMonth);
+  const year = Number(birthYear);
+
+  if (!Number.isFinite(month) || !Number.isFinite(year)) {
+    return null;
+  }
+
+  const ageInMonths = (currentYear - year) * 12 + (currentMonth - month);
+
+  if (ageInMonths < 0) {
+    return null;
+  }
+
+  if (ageInMonths < 12) {
+    return `${ageInMonths} ${ageInMonths === 1 ? "Monat" : "Monate"}`;
+  }
+
+  const years = Math.floor(ageInMonths / 12);
+  const remainingMonths = ageInMonths % 12;
+
+  if (remainingMonths === 0) {
+    return `${years} ${years === 1 ? "Jahr" : "Jahre"}`;
+  }
+
+  return `${years} ${years === 1 ? "Jahr" : "Jahre"} und ${remainingMonths} ${
+    remainingMonths === 1 ? "Monat" : "Monate"
+  }`;
 }
 
 function calculateBmi(height: string, weight: string) {
@@ -140,12 +170,22 @@ export default function PatientDataPage() {
 
   const [showValidationErrors, setShowValidationErrors] = useState(false);
 
+  const age = useMemo(
+    () => calculateAge(formData.birthMonth, formData.birthYear, currentMonth, currentYear),
+    [formData.birthMonth, formData.birthYear, currentMonth, currentYear]
+  );
+
   const bmi = useMemo(() => calculateBmi(formData.height, formData.weight), [
     formData.height,
     formData.weight,
   ]);
 
+  const shouldShowAgeFeedback =
+    age !== null &&
+    isBirthDateValid(formData.birthMonth, formData.birthYear, currentMonth, currentYear);
+
   const shouldShowBmiFeedback =
+    !formData.isPregnant &&
     bmi !== null &&
     isNumberInRange(formData.height, HEIGHT_MIN, HEIGHT_MAX) &&
     isNumberInRange(formData.weight, WEIGHT_MIN, WEIGHT_MAX);
@@ -265,6 +305,12 @@ export default function PatientDataPage() {
           {hasFutureBirthDateError && (
             <p className="mt-1 text-xs font-medium text-red-600">
               Das Geburtsdatum darf nicht in der Zukunft liegen.
+            </p>
+          )}
+
+          {shouldShowAgeFeedback && (
+            <p className="mt-2 rounded-[10px] bg-white px-3 py-2 text-xs font-medium text-[#486284]">
+              Ihr Alter beträgt {age}.
             </p>
           )}
         </div>

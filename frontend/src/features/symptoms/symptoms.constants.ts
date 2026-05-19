@@ -28,6 +28,9 @@ export const CRITICAL_SYMPTOM_OPTIONS = [
   "Einseitig geschwollene oder heiße Wade",
   "Vaginale Blutung",
   "Abgang von Fruchtwasser",
+  "Offener Bruch",
+  "Starke Fehlstellung",
+  "Verdacht auf Gehirnerschütterung",
 ];
 
 export const EMERGENCY_SYMPTOM_OPTIONS = [
@@ -38,6 +41,16 @@ export const EMERGENCY_SYMPTOM_OPTIONS = [
 
 export function isCriticalSymptom(region: string, option?: string) {
   return Boolean(option && CRITICAL_SYMPTOM_OPTIONS.includes(option));
+}
+
+export function isAdministrativeSymptom(region: string, option?: string) {
+  const text = `${region} ${option ?? ""}`.toLowerCase();
+
+  return (
+    text.includes("rezept") ||
+    text.includes("krankmeldung") ||
+    text.includes("au-bescheinigung")
+  );
 }
 
 function isFemale(patientData?: PatientData | null) {
@@ -70,9 +83,7 @@ function getIntimateOptions(patientData?: PatientData | null) {
           "Schmerzen am Glied / Vorhaut",
         ]
       : []),
-    ...(patientData?.isPregnant
-      ? ["Veränderter Ausfluss", "Juckreiz im Intimbereich"]
-      : []),
+    ...(patientData?.isPregnant ? ["Veränderter Ausfluss", "Juckreiz im Intimbereich"] : []),
   ];
 }
 
@@ -94,6 +105,14 @@ export function getBodyRegions(patientData?: PatientData | null): BodyRegion[] {
       ],
       nestedOptions: {
         Gesicht: ["Auge", "Ohr", "Kiefer", "Nase", "Mund / Rachen"],
+        Verletzungen: [
+          "Platzwunde",
+          "Beule / Schwellung",
+          "Prellung",
+          "Schnittwunde",
+          "Nasenbluten nach Verletzung",
+          "Verdacht auf Gehirnerschütterung",
+        ],
       },
     },
     {
@@ -134,7 +153,24 @@ export function getBodyRegions(patientData?: PatientData | null): BodyRegion[] {
       id: "arme",
       name: "Arme",
       icon: armPainIcon,
-      options: ["Schulter", "Oberarm", "Ellenbogen", "Unterarm", "Hand/Handgelenk", "Finger"],
+      options: [
+        "Schulter",
+        "Oberarm",
+        "Ellenbogen",
+        "Unterarm",
+        "Hand/Handgelenk",
+        "Finger",
+        "Knochenbruch / Bruchverdacht",
+      ],
+      nestedOptions: {
+        "Knochenbruch / Bruchverdacht": [
+          "Offener Bruch",
+          "Starke Fehlstellung",
+          "Nach Sturz / Unfall",
+          "Starke Schwellung / Bluterguss",
+          "Kann nicht bewegt werden",
+        ],
+      },
     },
     {
       id: "bauch",
@@ -174,6 +210,7 @@ export function getBodyRegions(patientData?: PatientData | null): BodyRegion[] {
         "Fuß/Knöchel",
         "Zehen",
         "Gefühl & Schwellung",
+        "Knochenbruch / Bruchverdacht",
         ...(patientData?.isPregnant
           ? [
               "Starke Wassereinlagerungen (Ödeme)",
@@ -187,6 +224,13 @@ export function getBodyRegions(patientData?: PatientData | null): BodyRegion[] {
           "Bein ist geschwollen / heiß",
           "Bein fühlt sich kalt an",
           "Kraftlosigkeit / Wegknicken",
+        ],
+        "Knochenbruch / Bruchverdacht": [
+          "Offener Bruch",
+          "Starke Fehlstellung",
+          "Nach Sturz / Unfall",
+          "Starke Schwellung / Bluterguss",
+          "Kann nicht auftreten / belasten",
         ],
       },
     },
@@ -208,7 +252,14 @@ export function getBodyRegions(patientData?: PatientData | null): BodyRegion[] {
         "Appetitlosigkeit / Gewichtsverlust",
         "Schlafstörung",
         "Schüttelfrost",
+        "Rezept / Krankmeldung",
       ],
+      nestedOptions: {
+        "Rezept / Krankmeldung": [
+          "Rezept holen / verlängern",
+          "Krankmeldung / AU-Bescheinigung",
+        ],
+      },
     },
     {
       id: "psychisch",
@@ -316,7 +367,7 @@ const MEASUREMENT_CONFIGS: Record<string, MeasurementConfig> = {
     minLabel: "38 °C",
     maxLabel: ">42 °C",
     infoTitle: "Temperaturskala",
-    infoText: "Wählen Sie die gemessene oder geschätzte Körpertemperatur. Sehr hohes Fieber kann ein Warnzeichen sein.",
+    infoText: "Wählen Sie die gemessene oder geschätzte Körpertemperatur.",
   },
   breathing: {
     type: "severity",
@@ -327,7 +378,7 @@ const MEASUREMENT_CONFIGS: Record<string, MeasurementConfig> = {
     minLabel: "Nur leicht",
     maxLabel: "In Ruhe / kaum sprechen",
     infoTitle: "Atemnot-Skala",
-    infoText: "Diese Skala beschreibt, wie stark die Luftnot ist. Hohe Werte bedeuten Atemnot in Ruhe, beim Sprechen oder ein starkes Engegefühl.",
+    infoText: "Diese Skala beschreibt, wie stark die Luftnot ist.",
   },
   pressure: {
     type: "severity",
@@ -338,7 +389,7 @@ const MEASUREMENT_CONFIGS: Record<string, MeasurementConfig> = {
     minLabel: "Leicht",
     maxLabel: "Sehr stark / beängstigend",
     infoTitle: "Druck- und Engegefühl",
-    infoText: "Diese Skala beschreibt, wie stark Druck, Enge oder Beklemmung empfunden werden, zum Beispiel im Brustbereich.",
+    infoText: "Diese Skala beschreibt, wie stark Druck, Enge oder Beklemmung empfunden werden.",
   },
   feeling: {
     type: "feeling",
@@ -349,7 +400,7 @@ const MEASUREMENT_CONFIGS: Record<string, MeasurementConfig> = {
     minLabel: "Leicht belastend",
     maxLabel: "Sehr belastend",
     infoTitle: "Psychische Belastung",
-    infoText: "Diese Skala beschreibt, wie stark Sie sich durch das Gefühl oder die psychische Beschwerde aktuell belastet fühlen.",
+    infoText: "Diese Skala beschreibt, wie stark Sie sich dadurch aktuell belastet fühlen.",
   },
   severity: {
     type: "severity",
@@ -360,7 +411,7 @@ const MEASUREMENT_CONFIGS: Record<string, MeasurementConfig> = {
     minLabel: "Leicht",
     maxLabel: "Sehr stark",
     infoTitle: "Beschwerdestärke",
-    infoText: "Diese Skala beschreibt, wie stark die Beschwerde aktuell ausgeprägt ist und wie sehr sie Sie einschränkt.",
+    infoText: "Diese Skala beschreibt, wie stark die Beschwerde aktuell ausgeprägt ist.",
   },
   sleep: {
     type: "severity",
@@ -403,17 +454,9 @@ function optionIncludes(option: string | undefined, words: string[]) {
 }
 
 export function getMeasurementConfig(region: string, option?: string): MeasurementConfig {
-  if (optionIncludes(option, ["Fieber"])) {
-    return MEASUREMENT_CONFIGS.temperature;
-  }
-
-  if (optionIncludes(option, ["Atemnot"])) {
-    return MEASUREMENT_CONFIGS.breathing;
-  }
-
-  if (optionIncludes(option, ["Druckgefühl", "Enge", "Herzstechen", "Herzrasen"])) {
-    return MEASUREMENT_CONFIGS.pressure;
-  }
+  if (optionIncludes(option, ["Fieber"])) return MEASUREMENT_CONFIGS.temperature;
+  if (optionIncludes(option, ["Atemnot"])) return MEASUREMENT_CONFIGS.breathing;
+  if (optionIncludes(option, ["Druckgefühl", "Enge", "Herzstechen", "Herzrasen"])) return MEASUREMENT_CONFIGS.pressure;
 
   if (
     region === "Psychische Probleme" ||
@@ -422,9 +465,7 @@ export function getMeasurementConfig(region: string, option?: string): Measureme
     return MEASUREMENT_CONFIGS.feeling;
   }
 
-  if (optionIncludes(option, ["Schlafstörung"])) {
-    return MEASUREMENT_CONFIGS.sleep;
-  }
+  if (optionIncludes(option, ["Schlafstörung"])) return MEASUREMENT_CONFIGS.sleep;
 
   if (
     optionIncludes(option, [
@@ -467,6 +508,12 @@ export function getMeasurementConfig(region: string, option?: string): Measureme
       "Brennen",
       "Krämpfe",
       "Koliken",
+      "Platzwunde",
+      "Beule",
+      "Prellung",
+      "Schnittwunde",
+      "Nasenbluten",
+      "Gehirnerschütterung",
     ])
   ) {
     return MEASUREMENT_CONFIGS.severity;
