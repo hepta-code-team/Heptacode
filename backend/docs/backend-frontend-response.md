@@ -37,8 +37,8 @@ Erstellt wurde der Branch:
 
 Betroffene Dateien:
 
-- [backend/src/modules/assessment/assessment.service.ts](/Users/christianscheider/Dev/Heptacode/backend/src/modules/assessment/assessment.service.ts)
-- [backend/src/modules/assessment/assessment.types.ts](/Users/christianscheider/Dev/Heptacode/backend/src/modules/assessment/assessment.types.ts)
+- [backend/src/modules/assessment/assessment.service.ts]
+- [backend/src/modules/assessment/assessment.types.ts]
 
 Änderungen:
 
@@ -62,8 +62,8 @@ Das Assessment-Ergebnis enthält jetzt:
 
 Betroffene Dateien:
 
-- [frontend/src/types/assessment.ts](/Users/christianscheider/Dev/Heptacode/frontend/src/types/assessment.ts)
-- [frontend/src/types/triage.ts](/Users/christianscheider/Dev/Heptacode/frontend/src/types/triage.ts)
+- [frontend/src/types/assessment.ts]
+- [frontend/src/types/triage.ts]
 
 Änderungen:
 
@@ -75,7 +75,7 @@ Betroffene Dateien:
 
 Betroffene Datei:
 
-- [frontend/src/lib/AssessmentContext.tsx](/Users/christianscheider/Dev/Heptacode/frontend/src/lib/AssessmentContext.tsx)
+- [frontend/src/lib/AssessmentContext.tsx]
 
 Problem:
 
@@ -93,7 +93,7 @@ Lösung:
 
 Betroffene Datei:
 
-- [frontend/src/pages/ResultPage.tsx](/Users/christianscheider/Dev/Heptacode/frontend/src/pages/ResultPage.tsx)
+- [frontend/src/pages/ResultPage.tsx]
 
 Umgesetzt:
 
@@ -111,30 +111,11 @@ Hinweis:
 - die Frontend-Änderungen aus `isabelle-frontend-fix` wurden nicht direkt übernommen
 - das Backend wurde aber auf die dafür nötige Datenstruktur vorbereitet
 
-## KI-Anbindung analysiert
-
-Geprüfte Dateien:
-
-- [backend/src/config/env.ts](/Users/christianscheider/Dev/Heptacode/backend/src/config/env.ts)
-- [backend/src/ai/client.ts](/Users/christianscheider/Dev/Heptacode/backend/src/ai/client.ts)
-- [backend/src/ai/llmAdapter.ts](/Users/christianscheider/Dev/Heptacode/backend/src/ai/llmAdapter.ts)
-- [backend/src/ai/timeout.ts](/Users/christianscheider/Dev/Heptacode/backend/src/ai/timeout.ts)
-
-Feststellungen:
-
-- `AI_API_URL`, `AI_API_KEY` und `AI_MODEL` waren lokal gesetzt
-- LiteLLM unter `http://141.19.141.155:4000` war erreichbar
-- der API-Key funktionierte
-- das Modell `medgemma:27b` war vorhanden
-- Problem war nicht Netzwerk oder Auth
-- der echte Triage-Prompt dauerte ca. `25.7 s`, das Backend brach aber schon nach `8 s` ab
-- das Modell lieferte teils leicht abweichendes JSON, z. B. `reasons` als String statt Array und `reviewSummary: null`
-
 ## AI-Timeout erhöht
 
 Betroffene Datei:
 
-- [backend/src/ai/timeout.ts](/Users/christianscheider/Dev/Heptacode/backend/src/ai/timeout.ts)
+- [backend/src/ai/timeout.ts]
 
 Änderung:
 
@@ -148,7 +129,7 @@ Ziel:
 
 Betroffene Datei:
 
-- [backend/src/ai/llmAdapter.ts](/Users/christianscheider/Dev/Heptacode/backend/src/ai/llmAdapter.ts)
+- [backend/src/ai/llmAdapter.ts]
 
 Vorher:
 
@@ -168,7 +149,7 @@ Nutzen:
 
 Betroffene Datei:
 
-- [backend/src/modules/triage/triage.types.ts](/Users/christianscheider/Dev/Heptacode/backend/src/modules/triage/triage.types.ts)
+- [backend/src/modules/triage/triage.types.ts]
 
 Anpassungen:
 
@@ -183,7 +164,7 @@ Ziel:
 
 Betroffene Datei:
 
-- [backend/src/modules/triage/triage.service.ts](/Users/christianscheider/Dev/Heptacode/backend/src/modules/triage/triage.service.ts)
+- [backend/src/modules/triage/triage.service.ts]
 
 Vorher:
 
@@ -210,7 +191,7 @@ Regeln:
 
 Betroffene Datei:
 
-- [backend/src/modules/triage/triage.service.ts](/Users/christianscheider/Dev/Heptacode/backend/src/modules/triage/triage.service.ts)
+- [backend/src/modules/triage/triage.service.ts]
 
 Neue Funktionen:
 
@@ -236,42 +217,12 @@ Verifiziert:
 - `Kopfschmerzen 1/10, seit heute` -> `selfcare + home_care`
 - `Kopfschmerzen 7/10, seit ein paar Tagen` -> `specialist + neurology`
 
-## recommendedSpecialties für späteres Frontend vorbereitet
-
-Die Result-Page aus `isabelle-frontend-fix` zeigte, dass später eine explizite Fachrichtungsdarstellung vorgesehen ist.
-
-Deshalb liefert das Backend jetzt optional:
-
-- `recommendedSpecialties`
-
-Struktur:
-
-- `specialty`
-- `label`
-- `reason`
-- `priority`
-
-## Doppelte Spezialisten-Taxonomie wieder entfernt
-
-Auf Basis der vorhandenen Domäne wurde die zusätzliche Backend-Mapping-Schicht entfernt.
-
-Jetzt gilt:
-
-- `recommendedSpecialties.specialty` nutzt direkt `medicalSpecialtySchema`
-- `recommendedSpecialties.specialty` ist damit direkt vom Typ `MedicalSpecialty`
-
-Geändert in:
-
-- [backend/src/modules/triage/triage.types.ts](/Users/christianscheider/Dev/Heptacode/backend/src/modules/triage/triage.types.ts)
-- [backend/src/modules/triage/triage.service.ts](/Users/christianscheider/Dev/Heptacode/backend/src/modules/triage/triage.service.ts)
-- [frontend/src/types/triage.ts](/Users/christianscheider/Dev/Heptacode/frontend/src/types/triage.ts)
-
 ## Leere Stammdatenfelder entfernt
 
 Betroffene Dateien:
 
-- [backend/src/modules/triage/triage.service.ts](/Users/christianscheider/Dev/Heptacode/backend/src/modules/triage/triage.service.ts)
-- [backend/src/modules/assessment/assessment.service.ts](/Users/christianscheider/Dev/Heptacode/backend/src/modules/assessment/assessment.service.ts)
+- [backend/src/modules/triage/triage.service.ts]
+- [backend/src/modules/assessment/assessment.service.ts]
 
 Umgesetzt:
 
@@ -290,7 +241,7 @@ Umgesetzt:
 
 Betroffene Datei:
 
-- [backend/src/modules/triage/triage.service.ts](/Users/christianscheider/Dev/Heptacode/backend/src/modules/triage/triage.service.ts)
+- [backend/src/modules/triage/triage.service.ts]
 
 Neu:
 
