@@ -21,6 +21,11 @@ export interface ReviewSummary {
   professionalSummary: string
 }
 
+export const reviewSummarySchema = z.object({
+  plainLanguage: z.string().min(1),
+  professionalSummary: z.string().min(1),
+})
+
 export const careLevelSchema = z.enum(CARE_LEVELS)
 
 // Medizinische Versorgungsangebote
