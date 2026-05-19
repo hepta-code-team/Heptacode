@@ -65,7 +65,11 @@ function formatSymptoms(symptoms: TriageSymptom[]): string {
     .join('\n')
 }
 
-// Funktion um Versorgungsebene und Fachrichtung vom AI zu requesten
+
+
+
+
+// Funktion um Versorgungsebene, Fachrichtung und Review Summary vom AI zu requesten
 async function requestTriageFromAi(
   patientData: PatientData | undefined,
   symptoms: TriageSymptom[],
@@ -116,6 +120,7 @@ function createFallbackTriage(symptoms: TriageSymptom[]): TriageResponse {
   if (strongestPainLevel >= 8) {
     return {
       careLevel: 'emergency',
+      recommendedSpecialty: 'emergency_medicine',
       reasons: [
         'Die KI-Auswertung ist aktuell nicht verfuegbar.',
         'Aufgrund der sehr starken Beschwerden wird sicherheitshalber eine Notfallabklaerung empfohlen.',
@@ -127,6 +132,7 @@ function createFallbackTriage(symptoms: TriageSymptom[]): TriageResponse {
   if (strongestPainLevel >= 5 || symptoms.length > 0) {
     return {
       careLevel: 'doctor',
+      recommendedSpecialty: 'general_practice',
       reasons: [
         'Die KI-Auswertung ist aktuell nicht verfuegbar.',
         'Bitte lassen Sie die Beschwerden aerztlich einschaetzen, besonders bei Verschlechterung oder anhaltenden Symptomen.',
@@ -137,6 +143,7 @@ function createFallbackTriage(symptoms: TriageSymptom[]): TriageResponse {
 
   return {
     careLevel: 'selfcare',
+    recommendedSpecialty: 'home_care',
     reasons: ['Die KI-Auswertung ist aktuell nicht verfuegbar. Ohne erkannte Symptome ist keine hoehere Dringlichkeit ableitbar.'],
     aiUnavailable: true,
   }
@@ -147,6 +154,7 @@ function createFallbackTriage(symptoms: TriageSymptom[]): TriageResponse {
 function createTextExtractionFallbackTriage(): TriageResponse {
   return {
     careLevel: 'doctor',
+    recommendedSpecialty: 'general_practice',
     reasons: [
       'Die KI-Auswertung ist aktuell nicht verfuegbar.',
       'Die Freitext-Beschreibung konnte nicht sicher in Symptome ueberfuehrt werden. Bitte waehlen Sie die Symptome manuell aus oder lassen Sie die Beschwerden aerztlich einschaetzen.',
@@ -181,10 +189,19 @@ export async function evaluateTriage(
   inputType: 'text' | 'speech' = 'text',
 ): Promise<TriageResponse> {
   if (emergencyFromLanding) {
-    return {
+    const result: TriageResponse = {
       careLevel: 'emergency',
+      recommendedSpecialty: 'emergency_medicine',
       reasons: ['Notfallmodus ueber die Startseite ausgewaehlt.'],
+      reviewSummary: {
+        plainLanguage:
+          'Es wurde ein Notfallsymptom auf der Startseite ausgewaehlt. Bitte nehmen Sie umgehend medizinische Hilfe in Anspruch.',
+        professionalSummary:
+          'Notfallmodus ueber die Startseite ausgewaehlt. Care Level: Notfallversorgung. Empfohlene Fachrichtung: emergency_medicine.',
+      },
     }
+
+    return result
   }
 
   // Wenn Freitext uebergeben wurde, wird zuerst die Symptom-Extraktion ausgefuehrt und deren Ergebnis fuer die Triage verwendet.
@@ -192,7 +209,6 @@ export async function evaluateTriage(
     const extractionResult = await extractSymptoms(text, inputType)
 
     if (extractionResult.invalidInput) {
-      // Ungueltiger Freitext soll in der Triage als Eingabefehler sichtbar werden.
       throw createBadRequestError(
         extractionResult.message ?? 'Bitte beschreiben Sie konkrete gesundheitliche Beschwerden.',
       )
@@ -208,12 +224,23 @@ export async function evaluateTriage(
   const triageSymptoms = symptoms ?? []
 
   if (triageSymptoms.length === 0) {
-    // Ohne Symptome bleibt die Empfehlung bei Selfcare, ohne dass ein KI-Call noetig ist.
     return {
       careLevel: 'selfcare',
+      recommendedSpecialty: 'home_care',
       reasons: [],
+      reviewSummary: {
+        plainLanguage:
+          'Es wurden keine konkreten Beschwerden uebergeben. Eine medizinische Ersteinschaetzung ist dadurch nur eingeschraenkt moeglich.',
+        professionalSummary:
+          'Keine Symptome uebergeben. Care Level: Selbstversorgung. Empfohlene Fachrichtung: home_care.',
+      },
     }
+      return requestTriageFromAi(patientData, triageSymptoms)
   }
 
-  return requestTriageWithFallback(patientData, triageSymptoms)
+return requestTriageWithFallback(patientData, triageSymptoms)
+  
+
 }
+
+

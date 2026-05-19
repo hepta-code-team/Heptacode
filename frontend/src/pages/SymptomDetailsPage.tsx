@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
 import PageShell from "../components/PageShell";
 import SymptomDetailsForm from "../features/symptoms/SymptomDetailsForm";
@@ -9,6 +9,7 @@ import { useAssessment } from "../lib/AssessmentContext";
 import { getMeasurementConfig } from "../features/symptoms/symptoms.constants";
 import type { SymptomMeasurementType } from "../types/assessment";
 import type { TriageSymptom } from "../../../shared/symptom.types";
+import { handleSubmitAssessment } from "../features/symptoms/handleSubmitAssessment";
 
 type SymptomDraft = TriageSymptom & {
   id: string;
@@ -18,7 +19,12 @@ type SymptomDraft = TriageSymptom & {
 
 export default function SymptomDetailsPage() {
   const navigate = useNavigate();
-  const { selectedSymptoms, symptomDetails: contextDetails, setSymptomDetails: setContextDetails } = useAssessment();
+  const {
+    selectedSymptoms,
+    symptomDetails: contextDetails,
+    setSymptomDetails: setContextDetails,
+    submitAssessment,
+  } = useAssessment();
 
   const createSymptomDetails = (region: string, side: string | undefined, index: number): SymptomDraft => {
     const measurementConfig = getMeasurementConfig(region, side);
@@ -47,21 +53,21 @@ export default function SymptomDetailsPage() {
     };
   };
 
-  // Initialize symptomDetails from selectedSymptoms
-  const [symptomDetails, setSymptomDetails] = useState<SymptomDraft[]>(() => {
+  // Initialize local symptomDetails from selectedSymptoms
+  const [symptomDetails, setLocalSymptomDetails] = useState<SymptomDraft[]>(() => {
     // If context already has details, use them
     if (contextDetails.length > 0) {
       return contextDetails.map(normalizeSymptom);
     }
 
-    // Otherwise, create new details from selectedSymptoms
     return selectedSymptoms.map((s, idx) => createSymptomDetails(s.region, s.side, idx));
   });
 
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [showValidationErrors, setShowValidationErrors] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
-  // Redirect if no symptoms selected
   useEffect(() => {
     if (selectedSymptoms.length === 0) {
       navigate("/symptom-selection");
@@ -71,13 +77,13 @@ export default function SymptomDetailsPage() {
   const updateSymptom = (index: number, field: keyof SymptomDraft, value: SymptomDraft[keyof SymptomDraft]) => {
     const updated = [...symptomDetails];
     updated[index] = { ...updated[index], [field]: value };
-    setSymptomDetails(updated);
+    setLocalSymptomDetails(updated);
   };
 
   const toggleSymptomActive = (index: number) => {
     const updated = [...symptomDetails];
     updated[index] = { ...updated[index], active: !updated[index].active };
-    setSymptomDetails(updated);
+    setLocalSymptomDetails(updated);
   };
 
   const handleAddSymptom = (regionName: string, side?: string) => {
@@ -86,21 +92,15 @@ export default function SymptomDetailsPage() {
     if (inactiveIndex !== -1) {
       const updated = [...symptomDetails];
       updated[inactiveIndex] = createSymptomDetails(regionName, side, inactiveIndex);
-      setSymptomDetails(updated);
+      setLocalSymptomDetails(updated);
     }
 
     setIsAddModalOpen(false);
   };
 
   const handleContinue = () => {
-    const activeSymptoms = symptomDetails.filter(s => s.active);
+    const activeSymptoms = symptomDetails.filter((symptom) => symptom.active);
 
-    if (activeSymptoms.some((symptom) => !symptom.duration)) {
-      setShowValidationErrors(true);
-      return;
-    }
-
-    // Save only active symptoms to context
     setContextDetails(
       activeSymptoms.map((symptom) => ({
         region: symptom.region,
@@ -109,7 +109,15 @@ export default function SymptomDetailsPage() {
         duration: symptom.duration,
       })),
     );
-    navigate("/result");
+
+    void handleSubmitAssessment({
+      symptomDetails,
+      submitAssessment,
+      navigate,
+      setShowValidationErrors,
+      setSubmitError,
+      setIsSubmitting,
+    });
   };
 
   const canContinue = symptomDetails
@@ -151,16 +159,22 @@ export default function SymptomDetailsPage() {
         ))}
       </div>
 
-      <div className="mt-6 mb-6 flex justify-end">
-        <Button onClick={handleContinue} disabled={!canContinue}>
+      <div className="mt-6 mb-3 flex justify-end">
+        <Button onClick={handleContinue} disabled={!canContinue || isSubmitting}>
           <p
             className="font-['DM_Sans:Bold',sans-serif] font-bold text-base"
             style={{ fontVariationSettings: "'opsz' 14" }}
           >
-            Weiter
+            {isSubmitting ? "Wird gesendet..." : "Weiter"}
           </p>
         </Button>
       </div>
+
+      {submitError && (
+        <div className="mb-4 rounded-[14px] border border-red-200 bg-red-50 p-4 text-sm font-medium text-red-700">
+          {submitError}
+        </div>
+      )}
 
       <Modal
         isOpen={isAddModalOpen}

@@ -1,11 +1,50 @@
 import { z } from 'zod'
-import { CARE_LEVELS, MEDICAL_SPECIALTIES } from "../../../../shared/result.types.js";
-import type { CareLevel, MedicalSpecialty } from "../../../../shared/result.types.js";
-import type { PatientData } from "../../../../shared/patientData.types.js";
-import type { TriageSymptom } from "../../../../shared/symptom.types.js";
+import type { PatientData } from '../../../../shared/patientData.types.js'
+import type { TriageSymptom } from '../../../../shared/symptom.types.js'
+
+export type { PatientData } from '../../../../shared/patientData.types.js'
+export type { TriageSymptom } from '../../../../shared/symptom.types.js'
+
+// Versorgungsebenen für die Triage
+export const CARE_LEVELS = [
+  'emergency',
+  'doctor',
+  'specialist',
+  'selfcare',
+] as const
+
+export type CareLevel = (typeof CARE_LEVELS)[number]
+
+// Typ für die Review Summary
+export interface ReviewSummary {
+  plainLanguage: string
+  professionalSummary: string
+}
 
 export const careLevelSchema = z.enum(CARE_LEVELS)
-export const medicalSpecialtySchema = z.enum(MEDICAL_SPECIALTIES)
+
+// Medizinische Versorgungsangebote
+export const medicalSpecialtySchema = z.enum([
+  'home_care',
+  'emergency_medicine',
+  'general_practice',
+  'internal_medicine',
+  'cardiology',
+  'neurology',
+  'orthopedics',
+  'gastroenterology',
+  'pulmonology',
+  'dermatology',
+  'urology',
+  'gynecology',
+  'psychiatry',
+  'pediatrics',
+  'dentistry',
+  'ophthalmology',
+  'otolaryngology',
+])
+
+export type MedicalSpecialty = z.infer<typeof medicalSpecialtySchema>
 
 // Typ für die Anfrage
 export interface TriageRequest {
@@ -19,8 +58,10 @@ export interface TriageRequest {
 // Typ für die Antwort
 export interface TriageResponse {
   careLevel: CareLevel
-  recommendedSpecialty?: MedicalSpecialty
+  recommendedSpecialty: MedicalSpecialty
   reasons: string[]
+  reviewSummary?: ReviewSummary
+
   // TA 1.8: true bedeutet, dass die Empfehlung aus dem definierten Fallback kommt.
   aiUnavailable?: boolean
 }
@@ -78,13 +119,21 @@ export const triageAiResultSchema = z
 export type TriageAiResponse = z.infer<typeof triageAiResultSchema>
 
 // Schema für die Anfrage
-export const triageRequestSchema = z.object({
-  patientData: patientDataSchema.optional(),
-  symptoms: z.array(triageSymptomSchema).max(3).optional(),
-  text: z.string().trim().min(1).optional(),
-  inputType: z.enum(['text', 'speech']).optional(),
-  emergencyFromLanding: z.boolean().optional(),
-}).refine((value) => Boolean(value.text) || Boolean(value.symptoms && value.symptoms.length > 0), {
-  message: 'text oder symptoms ist erforderlich',
-  path: ['text'],
-})
+export const triageRequestSchema = z
+  .object({
+    patientData: patientDataSchema.optional(),
+    symptoms: z.array(triageSymptomSchema).max(3).optional(),
+    text: z.string().trim().min(1).optional(),
+    inputType: z.enum(['text', 'speech']).optional(),
+    emergencyFromLanding: z.boolean().optional(),
+  })
+  .refine(
+    (value) =>
+      Boolean(value.text) ||
+      Boolean(value.symptoms && value.symptoms.length > 0) ||
+      value.emergencyFromLanding === true,
+    {
+      message: 'text oder symptoms ist erforderlich',
+      path: ['text'],
+    },
+  )

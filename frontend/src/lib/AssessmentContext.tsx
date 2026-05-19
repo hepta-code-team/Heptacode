@@ -1,38 +1,54 @@
 import { createContext, useContext, useState, ReactNode } from "react";
-import type { TriageSymptom } from "../../../shared/symptom.types";
-import type { PatientData } from "../../../shared/patientData.types";
+import type { AssessmentPayload, AssessmentResult, PatientData, SelectedSymptom, Symptom } from "../types/assessment";
+import { apiClient } from "./apiClient";
 
 interface AssessmentContextType {
   patientData: PatientData | null;
   setPatientData: (data: PatientData) => void;
-  selectedSymptoms: TriageSymptom[];
-  setSelectedSymptoms: (symptoms: TriageSymptom[]) => void;
-  symptomDetails: TriageSymptom[];
-  setSymptomDetails: (details: TriageSymptom[]) => void;
+  selectedSymptoms: SelectedSymptom[];
+  setSelectedSymptoms: (symptoms: SelectedSymptom[]) => void;
+  symptomDetails: Symptom[];
+  setSymptomDetails: (details: Symptom[]) => void;
+  assessmentResult: AssessmentResult | null;
+  setAssessmentResult: (result: AssessmentResult | null) => void;
+  submitAssessment: (details: Symptom[]) => Promise<AssessmentResult>;
   resetAssessment: () => void;
 }
 
 const AssessmentContext = createContext<AssessmentContextType | undefined>(undefined);
 
-
-/*
-This function uses a global React-State to pass its data. By using a state for all components,
-the data doesn't have to get passed as a prop from one page to another, or from one functio
-to another.
-The Assessment Provider wraps around the whole Router. That means, that every Pages that gets
-routed has access to the AssessmentContext. It is a global state provider inside the React-App.
-So a browser-reload or app-reload clears the state. This could be fixed using sessionStorage im Browser.
-*/
-
 export function AssessmentProvider({ children }: { children: ReactNode }) {
   const [patientData, setPatientData] = useState<PatientData | null>(null);
-  const [selectedSymptoms, setSelectedSymptoms] = useState<TriageSymptom[]>([]);
-  const [symptomDetails, setSymptomDetails] = useState<TriageSymptom[]>([]);
+  const [selectedSymptoms, setSelectedSymptoms] = useState<SelectedSymptom[]>([]);
+  const [symptomDetails, setSymptomDetails] = useState<Symptom[]>([]);
+  const [assessmentResult, setAssessmentResult] = useState<AssessmentResult | null>(null);
+
+  const submitAssessment = async (details: Symptom[]) => {
+    if (!patientData) {
+      throw new Error("Patientendaten fehlen. Bitte gehen Sie zurück und füllen Sie die Stammdaten aus.");
+    }
+
+    const payload: AssessmentPayload = {
+      patientData,
+      selectedSymptoms,
+      symptomDetails: details,
+    };
+
+    console.log("Assessment payload", payload);
+
+    const result = await apiClient.post<AssessmentResult>("/assessments", payload);
+
+    setSymptomDetails(details);
+    setAssessmentResult(result);
+
+    return result;
+  };
 
   const resetAssessment = () => {
     setPatientData(null);
     setSelectedSymptoms([]);
     setSymptomDetails([]);
+    setAssessmentResult(null);
   };
 
   return (
@@ -44,6 +60,9 @@ export function AssessmentProvider({ children }: { children: ReactNode }) {
         setSelectedSymptoms,
         symptomDetails,
         setSymptomDetails,
+        assessmentResult,
+        setAssessmentResult,
+        submitAssessment,
         resetAssessment,
       }}
     >
