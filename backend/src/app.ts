@@ -6,7 +6,6 @@ import { env } from './config/env.js'
 import { pdfRoutes } from './routes/pdf.routes.js'
 import { symptomExtractionRoutes } from './routes/symptomExtraction.routes.js'
 import { triageRoutes } from './routes/triage.routes.js'
-import { summaryRoutes } from './api/summary/summary.routes.js'
 import { assessmentRoutes } from './routes/assessment.routes.js'
 
 interface HttpError {
@@ -45,7 +44,6 @@ export async function buildApp(): Promise<FastifyInstance> {
   await app.register(symptomExtractionRoutes)
   await app.register(triageRoutes)
   await app.register(pdfRoutes)
-  await app.register(summaryRoutes, { prefix: '/api/v1' })
 
   return app
 }
