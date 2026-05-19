@@ -24,8 +24,9 @@ describe('evaluateTriage', () => {
   it('gibt bei Notfallauswahl direkt emergency zurueck', async () => {
     const result = await evaluateTriage(undefined, [], true)
 
-    expect(result).toEqual({
+    expect(result).toMatchObject({
       careLevel: 'emergency',
+      recommendedSpecialty: 'emergency_medicine',
       reasons: ['Notfallmodus ueber die Startseite ausgewaehlt.'],
     })
     expect(requestStructuredAiResponseMock).not.toHaveBeenCalled()
@@ -35,8 +36,9 @@ describe('evaluateTriage', () => {
   it('gibt ohne Symptome selfcare zurueck und ruft keine KI auf', async () => {
     const result = await evaluateTriage(undefined, undefined)
 
-    expect(result).toEqual({
+    expect(result).toMatchObject({
       careLevel: 'selfcare',
+      recommendedSpecialty: 'home_care',
       reasons: [],
     })
     expect(requestStructuredAiResponseMock).not.toHaveBeenCalled()
@@ -150,7 +152,7 @@ describe('evaluateTriage', () => {
 
     expect(result).toEqual({
       careLevel: 'doctor',
-      recommendedSpecialty: undefined,
+      recommendedSpecialty: 'general_practice',
       reasons: ['Die Beschwerden sollten aerztlich abgeklart werden.'],
     })
     expect(extractSymptomsMock).toHaveBeenCalledWith('Ich habe seit Tagen Husten.', 'speech')

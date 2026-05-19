@@ -6,6 +6,7 @@ import { env } from './config/env.js'
 import { pdfRoutes } from './routes/pdf.routes.js'
 import { symptomExtractionRoutes } from './routes/symptomExtraction.routes.js'
 import { triageRoutes } from './routes/triage.routes.js'
+import { assessmentRoutes } from './routes/assessment.routes.js'
 
 interface HttpError {
   statusCode?: number
@@ -37,8 +38,9 @@ export async function buildApp(): Promise<FastifyInstance> {
     })
   })
 
-  app.get('/health', async () => ({ status: 'ok' }))
+   app.get('/health', async () => ({ status: 'ok' }))
 
+  await app.register(assessmentRoutes)
   await app.register(symptomExtractionRoutes)
   await app.register(triageRoutes)
   await app.register(pdfRoutes)
