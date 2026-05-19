@@ -19,12 +19,16 @@ type SymptomDraft = TriageSymptom & {
 
 export default function SymptomDetailsPage() {
   const navigate = useNavigate();
+<<<<<<< HEAD
   const {
     selectedSymptoms,
     symptomDetails: contextDetails,
     setSymptomDetails: setContextDetails,
     submitAssessment,
   } = useAssessment();
+=======
+  const { selectedSymptoms, symptomDetails: contextDetails, setSymptomDetails } = useAssessment();
+>>>>>>> origin/dev
 
   const createSymptomDetails = (region: string, side: string | undefined, index: number): SymptomDraft => {
     const measurementConfig = getMeasurementConfig(region, side);
@@ -53,8 +57,8 @@ export default function SymptomDetailsPage() {
     };
   };
 
-  // Initialize symptomDetails from selectedSymptoms
-  const [symptomDetails, setSymptomDetails] = useState<SymptomDraft[]>(() => {
+  // Initialize local symptomDetails from selectedSymptoms
+  const [symptomDetails, setLocalSymptomDetails] = useState<SymptomDraft[]>(() => {
     // If context already has details, use them
     if (contextDetails.length > 0) {
       return contextDetails.map(normalizeSymptom);
@@ -77,13 +81,13 @@ export default function SymptomDetailsPage() {
   const updateSymptom = (index: number, field: keyof SymptomDraft, value: SymptomDraft[keyof SymptomDraft]) => {
     const updated = [...symptomDetails];
     updated[index] = { ...updated[index], [field]: value };
-    setSymptomDetails(updated);
+    setLocalSymptomDetails(updated);
   };
 
   const toggleSymptomActive = (index: number) => {
     const updated = [...symptomDetails];
     updated[index] = { ...updated[index], active: !updated[index].active };
-    setSymptomDetails(updated);
+    setLocalSymptomDetails(updated);
   };
 
   const handleAddSymptom = (regionName: string, side?: string) => {
@@ -92,12 +96,13 @@ export default function SymptomDetailsPage() {
     if (inactiveIndex !== -1) {
       const updated = [...symptomDetails];
       updated[inactiveIndex] = createSymptomDetails(regionName, side, inactiveIndex);
-      setSymptomDetails(updated);
+      setLocalSymptomDetails(updated);
     }
 
     setIsAddModalOpen(false);
   };
 
+<<<<<<< HEAD
   const handleContinue = () => {
     const activeSymptoms = symptomDetails.filter((symptom) => symptom.active);
 
@@ -118,6 +123,19 @@ export default function SymptomDetailsPage() {
       setSubmitError,
       setIsSubmitting,
     });
+=======
+  const handleContinue = async () => {
+    const activeSymptoms = symptomDetails.filter((symptom) => symptom.active);
+
+    if (activeSymptoms.some((symptom) => !symptom.duration)) {
+      setShowValidationErrors(true);
+      return;
+    }
+
+    // Save only active symptoms to context
+    setSymptomDetails(activeSymptoms);
+    navigate("/result");
+>>>>>>> origin/dev
   };
 
   const canContinue = symptomDetails
