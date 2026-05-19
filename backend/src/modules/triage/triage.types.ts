@@ -58,7 +58,7 @@ export interface TriageRequest {
 // Typ für die Antwort
 export interface TriageResponse {
   careLevel: CareLevel
-  recommendedSpecialty: MedicalSpecialty
+  recommendedSpecialty?: MedicalSpecialty
   reasons: string[]
   reviewSummary?: ReviewSummary
 
@@ -67,6 +67,12 @@ export interface TriageResponse {
 }
 
 // Schema für die Patientendaten
+// Schema für Review Summary
+export const reviewSummarySchema = z.object({
+  plainLanguage: z.string(),
+  professionalSummary: z.string(),
+})
+
 export const patientDataSchema = z.object({
   birthMonth: z.string(),
   birthYear: z.string(),

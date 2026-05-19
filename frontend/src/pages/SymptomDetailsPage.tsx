@@ -2,127 +2,109 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
 import PageShell from "../components/PageShell";
 import SymptomDetailsForm from "../features/symptoms/SymptomDetailsForm";
-import SymptomButtonGrid from "../features/symptoms/SymptomButtonGrid";
-import Modal from "../components/Modal";
 import Button from "../components/Button";
 import { useAssessment } from "../lib/AssessmentContext";
-import { getMeasurementConfig } from "../features/symptoms/symptoms.constants";
-import type { SymptomMeasurementType } from "../types/assessment";
-import type { TriageSymptom } from "../../../shared/symptom.types";
-import { handleSubmitAssessment } from "../features/symptoms/handleSubmitAssessment";
+import { getMeasurementConfig, isAdministrativeSymptom } from "../features/symptoms/symptoms.constants";
+import type { SelectedSymptom, Symptom } from "../types/assessment";
 
-type SymptomDraft = TriageSymptom & {
-  id: string;
-  active: boolean;
-  measurementType: SymptomMeasurementType;
-};
+function getSymptomSides(symptom: SelectedSymptom) {
+  if (symptom.sides && symptom.sides.length > 0) return symptom.sides;
+  if (symptom.side) return symptom.side.split(",").map((side) => side.trim()).filter(Boolean);
+  return [];
+}
+
+function expandSelectedSymptoms(selectedSymptoms: SelectedSymptom[]) {
+  return selectedSymptoms.flatMap((symptom) => {
+    const sides = getSymptomSides(symptom);
+
+    if (sides.length === 0) {
+      return [{ region: symptom.region, side: "" }];
+    }
+
+    return sides.map((side) => ({
+      region: symptom.region,
+      side,
+    }));
+  });
+}
+
+function createSymptomDetails(region: string, side: string, index: number): Symptom {
+  const measurementConfig = getMeasurementConfig(region, side);
+
+  return {
+    id: `symptom-${Date.now()}-${index}`,
+    region,
+    side,
+    measurementType: measurementConfig.type,
+    measurementValue: measurementConfig.defaultValue,
+    duration: undefined,
+    active: true,
+  };
+}
 
 export default function SymptomDetailsPage() {
   const navigate = useNavigate();
-  const {
-    selectedSymptoms,
-    symptomDetails: contextDetails,
-    setSymptomDetails: setContextDetails,
-    submitAssessment,
-  } = useAssessment();
+  const { selectedSymptoms, symptomDetails: contextDetails, setSymptomDetails } = useAssessment();
 
-  const createSymptomDetails = (region: string, side: string | undefined, index: number): SymptomDraft => {
-    const measurementConfig = getMeasurementConfig(region, side);
+  const [localDetails, setLocalDetails] = useState<Symptom[]>(() => {
+    const expanded = expandSelectedSymptoms(selectedSymptoms).filter(
+      (symptom) => !isAdministrativeSymptom(symptom.region, symptom.side)
+    );
 
-    return {
-      id: `symptom-${Date.now()}-${index}`,
-      region,
-      side,
-      measurementType: measurementConfig.type,
-      painLevel: measurementConfig.defaultValue,
-      active: true,
-    };
-  };
+    return expanded.map((symptom, index) => {
+      const existing = contextDetails.find(
+        (detail) => detail.region === symptom.region && (detail.side ?? "") === symptom.side
+      );
 
-  const normalizeSymptom = (symptom: TriageSymptom, index: number): SymptomDraft => {
-    const measurementConfig = getMeasurementConfig(symptom.region, symptom.side);
-
-    return {
-      ...symptom,
-      id: `symptom-${Date.now()}-${index}`,
-      active: true,
-      measurementType: measurementConfig.type,
-      painLevel: Number.isFinite(symptom.painLevel)
-        ? symptom.painLevel
-        : measurementConfig.defaultValue,
-    };
-  };
-
-  // Initialize local symptomDetails from selectedSymptoms
-  const [symptomDetails, setLocalSymptomDetails] = useState<SymptomDraft[]>(() => {
-    // If context already has details, use them
-    if (contextDetails.length > 0) {
-      return contextDetails.map(normalizeSymptom);
-    }
-
-    return selectedSymptoms.map((s, idx) => createSymptomDetails(s.region, s.side, idx));
+      return existing ?? createSymptomDetails(symptom.region, symptom.side, index);
+    });
   });
 
-  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [showValidationErrors, setShowValidationErrors] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [submitError, setSubmitError] = useState<string | null>(null);
 
   useEffect(() => {
     if (selectedSymptoms.length === 0) {
-      navigate("/symptom-selection");
-    }
-  }, [selectedSymptoms, navigate]);
-
-  const updateSymptom = (index: number, field: keyof SymptomDraft, value: SymptomDraft[keyof SymptomDraft]) => {
-    const updated = [...symptomDetails];
-    updated[index] = { ...updated[index], [field]: value };
-    setLocalSymptomDetails(updated);
-  };
-
-  const toggleSymptomActive = (index: number) => {
-    const updated = [...symptomDetails];
-    updated[index] = { ...updated[index], active: !updated[index].active };
-    setLocalSymptomDetails(updated);
-  };
-
-  const handleAddSymptom = (regionName: string, side?: string) => {
-    const inactiveIndex = symptomDetails.findIndex((s) => !s.active);
-
-    if (inactiveIndex !== -1) {
-      const updated = [...symptomDetails];
-      updated[inactiveIndex] = createSymptomDetails(regionName, side, inactiveIndex);
-      setLocalSymptomDetails(updated);
+      navigate("/symptom-selection", { replace: true });
+      return;
     }
 
-    setIsAddModalOpen(false);
-  };
-
-  const handleContinue = () => {
-    const activeSymptoms = symptomDetails.filter((symptom) => symptom.active);
-
-    setContextDetails(
-      activeSymptoms.map((symptom) => ({
-        region: symptom.region,
-        side: symptom.side,
-        painLevel: symptom.painLevel,
-        duration: symptom.duration,
-      })),
+    const hasOnlyAdministrativeSymptoms = selectedSymptoms.every((symptom) =>
+      getSymptomSides(symptom).length > 0
+        ? getSymptomSides(symptom).every((side) => isAdministrativeSymptom(symptom.region, side))
+        : isAdministrativeSymptom(symptom.region, symptom.side)
     );
 
-    void handleSubmitAssessment({
-      symptomDetails,
-      submitAssessment,
-      navigate,
-      setShowValidationErrors,
-      setSubmitError,
-      setIsSubmitting,
+    if (hasOnlyAdministrativeSymptoms) {
+      setSymptomDetails([]);
+      navigate("/result", { replace: true });
+    }
+  }, [selectedSymptoms, setSymptomDetails, navigate]);
+
+  const updateSymptom = (index: number, field: keyof Symptom, value: Symptom[keyof Symptom]) => {
+    setLocalDetails((details) => {
+      const updated = [...details];
+      updated[index] = { ...updated[index], [field]: value };
+      return updated;
     });
   };
 
-  const canContinue = symptomDetails
-    .filter((symptom) => symptom.active)
-    .every((symptom) => {
+  const removeSymptom = (index: number) => {
+    setLocalDetails((details) => details.filter((_, detailIndex) => detailIndex !== index));
+  };
+
+  const handleContinue = () => {
+    if (localDetails.some((symptom) => !symptom.duration)) {
+      setShowValidationErrors(true);
+      return;
+    }
+
+    setSymptomDetails(localDetails);
+    navigate("/result");
+  };
+
+  const canContinue =
+    localDetails.length > 0 &&
+    localDetails.every((symptom) => {
       const config = getMeasurementConfig(symptom.region, symptom.side);
       return (symptom.painLevel ?? 0) >= config.min && (symptom.painLevel ?? 0) <= config.max;
     });
@@ -130,71 +112,28 @@ export default function SymptomDetailsPage() {
   return (
     <PageShell
       title="Details zu Ihren Beschwerden"
-      subtitle="Bewerten Sie bitte die passende Stärke oder Messgröße und geben Sie die Dauer an."
+      subtitle="Beschreiben Sie bitte jede ausgewählte Beschwerde einzeln."
       onBack={() => navigate("/symptom-selection")}
     >
       <div className="flex flex-col gap-6">
-        {symptomDetails.map((symptom, index) => (
-          <div key={symptom.id}>
-            {symptom.active ? (
-              <SymptomDetailsForm
-                symptom={symptom}
-                onUpdate={(field, value) => updateSymptom(index, field, value)}
-                onRemove={() => toggleSymptomActive(index)}
-                showDurationError={showValidationErrors}
-              />
-            ) : (
-              <div className="bg-[#eff2f6] rounded-[16px] p-5">
-                <button
-                  onClick={() => setIsAddModalOpen(true)}
-                  className="w-full flex items-center justify-center py-12 hover:bg-[#dde3ea] transition-all rounded-[16px]"
-                >
-                  <svg className="w-16 h-16 text-app-text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                  </svg>
-                </button>
-              </div>
-            )}
-          </div>
+        {localDetails.map((symptom, index) => (
+          <SymptomDetailsForm
+            key={symptom.id}
+            symptom={symptom}
+            onUpdate={(field, value) => updateSymptom(index, field, value)}
+            onRemove={() => removeSymptom(index)}
+            showDurationError={showValidationErrors}
+          />
         ))}
       </div>
 
-      <div className="mt-6 mb-3 flex justify-end">
-        <Button onClick={handleContinue} disabled={!canContinue || isSubmitting}>
-          <p
-            className="font-['DM_Sans:Bold',sans-serif] font-bold text-base"
-            style={{ fontVariationSettings: "'opsz' 14" }}
-          >
-            {isSubmitting ? "Wird gesendet..." : "Weiter"}
+      <div className="mt-6 mb-6 flex justify-end">
+        <Button onClick={handleContinue} disabled={!canContinue}>
+          <p className="font-['DM_Sans:Bold',sans-serif] font-bold text-base">
+            Weiter
           </p>
         </Button>
       </div>
-
-      {submitError && (
-        <div className="mb-4 rounded-[14px] border border-red-200 bg-red-50 p-4 text-sm font-medium text-red-700">
-          {submitError}
-        </div>
-      )}
-
-      <Modal
-        isOpen={isAddModalOpen}
-        onClose={() => setIsAddModalOpen(false)}
-        title="Symptom hinzufügen"
-        subtitle="Wählen Sie eine Körperregion aus"
-      >
-        <SymptomButtonGrid onRegionSelect={handleAddSymptom} />
-
-        <div className="flex justify-end mt-6">
-          <Button variant="secondary" onClick={() => setIsAddModalOpen(false)}>
-            <p
-              className="font-['DM_Sans:Bold',sans-serif] font-bold text-base"
-              style={{ fontVariationSettings: "'opsz' 14" }}
-            >
-              Abbrechen
-            </p>
-          </Button>
-        </div>
-      </Modal>
     </PageShell>
   );
 }

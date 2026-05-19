@@ -1,4 +1,34 @@
-export type CareLevel = "selfcare" | "doctor" | "specialist" | "emergency";
+import type { PatientData, SelectedSymptom, Symptom } from "./assessment";
+
+export type CareLevel = "emergency" | "doctor" | "specialist" | "selfcare";
+
+export type DoctorSpecialty =
+  | "primary_care"
+  | "dermatology"
+  | "cardiology"
+  | "pulmonology"
+  | "neurology"
+  | "gynecology"
+  | "urology"
+  | "orthopedics"
+  | "gastroenterology"
+  | "psychiatry"
+  | "ent"
+  | "emergency";
+
+export interface RecommendedSpecialty {
+  specialty: DoctorSpecialty;
+  label: string;
+  reason: string;
+  priority: number;
+}
+
+export interface TriageRequest {
+  patientData: PatientData | null;
+  selectedSymptoms: SelectedSymptom[];
+  symptomDetails: Symptom[];
+  freeText?: string;
+}
 
 export type MedicalSpecialty =
   | "internal_medicine"
@@ -26,6 +56,7 @@ export interface TriageResult {
   bgColor: string;
   description: string;
   reasons: string[];
+  recommendedSpecialties?: RecommendedSpecialty[];
 }
 
 export const CARE_LEVELS: CareLevel[] = ["selfcare", "doctor", "specialist", "emergency"];
@@ -114,7 +145,6 @@ export const TRIAGE_CONFIGS: Record<CareLevel, Omit<TriageResult, "careLevel" | 
     title: "Häusliche Versorgung",
     color: "#10B981",
     bgColor: "#D1FAE5",
-    description:
-      "Ihre Symptome können voraussichtlich zu Hause behandelt werden. Achten Sie auf ausreichend Ruhe, Flüssigkeitszufuhr und beobachten Sie Ihren Zustand. Bei Verschlechterung suchen Sie bitte einen Arzt auf.",
+    description: "Ihre Symptome können voraussichtlich zunächst beobachtet werden.",
   },
 };

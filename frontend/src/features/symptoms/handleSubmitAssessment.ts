@@ -1,5 +1,5 @@
-import type { SymptomDetailPayload } from "../../types/assessment";
-import type { SymptomMeasurementType } from "../../types/assessment";
+import type { SymptomDetailPayload, SymptomMeasurementType } from "../../types/assessment";
+import type { TriageSymptomDuration } from "../../../../shared/symptom.types";
 import { getMeasurementConfig } from "./symptoms.constants";
 
 type SymptomDraft = {
@@ -42,7 +42,7 @@ export async function handleSubmitAssessment({
     side: symptom.side,
     measurementType: symptom.measurementType,
     measurementValue: symptom.painLevel ?? getMeasurementConfig(symptom.region, symptom.side).defaultValue,
-    duration: symptom.duration ?? "today",
+    duration: (symptom.duration as TriageSymptomDuration) ?? "today",
     active: true,
   }));
 

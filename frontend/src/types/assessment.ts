@@ -1,9 +1,17 @@
 import type { PatientData } from "../../../shared/patientData.types";
 export type { PatientData } from "../../../shared/patientData.types";
-import type { TriageSymptom } from "../../../shared/symptom.types";
+import type { TriageSymptom, TriageSymptomDuration } from "../../../shared/symptom.types";
+import type { CareLevel } from "./triage";
 
-export type SymptomMeasurementType = "pain" | "temperature" | "feeling" | "severity";
-export type CareLevel = "emergency" | "doctor" | "selfcare";
+export type SymptomMeasurementType = "pain" | "temperature" | "severity" | "feeling" | "breathing";
+
+export interface SelectedSymptom {
+  region: string;
+  side?: string;
+  sides?: string[];
+  mainKey?: string;
+  isCritical?: boolean;
+}
 
 export interface SymptomDetailPayload {
   id: string;
@@ -11,16 +19,15 @@ export interface SymptomDetailPayload {
   side?: string;
   measurementType: SymptomMeasurementType;
   measurementValue: number;
-  duration: string;
+  duration: TriageSymptomDuration | undefined;
   active: boolean;
 }
-
-export type SelectedSymptom = TriageSymptom;
 
 export interface Symptom extends TriageSymptom {
   id: string;
   active: boolean;
   measurementType: SymptomMeasurementType;
+  measurementValue?: number;
 }
 
 export interface AssessmentPayload {
