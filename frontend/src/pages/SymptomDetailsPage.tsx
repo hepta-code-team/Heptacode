@@ -9,6 +9,7 @@ import { useAssessment } from "../lib/AssessmentContext";
 import { getMeasurementConfig } from "../features/symptoms/symptoms.constants";
 import type { SymptomMeasurementType } from "../types/assessment";
 import type { TriageSymptom } from "../../../shared/symptom.types";
+import { handleSubmitAssessment } from "../features/symptoms/handleSubmitAssessment";
 
 type SymptomDraft = TriageSymptom & {
   id: string;
@@ -18,7 +19,12 @@ type SymptomDraft = TriageSymptom & {
 
 export default function SymptomDetailsPage() {
   const navigate = useNavigate();
-  const { selectedSymptoms, symptomDetails: contextDetails, setSymptomDetails } = useAssessment();
+  const {
+    selectedSymptoms,
+    symptomDetails: contextDetails,
+    setSymptomDetails: setContextDetails,
+    submitAssessment,
+  } = useAssessment();
 
   const createSymptomDetails = (region: string, side: string | undefined, index: number): SymptomDraft => {
     const measurementConfig = getMeasurementConfig(region, side);
@@ -92,17 +98,26 @@ export default function SymptomDetailsPage() {
     setIsAddModalOpen(false);
   };
 
-  const handleContinue = async () => {
+  const handleContinue = () => {
     const activeSymptoms = symptomDetails.filter((symptom) => symptom.active);
 
-    if (activeSymptoms.some((symptom) => !symptom.duration)) {
-      setShowValidationErrors(true);
-      return;
-    }
+    setContextDetails(
+      activeSymptoms.map((symptom) => ({
+        region: symptom.region,
+        side: symptom.side,
+        painLevel: symptom.painLevel,
+        duration: symptom.duration,
+      })),
+    );
 
-    // Save only active symptoms to context
-    setSymptomDetails(activeSymptoms);
-    navigate("/result");
+    void handleSubmitAssessment({
+      symptomDetails,
+      submitAssessment,
+      navigate,
+      setShowValidationErrors,
+      setSubmitError,
+      setIsSubmitting,
+    });
   };
 
   const canContinue = symptomDetails

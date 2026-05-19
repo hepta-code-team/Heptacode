@@ -393,22 +393,6 @@ export default function ResultPage() {
             </div>
           )}
 
-          {assessmentResult?.summary && (
-            <div>
-              <p
-                className="font-['DM_Sans:Bold',sans-serif] font-bold text-app-text-body text-sm mb-2"
-                style={{ fontVariationSettings: "'opsz' 14" }}
-              >
-                Backend-Zusammenfassung
-              </p>
-              <div className="bg-[#eff2f6] rounded-[10px] p-3">
-                <p className="font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-body text-xs leading-relaxed">
-                  {assessmentResult.summary}
-                </p>
-              </div>
-            </div>
-          )}
-
           {symptomDetails.length > 0 && (
             <div>
               <div className="flex items-center justify-between mb-2">
