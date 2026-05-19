@@ -86,18 +86,23 @@ async function requestTriageFromAi(
       },
     ],
     schema: triageAiResultSchema,
-    schemaName: 'triage_result',
+    schemaName: 'triage_ai_response',
     temperature: 0,
   })
 
   if (parsed.careLevel !== 'specialist') {
     return {
-      ...parsed,
+      careLevel: parsed.careLevel,
       recommendedSpecialty: undefined,
+      reasons: parsed.reasons,
     }
   }
 
-  return parsed
+  return {
+    careLevel: parsed.careLevel,
+    recommendedSpecialty: parsed.medicalSpecialty ?? undefined,
+    reasons: parsed.reasons,
+  }
 }
 
 // Fallback fuer strukturierte Symptome: Ohne KI wird anhand der staerksten Schmerzangabe entschieden.

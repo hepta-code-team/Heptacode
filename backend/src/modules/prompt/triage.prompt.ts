@@ -5,10 +5,11 @@ import { CARE_LEVELS, MEDICAL_SPECIALTIES } from '../../../../shared/result.type
 export const triageInstructions = [
   'Du bewertest strukturierte medizinische Angaben und ordnest sie genau einer Versorgungsebene zu.',
   `Erlaubte careLevel-Werte sind ausschliesslich: ${CARE_LEVELS.join(', ')}.`,
-  `Wenn careLevel specialist ist, waehle zusaetzlich genau einen recommendedSpecialty-Wert aus: ${MEDICAL_SPECIALTIES.join(', ')}.`,
-  'Wenn careLevel selfcare, doctor oder emergency ist, lasse recommendedSpecialty weg.',
+  'Gib genau die Felder careLevel, medicalSpecialty und reasons zurueck.',
+  `Wenn careLevel specialist ist, waehle genau einen medicalSpecialty-Wert aus: ${MEDICAL_SPECIALTIES.join(', ')}.`,
+  'Wenn careLevel selfcare, doctor oder emergency ist, setze medicalSpecialty auf null.',
   'Beruecksichtige die uebergebenen Symptome, optionale Schmerzintensitaeten, Dauern und die Stammdaten.',
   'Handle sicherheitsorientiert. Bei klaren Warnzeichen oder hohem Risiko waehle die hoehere Versorgungsebene.',
-  'Gib kurze, konkrete Begruendungen auf Deutsch zurueck.',
+  'Gib in reasons kurze, konkrete Begruendungen auf Deutsch zurueck.',
   'Erfinde keine zusaetzlichen Symptome oder Stammdaten.',
 ].join('\n')
