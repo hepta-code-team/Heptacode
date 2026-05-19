@@ -46,6 +46,15 @@ export const medicalSpecialtySchema = z.enum([
 
 export type MedicalSpecialty = z.infer<typeof medicalSpecialtySchema>
 
+export const recommendedSpecialtyItemSchema = z.object({
+  specialty: medicalSpecialtySchema,
+  label: z.string().min(1),
+  reason: z.string().min(1),
+  priority: z.number().int().min(1),
+})
+
+export type RecommendedSpecialtyItem = z.infer<typeof recommendedSpecialtyItemSchema>
+
 // Typ für die Anfrage
 export interface TriageRequest {
   patientData?: PatientData
@@ -61,6 +70,7 @@ export interface TriageResponse {
   recommendedSpecialty: MedicalSpecialty
   reasons: string[]
   reviewSummary?: ReviewSummary
+  recommendedSpecialties?: RecommendedSpecialtyItem[]
 
   // TA 1.8: true bedeutet, dass die Empfehlung aus dem definierten Fallback kommt.
   aiUnavailable?: boolean
@@ -101,8 +111,10 @@ export const reviewSummarySchema = z.object({
 export const triageAiResultSchema = z.object({
   careLevel: careLevelSchema,
   recommendedSpecialty: medicalSpecialtySchema,
-  reasons: z.array(z.string().min(1)).max(5),
-  reviewSummary: reviewSummarySchema.optional(),
+  reasons: z
+    .union([z.array(z.string().min(1)).min(1).max(5), z.string().min(1)])
+    .transform((value) => (typeof value === 'string' ? [value] : value)),
+  reviewSummary: reviewSummarySchema.nullish().transform((value) => value ?? undefined),
 })
 
 // Schema für die Anfrage

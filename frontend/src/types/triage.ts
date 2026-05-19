@@ -1,6 +1,9 @@
 export type CareLevel = "selfcare" | "doctor" | "specialist" | "emergency";
 
 export type MedicalSpecialty =
+  | "home_care"
+  | "emergency_medicine"
+  | "general_practice"
   | "internal_medicine"
   | "cardiology"
   | "neurology"
@@ -15,6 +18,13 @@ export type MedicalSpecialty =
   | "dentistry"
   | "ophthalmology"
   | "otolaryngology";
+
+export interface RecommendedSpecialty {
+  specialty: MedicalSpecialty;
+  label: string;
+  reason: string;
+  priority: number;
+}
 
 // This creates the visual result card displayed on the last page
 export interface TriageResult {
@@ -35,6 +45,9 @@ export function isCareLevel(value: string | null): value is CareLevel {
 }
 
 export const MEDICAL_SPECIALTY_LABELS: Record<MedicalSpecialty, string> = {
+  home_care: "Häusliche Versorgung",
+  emergency_medicine: "Notfallmedizin",
+  general_practice: "Allgemeinmedizin",
   internal_medicine: "Innere Medizin",
   cardiology: "Kardiologie",
   neurology: "Neurologie",
@@ -52,6 +65,9 @@ export const MEDICAL_SPECIALTY_LABELS: Record<MedicalSpecialty, string> = {
 };
 
 export const MEDICAL_SPECIALTY_EXPLANATIONS: Partial<Record<MedicalSpecialty, string>> = {
+  home_care: "Beobachtung und Maßnahmen zu Hause",
+  emergency_medicine: "Sofortige notfallmedizinische Versorgung",
+  general_practice: "Hausärztliche Abklärung",
   internal_medicine: "Erkrankungen der inneren Organe",
   cardiology: "Herzmedizin",
   neurology: "Nervenheilkunde",

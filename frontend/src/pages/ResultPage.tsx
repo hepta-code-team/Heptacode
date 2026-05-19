@@ -9,48 +9,55 @@ import type { CareLevel } from "../types/triage";
 import { DURATIONS, getMeasurementConfig } from "../features/symptoms/symptoms.constants";
 import type { Symptom } from "../types/assessment";
 
+const VALID_CARE_LEVELS = ["emergency", "doctor", "specialist", "selfcare"] as const;
+const VALID_MEDICAL_SPECIALTIES = [
+  "home_care",
+  "emergency_medicine",
+  "general_practice",
+  "internal_medicine",
+  "cardiology",
+  "neurology",
+  "orthopedics",
+  "gastroenterology",
+  "pulmonology",
+  "dermatology",
+  "urology",
+  "gynecology",
+  "psychiatry",
+  "pediatrics",
+  "dentistry",
+  "ophthalmology",
+  "otolaryngology",
+] as const;
+
+function isValidCareLevel(value: string | undefined): value is CareLevel {
+  return value !== undefined && VALID_CARE_LEVELS.includes(value as CareLevel);
+}
+
+function isValidMedicalSpecialty(value: string | undefined): value is (typeof VALID_MEDICAL_SPECIALTIES)[number] {
+  return value !== undefined && VALID_MEDICAL_SPECIALTIES.includes(value as (typeof VALID_MEDICAL_SPECIALTIES)[number]);
+}
+
 export default function ResultPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { patientData, symptomDetails, assessmentResult, resetAssessment } = useAssessment();
 
-  // Check if this is an emergency from landing page
   const isEmergency = searchParams.get("emergency") === "true";
-
-  const isMultipleDays = (duration: string) => ["days", "week", "weeks"].includes(duration);
-
-  const getSymptomCareLevel = (symptom: Symptom): CareLevel => {
-    const config = getMeasurementConfig(symptom.region, symptom.side);
-    const value = symptom.painLevel ?? 0;
-
-    if (config.type === "temperature") {
-      if (symptom.duration && value >= 40 && isMultipleDays(symptom.duration)) return "emergency";
-      if (value >= 39) return "doctor";
-      return "selfcare";
-    }
-
-    if (value >= 8) return "emergency";
-    if (value >= 5) return "doctor";
-    return "selfcare";
-  };
-
-  const getHighestCareLevel = (levels: CareLevel[]): CareLevel => {
-    if (levels.includes("emergency")) return "emergency";
-    if (levels.includes("doctor")) return "doctor";
-    return "selfcare";
-  };
-
-  const calculateCareLevel = (): CareLevel => {
-    if (isEmergency) return "emergency";
-    if (symptomDetails.length === 0) return "selfcare";
-
-    return getHighestCareLevel(symptomDetails.map(getSymptomCareLevel));
-  };
-
-  const careLevel = calculateCareLevel();
+  const fallbackCareLevel: CareLevel = isEmergency ? "emergency" : "selfcare";
+  const careLevel = assessmentResult?.careLevel ?? fallbackCareLevel;
   const specialtyParam = searchParams.get("specialty");
-  const recommendedSpecialty = isMedicalSpecialty(specialtyParam) ? specialtyParam : null;
-  const config = recommendedSpecialty ? createSpecialtyConfig(recommendedSpecialty) : TRIAGE_CONFIGS[careLevel];
+  const backendRecommendedSpecialty = assessmentResult?.recommendedSpecialty ?? null;
+  const recommendedSpecialty = isMedicalSpecialty(backendRecommendedSpecialty)
+    ? backendRecommendedSpecialty
+    : isMedicalSpecialty(specialtyParam)
+      ? specialtyParam
+      : null;
+
+  const config =
+    careLevel === "specialist" && recommendedSpecialty
+      ? createSpecialtyConfig(recommendedSpecialty)
+      : TRIAGE_CONFIGS[careLevel];
 
   const callAction =
     careLevel === "emergency"
@@ -58,6 +65,21 @@ export default function ResultPage() {
       : careLevel === "doctor"
         ? { href: "tel:116117", label: "116 117 anrufen", description: "Ärztlicher Bereitschaftsdienst" }
         : null;
+
+  const explanationReasons =
+    assessmentResult?.reasons?.length
+      ? assessmentResult.reasons
+      : [
+          "Ihre Angaben wurden ausgewertet.",
+          "Bei Verschlechterung oder Unsicherheit sollten Sie medizinische Hilfe suchen.",
+        ];
+
+  const plainLanguageSummary =
+    assessmentResult?.reviewSummary?.plainLanguage?.trim() ||
+    assessmentResult?.summary?.trim() ||
+    "Die Angaben wurden strukturiert ausgewertet.";
+
+  const professionalSummary = assessmentResult?.reviewSummary?.professionalSummary?.trim() || null;
 
   const handleReset = () => {
     resetAssessment();
@@ -79,45 +101,44 @@ export default function ResultPage() {
     return `${config.title} ${value}/10`;
   };
 
+  const buildProfessionalSummaryFallback = () => {
+    return [
+      "Patientendaten:",
+      patientData
+        ? [
+            `Geburtsdatum: ${patientData.birthMonth}/${patientData.birthYear}`,
+            `Größe/Gewicht: ${patientData.height} cm / ${patientData.weight} kg`,
+            `Geschlecht: ${patientData.gender}`,
+            patientData.isPregnant ? "Schwanger: Ja" : null,
+            patientData.isBreastfeeding ? "Stillend: Ja" : null,
+            patientData.allergies ? `Allergien: ${patientData.allergies}` : null,
+            patientData.medications ? `Medikamente: ${patientData.medications}` : null,
+            patientData.conditions.length > 0
+              ? `Vorerkrankungen: ${patientData.conditions.join(", ")}`
+              : null,
+          ]
+            .filter(Boolean)
+            .join("\n")
+        : "Keine Stammdaten vorhanden.",
+      "",
+      "Beschwerden:",
+      symptomDetails.length > 0
+        ? symptomDetails
+            .map((symptom) => {
+              const label = symptom.side ? `${symptom.region} (${symptom.side})` : symptom.region;
+
+              return `${label}, ${getMeasurementSummary(symptom)}${
+                symptom.duration ? `, ${getDurationLabel(symptom.duration)}` : ""
+              }`;
+            })
+            .join("\n")
+        : "Keine Beschwerden vorhanden.",
+    ].join("\n");
+  };
+
   const handlePdfDownload = async () => {
     try {
       const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:3000";
-
-      const result = assessmentResult as
-        | {
-            careLevel?: string;
-            recommendedSpecialty?: string;
-            reasons?: string[];
-            reviewSummary?: {
-              plainLanguage: string;
-              professionalSummary: string;
-            };
-            summary?: string;
-          }
-        | undefined;
-
-      const validCareLevels = ["emergency", "doctor", "specialist", "selfcare"];
-
-      const validMedicalSpecialties = [
-        "home_care",
-        "emergency_medicine",
-        "general_practice",
-        "internal_medicine",
-        "cardiology",
-        "neurology",
-        "orthopedics",
-        "gastroenterology",
-        "pulmonology",
-        "dermatology",
-        "urology",
-        "gynecology",
-        "psychiatry",
-        "pediatrics",
-        "dentistry",
-        "ophthalmology",
-        "otolaryngology",
-      ];
-
       const fallbackRecommendedSpecialty =
         careLevel === "emergency"
           ? "emergency_medicine"
@@ -125,75 +146,23 @@ export default function ResultPage() {
             ? "home_care"
             : "general_practice";
 
-      const safeCareLevel = validCareLevels.includes(result?.careLevel ?? "")
-        ? result?.careLevel
+      const safeCareLevel = isValidCareLevel(assessmentResult?.careLevel)
+        ? assessmentResult.careLevel
         : careLevel;
 
-      const safeRecommendedSpecialty = validMedicalSpecialties.includes(
-        result?.recommendedSpecialty ?? "",
-      )
-        ? result?.recommendedSpecialty
+      const safeRecommendedSpecialty = isValidMedicalSpecialty(assessmentResult?.recommendedSpecialty)
+        ? assessmentResult.recommendedSpecialty
         : recommendedSpecialty ?? fallbackRecommendedSpecialty;
-
-      const fallbackReasons =
-        result?.reasons?.length
-          ? result.reasons.slice(0, 5)
-          : [
-              "Ihre Angaben wurden ausgewertet.",
-              "Bei Verschlechterung oder Unsicherheit sollten Sie medizinische Hilfe suchen.",
-            ];
-
-      const plainLanguage =
-        result?.reviewSummary?.plainLanguage?.trim() ||
-        result?.summary?.trim() ||
-        "Die Angaben wurden aufgenommen und strukturiert zusammengefasst.";
-
-      const professionalSummary =
-        result?.reviewSummary?.professionalSummary?.trim() ||
-        [
-          "Patientendaten:",
-          patientData
-            ? [
-                `Geburtsdatum: ${patientData.birthMonth}/${patientData.birthYear}`,
-                `Größe/Gewicht: ${patientData.height} cm / ${patientData.weight} kg`,
-                `Geschlecht: ${patientData.gender}`,
-                patientData.isPregnant ? "Schwanger: Ja" : null,
-                patientData.isBreastfeeding ? "Stillend: Ja" : null,
-                patientData.allergies ? `Allergien: ${patientData.allergies}` : null,
-                patientData.medications ? `Medikamente: ${patientData.medications}` : null,
-                patientData.conditions.length > 0
-                  ? `Vorerkrankungen: ${patientData.conditions.join(", ")}`
-                  : null,
-              ]
-                .filter(Boolean)
-                .join("\n")
-            : "Keine Stammdaten vorhanden.",
-          "",
-          "Beschwerden:",
-          symptomDetails.length > 0
-            ? symptomDetails
-                .map((symptom) => {
-                  const label = symptom.side
-                    ? `${symptom.region} (${symptom.side})`
-                    : symptom.region;
-
-                  return `${label}, ${getMeasurementSummary(symptom)}${
-                    symptom.duration ? `, ${getDurationLabel(symptom.duration)}` : ""
-                  }`;
-                })
-                .join("\n")
-            : "Keine Beschwerden vorhanden.",
-        ].join("\n");
 
       const pdfPayload = {
         reviewSummary: {
-          plainLanguage,
-          professionalSummary,
+          plainLanguage: plainLanguageSummary,
+          professionalSummary: professionalSummary ?? buildProfessionalSummaryFallback(),
         },
         triage: {
           careLevel: safeCareLevel,
           recommendedSpecialty: safeRecommendedSpecialty,
-          reasons: fallbackReasons,
+          reasons: explanationReasons.slice(0, 5),
         },
         ...(patientData ? { patientData } : {}),
         ...(symptomDetails.length > 0
@@ -207,8 +176,6 @@ export default function ResultPage() {
             }
           : {}),
       };
-
-      console.log("PDF Payload:", pdfPayload);
 
       const response = await fetch(`${apiBaseUrl}/api/v1/pdf/export`, {
         method: "POST",
@@ -225,8 +192,8 @@ export default function ResultPage() {
 
       const blob = await response.blob();
       const url = URL.createObjectURL(blob);
-
       const link = document.createElement("a");
+
       link.href = url;
       link.download = "triage-review-summary.pdf";
       document.body.appendChild(link);
@@ -247,6 +214,30 @@ export default function ResultPage() {
     >
       <ResultCard config={config} />
 
+      <div className="bg-white border border-[#d8e0ea] rounded-[16px] p-5 md:p-6 mb-4">
+        <p
+          className="font-['DM_Sans:Bold',sans-serif] font-bold text-app-text-primary text-lg mb-3"
+          style={{ fontVariationSettings: "'opsz' 14" }}
+        >
+          Ihre Einschätzung
+        </p>
+        <p
+          className="font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-body text-sm md:text-base leading-relaxed"
+          style={{ fontVariationSettings: "'opsz' 14" }}
+        >
+          {plainLanguageSummary}
+        </p>
+        {assessmentResult?.aiUnavailable && (
+          <p
+            className="mt-3 font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-body text-xs leading-relaxed"
+            style={{ fontVariationSettings: "'opsz' 14" }}
+          >
+            Die automatische KI-Auswertung war nicht vollständig verfügbar. Die Empfehlung wurde
+            deshalb mit einem vorsichtigen medizinischen Fallback erzeugt.
+          </p>
+        )}
+      </div>
+
       {callAction && (
         <a
           href={callAction.href}
@@ -262,7 +253,6 @@ export default function ResultPage() {
         </a>
       )}
 
-      {/* Begründung */}
       <div className="bg-[#eff2f6] rounded-[16px] p-5 md:p-6 mb-4">
         <p
           className="font-['DM_Sans:Bold',sans-serif] font-bold text-app-text-primary text-lg mb-3"
@@ -271,13 +261,7 @@ export default function ResultPage() {
           Begründung
         </p>
         <ul className="space-y-1.5">
-          {(assessmentResult?.reasons?.length
-            ? assessmentResult.reasons
-            : [
-                "Ihre Angaben wurden ausgewertet.",
-                "Bei Verschlechterung oder Unsicherheit sollten Sie medizinische Hilfe suchen.",
-              ]
-          ).map((reason) => (
+          {explanationReasons.map((reason) => (
             <li
               key={reason}
               className="font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-body text-sm leading-relaxed"
@@ -286,23 +270,9 @@ export default function ResultPage() {
               • {reason}
             </li>
           ))}
-
-          <li
-            className="font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-body text-sm leading-relaxed"
-            style={{ fontVariationSettings: "'opsz' 14" }}
-          >
-            • Ihre Symptome deuten auf eine behandlungsbedürftige Erkrankung hin
-          </li>
-          <li
-            className="font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-body text-sm leading-relaxed"
-            style={{ fontVariationSettings: "'opsz' 14" }}
-          >
-            • Die Dauer und Intensität Ihrer Beschwerden sollten ärztlich abgeklärt werden
-          </li>
         </ul>
       </div>
 
-      {/* Medical Summary */}
       <div className="bg-white border-2 border-[#486284] rounded-[16px] p-5 md:p-6 mb-4">
         <div className="flex items-center justify-between mb-4">
           <p
@@ -334,7 +304,6 @@ export default function ResultPage() {
         </div>
 
         <div className="space-y-4">
-          {/* Stammdaten */}
           {patientData && (
             <div>
               <p
@@ -407,11 +376,11 @@ export default function ResultPage() {
                 <p className="font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-body text-xs leading-relaxed">
                   Patient klagt über{" "}
                   {symptomDetails.map((symptom, index) => (
-                    <span key={symptom.id}>
+                    <span key={`${symptom.region}-${symptom.side ?? "none"}-${index}`}>
                       <strong>
                         {symptom.side ? `${symptom.region} (${symptom.side})` : symptom.region}
-                      </strong>
-                      {" "}({getMeasurementSummary(symptom)}
+                      </strong>{" "}
+                      ({getMeasurementSummary(symptom)}
                       {symptom.duration && `, ${getDurationLabel(symptom.duration)}`})
                       {index < symptomDetails.length - 1 &&
                         (index === symptomDetails.length - 2 ? " und " : ", ")}
@@ -423,11 +392,26 @@ export default function ResultPage() {
             </div>
           )}
 
-          {/* Zeitstempel */}
+          {professionalSummary && (
+            <div>
+              <p
+                className="font-['DM_Sans:Bold',sans-serif] font-bold text-app-text-body text-sm mb-2"
+                style={{ fontVariationSettings: "'opsz' 14" }}
+              >
+                Klinische Zusammenfassung
+              </p>
+              <div className="bg-[#eff2f6] rounded-[10px] p-3">
+                <p className="whitespace-pre-line font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-body text-xs leading-relaxed">
+                  {professionalSummary}
+                </p>
+              </div>
+            </div>
+          )}
+
           <div className="pt-3 border-t border-gray-200">
             <p className="font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-subtle text-xs">
               Erstellt am:{" "}
-              {new Date().toLocaleDateString("de-DE", {
+              {new Date(assessmentResult?.createdAt ?? Date.now()).toLocaleDateString("de-DE", {
                 day: "2-digit",
                 month: "2-digit",
                 year: "numeric",
@@ -439,7 +423,6 @@ export default function ResultPage() {
         </div>
       </div>
 
-      {/* Disclaimer */}
       <div className="bg-[#FEF3C7] border-l-4 border-[#F59E0B] rounded-[16px] p-5 md:p-6 mt-4">
         <div className="flex items-start gap-3">
           <svg className="w-6 h-6 text-app-text-warning flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

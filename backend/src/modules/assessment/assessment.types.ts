@@ -1,4 +1,10 @@
 import { z } from 'zod'
+import {
+  careLevelSchema,
+  medicalSpecialtySchema,
+  recommendedSpecialtyItemSchema,
+  reviewSummarySchema,
+} from '../triage/triage.types.js'
 
 export const patientDataSchema = z.object({
   birthMonth: z.string().min(1),
@@ -37,14 +43,17 @@ export const assessmentPayloadSchema = z.object({
   symptomDetails: z.array(symptomSchema).min(1),
 })
 
-export const assessmentAiResultSchema = z.object({
-  careLevel: z.enum(['emergency', 'doctor', 'selfcare']),
+export const assessmentResultSchema = z.object({
+  careLevel: careLevelSchema,
+  recommendedSpecialty: medicalSpecialtySchema,
   reasons: z.array(z.string().min(1)).min(1).max(5),
+  reviewSummary: reviewSummarySchema,
+  recommendedSpecialties: z.array(recommendedSpecialtyItemSchema).optional(),
   summary: z.string().min(1),
+  aiUnavailable: z.boolean().optional(),
+  createdAt: z.string().min(1),
 })
 
 export type AssessmentPayload = z.infer<typeof assessmentPayloadSchema>
-export type AssessmentResult = z.infer<typeof assessmentAiResultSchema> & {
-  createdAt: string
-}
+export type AssessmentResult = z.infer<typeof assessmentResultSchema>
 export type Symptom = z.infer<typeof symptomSchema>

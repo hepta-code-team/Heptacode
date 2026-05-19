@@ -1,11 +1,6 @@
-import { requestStructuredAiResponse } from '../../ai/llmAdapter.js'
-import { isAiRequestError } from '../../ai/timeout.js'
-import {
-  assessmentAiResultSchema,
-  type AssessmentPayload,
-  type AssessmentResult,
-  type Symptom,
-} from './assessment.types.js'
+import type { ReviewSummary, TriageSymptom } from '../triage/triage.types.js'
+import { evaluateTriage } from '../triage/triage.service.js'
+import type { AssessmentPayload, AssessmentResult, Symptom } from './assessment.types.js'
 
 const DURATION_LABELS: Record<string, string> = {
   today: 'Seit heute',
@@ -21,46 +16,35 @@ const MEASUREMENT_LABELS: Record<Symptom['measurementType'], string> = {
   severity: 'Schweregrad',
 }
 
-function createExampleBackendAssessmentResponse(payload: AssessmentPayload): AssessmentResult {
-  const primarySymptom = payload.symptomDetails[0]
-  const symptomLabel = primarySymptom
-    ? `${primarySymptom.region}${primarySymptom.side ? ` (${primarySymptom.side})` : ''}`
-    : 'den angegebenen Beschwerden'
-
-  // BEISPIEL-ANTWORT VOM BACKEND:
-  // Diese Rueckgabe ist nur eine markierte Beispielantwort, damit das Frontend schon jetzt eine
-  // strukturierte Antwort vom Backend anzeigen kann. Sobald die KI integriert ist, soll dieses
-  // Beispiel entfernt werden und ausschliesslich die echte KI-Antwort aus requestStructuredAiResponse
-  // zurueckgegeben werden. Die fehlende KI wird bewusst nur hier im Code kommentiert und nicht auf
-  // der Website angezeigt.
-  return {
-    careLevel: 'doctor',
-    reasons: [
-      `Die Angaben zu ${symptomLabel} sollten aerztlich eingeordnet werden.`,
-      'Die Beschwerden wurden mit Patientendaten und Symptomdetails an das Backend uebergeben.',
-      'Die Rueckmeldung fasst die eingegebenen Informationen vorsichtig zusammen.',
-    ],
-    summary:
-      'Bitte lassen Sie die angegebenen Beschwerden zeitnah medizinisch abklaeren. Bei ploetzlicher Verschlechterung oder akuter Gefahr waehlen Sie den Notruf.',
-    createdAt: new Date().toISOString(),
-  }
+function hasText(value: string | undefined): value is string {
+  return Boolean(value && value.trim().length > 0)
 }
 
-function formatPatientData({ patientData }: AssessmentPayload): string {
+function buildPatientDataLines(patientData: AssessmentPayload['patientData']): string[] {
   return [
     `Geburtsmonat: ${patientData.birthMonth}`,
     `Geburtsjahr: ${patientData.birthYear}`,
     `Groesse: ${patientData.height} cm`,
     `Gewicht: ${patientData.weight} kg`,
     `Geschlecht: ${patientData.gender}`,
-    `Schwanger: ${patientData.isPregnant ? 'Ja' : 'Nein'}`,
-    `Stillend: ${patientData.isBreastfeeding ? 'Ja' : 'Nein'}`,
-    `Allergien: ${patientData.allergies || 'Keine Angabe'}`,
-    `Medikamente: ${patientData.medications || 'Keine Angabe'}`,
-    `Substanzbeeinflussung: ${patientData.substanceInfluence || 'Keine Angabe'}`,
-    `Auslandsaufenthalt letzte 3 Monate: ${patientData.recentAbroad ? patientData.recentAbroadDetails || 'Ja' : 'Nein'}`,
-    `Vorerkrankungen: ${patientData.conditions.length > 0 ? patientData.conditions.join(', ') : 'Keine Angabe'}`,
-  ].join('\n')
+    patientData.isPregnant ? 'Schwanger: Ja' : null,
+    patientData.isBreastfeeding ? 'Stillend: Ja' : null,
+    hasText(patientData.allergies) ? `Allergien: ${patientData.allergies.trim()}` : null,
+    hasText(patientData.medications) ? `Medikamente: ${patientData.medications.trim()}` : null,
+    hasText(patientData.substanceInfluence) && patientData.substanceInfluence.trim() !== 'Nein'
+      ? `Substanzbeeinflussung: ${patientData.substanceInfluence.trim()}`
+      : null,
+    patientData.recentAbroad
+      ? `Auslandsaufenthalt letzte 3 Monate: ${hasText(patientData.recentAbroadDetails) ? patientData.recentAbroadDetails.trim() : 'Ja'}`
+      : null,
+    patientData.conditions.length > 0
+      ? `Vorerkrankungen: ${patientData.conditions.join(', ')}`
+      : null,
+  ].filter((line): line is string => line !== null)
+}
+
+function formatPatientData({ patientData }: AssessmentPayload): string {
+  return buildPatientDataLines(patientData).join('\n')
 }
 
 function formatSelectedSymptoms({ selectedSymptoms }: AssessmentPayload): string {
@@ -69,13 +53,16 @@ function formatSelectedSymptoms({ selectedSymptoms }: AssessmentPayload): string
   }
 
   return selectedSymptoms
-    .map((symptom, index) => `${index + 1}. ${symptom.side ? `${symptom.region} (${symptom.side})` : symptom.region}`)
+    .map(
+      (symptom: AssessmentPayload['selectedSymptoms'][number], index: number) =>
+        `${index + 1}. ${symptom.side ? `${symptom.region} (${symptom.side})` : symptom.region}`,
+    )
     .join('\n')
 }
 
 function formatSymptomDetails({ symptomDetails }: AssessmentPayload): string {
   return symptomDetails
-    .map((symptom, index) => {
+    .map((symptom: Symptom, index: number) => {
       const measurementLabel = MEASUREMENT_LABELS[symptom.measurementType]
       const unit = symptom.measurementType === 'temperature' ? '°C' : '/10'
       const duration = DURATION_LABELS[symptom.duration] ?? symptom.duration
@@ -89,52 +76,74 @@ function formatSymptomDetails({ symptomDetails }: AssessmentPayload): string {
     .join('\n')
 }
 
-export async function evaluateAssessmentWithAi(payload: AssessmentPayload): Promise<AssessmentResult> {
-  try {
-    const aiResult = await requestStructuredAiResponse({
-      messages: [
-        {
-          role: 'system',
-          content: [
-            'Du bist ein medizinischer Triage-Assistent fuer eine Webanwendung.',
-            'Bewerte ausschliesslich die uebergebenen Patientendaten und Symptome.',
-            'Verwende keine festen Schwellenwert-Regeln, sondern eine medizinisch begruendete KI-Einschaetzung.',
-            'Antworte kurz, vorsichtig und auf Deutsch.',
-            'Gib careLevel als emergency, doctor oder selfcare zurueck.',
-            'Die Antwort ist keine Diagnose und ersetzt keine aerztliche Behandlung.',
-          ].join(' '),
-        },
-        {
-          role: 'user',
-          content: [
-            'Patientendaten:',
-            formatPatientData(payload),
-            '',
-            'Ausgewaehlte Symptome:',
-            formatSelectedSymptoms(payload),
-            '',
-            'Detailangaben zu aktiven Symptomen:',
-            formatSymptomDetails(payload),
-          ].join('\n'),
-        },
-      ],
-      schema: assessmentAiResultSchema,
-      schemaName: 'assessment_result',
-      temperature: 0,
-    })
+function toTriageSymptoms(symptoms: Symptom[]): TriageSymptom[] {
+  return symptoms.map((symptom) => ({
+    region: symptom.region,
+    ...(symptom.side ? { side: symptom.side } : {}),
+    painLevel: symptom.measurementValue,
+    duration:
+      symptom.duration === 'today' ||
+      symptom.duration === 'days' ||
+      symptom.duration === 'week' ||
+      symptom.duration === 'weeks'
+        ? symptom.duration
+        : undefined,
+  }))
+}
 
-    return {
-      ...aiResult,
-      createdAt: new Date().toISOString(),
-    }
-  } catch (error) {
-    if (isAiRequestError(error)) {
-      // BEISPIEL-FALLBACK VOM BACKEND:
-      // Wenn die KI lokal noch nicht angebunden oder nicht erreichbar ist, liefert das Backend
-      // voruebergehend diese Beispielantwort im gleichen Format wie die spaetere KI-Antwort.
-      return createExampleBackendAssessmentResponse(payload)
-    }
+function buildFallbackReviewSummary(payload: AssessmentPayload): ReviewSummary {
+  return {
+    plainLanguage:
+      'Ihre Angaben wurden strukturiert ausgewertet. Bitte orientieren Sie sich an der empfohlenen Versorgungsebene und suchen Sie bei Verschlechterung medizinische Hilfe.',
+    professionalSummary: [
+      'Stammdaten:',
+      formatPatientData(payload),
+      '',
+      'Ausgewaehlte Symptome:',
+      formatSelectedSymptoms(payload),
+      '',
+      'Detailangaben zu aktiven Symptomen:',
+      formatSymptomDetails(payload),
+    ].join('\n'),
+  }
+}
 
-    throw error
+function sanitizeProfessionalSummary(summary: string): string {
+  return summary
+    .split('\n')
+    .filter((line) => !line.includes('Keine Angabe'))
+    .join('\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim()
+}
+
+export async function evaluateAssessmentWithAi(
+  payload: AssessmentPayload,
+): Promise<AssessmentResult> {
+  const triageResult = await evaluateTriage(
+    payload.patientData,
+    toTriageSymptoms(payload.symptomDetails),
+  )
+
+  const rawReviewSummary = triageResult.reviewSummary ?? buildFallbackReviewSummary(payload)
+  const reviewSummary = {
+    ...rawReviewSummary,
+    professionalSummary: sanitizeProfessionalSummary(rawReviewSummary.professionalSummary),
+  }
+
+  return {
+    careLevel: triageResult.careLevel,
+    recommendedSpecialty: triageResult.recommendedSpecialty,
+    reasons:
+      triageResult.reasons.length > 0
+        ? triageResult.reasons
+        : ['Die Angaben wurden ausgewertet. Bei Verschlechterung bitte erneut medizinisch vorstellen.'],
+    reviewSummary,
+    ...(triageResult.recommendedSpecialties
+      ? { recommendedSpecialties: triageResult.recommendedSpecialties }
+      : {}),
+    summary: reviewSummary.plainLanguage,
+    ...(triageResult.aiUnavailable ? { aiUnavailable: true } : {}),
+    createdAt: new Date().toISOString(),
   }
 }

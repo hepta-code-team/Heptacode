@@ -5,6 +5,7 @@ import type {
   CareLevel,
   MedicalSpecialty,
   PatientData,
+  RecommendedSpecialtyItem,
   TriageResponse,
   TriageSymptom,
 } from './triage.types.js'
@@ -25,11 +26,33 @@ const DURATION_LABELS: Record<NonNullable<TriageSymptom['duration']>, string> = 
   weeks: 'Seit mehr als 2 Wochen',
 }
 
+const SPECIALTY_LABELS: Record<MedicalSpecialty, string> = {
+  home_care: 'Häusliche Versorgung',
+  emergency_medicine: 'Notfallmedizin',
+  general_practice: 'Hausarzt',
+  internal_medicine: 'Innere Medizin',
+  cardiology: 'Kardiologie',
+  neurology: 'Neurologie',
+  orthopedics: 'Orthopädie',
+  gastroenterology: 'Gastroenterologie',
+  pulmonology: 'Pneumologie',
+  dermatology: 'Dermatologie',
+  urology: 'Urologie',
+  gynecology: 'Gynäkologie',
+  psychiatry: 'Psychiatrie',
+  pediatrics: 'Pädiatrie',
+  dentistry: 'Zahnmedizin',
+  ophthalmology: 'Augenheilkunde',
+  otolaryngology: 'HNO',
+}
 
-// Funktion um die Patientendaten fuer die KI zu formatieren
-function formatPatientData(patientData?: PatientData): string {
+function hasText(value: string | undefined): value is string {
+  return Boolean(value && value.trim().length > 0)
+}
+
+function buildPatientDataLines(patientData?: PatientData): string[] {
   if (!patientData) {
-    return 'Keine Stammdaten uebergeben.'
+    return ['Keine Stammdaten uebergeben.']
   }
 
   return [
@@ -38,14 +61,25 @@ function formatPatientData(patientData?: PatientData): string {
     `Groesse: ${patientData.height}`,
     `Gewicht: ${patientData.weight}`,
     `Geschlecht: ${patientData.gender}`,
-    `Schwanger: ${patientData.isPregnant ? 'Ja' : 'Nein'}`,
-    `Stillend: ${patientData.isBreastfeeding ? 'Ja' : 'Nein'}`,
-    `Allergien: ${patientData.allergies || 'Keine Angabe'}`,
-    `Medikamente: ${patientData.medications || 'Keine Angabe'}`,
-    `Substanzbeeinflussung: ${patientData.substanceInfluence || 'Keine Angabe'}`,
-    `Auslandsaufenthalt: ${patientData.recentAbroad ? patientData.recentAbroadDetails || 'Ja' : 'Nein'}`,
-    `Vorerkrankungen: ${patientData.conditions.length > 0 ? patientData.conditions.join(', ') : 'Keine Angabe'}`,
-  ].join('\n')
+    patientData.isPregnant ? 'Schwanger: Ja' : null,
+    patientData.isBreastfeeding ? 'Stillend: Ja' : null,
+    hasText(patientData.allergies) ? `Allergien: ${patientData.allergies.trim()}` : null,
+    hasText(patientData.medications) ? `Medikamente: ${patientData.medications.trim()}` : null,
+    hasText(patientData.substanceInfluence) && patientData.substanceInfluence.trim() !== 'Nein'
+      ? `Substanzbeeinflussung: ${patientData.substanceInfluence.trim()}`
+      : null,
+    patientData.recentAbroad
+      ? `Auslandsaufenthalt: ${hasText(patientData.recentAbroadDetails) ? patientData.recentAbroadDetails.trim() : 'Ja'}`
+      : null,
+    patientData.conditions.length > 0
+      ? `Vorerkrankungen: ${patientData.conditions.join(', ')}`
+      : null,
+  ].filter((line): line is string => line !== null)
+}
+
+// Funktion um die Patientendaten fuer die KI zu formatieren
+function formatPatientData(patientData?: PatientData): string {
+  return buildPatientDataLines(patientData).join('\n')
 }
 
 // Funktion um die Symptome fuer die KI zu formatieren
@@ -84,11 +118,139 @@ function toCareLevel(recommendedSpecialty: MedicalSpecialty): CareLevel {
   return 'specialist'
 }
 
-// Funktion um widerspruechliche KI-Antworten zwischen careLevel und Empfehlung zu vermeiden
-function ensureConsistentCareLevel(result: TriageResponse): TriageResponse {
+function inferSpecialistFromSymptoms(symptoms: TriageSymptom[]): MedicalSpecialty | undefined {
+  const primary = symptoms[0]
+
+  if (!primary) {
+    return undefined
+  }
+
+  if (primary.region === 'Psychische Probleme') {
+    return 'psychiatry'
+  }
+
+  if (primary.region === 'Verbrennung') {
+    return 'dermatology'
+  }
+
+  if (primary.region === 'Kopf' && (primary.painLevel ?? 0) >= 5) {
+    return 'neurology'
+  }
+
+  if (primary.region === 'Bauch' && (primary.painLevel ?? 0) >= 5) {
+    return 'gastroenterology'
+  }
+
+  if (primary.region === 'Rücken' || primary.region === 'Arme' || primary.region === 'Beine') {
+    return 'orthopedics'
+  }
+
+  if (primary.region === 'Brust') {
+    if (primary.side === 'Atemabhängig') {
+      return 'pulmonology'
+    }
+
+    return 'cardiology'
+  }
+
+  return undefined
+}
+
+function normalizeTriageResult(
+  result: TriageResponse,
+  symptoms: TriageSymptom[],
+): TriageResponse {
+  if (result.careLevel === 'emergency') {
+    return {
+      ...result,
+      recommendedSpecialty: 'emergency_medicine',
+    }
+  }
+
+  if (result.careLevel === 'selfcare') {
+    return {
+      ...result,
+      recommendedSpecialty: 'home_care',
+    }
+  }
+
+  if (result.careLevel === 'specialist') {
+    const specialist =
+      toCareLevel(result.recommendedSpecialty) === 'specialist'
+        ? result.recommendedSpecialty
+        : inferSpecialistFromSymptoms(symptoms) ?? 'internal_medicine'
+
+    return {
+      ...result,
+      recommendedSpecialty: specialist,
+    }
+  }
+
+  if (toCareLevel(result.recommendedSpecialty) === 'specialist') {
+    return {
+      ...result,
+      careLevel: 'specialist',
+    }
+  }
+
   return {
     ...result,
-    careLevel: toCareLevel(result.recommendedSpecialty),
+    recommendedSpecialty: 'general_practice',
+  }
+}
+
+function applySpecialistEscalation(
+  result: TriageResponse,
+  symptoms: TriageSymptom[],
+): TriageResponse {
+  if (result.careLevel !== 'doctor' || result.recommendedSpecialty !== 'general_practice') {
+    return result
+  }
+
+  const inferredSpecialist = inferSpecialistFromSymptoms(symptoms)
+  const primary = symptoms[0]
+
+  if (!inferredSpecialist || !primary) {
+    return result
+  }
+
+  const isPersistent = primary.duration === 'days' || primary.duration === 'week' || primary.duration === 'weeks'
+  const isPronounced = (primary.painLevel ?? 0) >= 5
+
+  if (!isPersistent && !isPronounced) {
+    return result
+  }
+
+  return {
+    ...result,
+    careLevel: 'specialist',
+    recommendedSpecialty: inferredSpecialist,
+  }
+}
+
+function buildRecommendedSpecialties(result: TriageResponse): RecommendedSpecialtyItem[] | undefined {
+  if (toCareLevel(result.recommendedSpecialty) !== 'specialist') {
+    return undefined
+  }
+
+  return [
+    {
+      specialty: result.recommendedSpecialty,
+      label: SPECIALTY_LABELS[result.recommendedSpecialty],
+      reason:
+        result.reasons[0] ??
+        `Aufgrund Ihrer Angaben ist eine fachärztliche Abklärung in ${SPECIALTY_LABELS[result.recommendedSpecialty]} sinnvoll.`,
+      priority: 1,
+    },
+  ]
+}
+
+function attachPresentationFields(result: TriageResponse): TriageResponse {
+  return {
+    ...result,
+    ...(buildRecommendedSpecialties(result)
+      ? { recommendedSpecialties: buildRecommendedSpecialties(result) }
+      : {}),
   }
 }
 
@@ -117,7 +279,7 @@ async function requestTriageFromAi(
     temperature: 0,
   })
 
-  return ensureConsistentCareLevel(parsed)
+  return attachPresentationFields(applySpecialistEscalation(normalizeTriageResult(parsed, symptoms), symptoms))
 }
 
 // Fallback fuer strukturierte Symptome: Ohne KI wird anhand der staerksten Schmerzangabe entschieden.
@@ -127,6 +289,42 @@ function createFallbackTriage(symptoms: TriageSymptom[]): TriageResponse {
     0,
     ...symptoms.map((symptom) => symptom.painLevel ?? 0),
   )
+  const hasEmergencyPattern = symptoms.some((symptom) => {
+    const region = symptom.region.toLowerCase()
+    const side = symptom.side?.toLowerCase() ?? ''
+    const painLevel = symptom.painLevel ?? 0
+
+    if (region === 'psychische probleme' && side === 'suizidgedanken') {
+      return true
+    }
+
+    if (region === 'allgemein' && side === 'verwirrtheit') {
+      return true
+    }
+
+    if (region === 'brust') {
+      return (
+        painLevel >= 5 ||
+        side === 'linksseitig' ||
+        side === 'brustmitte' ||
+        side === 'atemabhaengig'
+      )
+    }
+
+    return false
+  })
+
+  if (hasEmergencyPattern) {
+    return {
+      careLevel: 'emergency',
+      recommendedSpecialty: 'emergency_medicine',
+      reasons: [
+        'Die KI-Auswertung ist aktuell nicht verfuegbar.',
+        'Die uebergebenen Beschwerden enthalten ein Warnmuster, das vorsichtshalber als Notfall eingestuft wird.',
+      ],
+      aiUnavailable: true,
+    }
+  }
 
   if (strongestPainLevel >= 8) {
     return {
@@ -212,7 +410,7 @@ export async function evaluateTriage(
       },
     }
 
-    return result
+    return attachPresentationFields(result)
   }
 
   // Wenn Freitext uebergeben wurde, wird zuerst die Symptom-Extraktion ausgefuehrt und deren Ergebnis fuer die Triage verwendet.
@@ -246,12 +444,7 @@ export async function evaluateTriage(
           'Keine Symptome uebergeben. Care Level: Selbstversorgung. Empfohlene Fachrichtung: home_care.',
       },
     }
-      return requestTriageFromAi(patientData, triageSymptoms)
   }
 
-return requestTriageWithFallback(patientData, triageSymptoms)
-  
-
+  return requestTriageWithFallback(patientData, triageSymptoms)
 }
-
-
