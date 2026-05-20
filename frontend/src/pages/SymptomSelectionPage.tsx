@@ -16,7 +16,6 @@ import {
   MAX_SYMPTOMS,
   type BodyAreaCategory,
 } from "../features/symptoms/symptoms.constants";
-import type { TriageSymptom } from "../../../shared/symptom.types";
 import type { SelectedSymptom } from "../types/assessment";
 
 type SelectionMeta = {
@@ -48,35 +47,20 @@ function formatSideLabel(side: string) {
   return side.replace(" - ", ": ");
 }
 
-function getSymptomMainKey(symptom: SelectedSymptom) {
-  return symptom.mainKey ?? (symptom.side ? `${symptom.region} (${symptom.side})` : symptom.region);
-}
-
-function getSymptomSides(symptom: SelectedSymptom) {
-  return symptom.sides ?? (symptom.side ? [symptom.side] : []);
-}
-
 function getSymptomKey(symptom: SelectedSymptom) {
-  const sides = getSymptomSides(symptom);
+  return symptom.side ? `${symptom.region} (${formatSideLabel(symptom.side)})` : symptom.region;
+}
 
-  return sides.length
-    ? `${symptom.region} (${sides.map(formatSideLabel).join(", ")})`
-    : symptom.region;
+function getSymptomSelectionKey(symptom: SelectedSymptom) {
+  return symptom.side ? `${symptom.region} (${symptom.side})` : symptom.region;
 }
 
 function getSelectedRegionKeys(symptoms: SelectedSymptom[]) {
-  return symptoms.flatMap((symptom) => {
-    const sides = getSymptomSides(symptom);
-
-    return [
-      getSymptomMainKey(symptom),
-      ...sides.map((side) => `${symptom.region} (${side})`),
-    ];
-  });
+  return symptoms.map(getSymptomSelectionKey);
 }
 
 function isSelectionCritical(symptom: SelectedSymptom) {
-  return symptom.isCritical || getSymptomSides(symptom).some((side) => isCriticalSymptom(symptom.region, side));
+  return symptom.isCritical || isCriticalSymptom(symptom.region, symptom.side);
 }
 
 function AnatomyFigure({
@@ -275,7 +259,6 @@ export default function SymptomSelectionPage() {
     const administrativeSymptom: SelectedSymptom = {
       region: regionName,
       side,
-      sides: side ? [side] : [],
       mainKey: mainKey ?? (side ? `${regionName} (${side})` : regionName),
       isCritical: false,
     };
@@ -292,49 +275,21 @@ export default function SymptomSelectionPage() {
       return;
     }
 
-    const mainKey = meta?.mainKey ?? (meta?.countsAsMainTile && side ? `${regionName} (${side})` : regionName);
-    const existingIndex = selectedSymptoms.findIndex((symptom) => getSymptomMainKey(symptom) === mainKey);
-    const critical = isCriticalSymptom(regionName, side);
-
-    if (existingIndex !== -1) {
-      setSelectedSymptoms((currentSymptoms) => {
-        const updatedSymptoms = [...currentSymptoms];
-        const currentSymptom = updatedSymptoms[existingIndex];
-        const currentSides = getSymptomSides(currentSymptom);
-
-        if (!side || (meta?.countsAsMainTile && !meta.nestedOption)) {
-          return currentSymptoms.filter((_, index) => index !== existingIndex);
-        }
-
-        const nextSides = currentSides.includes(side)
-          ? currentSides.filter((item) => item !== side)
-          : [...currentSides, side];
-
-        if (nextSides.length === 0) {
-          return currentSymptoms.filter((_, index) => index !== existingIndex);
-        }
-
-        updatedSymptoms[existingIndex] = {
-          ...currentSymptom,
-          side: nextSides.join(", "),
-          sides: nextSides,
-          isCritical: currentSymptom.isCritical || critical,
-        };
-
-        return updatedSymptoms;
-      });
-
-      setSelectionHint("");
-      return;
-    }
-
     const nextSymptom: SelectedSymptom = {
       region: regionName,
       side,
-      sides: side ? [side] : [],
-      mainKey,
-      isCritical: critical,
+      mainKey: side ? `${regionName} (${side})` : regionName,
+      isCritical: isCriticalSymptom(regionName, side),
     };
+    const nextKey = getSymptomSelectionKey(nextSymptom);
+    const existingIndex = selectedSymptoms.findIndex((symptom) => getSymptomSelectionKey(symptom) === nextKey);
+    const critical = isCriticalSymptom(regionName, side);
+
+    if (existingIndex !== -1) {
+      setSelectedSymptoms((currentSymptoms) => currentSymptoms.filter((_, index) => index !== existingIndex));
+      setSelectionHint("");
+      return;
+    }
 
     if (selectedSymptoms.length >= MAX_SYMPTOMS) {
       if (critical) {
@@ -370,7 +325,7 @@ export default function SymptomSelectionPage() {
   return (
     <PageShell
       title="Wo haben Sie Beschwerden?"
-      subtitle="Wählen Sie bis zu 3 Hauptbeschwerden. In geöffneten Dropdowns können mehrere passende Unterpunkte ausgewählt werden."
+      subtitle="Wählen Sie 1 bis maximal 3 Beschwerden. Jeder Unterpunkt zählt als eigene Beschwerde."
       onBack={() => navigate("/medical-data")}
       maxWidth="2xl"
     >
@@ -506,7 +461,7 @@ export default function SymptomSelectionPage() {
                   {selectedCategoryLabel}
                 </p>
                 <p className="font-['DM_Sans:Medium',sans-serif] font-medium text-[#486284] text-sm">
-                  {selectedSymptoms.length}/{MAX_SYMPTOMS} Hauptbeschwerden ausgewählt
+                  {selectedSymptoms.length}/{MAX_SYMPTOMS} Beschwerden ausgewählt
                 </p>
               </div>
 

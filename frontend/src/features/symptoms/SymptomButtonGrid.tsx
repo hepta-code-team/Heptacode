@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Check, Mic } from "lucide-react";
+import { Mic } from "lucide-react";
 import { BODY_REGIONS, type BodyRegion } from "./symptoms.constants";
 
 type SelectionMeta = {
@@ -97,10 +97,12 @@ export default function SymptomButtonGrid({
         mainKey: getInlineMainKey(region),
         nestedOption: true,
       });
+      setExpandedRegion(null);
       return;
     }
 
     onRegionSelect(region.name, option);
+    setExpandedRegion(null);
   };
 
   const isItemSelected = (region: SymptomGridItem) => {
@@ -243,21 +245,12 @@ export default function SymptomButtonGrid({
                       key={option}
                       type="button"
                       onClick={() => handleOptionClick(region, option)}
-                      className={`w-full p-3 text-left transition-all border-b border-gray-200 last:border-b-0 flex items-center justify-between gap-3 ${
+                      className={`w-full p-3 text-left transition-all border-b border-gray-200 last:border-b-0 ${
                         selected ? "bg-[#486284] text-white" : "hover:bg-[#eff2f6] text-[#3e3e3e]"
                       }`}
                     >
                       <span className="font-['DM_Sans:Medium',sans-serif] font-medium text-sm">
                         {option}
-                      </span>
-
-                      <span
-                        className={`flex size-5 flex-shrink-0 items-center justify-center rounded-[6px] border-2 ${
-                          selected ? "border-white bg-white/20" : "border-[#828b93]"
-                        }`}
-                        aria-hidden="true"
-                      >
-                        {selected && <Check className="size-3.5" strokeWidth={3} />}
                       </span>
                     </button>
                   );
