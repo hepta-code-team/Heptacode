@@ -1,19 +1,12 @@
 import type { PatientData, SelectedSymptom, Symptom } from "./assessment";
+import { CARE_LEVELS } from "../../../shared/result.types";
+import type { CareLevel, MedicalSpecialty } from "../../../shared/result.types";
 
-export type CareLevel = "emergency" | "doctor" | "specialist" | "selfcare";
+export type { CareLevel, MedicalSpecialty } from "../../../shared/result.types";
 
 export type DoctorSpecialty =
+  | MedicalSpecialty
   | "primary_care"
-  | "dermatology"
-  | "cardiology"
-  | "pulmonology"
-  | "neurology"
-  | "gynecology"
-  | "urology"
-  | "orthopedics"
-  | "gastroenterology"
-  | "psychiatry"
-  | "ent"
   | "emergency";
 
 export interface RecommendedSpecialty {
@@ -30,22 +23,6 @@ export interface TriageRequest {
   freeText?: string;
 }
 
-export type MedicalSpecialty =
-  | "internal_medicine"
-  | "cardiology"
-  | "neurology"
-  | "orthopedics"
-  | "gastroenterology"
-  | "pulmonology"
-  | "dermatology"
-  | "urology"
-  | "gynecology"
-  | "psychiatry"
-  | "pediatrics"
-  | "dentistry"
-  | "ophthalmology"
-  | "otolaryngology";
-
 // This creates the visual result card displayed on the last page
 export interface TriageResult {
   careLevel: CareLevel;
@@ -58,8 +35,6 @@ export interface TriageResult {
   reasons: string[];
   recommendedSpecialties?: RecommendedSpecialty[];
 }
-
-export const CARE_LEVELS: CareLevel[] = ["selfcare", "doctor", "specialist", "emergency"];
 
 export function isCareLevel(value: string | null): value is CareLevel {
   return value !== null && CARE_LEVELS.includes(value as CareLevel);

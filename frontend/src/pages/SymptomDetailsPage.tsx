@@ -106,7 +106,9 @@ export default function SymptomDetailsPage() {
     localDetails.length > 0 &&
     localDetails.every((symptom) => {
       const config = getMeasurementConfig(symptom.region, symptom.side);
-      return (symptom.painLevel ?? 0) >= config.min && (symptom.painLevel ?? 0) <= config.max;
+      const value = symptom.measurementValue ?? symptom.painLevel ?? 0;
+
+      return Boolean(symptom.duration) && value >= config.min && value <= config.max;
     });
 
   return (

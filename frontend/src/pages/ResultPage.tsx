@@ -2,11 +2,12 @@ import { useNavigate, useSearchParams } from "react-router";
 import { PhoneCall, Download } from "lucide-react";
 import PageShell from "../components/PageShell";
 import ResultCard from "../features/results/ResultCard";
+import NearbyPracticeSearch from "../features/results/NearbyPracticeSearch";
 import Button from "../components/Button";
 import { createSpecialtyConfig, isMedicalSpecialty, TRIAGE_CONFIGS } from "../types/triage";
 import { useAssessment } from "../lib/AssessmentContext";
 import { getFrontendTriageRecommendation } from "../lib/specialtyRecommendation";
-import type { CareLevel, RecommendedSpecialty } from "../types/triage";
+import type { CareLevel, MedicalSpecialty, RecommendedSpecialty } from "../types/triage";
 import { DURATIONS, getMeasurementConfig, isAdministrativeSymptom } from "../features/symptoms/symptoms.constants";
 import type { Symptom } from "../types/assessment";
 
@@ -31,15 +32,12 @@ function hasPsychSelection(symptoms: Symptom[]) {
   return symptoms.some(isPsychSymptom);
 }
 
-function getVisibleSpecialties(specialties: RecommendedSpecialty[] = []) {
-  const withoutEmergency = specialties.filter((specialty) => specialty.specialty !== "emergency");
-  const actualSpecialists = withoutEmergency.filter((specialty) => specialty.specialty !== "primary_care");
-
-  if (actualSpecialists.length > 0) {
-    return actualSpecialists.slice(0, 3);
-  }
-
-  return withoutEmergency.slice(0, 1);
+function getVisibleMedicalSpecialties(specialties: RecommendedSpecialty[] = []) {
+  return specialties
+    .map((specialty) => specialty.specialty)
+    .filter(isMedicalSpecialty)
+    .filter((specialty, index, list) => list.indexOf(specialty) === index)
+    .slice(0, 3);
 }
 
 export default function ResultPage() {
@@ -101,7 +99,7 @@ export default function ResultPage() {
 
   const getSymptomCareLevel = (symptom: Symptom): CareLevel => {
     const config = getMeasurementConfig(symptom.region, symptom.side);
-    const value = symptom.painLevel ?? 0;
+    const value = symptom.measurementValue ?? symptom.painLevel ?? 0;
 
     if (isAdministrativeSymptom(symptom.region, symptom.side)) {
       return "doctor";
@@ -125,8 +123,8 @@ export default function ResultPage() {
 
   const getHighestCareLevel = (levels: CareLevel[]): CareLevel => {
     if (levels.includes("emergency")) return "emergency";
-    if (levels.includes("doctor")) return "doctor";
     if (levels.includes("specialist")) return "specialist";
+    if (levels.includes("doctor")) return "doctor";
     return "selfcare";
   };
 
@@ -146,28 +144,29 @@ export default function ResultPage() {
         symptomDetails,
       });
 
-  const visibleSpecialties = getVisibleSpecialties(specialtyRecommendation?.recommendedSpecialties ?? []);
+  const visibleSpecialties = getVisibleMedicalSpecialties(specialtyRecommendation?.recommendedSpecialties ?? []);
   const baselineCareLevel = calculateCareLevel();
 
   const recommendationCareLevel: CareLevel | null =
-    specialtyRecommendation?.careLevel === "specialist"
-      ? "doctor"
-      : specialtyRecommendation?.careLevel ?? null;
+    specialtyRecommendation?.careLevel ?? null;
 
   const careLevel: CareLevel = isEmergency
     ? "emergency"
     : getHighestCareLevel([baselineCareLevel, recommendationCareLevel].filter(Boolean) as CareLevel[]);
 
   const config =
-    careLevel === "doctor"
+    careLevel === "specialist" && visibleSpecialties.length > 0
+      ? createSpecialtyConfig(visibleSpecialties[0])
+      : careLevel === "doctor"
       ? {
           ...TRIAGE_CONFIGS.doctor,
           title: "Ärztliche Versorgung empfohlen",
           description: hasAdministrativeSelection
             ? "Für Ihr Anliegen ist der Hausarzt bzw. die Allgemeinmedizin die passende Anlaufstelle."
             : "Ihre Beschwerden sollten ärztlich abgeklärt werden. Je nach Beschwerdebild kann eine fachärztliche Abklärung sinnvoll sein.",
-        }
+      }
       : TRIAGE_CONFIGS[careLevel];
+  const additionalSpecialtyCards = careLevel === "specialist" ? visibleSpecialties.slice(1) : visibleSpecialties;
 
   const callAction =
     careLevel === "emergency"
@@ -177,6 +176,7 @@ export default function ResultPage() {
         : null;
 
   const showPsychSupport = hasPsychSelection(symptomDetails);
+  const shouldShowReasons = careLevel !== "specialist";
 
   const getDurationLabel = (durationId: string) => {
     return DURATIONS.find((duration) => duration.id === durationId)?.label || durationId;
@@ -184,7 +184,7 @@ export default function ResultPage() {
 
   const getMeasurementSummary = (symptom: Symptom) => {
     const config = getMeasurementConfig(symptom.region, symptom.side);
-    const value = symptom.painLevel ?? 0;
+    const value = symptom.measurementValue ?? symptom.painLevel ?? 0;
 
     if (config.type === "temperature") {
       return `${config.title} ${value.toFixed(1)} ${config.unit}`;
@@ -380,6 +380,13 @@ export default function ResultPage() {
         </a>
       )}
 
+      {additionalSpecialtyCards.map((specialty: MedicalSpecialty) => (
+        <ResultCard
+          key={specialty}
+          config={createSpecialtyConfig(specialty)}
+        />
+      ))}
+
       {showPsychSupport && (
         <div className="bg-[#eff2f6] rounded-[16px] p-5 md:p-6 mb-4">
           <p className="font-['DM_Sans:Bold',sans-serif] font-bold text-[#486284] text-lg mb-2">
@@ -402,79 +409,47 @@ export default function ResultPage() {
         </div>
       )}
 
-      {!isEmergency && visibleSpecialties.length > 0 ? (
-        <div className="bg-white border-2 border-[#486284] rounded-[16px] p-5 md:p-6 mb-4">
+      <NearbyPracticeSearch careLevel={careLevel} specialties={visibleSpecialties} />
+
+      {shouldShowReasons && (
+        <div className="bg-[#eff2f6] rounded-[16px] p-5 md:p-6 mb-4">
           <p className="font-['DM_Sans:Bold',sans-serif] font-bold text-[#486284] text-lg mb-3">
-            Empfohlene Anlaufstelle
+            Begründung
           </p>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            {visibleSpecialties.map((specialty) => (
-              <div key={specialty.specialty} className="rounded-[14px] bg-[#eff2f6] p-4">
-                <p className="font-['DM_Sans:Bold',sans-serif] font-bold text-[#3e3e3e] text-sm">
-                  {specialty.label}
-                </p>
-                <p className="mt-1 font-['DM_Sans:Medium',sans-serif] font-medium text-[#486284] text-xs leading-relaxed">
-                  {specialty.reason}
-                </p>
-              </div>
-            ))}
-          </div>
-
-          <p className="mt-3 text-xs font-medium text-[#486284]">
-            Vorläufige Frontend-Einschätzung. Die finale Empfehlung soll später vom Backend/KI-System kommen.
-          </p>
-        </div>
-      ) : null}
-
-      {visibleSpecialties.length > 0 && (
-        <div className="mt-4">
-          <p className="font-['DM_Sans:Bold',sans-serif] font-bold text-[#486284] text-lg mb-3">
-            Nahegelegene Praxen
-          </p>
-          <p className="font-['DM_Sans:Medium',sans-serif] font-medium text-[#3e3e3e] text-sm">
-            Diese Funktion wird in einer zukünftigen Version verfügbar sein.
-          </p>
+          {isEmergency ? (
+            <ul className="space-y-1.5">
+              <li className="font-['DM_Sans:Medium',sans-serif] font-medium text-[#3e3e3e] text-sm leading-relaxed">
+                • Ein Warnsymptom wurde ausgewählt.
+              </li>
+              <li className="font-['DM_Sans:Medium',sans-serif] font-medium text-[#3e3e3e] text-sm leading-relaxed">
+                • Bitte suchen Sie sofort medizinische Hilfe oder wählen Sie bei akuter Gefahr den Notruf.
+              </li>
+            </ul>
+          ) : (
+            <ul className="space-y-1.5">
+              {(specialtyRecommendation?.reasons?.length
+                ? specialtyRecommendation.reasons
+                : [
+                    "Ihre Symptome sollten anhand von Dauer und Intensität eingeordnet werden.",
+                    "Die Empfehlung ist eine vorläufige Einschätzung und ersetzt keine ärztliche Beurteilung.",
+                  ]
+              ).map((reason) => (
+                <li
+                  key={reason}
+                  className="font-['DM_Sans:Medium',sans-serif] font-medium text-[#3e3e3e] text-sm leading-relaxed"
+                >
+                  • {reason}
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
       )}
 
-      <div className="bg-[#eff2f6] rounded-[16px] p-5 md:p-6 mb-4">
-        <p className="font-['DM_Sans:Bold',sans-serif] font-bold text-[#486284] text-lg mb-3">
-          Begründung
-        </p>
-
-        {isEmergency ? (
-          <ul className="space-y-1.5">
-            <li className="font-['DM_Sans:Medium',sans-serif] font-medium text-[#3e3e3e] text-sm leading-relaxed">
-              • Ein Warnsymptom wurde ausgewählt.
-            </li>
-            <li className="font-['DM_Sans:Medium',sans-serif] font-medium text-[#3e3e3e] text-sm leading-relaxed">
-              • Bitte suchen Sie sofort medizinische Hilfe oder wählen Sie bei akuter Gefahr den Notruf.
-            </li>
-          </ul>
-        ) : (
-          <ul className="space-y-1.5">
-            {(specialtyRecommendation?.reasons?.length
-              ? specialtyRecommendation.reasons
-              : [
-                  "Ihre Symptome sollten anhand von Dauer und Intensität eingeordnet werden.",
-                  "Die Empfehlung ist eine vorläufige Einschätzung und ersetzt keine ärztliche Beurteilung.",
-                ]
-            ).map((reason) => (
-              <li
-                key={reason}
-                className="font-['DM_Sans:Medium',sans-serif] font-medium text-[#3e3e3e] text-sm leading-relaxed"
-              >
-                • {reason}
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
-
       {shouldShowAssessmentData && (
         <div className="bg-white border-2 border-[#486284] rounded-[16px] p-5 md:p-6 mb-4">
-          <p className="font-['DM_Sans:Bold',sans-serif] font-bold text-[#486284] text-lg mb-4">
+          <p className="mb-4 font-['DM_Sans:Bold',sans-serif] font-bold text-[#486284] text-lg">
             Medizinische Zusammenfassung
           </p>
 
@@ -496,6 +471,15 @@ export default function ResultPage() {
               </p>
             </div>
           )}
+
+          <div className="mt-4 flex justify-end">
+            <Button variant="secondary" onClick={handlePdfDownload} className="inline-flex items-center gap-2 px-5">
+              <Download className="size-5 flex-shrink-0" aria-hidden="true" />
+              <span className="font-['DM_Sans:Bold',sans-serif] font-bold text-base whitespace-nowrap">
+                PDF herunterladen
+              </span>
+            </Button>
+          </div>
         </div>
       )}
 
@@ -504,20 +488,11 @@ export default function ResultPage() {
           Wichtiger Hinweis
         </p>
         <p className="font-['DM_Sans:Medium',sans-serif] font-medium text-[#92400E] text-sm leading-relaxed">
-          Diese Einschätzung ist <strong>keine medizinische Diagnose</strong> und ersetzt nicht den Besuch bei einem Arzt.
-          KI-Systeme können Fehler machen. Bei Unsicherheit oder Verschlechterung Ihres Zustands suchen Sie bitte
-          umgehend medizinische Hilfe.
+          Diese Einschätzung ist <strong>keine Diagnose</strong>. Bei Unsicherheit oder Verschlechterung suchen Sie bitte medizinische Hilfe.
         </p>
       </div>
 
       <div className="mt-6 mb-6 flex flex-col sm:flex-row gap-3 justify-end">
-        <Button variant="secondary" onClick={handlePdfDownload}>
-          <Download className="size-5 mr-2" aria-hidden="true" />
-          <p className="font-['DM_Sans:Bold',sans-serif] font-bold text-base">
-            PDF herunterladen
-          </p>
-        </Button>
-
         <Button onClick={handleReset}>
           <p className="font-['DM_Sans:Bold',sans-serif] font-bold text-base">
             Neue Einschätzung starten

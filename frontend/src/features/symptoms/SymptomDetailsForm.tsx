@@ -11,6 +11,7 @@ type SymptomDraft = TriageSymptom & {
   id: string;
   active: boolean;
   measurementType: SymptomMeasurementType;
+  measurementValue?: number;
 };
 
 interface SymptomDetailsFormProps {
@@ -117,8 +118,8 @@ export default function SymptomDetailsForm({
 
       <PainScaleSelector
         config={measurementConfig}
-        value={symptom.painLevel ?? measurementConfig.defaultValue}
-        onValueChange={(value) => onUpdate("painLevel", value)}
+        value={symptom.measurementValue ?? symptom.painLevel ?? measurementConfig.defaultValue}
+        onValueChange={(value) => onUpdate("measurementValue", value)}
       />
 
       <DurationSelector

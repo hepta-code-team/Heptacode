@@ -1,18 +1,14 @@
 import type { PatientData, SelectedSymptom, Symptom } from "../types/assessment";
+import {
+  MEDICAL_SPECIALTY_LABELS,
+  createSpecialtyConfig,
+  isMedicalSpecialty,
+} from "../types/triage";
 import type { DoctorSpecialty, RecommendedSpecialty, TriageResult } from "../types/triage";
 
 const SPECIALTY_LABELS: Record<DoctorSpecialty, string> = {
+  ...MEDICAL_SPECIALTY_LABELS,
   primary_care: "Hausarzt / Allgemeinmedizin",
-  dermatology: "Dermatologie",
-  cardiology: "Kardiologie",
-  pulmonology: "Pneumologie",
-  neurology: "Neurologie",
-  gynecology: "Gynäkologie",
-  urology: "Urologie",
-  orthopedics: "Orthopädie",
-  gastroenterology: "Gastroenterologie",
-  psychiatry: "Psychiatrie / Psychotherapie",
-  ent: "HNO",
   emergency: "Notaufnahme / Notruf",
 };
 
@@ -115,7 +111,18 @@ export function getFrontendTriageRecommendation({
     addSpecialty(specialties, "emergency", "Ein kritisches Warnsymptom wurde angegeben.", 100);
   }
 
-  if (includesAny(allTexts, ["druckgefühl", "enge", "herzrasen", "herzstechen", "brustmitte"])) {
+  if (
+    includesAny(allTexts, [
+      "brust",
+      "brustmitte",
+      "linksseitig",
+      "rechtsseitig",
+      "druckgefühl",
+      "enge",
+      "herzrasen",
+      "herzstechen",
+    ])
+  ) {
     addSpecialty(specialties, "cardiology", "Beschwerden im Brust- oder Herzbereich können kardiologisch relevant sein.", 85);
   }
 
@@ -136,7 +143,7 @@ export function getFrontendTriageRecommendation({
   }
 
   if (includesAny(allTexts, ["nase", "mund", "rachen", "ohr"])) {
-    addSpecialty(specialties, "ent", "Beschwerden an Nase, Ohr, Mund oder Rachen passen zur HNO-Abklärung.", 65);
+    addSpecialty(specialties, "otolaryngology", "Beschwerden an Nase, Ohr, Mund oder Rachen passen zur HNO-Abklärung.", 65);
   }
 
   if (includesAny(allTexts, ["bauch", "oberbauch", "unterbauch", "krämpfe", "koliken", "magen", "darm"])) {
@@ -176,16 +183,19 @@ export function getFrontendTriageRecommendation({
           ? "doctor"
           : "selfcare"
         : "specialist";
+  const recommendedSpecialty = isMedicalSpecialty(topSpecialty.specialty) ? topSpecialty.specialty : undefined;
+  const specialtyConfig =
+    careLevel === "specialist" && recommendedSpecialty ? createSpecialtyConfig(recommendedSpecialty) : null;
 
   return {
     careLevel,
-    title: careLevel === "specialist" ? `Empfohlene Fachrichtung: ${topSpecialty.label}` : topSpecialty.label,
-    color: careLevel === "emergency" ? "#FF2546" : careLevel === "specialist" ? "#486284" : careLevel === "doctor" ? "#F59E0B" : "#10B981",
-    bgColor: careLevel === "emergency" ? "#ffcdcd" : careLevel === "specialist" ? "#E8EEF5" : careLevel === "doctor" ? "#FEF3C7" : "#D1FAE5",
+    recommendedSpecialty,
+    title: specialtyConfig?.title ?? topSpecialty.label,
+    titleSupplement: specialtyConfig?.titleSupplement,
+    color: specialtyConfig?.color ?? (careLevel === "emergency" ? "#FF2546" : careLevel === "doctor" ? "#F59E0B" : "#10B981"),
+    bgColor: specialtyConfig?.bgColor ?? (careLevel === "emergency" ? "#ffcdcd" : careLevel === "doctor" ? "#FEF3C7" : "#D1FAE5"),
     description:
-      careLevel === "specialist"
-        ? "Diese Empfehlung ist eine frontendseitige Vorab-Einschätzung und wird später durch Backend/KI ersetzt."
-        : "Diese Empfehlung ist eine vorläufige Einschätzung und ersetzt keine medizinische Diagnose.",
+      specialtyConfig?.description ?? "Diese Empfehlung ist eine vorläufige Einschätzung und ersetzt keine medizinische Diagnose.",
     reasons: recommendedSpecialties.map((specialty) => specialty.reason),
     recommendedSpecialties,
   };
