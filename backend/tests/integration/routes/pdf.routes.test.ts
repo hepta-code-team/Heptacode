@@ -1,8 +1,8 @@
 import type { FastifyInstance } from 'fastify'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
-import { buildApp } from '../app.js'
-import type { PdfExportRequest } from '../modules/pdf/pdf.types.js'
+import { buildApp } from '../../../src/app.js'
+import type { PdfExportRequest } from '../../../src/modules/pdf/pdf.types.js'
 
 async function createApp(): Promise<FastifyInstance> {
   const app = await buildApp()

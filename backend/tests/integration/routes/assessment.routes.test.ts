@@ -1,12 +1,12 @@
 import type { FastifyInstance } from 'fastify'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { requestStructuredAiResponse } from '../ai/llmAdapter.js'
-import { AiResponseError } from '../ai/timeout.js'
-import { buildApp } from '../app.js'
-import type { AssessmentPayload } from '../modules/assessment/assessment.types.js'
+import { requestStructuredAiResponse } from '../../../src/ai/llmAdapter.js'
+import { AiResponseError } from '../../../src/ai/timeout.js'
+import { buildApp } from '../../../src/app.js'
+import type { AssessmentPayload } from '../../../src/modules/assessment/assessment.types.js'
 
-vi.mock('../ai/llmAdapter.js', () => ({
+vi.mock('../../../src/ai/llmAdapter.js', () => ({
   requestStructuredAiResponse: vi.fn(),
 }))
 
