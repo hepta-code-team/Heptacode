@@ -21,11 +21,10 @@ Patienten werden sicher, schnell und laienverständlich durch das Gesundheitssys
 | Branch | Zweck |
 |---|---|
 | `main` | Stable — nur reviewed Code |
+| `dev` | Gemeinsamer Entwicklungs- und Integrationsbranch |
 | `tech-stack-v1` | wurde gelöscht/ War der erste Ansatz für unseren TechStack|
-| *`newFold-v1` | Aktuelle branch |
 | `feature/...` | Neue Features |
 
-# * Bedeutet: ist der Branch an dem aktuell gearbeitet wird
 ---
 
 ## Tech Stack
