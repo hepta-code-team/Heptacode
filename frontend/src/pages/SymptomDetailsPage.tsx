@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
 import PageShell from "../components/PageShell";
 import SymptomDetailsForm from "../features/symptoms/SymptomDetailsForm";
+import { handleSubmitAssessment } from "../features/symptoms/handleSubmitAssessment";
 import Button from "../components/Button";
 import { useAssessment } from "../lib/AssessmentContext";
 import { getMeasurementConfig, isAdministrativeSymptom } from "../features/symptoms/symptoms.constants";
@@ -44,7 +45,12 @@ function createSymptomDetails(region: string, side: string, index: number): Symp
 
 export default function SymptomDetailsPage() {
   const navigate = useNavigate();
-  const { selectedSymptoms, symptomDetails: contextDetails, setSymptomDetails } = useAssessment();
+  const {
+    selectedSymptoms,
+    symptomDetails: contextDetails,
+    setSymptomDetails,
+    submitAssessment,
+  } = useAssessment();
 
   const [localDetails, setLocalDetails] = useState<Symptom[]>(() => {
     const expanded = expandSelectedSymptoms(selectedSymptoms).filter(
@@ -61,6 +67,8 @@ export default function SymptomDetailsPage() {
   });
 
   const [showValidationErrors, setShowValidationErrors] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     if (selectedSymptoms.length === 0) {
@@ -92,14 +100,17 @@ export default function SymptomDetailsPage() {
     setLocalDetails((details) => details.filter((_, detailIndex) => detailIndex !== index));
   };
 
-  const handleContinue = () => {
-    if (localDetails.some((symptom) => !symptom.duration)) {
-      setShowValidationErrors(true);
-      return;
-    }
-
+  const handleContinue = async () => {
     setSymptomDetails(localDetails);
-    navigate("/result");
+
+    await handleSubmitAssessment({
+      symptomDetails: localDetails,
+      submitAssessment,
+      navigate,
+      setShowValidationErrors,
+      setSubmitError,
+      setIsSubmitting,
+    });
   };
 
   const canContinue =
@@ -129,10 +140,16 @@ export default function SymptomDetailsPage() {
         ))}
       </div>
 
+      {submitError && (
+        <div className="mt-6 rounded-[14px] border border-red-200 bg-red-50 p-4 text-sm font-medium text-red-700">
+          {submitError}
+        </div>
+      )}
+
       <div className="mt-6 mb-6 flex justify-end">
-        <Button onClick={handleContinue} disabled={!canContinue}>
+        <Button onClick={() => void handleContinue()} disabled={!canContinue || isSubmitting}>
           <p className="font-['DM_Sans:Bold',sans-serif] font-bold text-base">
-            Weiter
+            {isSubmitting ? "Auswertung läuft..." : "Weiter"}
           </p>
         </Button>
       </div>
