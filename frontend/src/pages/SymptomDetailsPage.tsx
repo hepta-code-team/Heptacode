@@ -101,14 +101,7 @@ export default function SymptomDetailsPage() {
   const handleContinue = () => {
     const activeSymptoms = symptomDetails.filter((symptom) => symptom.active);
 
-    setContextDetails(
-      activeSymptoms.map((symptom) => ({
-        region: symptom.region,
-        side: symptom.side,
-        painLevel: symptom.painLevel,
-        duration: symptom.duration,
-      })),
-    );
+    setContextDetails(activeSymptoms);
 
     void handleSubmitAssessment({
       symptomDetails,

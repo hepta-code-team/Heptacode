@@ -2,7 +2,6 @@ import { requestStructuredAiResponse } from '../../ai/llmAdapter.js'
 import { isAiRequestError } from '../../ai/timeout.js'
 import { extractSymptoms } from '../symptom-extraction/symptomExtraction.service.js'
 import type {
-  CareLevel,
   MedicalSpecialty,
   PatientData,
   RecommendedSpecialtyItem,
@@ -27,9 +26,6 @@ const DURATION_LABELS: Record<NonNullable<TriageSymptom['duration']>, string> = 
 }
 
 const SPECIALTY_LABELS: Record<MedicalSpecialty, string> = {
-  home_care: 'Häusliche Versorgung',
-  emergency_medicine: 'Notfallmedizin',
-  general_practice: 'Hausarzt',
   internal_medicine: 'Innere Medizin',
   cardiology: 'Kardiologie',
   neurology: 'Neurologie',
@@ -101,23 +97,6 @@ function formatSymptoms(symptoms: TriageSymptom[]): string {
     .join('\n')
 }
 
-// Funktion um das empfohlene Versorgungsangebot auf die grobe Ebene abzubilden
-function toCareLevel(recommendedSpecialty: MedicalSpecialty): CareLevel {
-  if (recommendedSpecialty === 'emergency_medicine') {
-    return 'emergency'
-  }
-
-  if (recommendedSpecialty === 'home_care') {
-    return 'selfcare'
-  }
-
-  if (recommendedSpecialty === 'general_practice') {
-    return 'doctor'
-  }
-
-  return 'specialist'
-}
-
 function inferSpecialistFromSymptoms(symptoms: TriageSymptom[]): MedicalSpecialty | undefined {
   const primary = symptoms[0]
 
@@ -160,25 +139,8 @@ function normalizeTriageResult(
   result: TriageResponse,
   symptoms: TriageSymptom[],
 ): TriageResponse {
-  if (result.careLevel === 'emergency') {
-    return {
-      ...result,
-      recommendedSpecialty: 'emergency_medicine',
-    }
-  }
-
-  if (result.careLevel === 'selfcare') {
-    return {
-      ...result,
-      recommendedSpecialty: 'home_care',
-    }
-  }
-
   if (result.careLevel === 'specialist') {
-    const specialist =
-      toCareLevel(result.recommendedSpecialty) === 'specialist'
-        ? result.recommendedSpecialty
-        : inferSpecialistFromSymptoms(symptoms) ?? 'internal_medicine'
+    const specialist = result.recommendedSpecialty ?? inferSpecialistFromSymptoms(symptoms) ?? 'internal_medicine'
 
     return {
       ...result,
@@ -186,16 +148,9 @@ function normalizeTriageResult(
     }
   }
 
-  if (toCareLevel(result.recommendedSpecialty) === 'specialist') {
-    return {
-      ...result,
-      careLevel: 'specialist',
-    }
-  }
-
   return {
     ...result,
-    recommendedSpecialty: 'general_practice',
+    recommendedSpecialty: undefined,
   }
 }
 
@@ -203,7 +158,7 @@ function applySpecialistEscalation(
   result: TriageResponse,
   symptoms: TriageSymptom[],
 ): TriageResponse {
-  if (result.careLevel !== 'doctor' || result.recommendedSpecialty !== 'general_practice') {
+  if (result.careLevel !== 'doctor') {
     return result
   }
 
@@ -229,7 +184,7 @@ function applySpecialistEscalation(
 }
 
 function buildRecommendedSpecialties(result: TriageResponse): RecommendedSpecialtyItem[] | undefined {
-  if (toCareLevel(result.recommendedSpecialty) !== 'specialist') {
+  if (result.careLevel !== 'specialist' || !result.recommendedSpecialty) {
     return undefined
   }
 
@@ -246,11 +201,11 @@ function buildRecommendedSpecialties(result: TriageResponse): RecommendedSpecial
 }
 
 function attachPresentationFields(result: TriageResponse): TriageResponse {
+  const recommendedSpecialties = buildRecommendedSpecialties(result)
+
   return {
     ...result,
-    ...(buildRecommendedSpecialties(result)
-      ? { recommendedSpecialties: buildRecommendedSpecialties(result) }
-      : {}),
+    ...(recommendedSpecialties ? { recommendedSpecialties } : {}),
   }
 }
 
@@ -317,7 +272,6 @@ function createFallbackTriage(symptoms: TriageSymptom[]): TriageResponse {
   if (hasEmergencyPattern) {
     return {
       careLevel: 'emergency',
-      recommendedSpecialty: 'emergency_medicine',
       reasons: [
         'Die KI-Auswertung ist aktuell nicht verfuegbar.',
         'Die uebergebenen Beschwerden enthalten ein Warnmuster, das vorsichtshalber als Notfall eingestuft wird.',
@@ -329,7 +283,6 @@ function createFallbackTriage(symptoms: TriageSymptom[]): TriageResponse {
   if (strongestPainLevel >= 8) {
     return {
       careLevel: 'emergency',
-      recommendedSpecialty: 'emergency_medicine',
       reasons: [
         'Die KI-Auswertung ist aktuell nicht verfuegbar.',
         'Aufgrund der sehr starken Beschwerden wird sicherheitshalber eine Notfallabklaerung empfohlen.',
@@ -341,7 +294,6 @@ function createFallbackTriage(symptoms: TriageSymptom[]): TriageResponse {
   if (strongestPainLevel >= 5 || symptoms.length > 0) {
     return {
       careLevel: 'doctor',
-      recommendedSpecialty: 'general_practice',
       reasons: [
         'Die KI-Auswertung ist aktuell nicht verfuegbar.',
         'Bitte lassen Sie die Beschwerden aerztlich einschaetzen, besonders bei Verschlechterung oder anhaltenden Symptomen.',
@@ -352,7 +304,6 @@ function createFallbackTriage(symptoms: TriageSymptom[]): TriageResponse {
 
   return {
     careLevel: 'selfcare',
-    recommendedSpecialty: 'home_care',
     reasons: ['Die KI-Auswertung ist aktuell nicht verfuegbar. Ohne erkannte Symptome ist keine hoehere Dringlichkeit ableitbar.'],
     aiUnavailable: true,
   }
@@ -363,7 +314,6 @@ function createFallbackTriage(symptoms: TriageSymptom[]): TriageResponse {
 function createTextExtractionFallbackTriage(): TriageResponse {
   return {
     careLevel: 'doctor',
-    recommendedSpecialty: 'general_practice',
     reasons: [
       'Die KI-Auswertung ist aktuell nicht verfuegbar.',
       'Die Freitext-Beschreibung konnte nicht sicher in Symptome ueberfuehrt werden. Bitte waehlen Sie die Symptome manuell aus oder lassen Sie die Beschwerden aerztlich einschaetzen.',
@@ -400,13 +350,12 @@ export async function evaluateTriage(
   if (emergencyFromLanding) {
     const result: TriageResponse = {
       careLevel: 'emergency',
-      recommendedSpecialty: 'emergency_medicine',
       reasons: ['Notfallmodus ueber die Startseite ausgewaehlt.'],
       reviewSummary: {
         plainLanguage:
           'Es wurde ein Notfallsymptom auf der Startseite ausgewaehlt. Bitte nehmen Sie umgehend medizinische Hilfe in Anspruch.',
         professionalSummary:
-          'Notfallmodus ueber die Startseite ausgewaehlt. Care Level: Notfallversorgung. Empfohlene Fachrichtung: emergency_medicine.',
+          'Notfallmodus ueber die Startseite ausgewaehlt. Care Level: Notfallversorgung.',
       },
     }
 
@@ -435,13 +384,12 @@ export async function evaluateTriage(
   if (triageSymptoms.length === 0) {
     return {
       careLevel: 'selfcare',
-      recommendedSpecialty: 'home_care',
       reasons: [],
       reviewSummary: {
         plainLanguage:
           'Es wurden keine konkreten Beschwerden uebergeben. Eine medizinische Ersteinschaetzung ist dadurch nur eingeschraenkt moeglich.',
         professionalSummary:
-          'Keine Symptome uebergeben. Care Level: Selbstversorgung. Empfohlene Fachrichtung: home_care.',
+          'Keine Symptome uebergeben. Care Level: Selbstversorgung.',
       },
     }
   }

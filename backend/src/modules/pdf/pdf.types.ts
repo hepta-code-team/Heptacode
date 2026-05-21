@@ -11,7 +11,7 @@ export interface PdfSection {
 
 export interface PdfTriageResult {
   careLevel: CareLevel
-  recommendedSpecialty: MedicalSpecialty
+  recommendedSpecialty?: MedicalSpecialty
   reasons: string[]
 }
 
@@ -32,7 +32,7 @@ export interface PdfExportResult {
 
 export const pdfTriageResultSchema = z.object({
   careLevel: z.enum(['emergency', 'doctor', 'specialist', 'selfcare']),
-  recommendedSpecialty: medicalSpecialtySchema,
+  recommendedSpecialty: medicalSpecialtySchema.optional(),
   reasons: z.array(z.string().min(1)).max(5),
 })
 

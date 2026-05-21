@@ -1,10 +1,10 @@
 import type { PatientData } from "../../../shared/patientData.types";
 export type { PatientData } from "../../../shared/patientData.types";
 import type { TriageSymptom } from "../../../shared/symptom.types";
-import type { MedicalSpecialty, RecommendedSpecialty } from "./triage";
+import type { CareLevel, MedicalSpecialty, RecommendedSpecialty } from "../../../shared/result.types";
+export type { CareLevel, MedicalSpecialty, RecommendedSpecialty } from "../../../shared/result.types";
 
 export type SymptomMeasurementType = "pain" | "temperature" | "feeling" | "severity";
-export type CareLevel = "emergency" | "doctor" | "specialist" | "selfcare";
 
 export interface SymptomDetailPayload {
   id: string;
@@ -32,7 +32,7 @@ export interface AssessmentPayload {
 
 export interface AssessmentResult {
   careLevel: CareLevel;
-  recommendedSpecialty: MedicalSpecialty;
+  recommendedSpecialty?: MedicalSpecialty;
   reasons: string[];
   reviewSummary: {
     plainLanguage: string;

@@ -1,19 +1,23 @@
 import { z } from 'zod'
 import type { PatientData } from '../../../../shared/patientData.types.js'
+import {
+  CARE_LEVELS,
+  MEDICAL_SPECIALTIES,
+} from '../../../../shared/result.types.js'
+import type {
+  CareLevel,
+  MedicalSpecialty,
+  RecommendedSpecialty,
+} from '../../../../shared/result.types.js'
 import type { TriageSymptom } from '../../../../shared/symptom.types.js'
 
 export type { PatientData } from '../../../../shared/patientData.types.js'
+export type {
+  CareLevel,
+  MedicalSpecialty,
+  RecommendedSpecialty,
+} from '../../../../shared/result.types.js'
 export type { TriageSymptom } from '../../../../shared/symptom.types.js'
-
-// Versorgungsebenen für die Triage
-export const CARE_LEVELS = [
-  'emergency',
-  'doctor',
-  'specialist',
-  'selfcare',
-] as const
-
-export type CareLevel = (typeof CARE_LEVELS)[number]
 
 // Typ für die Review Summary
 export interface ReviewSummary {
@@ -23,28 +27,7 @@ export interface ReviewSummary {
 
 export const careLevelSchema = z.enum(CARE_LEVELS)
 
-// Medizinische Versorgungsangebote
-export const medicalSpecialtySchema = z.enum([
-  'home_care',
-  'emergency_medicine',
-  'general_practice',
-  'internal_medicine',
-  'cardiology',
-  'neurology',
-  'orthopedics',
-  'gastroenterology',
-  'pulmonology',
-  'dermatology',
-  'urology',
-  'gynecology',
-  'psychiatry',
-  'pediatrics',
-  'dentistry',
-  'ophthalmology',
-  'otolaryngology',
-])
-
-export type MedicalSpecialty = z.infer<typeof medicalSpecialtySchema>
+export const medicalSpecialtySchema = z.enum(MEDICAL_SPECIALTIES)
 
 export const recommendedSpecialtyItemSchema = z.object({
   specialty: medicalSpecialtySchema,
@@ -53,7 +36,7 @@ export const recommendedSpecialtyItemSchema = z.object({
   priority: z.number().int().min(1),
 })
 
-export type RecommendedSpecialtyItem = z.infer<typeof recommendedSpecialtyItemSchema>
+export type RecommendedSpecialtyItem = RecommendedSpecialty
 
 // Typ für die Anfrage
 export interface TriageRequest {
@@ -67,7 +50,7 @@ export interface TriageRequest {
 // Typ für die Antwort
 export interface TriageResponse {
   careLevel: CareLevel
-  recommendedSpecialty: MedicalSpecialty
+  recommendedSpecialty?: MedicalSpecialty
   reasons: string[]
   reviewSummary?: ReviewSummary
   recommendedSpecialties?: RecommendedSpecialtyItem[]
@@ -110,7 +93,7 @@ export const reviewSummarySchema = z.object({
 // Schema für die Antwort der KI
 export const triageAiResultSchema = z.object({
   careLevel: careLevelSchema,
-  recommendedSpecialty: medicalSpecialtySchema,
+  recommendedSpecialty: medicalSpecialtySchema.nullish().transform((value) => value ?? undefined),
   reasons: z
     .union([z.array(z.string().min(1)).min(1).max(5), z.string().min(1)])
     .transform((value) => (typeof value === 'string' ? [value] : value)),

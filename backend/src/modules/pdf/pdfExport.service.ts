@@ -75,11 +75,13 @@ function summarizeSymptoms(symptoms: TriageSymptom[]): string {
 function summarizeTriage(triage: PdfTriageResult): string {
   return [
     `Versorgungsebene: ${formatCareLevel(triage.careLevel)}`,
-    `Empfohlene Fachrichtung: ${triage.recommendedSpecialty}`,
+    triage.recommendedSpecialty
+      ? `Empfohlene Fachrichtung: ${triage.recommendedSpecialty}`
+      : null,
     triage.reasons.length > 0
       ? `Begründungen: ${triage.reasons.join('; ')}`
       : 'Begründungen: —',
-  ].join('\n')
+  ].filter((line): line is string => line !== null).join('\n')
 }
 
 function buildSections(request: PdfExportRequest): PdfSection[] {

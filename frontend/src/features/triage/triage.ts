@@ -1,5 +1,12 @@
 import { CARE_LEVELS } from "../../../../shared/result.types"
+import { MEDICAL_SPECIALTIES } from "../../../../shared/result.types"
 import type { CareLevel, MedicalSpecialty } from "../../../../shared/result.types"
+
+export type {
+  CareLevel,
+  MedicalSpecialty,
+  RecommendedSpecialty,
+} from "../../../../shared/result.types"
 
 
 // This creates the visual result card displayed on the last page
@@ -50,7 +57,7 @@ export const MEDICAL_SPECIALTY_EXPLANATIONS: Partial<Record<MedicalSpecialty, st
 };
 
 export function isMedicalSpecialty(value: string | null): value is MedicalSpecialty {
-  return value !== null && value in MEDICAL_SPECIALTY_LABELS;
+  return value !== null && MEDICAL_SPECIALTIES.includes(value as MedicalSpecialty);
 }
 
 export function createSpecialtyConfig(

@@ -3,40 +3,11 @@ import { PhoneCall } from "lucide-react";
 import PageShell from "../components/PageShell";
 import ResultCard from "../features/results/ResultCard";
 import Button from "../components/Button";
-import { createSpecialtyConfig, isMedicalSpecialty, TRIAGE_CONFIGS } from "../types/triage";
+import { createSpecialtyConfig, isCareLevel, isMedicalSpecialty, TRIAGE_CONFIGS } from "../features/triage/triage";
 import { useAssessment } from "../lib/AssessmentContext";
-import type { CareLevel } from "../types/triage";
+import type { CareLevel } from "../../../shared/result.types";
 import { DURATIONS, getMeasurementConfig } from "../features/symptoms/symptoms.constants";
 import type { Symptom } from "../types/assessment";
-
-const VALID_CARE_LEVELS = ["emergency", "doctor", "specialist", "selfcare"] as const;
-const VALID_MEDICAL_SPECIALTIES = [
-  "home_care",
-  "emergency_medicine",
-  "general_practice",
-  "internal_medicine",
-  "cardiology",
-  "neurology",
-  "orthopedics",
-  "gastroenterology",
-  "pulmonology",
-  "dermatology",
-  "urology",
-  "gynecology",
-  "psychiatry",
-  "pediatrics",
-  "dentistry",
-  "ophthalmology",
-  "otolaryngology",
-] as const;
-
-function isValidCareLevel(value: string | undefined): value is CareLevel {
-  return value !== undefined && VALID_CARE_LEVELS.includes(value as CareLevel);
-}
-
-function isValidMedicalSpecialty(value: string | undefined): value is (typeof VALID_MEDICAL_SPECIALTIES)[number] {
-  return value !== undefined && VALID_MEDICAL_SPECIALTIES.includes(value as (typeof VALID_MEDICAL_SPECIALTIES)[number]);
-}
 
 export default function ResultPage() {
   const navigate = useNavigate();
@@ -139,20 +110,15 @@ export default function ResultPage() {
   const handlePdfDownload = async () => {
     try {
       const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:3000";
-      const fallbackRecommendedSpecialty =
-        careLevel === "emergency"
-          ? "emergency_medicine"
-          : careLevel === "selfcare"
-            ? "home_care"
-            : "general_practice";
-
-      const safeCareLevel = isValidCareLevel(assessmentResult?.careLevel)
-        ? assessmentResult.careLevel
+      const assessmentCareLevel = assessmentResult?.careLevel ?? null;
+      const assessmentRecommendedSpecialty = assessmentResult?.recommendedSpecialty ?? null;
+      const safeCareLevel = isCareLevel(assessmentCareLevel)
+        ? assessmentCareLevel
         : careLevel;
 
-      const safeRecommendedSpecialty = isValidMedicalSpecialty(assessmentResult?.recommendedSpecialty)
-        ? assessmentResult.recommendedSpecialty
-        : recommendedSpecialty ?? fallbackRecommendedSpecialty;
+      const safeRecommendedSpecialty = isMedicalSpecialty(assessmentRecommendedSpecialty)
+        ? assessmentRecommendedSpecialty
+        : recommendedSpecialty ?? undefined;
 
       const pdfPayload = {
         reviewSummary: {
@@ -161,7 +127,9 @@ export default function ResultPage() {
         },
         triage: {
           careLevel: safeCareLevel,
-          recommendedSpecialty: safeRecommendedSpecialty,
+          ...(safeCareLevel === "specialist" && safeRecommendedSpecialty
+            ? { recommendedSpecialty: safeRecommendedSpecialty }
+            : {}),
           reasons: explanationReasons.slice(0, 5),
         },
         ...(patientData ? { patientData } : {}),

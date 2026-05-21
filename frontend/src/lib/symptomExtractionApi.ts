@@ -2,7 +2,7 @@ import { apiClient } from "./apiClient";
 import type {
   ExtractedSymptom,
   SymptomExtractionAiResult,
-} from "@heptacode/shared/symptomExtraction.types";
+} from "../../../shared/symptomExtraction.types";
 
 export type { ExtractedSymptom, SymptomExtractionAiResult };
 
@@ -20,7 +20,7 @@ export async function extractSymptomsFromText(
   inputType: "text" | "speech" = "text",
 ): Promise<SymptomExtractionResponse> {
   return apiClient.post<SymptomExtractionResponse>("/api/v1/symptoms/extraction", {
-    symptomText,
+    text: symptomText,
     inputType,
   });
 }

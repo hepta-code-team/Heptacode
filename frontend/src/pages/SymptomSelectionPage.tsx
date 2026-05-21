@@ -178,11 +178,17 @@ export default function SymptomSelectionPage() {
   const initialCategory = isBodyAreaCategory(searchParams.get("category"))
     ? searchParams.get("category") as BodyAreaCategory
     : null;
-  const { selectedSymptoms: contextSymptoms, setSelectedSymptoms: setContextSymptoms } = useAssessment();
+  const {
+    selectedSymptoms: contextSymptoms,
+    setSelectedSymptoms: setContextSymptoms,
+    submitTextAssessment,
+  } = useAssessment();
   const [selectedCategory, setSelectedCategory] = useState<BodyAreaCategory | null>(initialCategory);
   const [selectedSymptoms, setSelectedSymptoms] = useState<TriageSymptom[]>(contextSymptoms);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [symptomText, setSymptomText] = useState("");
+  const [textSubmitError, setTextSubmitError] = useState<string | null>(null);
+  const [isTextSubmitting, setIsTextSubmitting] = useState(false);
   const symptomOptionsRef = useRef<HTMLDivElement | null>(null);
 
   const selectedCategoryLabel = selectedCategory ? BODY_AREA_LABELS[selectedCategory] : "";
@@ -232,6 +238,33 @@ export default function SymptomSelectionPage() {
   const handleContinue = () => {
     setContextSymptoms(selectedSymptoms);
     navigate("/symptom-details");
+  };
+
+  const handleTextAssessmentSubmit = async () => {
+    const trimmedText = symptomText.trim();
+
+    if (!trimmedText) {
+      setTextSubmitError("Bitte beschreiben Sie zuerst Ihre Beschwerden.");
+      return;
+    }
+
+    setTextSubmitError(null);
+    setIsTextSubmitting(true);
+
+    try {
+      await submitTextAssessment(trimmedText, "text");
+      setIsModalOpen(false);
+      setSymptomText("");
+      navigate("/result");
+    } catch (error) {
+      setTextSubmitError(
+        error instanceof Error
+          ? error.message
+          : "Die Freitextangaben konnten nicht ausgewertet werden.",
+      );
+    } finally {
+      setIsTextSubmitting(false);
+    }
   };
 
   return (
@@ -435,6 +468,7 @@ export default function SymptomSelectionPage() {
         onClose={() => {
           setIsModalOpen(false);
           setSymptomText("");
+          setTextSubmitError(null);
         }}
         title="Beschreiben Sie Ihre Symptome"
         subtitle="Bitte beschreiben Sie Ihre Symptome in 1-2 Sätzen. Nennen Sie dabei die Stärke und Dauer der jeweiligen Symptome."
@@ -447,6 +481,12 @@ export default function SymptomSelectionPage() {
           style={{ fontVariationSettings: "'opsz' 14" }}
         />
 
+        {textSubmitError && (
+          <div className="mt-4 rounded-[14px] border border-red-200 bg-red-50 p-4 text-sm font-medium text-red-700">
+            {textSubmitError}
+          </div>
+        )}
+
         <div className="flex justify-between items-center mt-6">
           <button
             onClick={() => {}}
@@ -457,7 +497,8 @@ export default function SymptomSelectionPage() {
           </button>
 
           <button
-            onClick={() => setIsModalOpen(false)}
+            onClick={() => void handleTextAssessmentSubmit()}
+            disabled={isTextSubmitting}
             className="bg-[#486284] text-app-text-on-primary rounded-full w-16 h-16 hover:bg-[#3a4d68] transition-all shadow-lg flex items-center justify-center"
             aria-label="Symptombeschreibung übernehmen"
           >
