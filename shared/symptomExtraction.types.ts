@@ -1,2 +1,7 @@
-export * from '../backend/src/shared/symptomExtraction.types.js'
-export * from '../backend/src/shared/symptomTaxonomy.js'
+export type {
+  SelectedSymptom as ExtractedSymptom,
+  SymptomExtractionResponse as SymptomExtractionAiResult,
+  SelectedSymptom,
+  SymptomExtractionRequest,
+  SymptomExtractionResponse,
+} from '../backend/src/modules/symptom-extraction/symptomExtraction.types.js'

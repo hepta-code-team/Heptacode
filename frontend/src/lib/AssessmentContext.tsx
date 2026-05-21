@@ -49,6 +49,7 @@ export function AssessmentProvider({ children }: { children: ReactNode }) {
 
     const result = await apiClient.post<AssessmentResult>("/assessments", payload);
 
+    setSymptomDetails(details);
     setAssessmentResult(result);
 
     return result;

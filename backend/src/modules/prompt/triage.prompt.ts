@@ -11,6 +11,6 @@ export const triageInstructions = [
   'Wenn careLevel = emergency, doctor oder selfcare ist, lasse recommendedSpecialty leer.',
   'Beruecksichtige die uebergebenen Symptome, optionale Schmerzintensitaeten, Dauern und die Stammdaten.',
   'Handle sicherheitsorientiert. Bei klaren Warnzeichen oder hohem Risiko waehle die hoehere Versorgungsebene.',
-  'Gib kurze, konkrete Begruendungen auf Deutsch zurueck.',
+  'Gib in reasons kurze, konkrete Begruendungen auf Deutsch zurueck.',
   'Erfinde keine zusaetzlichen Symptome oder Stammdaten.',
 ].join('\n')

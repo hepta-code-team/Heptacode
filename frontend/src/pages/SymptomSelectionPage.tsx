@@ -10,34 +10,57 @@ import { useAssessment } from "../lib/AssessmentContext";
 import {
   BODY_AREA_LABELS,
   BODY_AREA_REGION_IDS,
-  EMERGENCY_SYMPTOM_OPTIONS,
   getBodyRegionsForCategory,
+  isAdministrativeSymptom,
+  isCriticalSymptom,
   MAX_SYMPTOMS,
   type BodyAreaCategory,
 } from "../features/symptoms/symptoms.constants";
-import type { TriageSymptom } from "../../../shared/symptom.types";
+import type { SelectedSymptom } from "../types/assessment";
+
+type SelectionMeta = {
+  countsAsMainTile?: boolean;
+  mainKey?: string;
+  nestedOption?: boolean;
+};
 
 const supportingAreas = [
   {
     id: "general" as const,
     label: BODY_AREA_LABELS.general,
-    description: "Fieber, Übelkeit, Schwindel oder Schwäche",
+    description: "Fieber, Atemnot, Schüttelfrost, Rezept oder Krankmeldung",
     icon: Sparkles,
   },
   {
     id: "mental" as const,
     label: BODY_AREA_LABELS.mental,
-    description: "Angst, Stimmung oder seelische Belastung",
+    description: "Angst, Stimmung, Sucht oder seelische Belastung",
     icon: Brain,
   },
 ];
 
-function getSymptomKey(symptom: TriageSymptom) {
+function isBodyAreaCategory(value: string | null): value is BodyAreaCategory {
+  return Boolean(value && value in BODY_AREA_REGION_IDS);
+}
+
+function formatSideLabel(side: string) {
+  return side.replace(" - ", ": ");
+}
+
+function getSymptomKey(symptom: SelectedSymptom) {
+  return symptom.side ? `${symptom.region} (${formatSideLabel(symptom.side)})` : symptom.region;
+}
+
+function getSymptomSelectionKey(symptom: SelectedSymptom) {
   return symptom.side ? `${symptom.region} (${symptom.side})` : symptom.region;
 }
 
-function isBodyAreaCategory(value: string | null): value is BodyAreaCategory {
-  return Boolean(value && value in BODY_AREA_REGION_IDS);
+function getSelectedRegionKeys(symptoms: SelectedSymptom[]) {
+  return symptoms.map(getSymptomSelectionKey);
+}
+
+function isSelectionCritical(symptom: SelectedSymptom) {
+  return symptom.isCritical || isCriticalSymptom(symptom.region, symptom.side);
 }
 
 function AnatomyFigure({
@@ -47,9 +70,9 @@ function AnatomyFigure({
   selectedCategory: BodyAreaCategory | null;
   onSelect: (category: BodyAreaCategory) => void;
 }) {
-  const partFill = (category: BodyAreaCategory) => selectedCategory === category ? "#486284" : "#ffffff";
-  const partStroke = (category: BodyAreaCategory) => selectedCategory === category ? "#486284" : "#d7dee7";
-  const labelFill = (category: BodyAreaCategory) => selectedCategory === category ? "#ffffff" : "#486284";
+  const partFill = (category: BodyAreaCategory) => (selectedCategory === category ? "#486284" : "#ffffff");
+  const partStroke = (category: BodyAreaCategory) => (selectedCategory === category ? "#486284" : "#d7dee7");
+  const labelFill = (category: BodyAreaCategory) => (selectedCategory === category ? "#ffffff" : "#486284");
 
   const activate = (category: BodyAreaCategory) => (event: KeyboardEvent<SVGGElement>) => {
     if (event.key === "Enter" || event.key === " ") {
@@ -96,8 +119,12 @@ function AnatomyFigure({
           strokeWidth="4"
           filter="url(#body-shadow)"
         />
-        <text x="23" y="168" fill={labelFill("arms")} fontSize="13" fontWeight="700" transform="rotate(-75 23 168)">Arm</text>
-        <text x="183" y="168" fill={labelFill("arms")} fontSize="13" fontWeight="700" transform="rotate(75 183 168)">Arm</text>
+        <text x="23" y="168" fill={labelFill("arms")} fontSize="13" fontWeight="700" transform="rotate(-75 23 168)">
+          Arm
+        </text>
+        <text x="183" y="168" fill={labelFill("arms")} fontSize="13" fontWeight="700" transform="rotate(75 183 168)">
+          Arm
+        </text>
       </g>
 
       <g
@@ -123,8 +150,12 @@ function AnatomyFigure({
           strokeWidth="4"
           filter="url(#body-shadow)"
         />
-        <text x="83" y="282" fill={labelFill("legs")} fontSize="13" fontWeight="700" transform="rotate(88 83 282)">Bein</text>
-        <text x="133" y="282" fill={labelFill("legs")} fontSize="13" fontWeight="700" transform="rotate(92 133 282)">Bein</text>
+        <text x="83" y="282" fill={labelFill("legs")} fontSize="13" fontWeight="700" transform="rotate(88 83 282)">
+          Bein
+        </text>
+        <text x="133" y="282" fill={labelFill("legs")} fontSize="13" fontWeight="700" transform="rotate(92 133 282)">
+          Bein
+        </text>
       </g>
 
       <g
@@ -144,7 +175,9 @@ function AnatomyFigure({
           filter="url(#body-shadow)"
         />
         <path d="M88 82 C95 95 125 95 132 82" fill="none" stroke="#d7dee7" strokeWidth="4" strokeLinecap="round" />
-        <text x="110" y="151" textAnchor="middle" fill={labelFill("torso")} fontSize="15" fontWeight="700">Torso</text>
+        <text x="110" y="151" textAnchor="middle" fill={labelFill("torso")} fontSize="15" fontWeight="700">
+          Torso
+        </text>
       </g>
 
       <path d="M96 74 C99 84 121 84 124 74 L124 91 C118 96 102 96 96 91 Z" fill="#dfe5ec" />
@@ -166,7 +199,9 @@ function AnatomyFigure({
           filter="url(#body-shadow)"
         />
         <path d="M99 42 C102 45 118 45 121 42" fill="none" stroke={labelFill("head")} strokeWidth="3" strokeLinecap="round" opacity="0.75" />
-        <text x="110" y="34" textAnchor="middle" fill={labelFill("head")} fontSize="13" fontWeight="700">Kopf</text>
+        <text x="110" y="34" textAnchor="middle" fill={labelFill("head")} fontSize="13" fontWeight="700">
+          Kopf
+        </text>
       </g>
     </svg>
   );
@@ -175,16 +210,22 @@ function AnatomyFigure({
 export default function SymptomSelectionPage() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
+
   const initialCategory = isBodyAreaCategory(searchParams.get("category"))
-    ? searchParams.get("category") as BodyAreaCategory
+    ? (searchParams.get("category") as BodyAreaCategory)
     : null;
+
   const {
+    patientData,
     selectedSymptoms: contextSymptoms,
     setSelectedSymptoms: setContextSymptoms,
+    setSymptomDetails,
     submitTextAssessment,
   } = useAssessment();
+
   const [selectedCategory, setSelectedCategory] = useState<BodyAreaCategory | null>(initialCategory);
-  const [selectedSymptoms, setSelectedSymptoms] = useState<TriageSymptom[]>(contextSymptoms);
+  const [selectedSymptoms, setSelectedSymptoms] = useState<SelectedSymptom[]>(contextSymptoms);
+  const [selectionHint, setSelectionHint] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [symptomText, setSymptomText] = useState("");
   const [textSubmitError, setTextSubmitError] = useState<string | null>(null);
@@ -192,7 +233,12 @@ export default function SymptomSelectionPage() {
   const symptomOptionsRef = useRef<HTMLDivElement | null>(null);
 
   const selectedCategoryLabel = selectedCategory ? BODY_AREA_LABELS[selectedCategory] : "";
-  const filteredRegions = useMemo(() => getBodyRegionsForCategory(selectedCategory), [selectedCategory]);
+
+  const filteredRegions = useMemo(
+    () => getBodyRegionsForCategory(selectedCategory, patientData),
+    [selectedCategory, patientData]
+  );
+
   const shouldShowInlineOptions = selectedCategory !== "torso";
 
   const handleCategorySelect = (category: BodyAreaCategory) => {
@@ -212,27 +258,66 @@ export default function SymptomSelectionPage() {
     }
   };
 
-  const handleRegionSelect = (regionName: string, side?: string) => {
-    if (side && EMERGENCY_SYMPTOM_OPTIONS.includes(side)) {
-      navigate("/result?emergency=true");
+  const handleAdministrativeSelection = (regionName: string, side?: string, mainKey?: string) => {
+    const administrativeSymptom: SelectedSymptom = {
+      region: regionName,
+      side,
+      mainKey: mainKey ?? (side ? `${regionName} (${side})` : regionName),
+      isCritical: false,
+    };
+
+    setSelectedSymptoms([administrativeSymptom]);
+    setContextSymptoms([administrativeSymptom]);
+    setSymptomDetails([]);
+    navigate("/result");
+  };
+
+  const handleRegionSelect = (regionName: string, side?: string, meta?: SelectionMeta) => {
+    if (isAdministrativeSymptom(regionName, side)) {
+      handleAdministrativeSelection(regionName, side, meta?.mainKey);
       return;
     }
 
-    const symptomKey = side ? `${regionName} (${side})` : regionName;
-    const alreadySelected = selectedSymptoms.some((symptom) => getSymptomKey(symptom) === symptomKey);
+    const nextSymptom: SelectedSymptom = {
+      region: regionName,
+      side,
+      mainKey: side ? `${regionName} (${side})` : regionName,
+      isCritical: isCriticalSymptom(regionName, side),
+    };
+    const nextKey = getSymptomSelectionKey(nextSymptom);
+    const existingIndex = selectedSymptoms.findIndex((symptom) => getSymptomSelectionKey(symptom) === nextKey);
+    const critical = isCriticalSymptom(regionName, side);
 
-    if (alreadySelected) {
-      setSelectedSymptoms((symptoms) => symptoms.filter((symptom) => getSymptomKey(symptom) !== symptomKey));
+    if (existingIndex !== -1) {
+      setSelectedSymptoms((currentSymptoms) => currentSymptoms.filter((_, index) => index !== existingIndex));
+      setSelectionHint("");
       return;
     }
 
-    if (selectedSymptoms.length < MAX_SYMPTOMS) {
-      setSelectedSymptoms([...selectedSymptoms, { region: regionName, side }]);
+    if (selectedSymptoms.length >= MAX_SYMPTOMS) {
+      if (critical) {
+        const replaceIndex = selectedSymptoms.findIndex((symptom) => !isSelectionCritical(symptom));
+
+        if (replaceIndex !== -1) {
+          const updatedSymptoms = [...selectedSymptoms];
+          updatedSymptoms[replaceIndex] = nextSymptom;
+          setSelectedSymptoms(updatedSymptoms);
+          setSelectionHint(`${getSymptomKey(nextSymptom)} wurde als kritisches Symptom priorisiert.`);
+          return;
+        }
+      }
+
+      setSelectionHint("Sie haben das Limit erreicht. Weitere Details können Sie gleich im Freitextfeld ergänzen.");
+      return;
     }
+
+    setSelectedSymptoms([...selectedSymptoms, nextSymptom]);
+    setSelectionHint("");
   };
 
   const removeSymptom = (index: number) => {
     setSelectedSymptoms(selectedSymptoms.filter((_, symptomIndex) => symptomIndex !== index));
+    setSelectionHint("");
   };
 
   const handleContinue = () => {
@@ -260,7 +345,7 @@ export default function SymptomSelectionPage() {
       setTextSubmitError(
         error instanceof Error
           ? error.message
-          : "Die Freitextangaben konnten nicht ausgewertet werden.",
+          : "Die Freitextangaben konnten nicht ausgewertet werden."
       );
     } finally {
       setIsTextSubmitting(false);
@@ -270,18 +355,16 @@ export default function SymptomSelectionPage() {
   return (
     <PageShell
       title="Wo haben Sie Beschwerden?"
-      subtitle="Wählen Sie einen Bereich am Körper und ergänzen Sie bis zu 3 passende Beschwerden."
-      onBack={() => navigate("/patient-data")}
+      subtitle="Wählen Sie 1 bis maximal 3 Beschwerden. Jeder Unterpunkt zählt als eigene Beschwerde."
+      onBack={() => navigate("/medical-data")}
       maxWidth="2xl"
     >
       <div className="grid grid-cols-1 lg:grid-cols-[300px_minmax(0,1fr)] gap-5 xl:gap-6 items-start">
         <div className="rounded-[18px] bg-[#f5f7fa] p-4">
-          <p
-            className="mb-3 text-center font-['DM_Sans:Bold',sans-serif] font-bold text-app-text-primary text-sm"
-            style={{ fontVariationSettings: "'opsz' 14" }}
-          >
+          <p className="mb-3 text-center font-['DM_Sans:Bold',sans-serif] font-bold text-[#486284] text-sm">
             Bereich wählen
           </p>
+
           <AnatomyFigure selectedCategory={selectedCategory} onSelect={handleCategorySelect} />
 
           <div className="mt-3 grid grid-cols-1 gap-2">
@@ -307,18 +390,15 @@ export default function SymptomSelectionPage() {
                     >
                       <Icon className="size-5" aria-hidden="true" />
                     </div>
+
                     <div>
-                      <p
-                        className="font-['DM_Sans:Bold',sans-serif] font-bold text-sm"
-                        style={{ fontVariationSettings: "'opsz' 14" }}
-                      >
+                      <p className="font-['DM_Sans:Bold',sans-serif] font-bold text-sm">
                         {area.label}
                       </p>
                       <p
                         className={`font-['DM_Sans:Medium',sans-serif] font-medium text-xs leading-snug ${
                           isSelected ? "text-app-text-on-primary/85" : "text-app-text-primary"
                         }`}
-                        style={{ fontVariationSettings: "'opsz' 14" }}
                       >
                         {area.description}
                       </p>
@@ -327,6 +407,7 @@ export default function SymptomSelectionPage() {
                 </button>
               );
             })}
+
             <button
               type="button"
               onClick={() => setIsModalOpen(true)}
@@ -336,17 +417,12 @@ export default function SymptomSelectionPage() {
                 <div className="flex size-10 flex-shrink-0 items-center justify-center rounded-full bg-[#eff2f6] text-app-text-primary">
                   <Mic className="size-5" aria-hidden="true" />
                 </div>
+
                 <div>
-                  <p
-                    className="font-['DM_Sans:Bold',sans-serif] font-bold text-sm"
-                    style={{ fontVariationSettings: "'opsz' 14" }}
-                  >
+                  <p className="font-['DM_Sans:Bold',sans-serif] font-bold text-sm">
                     Symptome beschreiben
                   </p>
-                  <p
-                    className="font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-primary text-xs leading-snug"
-                    style={{ fontVariationSettings: "'opsz' 14" }}
-                  >
+                  <p className="font-['DM_Sans:Medium',sans-serif] font-medium text-[#486284] text-xs leading-snug">
                     Freitext oder Spracheingabe
                   </p>
                 </div>
@@ -358,93 +434,83 @@ export default function SymptomSelectionPage() {
         <div>
           <div className="mb-4 rounded-[18px] bg-[#f5f7fa] p-3">
             <div className="mb-2 flex items-center justify-between">
-              <p
-                className="font-['DM_Sans:Bold',sans-serif] font-bold text-app-text-primary text-sm"
-                style={{ fontVariationSettings: "'opsz' 14" }}
-              >
+              <p className="font-['DM_Sans:Bold',sans-serif] font-bold text-[#486284] text-sm">
                 Ihre Auswahl
               </p>
-              <p
-                className="font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-primary text-xs"
-                style={{ fontVariationSettings: "'opsz' 14" }}
-              >
+              <p className="font-['DM_Sans:Medium',sans-serif] font-medium text-[#486284] text-xs">
                 {selectedSymptoms.length}/{MAX_SYMPTOMS}
               </p>
             </div>
-            <div className="flex flex-wrap gap-2 md:grid md:grid-cols-3">
-            {Array.from({ length: MAX_SYMPTOMS }).map((_, index) => {
-              const symptom = selectedSymptoms[index];
 
-              return (
-                <div
-                  key={index}
-                  className={`min-h-0 rounded-full border px-3 py-2 md:min-h-[68px] md:rounded-[12px] md:p-3 ${
-                    symptom ? "border-[#486284] bg-white text-app-text-body" : "border-dashed border-[#cfd5dd] bg-white/70 text-app-text-muted"
-                  }`}
-                >
-                  <div className="flex items-center justify-between gap-2 md:items-start">
-                    <div>
-                      <p
-                        className="hidden font-['DM_Sans:Bold',sans-serif] font-bold text-xs mb-1 md:block"
-                        style={{ fontVariationSettings: "'opsz' 14" }}
-                      >
-                        Beschwerde {index + 1}
-                      </p>
-                      <p
-                        className="font-['DM_Sans:SemiBold',sans-serif] font-semibold text-xs leading-tight md:text-sm"
-                        style={{ fontVariationSettings: "'opsz' 14" }}
-                      >
-                        {symptom ? getSymptomKey(symptom) : `${index + 1}. frei`}
-                      </p>
+            <div className="flex flex-wrap gap-2 md:grid md:grid-cols-3">
+              {Array.from({ length: MAX_SYMPTOMS }).map((_, index) => {
+                const symptom = selectedSymptoms[index];
+
+                return (
+                  <div
+                    key={index}
+                    className={`min-h-0 rounded-full border px-3 py-2 md:min-h-[68px] md:rounded-[12px] md:p-3 ${
+                      symptom
+                        ? "border-[#486284] bg-white text-[#3e3e3e]"
+                        : "border-dashed border-[#cfd5dd] bg-white/70 text-[#828b93]"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between gap-2 md:items-start">
+                      <div>
+                        <p className="hidden font-['DM_Sans:Bold',sans-serif] font-bold text-xs mb-1 md:block">
+                          Beschwerde {index + 1}
+                        </p>
+                        <p className="font-['DM_Sans:SemiBold',sans-serif] font-semibold text-xs leading-tight md:text-sm">
+                          {symptom ? getSymptomKey(symptom) : `${index + 1}. frei`}
+                        </p>
+                      </div>
+
+                      {symptom && (
+                        <button
+                          type="button"
+                          onClick={() => removeSymptom(index)}
+                          className="rounded-full p-0.5 text-[#486284] hover:bg-[#eff2f6]"
+                          aria-label={`${getSymptomKey(symptom)} entfernen`}
+                        >
+                          <X className="size-3.5 md:size-4" aria-hidden="true" />
+                        </button>
+                      )}
                     </div>
-                    {symptom && (
-                      <button
-                        type="button"
-                        onClick={() => removeSymptom(index)}
-                        className="rounded-full p-0.5 text-app-text-primary hover:bg-[#eff2f6]"
-                        aria-label={`${getSymptomKey(symptom)} entfernen`}
-                      >
-                        <X className="size-3.5 md:size-4" aria-hidden="true" />
-                      </button>
-                    )}
                   </div>
-                </div>
-              );
-            })}
+                );
+              })}
             </div>
           </div>
 
           <div ref={symptomOptionsRef} className="scroll-mt-4" />
+
           {selectedCategory ? (
             <>
               <div className="mb-3">
-                <p
-                  className="font-['DM_Sans:Bold',sans-serif] font-bold text-app-text-primary text-lg"
-                  style={{ fontVariationSettings: "'opsz' 14" }}
-                >
+                <p className="font-['DM_Sans:Bold',sans-serif] font-bold text-[#486284] text-lg">
                   {selectedCategoryLabel}
                 </p>
-                <p
-                  className="font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-primary text-sm"
-                  style={{ fontVariationSettings: "'opsz' 14" }}
-                >
+                <p className="font-['DM_Sans:Medium',sans-serif] font-medium text-[#486284] text-sm">
                   {selectedSymptoms.length}/{MAX_SYMPTOMS} Beschwerden ausgewählt
                 </p>
               </div>
 
+              {selectionHint && (
+                <p className="mb-3 rounded-[12px] bg-[#fff7d6] px-4 py-3 text-sm font-medium text-[#7a5a00]">
+                  {selectionHint}
+                </p>
+              )}
+
               <SymptomButtonGrid
                 onRegionSelect={handleRegionSelect}
                 regions={filteredRegions}
-                selectedRegions={selectedSymptoms.map(getSymptomKey)}
+                selectedRegions={getSelectedRegionKeys(selectedSymptoms)}
                 inlineOptions={shouldShowInlineOptions}
               />
             </>
           ) : (
             <div className="flex min-h-[220px] items-center justify-center rounded-[18px] border-2 border-dashed border-[#cfd5dd] bg-[#f5f7fa] p-6 text-center">
-              <p
-                className="max-w-md font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-primary text-sm leading-relaxed"
-                style={{ fontVariationSettings: "'opsz' 14" }}
-              >
+              <p className="max-w-md font-['DM_Sans:Medium',sans-serif] font-medium text-[#486284] text-sm leading-relaxed">
                 Wählen Sie zuerst oben am Körper, bei Allgemein oder bei Psyche einen Bereich aus. Danach erscheinen hier die passenden Beschwerden.
               </p>
             </div>
@@ -452,10 +518,7 @@ export default function SymptomSelectionPage() {
 
           <div className="mt-6 flex justify-end">
             <Button onClick={handleContinue} disabled={selectedSymptoms.length === 0}>
-              <p
-                className="font-['DM_Sans:Bold',sans-serif] font-bold text-base"
-                style={{ fontVariationSettings: "'opsz' 14" }}
-              >
+              <p className="font-['DM_Sans:Bold',sans-serif] font-bold text-base">
                 Weiter
               </p>
             </Button>
@@ -471,14 +534,13 @@ export default function SymptomSelectionPage() {
           setTextSubmitError(null);
         }}
         title="Beschreiben Sie Ihre Symptome"
-        subtitle="Bitte beschreiben Sie Ihre Symptome in 1-2 Sätzen. Nennen Sie dabei die Stärke und Dauer der jeweiligen Symptome."
+        subtitle="Bitte beschreiben Sie Ihre Symptome in 1-2 Sätzen. Nennen Sie dabei Stärke, Dauer und weitere Details."
       >
         <textarea
           value={symptomText}
           onChange={(event) => setSymptomText(event.target.value)}
-          placeholder="z.B. Ich habe seit 3 Tagen starke Kopfschmerzen (7/10) und leichte Übelkeit."
-          className="w-full h-40 bg-[#eff2f6] rounded-[16px] p-4 resize-none border-none outline-none focus:ring-2 focus:ring-[#486284] font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-body text-base"
-          style={{ fontVariationSettings: "'opsz' 14" }}
+          placeholder="z.B. Ich habe seit 3 Tagen starke Kopfschmerzen und zusätzlich Übelkeit."
+          className="w-full h-40 bg-[#eff2f6] rounded-[16px] p-4 resize-none border-none outline-none focus:ring-2 focus:ring-[#486284] font-['DM_Sans:Medium',sans-serif] font-medium text-[#3e3e3e] text-base"
         />
 
         {textSubmitError && (
@@ -489,6 +551,7 @@ export default function SymptomSelectionPage() {
 
         <div className="flex justify-between items-center mt-6">
           <button
+            type="button"
             onClick={() => {}}
             className="bg-[#486284] text-app-text-on-primary rounded-full w-16 h-16 hover:bg-[#3a4d68] transition-all shadow-lg flex items-center justify-center"
             aria-label="Symptom diktieren"
@@ -497,6 +560,7 @@ export default function SymptomSelectionPage() {
           </button>
 
           <button
+            type="button"
             onClick={() => void handleTextAssessmentSubmit()}
             disabled={isTextSubmitting}
             className="bg-[#486284] text-app-text-on-primary rounded-full w-16 h-16 hover:bg-[#3a4d68] transition-all shadow-lg flex items-center justify-center"

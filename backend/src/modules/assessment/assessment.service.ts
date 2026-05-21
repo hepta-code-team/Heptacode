@@ -29,11 +29,23 @@ function buildPatientDataLines(patientData: AssessmentPayload['patientData']): s
     `Geschlecht: ${patientData.gender}`,
     patientData.isPregnant ? 'Schwanger: Ja' : null,
     patientData.isBreastfeeding ? 'Stillend: Ja' : null,
+    hasText(patientData.currentMood) ? `Aktuelle Stimmung: ${patientData.currentMood.trim()}` : null,
+    hasText(patientData.smokerStatus) && patientData.smokerStatus.trim() !== 'Nicht angegeben'
+      ? `Raucherstatus: ${patientData.smokerStatus.trim()}`
+      : null,
+    patientData.takesBloodThinners ? 'Blutverduenner: Ja' : null,
+    hasText(patientData.immuneSystemStatus) && patientData.immuneSystemStatus.trim() !== 'Nicht angegeben'
+      ? `Immunsystem: ${patientData.immuneSystemStatus.trim()}`
+      : null,
+    hasText(patientData.immuneSystemDetails)
+      ? `Immunsystem Details: ${patientData.immuneSystemDetails.trim()}`
+      : null,
     hasText(patientData.allergies) ? `Allergien: ${patientData.allergies.trim()}` : null,
     hasText(patientData.medications) ? `Medikamente: ${patientData.medications.trim()}` : null,
     hasText(patientData.substanceInfluence) && patientData.substanceInfluence.trim() !== 'Nein'
       ? `Substanzbeeinflussung: ${patientData.substanceInfluence.trim()}`
       : null,
+    hasText(patientData.drugDetails) ? `Substanz Details: ${patientData.drugDetails.trim()}` : null,
     patientData.recentAbroad
       ? `Auslandsaufenthalt letzte 3 Monate: ${hasText(patientData.recentAbroadDetails) ? patientData.recentAbroadDetails.trim() : 'Ja'}`
       : null,

@@ -1,34 +1,185 @@
 import { useNavigate, useSearchParams } from "react-router";
-import { PhoneCall } from "lucide-react";
+import { PhoneCall, Download } from "lucide-react";
 import PageShell from "../components/PageShell";
 import ResultCard from "../features/results/ResultCard";
+import NearbyPracticeSearch from "../features/results/NearbyPracticeSearch";
 import Button from "../components/Button";
-import { createSpecialtyConfig, isCareLevel, isMedicalSpecialty, TRIAGE_CONFIGS } from "../features/triage/triage";
+import { createSpecialtyConfig, isCareLevel, isMedicalSpecialty, TRIAGE_CONFIGS } from "../types/triage";
 import { useAssessment } from "../lib/AssessmentContext";
-import type { CareLevel } from "../../../shared/result.types";
-import { DURATIONS, getMeasurementConfig } from "../features/symptoms/symptoms.constants";
+import { getFrontendTriageRecommendation } from "../lib/specialtyRecommendation";
+import type { CareLevel, MedicalSpecialty, RecommendedSpecialty } from "../types/triage";
+import { DURATIONS, getMeasurementConfig, isAdministrativeSymptom } from "../features/symptoms/symptoms.constants";
 import type { Symptom } from "../types/assessment";
+
+function isPsychSymptom(symptom: Symptom) {
+  const text = `${symptom.region} ${symptom.side ?? ""}`.toLowerCase();
+
+  return (
+    text.includes("psych") ||
+    text.includes("angst") ||
+    text.includes("panik") ||
+    text.includes("sucht") ||
+    text.includes("niedergeschlagenheit") ||
+    text.includes("suizid")
+  );
+}
+
+function isSuicidalSymptom(symptom: Symptom) {
+  return `${symptom.region} ${symptom.side ?? ""}`.toLowerCase().includes("suizid");
+}
+
+function hasPsychSelection(symptoms: Symptom[]) {
+  return symptoms.some(isPsychSymptom);
+}
+
+function getVisibleMedicalSpecialties(specialties: RecommendedSpecialty[] = []) {
+  return specialties
+    .map((specialty) => specialty.specialty)
+    .filter(isMedicalSpecialty)
+    .filter((specialty, index, list) => list.indexOf(specialty) === index)
+    .slice(0, 3);
+}
+
+function hasText(value: string | undefined | null): value is string {
+  return Boolean(value && value.trim().length > 0);
+}
 
 export default function ResultPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { patientData, symptomDetails, assessmentResult, resetAssessment } = useAssessment();
+  const { patientData, selectedSymptoms, symptomDetails, assessmentResult, resetAssessment } = useAssessment();
 
   const isEmergency = searchParams.get("emergency") === "true";
-  const fallbackCareLevel: CareLevel = isEmergency ? "emergency" : "selfcare";
-  const careLevel = assessmentResult?.careLevel ?? fallbackCareLevel;
-  const specialtyParam = searchParams.get("specialty");
-  const backendRecommendedSpecialty = assessmentResult?.recommendedSpecialty ?? null;
-  const recommendedSpecialty = isMedicalSpecialty(backendRecommendedSpecialty)
-    ? backendRecommendedSpecialty
-    : isMedicalSpecialty(specialtyParam)
-      ? specialtyParam
-      : null;
+
+  const hasAdministrativeSelection = selectedSymptoms.some((symptom) =>
+    symptom.sides?.length
+      ? symptom.sides.some((side) => isAdministrativeSymptom(symptom.region, side))
+      : isAdministrativeSymptom(symptom.region, symptom.side)
+  );
+
+  const hasCapturedSymptoms = selectedSymptoms.length > 0 || symptomDetails.length > 0 || hasAdministrativeSelection;
+  const shouldShowAssessmentData = !isEmergency && !hasAdministrativeSelection;
+
+  const handleReset = () => {
+    resetAssessment();
+    navigate("/");
+  };
+
+  if (!isEmergency && !hasCapturedSymptoms) {
+    return (
+      <PageShell
+        title="Keine Beschwerden erfasst"
+        subtitle="Für eine Einschätzung müssen zuerst Beschwerden ausgewählt werden."
+      >
+        <div className="rounded-[16px] bg-[#FEF3C7] border-l-4 border-[#F59E0B] p-5 md:p-6 mb-4">
+          <p className="font-['DM_Sans:Bold',sans-serif] font-bold text-[#92400E] text-lg mb-2">
+            Es wurde noch keine Beschwerde angegeben.
+          </p>
+          <p className="font-['DM_Sans:Medium',sans-serif] font-medium text-[#92400E] text-sm leading-relaxed">
+            Bitte wählen Sie mindestens eine Beschwerde aus, damit eine vorläufige Einschätzung erstellt werden kann.
+          </p>
+        </div>
+
+        <div className="flex flex-col sm:flex-row gap-3 mb-6">
+          <Button onClick={() => navigate("/symptom-selection")}>
+            <p className="font-['DM_Sans:Bold',sans-serif] font-bold text-base">
+              Beschwerden erfassen
+            </p>
+          </Button>
+
+          <Button variant="secondary" onClick={handleReset}>
+            <p className="font-['DM_Sans:Bold',sans-serif] font-bold text-base">
+              Neue Einschätzung starten
+            </p>
+          </Button>
+        </div>
+      </PageShell>
+    );
+  }
+
+  const isMultipleDays = (duration: string) => ["days", "week", "weeks"].includes(duration);
+  const isShortDuration = (duration: string) => ["today", "days"].includes(duration);
+  const isLongDuration = (duration: string) => ["week", "weeks"].includes(duration);
+
+  const getSymptomCareLevel = (symptom: Symptom): CareLevel => {
+    const config = getMeasurementConfig(symptom.region, symptom.side);
+    const value = symptom.measurementValue ?? symptom.painLevel ?? 0;
+
+    if (isAdministrativeSymptom(symptom.region, symptom.side)) {
+      return "doctor";
+    }
+
+    if (isPsychSymptom(symptom)) {
+      if (isSuicidalSymptom(symptom) && (symptom.measurementValue ?? 0) >= 8) return "emergency";
+      return "doctor";
+    }
+
+    if (config.type === "temperature") {
+      if (symptom.duration && value >= 40 && isMultipleDays(symptom.duration)) return "emergency";
+      if (value >= 39) return "doctor";
+      return "selfcare";
+    }
+
+    if (value >= 8) return "emergency";
+    if (value >= 5) return "doctor";
+    return "selfcare";
+  };
+
+  const getHighestCareLevel = (levels: CareLevel[]): CareLevel => {
+    if (levels.includes("emergency")) return "emergency";
+    if (levels.includes("specialist")) return "specialist";
+    if (levels.includes("doctor")) return "doctor";
+    return "selfcare";
+  };
+
+  const calculateCareLevel = (): CareLevel => {
+    if (isEmergency) return "emergency";
+    if (hasAdministrativeSelection) return "doctor";
+    if (symptomDetails.length === 0) return "selfcare";
+
+    return getHighestCareLevel(symptomDetails.map(getSymptomCareLevel));
+  };
+
+  const specialtyRecommendation = isEmergency
+    ? null
+    : getFrontendTriageRecommendation({
+        patientData,
+        selectedSymptoms: selectedSymptoms ?? [],
+        symptomDetails,
+      });
+
+  const visibleSpecialties = getVisibleMedicalSpecialties(specialtyRecommendation?.recommendedSpecialties ?? []);
+  const baselineCareLevel = calculateCareLevel();
+
+  const backendCareLevel = isCareLevel(assessmentResult?.careLevel ?? null)
+    ? assessmentResult?.careLevel
+    : null;
+  const recommendationCareLevel: CareLevel | null = specialtyRecommendation?.careLevel ?? null;
+  const careLevel: CareLevel = isEmergency
+    ? "emergency"
+    : backendCareLevel ?? getHighestCareLevel([baselineCareLevel, recommendationCareLevel].filter(Boolean) as CareLevel[]);
+  const backendVisibleSpecialties = getVisibleMedicalSpecialties(assessmentResult?.recommendedSpecialties ?? []);
+  const preferredSpecialty = isMedicalSpecialty(assessmentResult?.recommendedSpecialty ?? null)
+    ? assessmentResult?.recommendedSpecialty
+    : null;
+  const mergedVisibleSpecialties = Array.from(
+    new Set([preferredSpecialty, ...backendVisibleSpecialties, ...visibleSpecialties].filter(Boolean))
+  ) as MedicalSpecialty[];
 
   const config =
-    careLevel === "specialist" && recommendedSpecialty
-      ? createSpecialtyConfig(recommendedSpecialty)
+    careLevel === "specialist" && mergedVisibleSpecialties.length > 0
+      ? createSpecialtyConfig(mergedVisibleSpecialties[0])
+      : careLevel === "doctor"
+      ? {
+          ...TRIAGE_CONFIGS.doctor,
+          title: "Ärztliche Versorgung empfohlen",
+          description: hasAdministrativeSelection
+            ? "Für Ihr Anliegen ist der Hausarzt bzw. die Allgemeinmedizin die passende Anlaufstelle."
+            : "Ihre Beschwerden sollten ärztlich abgeklärt werden. Je nach Beschwerdebild kann eine fachärztliche Abklärung sinnvoll sein.",
+      }
       : TRIAGE_CONFIGS[careLevel];
+  const additionalSpecialtyCards =
+    careLevel === "specialist" ? mergedVisibleSpecialties.slice(1) : mergedVisibleSpecialties;
 
   const callAction =
     careLevel === "emergency"
@@ -37,33 +188,31 @@ export default function ResultPage() {
         ? { href: "tel:116117", label: "116 117 anrufen", description: "Ärztlicher Bereitschaftsdienst" }
         : null;
 
-  const explanationReasons =
-    assessmentResult?.reasons?.length
-      ? assessmentResult.reasons
-      : [
-          "Ihre Angaben wurden ausgewertet.",
-          "Bei Verschlechterung oder Unsicherheit sollten Sie medizinische Hilfe suchen.",
-        ];
-
+  const showPsychSupport = hasPsychSelection(symptomDetails);
   const plainLanguageSummary =
     assessmentResult?.reviewSummary?.plainLanguage?.trim() ||
     assessmentResult?.summary?.trim() ||
-    "Die Angaben wurden strukturiert ausgewertet.";
-
-  const professionalSummary = assessmentResult?.reviewSummary?.professionalSummary?.trim() || null;
-
-  const handleReset = () => {
-    resetAssessment();
-    navigate("/");
-  };
+    "Die Angaben wurden aufgenommen und strukturiert zusammengefasst.";
+  const professionalSummary =
+    assessmentResult?.reviewSummary?.professionalSummary?.trim() || null;
+  const explanationReasons =
+    assessmentResult?.reasons?.length
+      ? assessmentResult.reasons
+      : specialtyRecommendation?.reasons?.length
+        ? specialtyRecommendation.reasons
+        : [
+            "Ihre Symptome sollten anhand von Dauer und Intensität eingeordnet werden.",
+            "Die Empfehlung ist eine vorläufige Einschätzung und ersetzt keine ärztliche Beurteilung.",
+          ];
+  const shouldShowReasons = explanationReasons.length > 0;
 
   const getDurationLabel = (durationId: string) => {
-    return DURATIONS.find((d) => d.id === durationId)?.label || durationId;
+    return DURATIONS.find((duration) => duration.id === durationId)?.label || durationId;
   };
 
   const getMeasurementSummary = (symptom: Symptom) => {
     const config = getMeasurementConfig(symptom.region, symptom.side);
-    const value = symptom.painLevel ?? 0;
+    const value = symptom.measurementValue ?? symptom.painLevel ?? 0;
 
     if (config.type === "temperature") {
       return `${config.title} ${value.toFixed(1)} ${config.unit}`;
@@ -82,8 +231,24 @@ export default function ResultPage() {
             `Geschlecht: ${patientData.gender}`,
             patientData.isPregnant ? "Schwanger: Ja" : null,
             patientData.isBreastfeeding ? "Stillend: Ja" : null,
+            hasText(patientData.currentMood) ? `Aktuelle Stimmung: ${patientData.currentMood}` : null,
+            hasText(patientData.smokerStatus) && patientData.smokerStatus !== "Nicht angegeben"
+              ? `Raucherstatus: ${patientData.smokerStatus}`
+              : null,
+            patientData.takesBloodThinners ? "Blutverdünner: Ja" : null,
+            hasText(patientData.immuneSystemStatus) && patientData.immuneSystemStatus !== "Nicht angegeben"
+              ? `Immunsystem: ${patientData.immuneSystemStatus}`
+              : null,
+            hasText(patientData.immuneSystemDetails) ? `Immunsystem Details: ${patientData.immuneSystemDetails}` : null,
             patientData.allergies ? `Allergien: ${patientData.allergies}` : null,
             patientData.medications ? `Medikamente: ${patientData.medications}` : null,
+            patientData.substanceInfluence && patientData.substanceInfluence !== "Nein"
+              ? `Substanzeinfluss: ${patientData.substanceInfluence}`
+              : null,
+            hasText(patientData.drugDetails) ? `Substanz Details: ${patientData.drugDetails}` : null,
+            patientData.recentAbroad
+              ? `Ausland letzte 3 Monate: ${patientData.recentAbroadDetails || "Ja"}`
+              : null,
             patientData.conditions.length > 0
               ? `Vorerkrankungen: ${patientData.conditions.join(", ")}`
               : null,
@@ -110,15 +275,11 @@ export default function ResultPage() {
   const handlePdfDownload = async () => {
     try {
       const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:3000";
-      const assessmentCareLevel = assessmentResult?.careLevel ?? null;
-      const assessmentRecommendedSpecialty = assessmentResult?.recommendedSpecialty ?? null;
-      const safeCareLevel = isCareLevel(assessmentCareLevel)
-        ? assessmentCareLevel
-        : careLevel;
-
-      const safeRecommendedSpecialty = isMedicalSpecialty(assessmentRecommendedSpecialty)
-        ? assessmentRecommendedSpecialty
-        : recommendedSpecialty ?? undefined;
+      const safeCareLevel = backendCareLevel ?? careLevel;
+      const safeRecommendedSpecialty =
+        safeCareLevel === "specialist" && mergedVisibleSpecialties.length > 0
+          ? mergedVisibleSpecialties[0]
+          : undefined;
 
       const pdfPayload = {
         reviewSummary: {
@@ -127,9 +288,7 @@ export default function ResultPage() {
         },
         triage: {
           careLevel: safeCareLevel,
-          ...(safeCareLevel === "specialist" && safeRecommendedSpecialty
-            ? { recommendedSpecialty: safeRecommendedSpecialty }
-            : {}),
+          ...(safeRecommendedSpecialty ? { recommendedSpecialty: safeRecommendedSpecialty } : {}),
           reasons: explanationReasons.slice(0, 5),
         },
         ...(patientData ? { patientData } : {}),
@@ -160,8 +319,8 @@ export default function ResultPage() {
 
       const blob = await response.blob();
       const url = URL.createObjectURL(blob);
-      const link = document.createElement("a");
 
+      const link = document.createElement("a");
       link.href = url;
       link.download = "triage-review-summary.pdf";
       document.body.appendChild(link);
@@ -177,31 +336,26 @@ export default function ResultPage() {
 
   return (
     <PageShell
-      title="Ihre Auswertung"
-      subtitle="Basierend auf Ihren Angaben haben wir folgende Empfehlung für Sie."
+      title="Ihre Einschätzung"
+      subtitle={
+        isEmergency
+          ? "Aufgrund eines Warnsymptoms wird eine sofortige medizinische Abklärung empfohlen."
+          : "Basierend auf Ihren Angaben haben wir folgende Empfehlung für Sie vorbereitet."
+      }
     >
       <ResultCard config={config} />
 
       <div className="bg-white border border-[#d8e0ea] rounded-[16px] p-5 md:p-6 mb-4">
-        <p
-          className="font-['DM_Sans:Bold',sans-serif] font-bold text-app-text-primary text-lg mb-3"
-          style={{ fontVariationSettings: "'opsz' 14" }}
-        >
+        <p className="font-['DM_Sans:Bold',sans-serif] font-bold text-[#486284] text-lg mb-3">
           Ihre Einschätzung
         </p>
-        <p
-          className="font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-body text-sm md:text-base leading-relaxed"
-          style={{ fontVariationSettings: "'opsz' 14" }}
-        >
+        <p className="font-['DM_Sans:Medium',sans-serif] font-medium text-[#3e3e3e] text-sm md:text-base leading-relaxed">
           {plainLanguageSummary}
         </p>
         {assessmentResult?.aiUnavailable && (
-          <p
-            className="mt-3 font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-body text-xs leading-relaxed"
-            style={{ fontVariationSettings: "'opsz' 14" }}
-          >
-            Die automatische KI-Auswertung war nicht vollständig verfügbar. Die Empfehlung wurde
-            deshalb mit einem vorsichtigen medizinischen Fallback erzeugt.
+          <p className="mt-3 font-['DM_Sans:Medium',sans-serif] font-medium text-[#3e3e3e] text-xs leading-relaxed">
+            Die automatische KI-Auswertung war nicht vollständig verfügbar. Die Empfehlung wurde deshalb
+            mit einem vorsichtigen medizinischen Fallback erzeugt.
           </p>
         )}
       </div>
@@ -221,212 +375,132 @@ export default function ResultPage() {
         </a>
       )}
 
-      <div className="bg-[#eff2f6] rounded-[16px] p-5 md:p-6 mb-4">
-        <p
-          className="font-['DM_Sans:Bold',sans-serif] font-bold text-app-text-primary text-lg mb-3"
-          style={{ fontVariationSettings: "'opsz' 14" }}
-        >
-          Begründung
-        </p>
-        <ul className="space-y-1.5">
-          {explanationReasons.map((reason) => (
-            <li
-              key={reason}
-              className="font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-body text-sm leading-relaxed"
-              style={{ fontVariationSettings: "'opsz' 14" }}
-            >
-              • {reason}
-            </li>
-          ))}
-        </ul>
-      </div>
+      {additionalSpecialtyCards.map((specialty: MedicalSpecialty) => (
+        <ResultCard
+          key={specialty}
+          config={createSpecialtyConfig(specialty)}
+        />
+      ))}
 
-      <div className="bg-white border-2 border-[#486284] rounded-[16px] p-5 md:p-6 mb-4">
-        <div className="flex items-center justify-between mb-4">
-          <p
-            className="font-['DM_Sans:Bold',sans-serif] font-bold text-app-text-primary text-lg"
-            style={{ fontVariationSettings: "'opsz' 14" }}
-          >
+      {showPsychSupport && (
+        <div className="bg-[#eff2f6] rounded-[16px] p-5 md:p-6 mb-4">
+          <p className="font-['DM_Sans:Bold',sans-serif] font-bold text-[#486284] text-lg mb-2">
+            Unterstützung bei psychischer Belastung
+          </p>
+          <p className="font-['DM_Sans:Medium',sans-serif] font-medium text-[#3e3e3e] text-sm leading-relaxed mb-3">
+            Wenn Sie sich psychisch stark belastet fühlen, können Sie zusätzlich anonym und kostenfrei mit der TelefonSeelsorge sprechen.
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+            {["0800 1110111", "0800 1110222", "116 123"].map((phone) => (
+              <a
+                key={phone}
+                href={`tel:${phone.replaceAll(" ", "")}`}
+                className="rounded-[12px] bg-white px-4 py-3 text-center font-['DM_Sans:Bold',sans-serif] font-bold text-[#486284] hover:bg-[#dde3ea]"
+              >
+                {phone}
+              </a>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <NearbyPracticeSearch careLevel={careLevel} specialties={visibleSpecialties} />
+
+      {shouldShowReasons && (
+        <div className="bg-[#eff2f6] rounded-[16px] p-5 md:p-6 mb-4">
+          <p className="font-['DM_Sans:Bold',sans-serif] font-bold text-[#486284] text-lg mb-3">
+            Begründung
+          </p>
+
+          {isEmergency ? (
+            <ul className="space-y-1.5">
+              <li className="font-['DM_Sans:Medium',sans-serif] font-medium text-[#3e3e3e] text-sm leading-relaxed">
+                • Ein Warnsymptom wurde ausgewählt.
+              </li>
+              <li className="font-['DM_Sans:Medium',sans-serif] font-medium text-[#3e3e3e] text-sm leading-relaxed">
+                • Bitte suchen Sie sofort medizinische Hilfe oder wählen Sie bei akuter Gefahr den Notruf.
+              </li>
+            </ul>
+          ) : (
+            <ul className="space-y-1.5">
+              {explanationReasons.map((reason) => (
+                <li
+                  key={reason}
+                  className="font-['DM_Sans:Medium',sans-serif] font-medium text-[#3e3e3e] text-sm leading-relaxed"
+                >
+                  • {reason}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
+
+      {shouldShowAssessmentData && (
+        <div className="bg-white border-2 border-[#486284] rounded-[16px] p-5 md:p-6 mb-4">
+          <p className="mb-4 font-['DM_Sans:Bold',sans-serif] font-bold text-[#486284] text-lg">
             Medizinische Zusammenfassung
           </p>
-          <button
-            onClick={handlePdfDownload}
-            aria-label="download-summary"
-            className="bg-[#486284] text-app-text-on-primary rounded-[10px] px-4 py-2 hover:bg-[#3a4d68] transition-all flex items-center gap-2"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-              />
-            </svg>
-            <span
-              className="font-['DM_Sans:Bold',sans-serif] font-bold text-sm"
-              style={{ fontVariationSettings: "'opsz' 14" }}
-            >
-              PDF
-            </span>
-          </button>
-        </div>
 
-        <div className="space-y-4">
           {patientData && (
-            <div>
-              <p
-                className="font-['DM_Sans:Bold',sans-serif] font-bold text-app-text-body text-sm mb-2"
-                style={{ fontVariationSettings: "'opsz' 14" }}
-              >
-                Stammdaten
+            <div className="mb-4 bg-[#eff2f6] rounded-[10px] p-3">
+              <p className="font-['DM_Sans:Medium',sans-serif] font-medium text-[#3e3e3e] text-xs leading-relaxed whitespace-pre-line">
+                {buildProfessionalSummaryFallback().split("\n\nBeschwerden:")[0]}
               </p>
-              <div className="bg-[#eff2f6] rounded-[10px] p-3 space-y-1">
-                <p className="font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-body text-xs">
-                  <strong>Geburtsdatum:</strong> {patientData.birthMonth}/{patientData.birthYear}
-                </p>
-                <p className="font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-body text-xs">
-                  <strong>Größe/Gewicht:</strong> {patientData.height} cm / {patientData.weight} kg
-                </p>
-                <p className="font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-body text-xs">
-                  <strong>Geschlecht:</strong> {patientData.gender}
-                </p>
-                {patientData.isPregnant && (
-                  <p className="font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-body text-xs">
-                    <strong>Schwanger:</strong> Ja
-                  </p>
-                )}
-                {patientData.isBreastfeeding && (
-                  <p className="font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-body text-xs">
-                    <strong>Stillend:</strong> Ja
-                  </p>
-                )}
-                {patientData.allergies && (
-                  <p className="font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-body text-xs">
-                    <strong>Allergien:</strong> {patientData.allergies}
-                  </p>
-                )}
-                {patientData.medications && (
-                  <p className="font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-body text-xs">
-                    <strong>Medikamente:</strong> {patientData.medications}
-                  </p>
-                )}
-                {patientData.substanceInfluence && patientData.substanceInfluence !== "Nein" && (
-                  <p className="font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-body text-xs">
-                    <strong>Einfluss:</strong> {patientData.substanceInfluence}
-                  </p>
-                )}
-                {patientData.recentAbroad && (
-                  <p className="font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-body text-xs">
-                    <strong>Ausland letzte 3 Monate:</strong> Ja
-                    {patientData.recentAbroadDetails && ` (${patientData.recentAbroadDetails})`}
-                  </p>
-                )}
-                {patientData.conditions.length > 0 && (
-                  <p className="font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-body text-xs">
-                    <strong>Vorerkrankungen:</strong> {patientData.conditions.join(", ")}
-                  </p>
-                )}
-              </div>
             </div>
           )}
 
           {symptomDetails.length > 0 && (
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <p
-                  className="font-['DM_Sans:Bold',sans-serif] font-bold text-app-text-body text-sm"
-                  style={{ fontVariationSettings: "'opsz' 14" }}
-                >
-                  Beschwerden
-                </p>
-              </div>
-              <div className="bg-[#eff2f6] rounded-[10px] p-3">
-                <p className="font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-body text-xs leading-relaxed">
-                  Patient klagt über{" "}
-                  {symptomDetails.map((symptom, index) => (
-                    <span key={`${symptom.region}-${symptom.side ?? "none"}-${index}`}>
-                      <strong>
-                        {symptom.side ? `${symptom.region} (${symptom.side})` : symptom.region}
-                      </strong>{" "}
-                      ({getMeasurementSummary(symptom)}
-                      {symptom.duration && `, ${getDurationLabel(symptom.duration)}`})
-                      {index < symptomDetails.length - 1 &&
-                        (index === symptomDetails.length - 2 ? " und " : ", ")}
-                    </span>
-                  ))}
-                  .
-                </p>
-              </div>
+            <div className="bg-[#eff2f6] rounded-[10px] p-3">
+              <p className="font-['DM_Sans:Medium',sans-serif] font-medium text-[#3e3e3e] text-xs leading-relaxed">
+                Patient klagt über{" "}
+                {symptomDetails.map((symptom, index) => (
+                  <span key={symptom.id}>
+                    <strong>
+                      {symptom.side ? `${symptom.region} (${symptom.side})` : symptom.region}
+                    </strong>{" "}
+                    ({getMeasurementSummary(symptom)}
+                    {symptom.duration && `, ${getDurationLabel(symptom.duration)}`})
+                    {index < symptomDetails.length - 1 && (index === symptomDetails.length - 2 ? " und " : ", ")}
+                  </span>
+                ))}
+                .
+              </p>
             </div>
           )}
 
           {professionalSummary && (
-            <div>
-              <p
-                className="font-['DM_Sans:Bold',sans-serif] font-bold text-app-text-body text-sm mb-2"
-                style={{ fontVariationSettings: "'opsz' 14" }}
-              >
-                Klinische Zusammenfassung
+            <div className="mt-4 bg-[#eff2f6] rounded-[10px] p-3">
+              <p className="font-['DM_Sans:Medium',sans-serif] font-medium text-[#3e3e3e] text-xs leading-relaxed whitespace-pre-line">
+                {professionalSummary}
               </p>
-              <div className="bg-[#eff2f6] rounded-[10px] p-3">
-                <p className="whitespace-pre-line font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-body text-xs leading-relaxed">
-                  {professionalSummary}
-                </p>
-              </div>
             </div>
           )}
 
-          <div className="pt-3 border-t border-gray-200">
-            <p className="font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-subtle text-xs">
-              Erstellt am:{" "}
-              {new Date(assessmentResult?.createdAt ?? Date.now()).toLocaleDateString("de-DE", {
-                day: "2-digit",
-                month: "2-digit",
-                year: "numeric",
-                hour: "2-digit",
-                minute: "2-digit",
-              })}
-            </p>
+          <div className="mt-4 flex justify-end">
+            <Button variant="secondary" onClick={handlePdfDownload} className="inline-flex items-center gap-2 px-5">
+              <Download className="size-5 flex-shrink-0" aria-hidden="true" />
+              <span className="font-['DM_Sans:Bold',sans-serif] font-bold text-base whitespace-nowrap">
+                PDF herunterladen
+              </span>
+            </Button>
           </div>
         </div>
-      </div>
+      )}
 
       <div className="bg-[#FEF3C7] border-l-4 border-[#F59E0B] rounded-[16px] p-5 md:p-6 mt-4">
-        <div className="flex items-start gap-3">
-          <svg className="w-6 h-6 text-app-text-warning flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
-            />
-          </svg>
-          <div>
-            <p
-              className="font-['DM_Sans:Bold',sans-serif] font-bold text-app-text-warning-strong text-base mb-2"
-              style={{ fontVariationSettings: "'opsz' 14" }}
-            >
-              Wichtiger Hinweis
-            </p>
-            <p
-              className="font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-warning-strong text-sm leading-relaxed"
-              style={{ fontVariationSettings: "'opsz' 14" }}
-            >
-              Diese Einschätzung ist <strong>keine medizinische Diagnose</strong> und ersetzt nicht den Besuch bei einem Arzt.
-              KI-Systeme können Fehler machen. Bei Unsicherheit oder Verschlechterung Ihres Zustands suchen Sie bitte
-              umgehend medizinische Hilfe.
-            </p>
-          </div>
-        </div>
+        <p className="font-['DM_Sans:Bold',sans-serif] font-bold text-[#92400E] text-base mb-2">
+          Wichtiger Hinweis
+        </p>
+        <p className="font-['DM_Sans:Medium',sans-serif] font-medium text-[#92400E] text-sm leading-relaxed">
+          Diese Einschätzung ist <strong>keine Diagnose</strong>. Bei Unsicherheit oder Verschlechterung suchen Sie bitte medizinische Hilfe.
+        </p>
       </div>
 
-      <div className="mt-6 mb-6">
+      <div className="mt-6 mb-6 flex flex-col sm:flex-row gap-3 justify-end">
         <Button onClick={handleReset}>
-          <p
-            className="font-['DM_Sans:Bold',sans-serif] font-bold text-base"
-            style={{ fontVariationSettings: "'opsz' 14" }}
-          >
-            Neue Bewertung starten
+          <p className="font-['DM_Sans:Bold',sans-serif] font-bold text-base">
+            Neue Einschätzung starten
           </p>
         </Button>
       </div>
