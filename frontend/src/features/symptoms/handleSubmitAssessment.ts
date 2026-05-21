@@ -7,6 +7,7 @@ type SymptomDraft = {
   region: string;
   side?: string;
   painLevel?: number;
+  measurementValue?: number;
   duration?: string;
   active: boolean;
   measurementType: SymptomMeasurementType;
@@ -41,7 +42,7 @@ export async function handleSubmitAssessment({
     region: symptom.region,
     side: symptom.side,
     measurementType: symptom.measurementType,
-    measurementValue: symptom.painLevel ?? getMeasurementConfig(symptom.region, symptom.side).defaultValue,
+    measurementValue: symptom.measurementValue ?? symptom.painLevel ?? getMeasurementConfig(symptom.region, symptom.side).defaultValue,
     duration: (symptom.duration as TriageSymptomDuration) ?? "today",
     active: true,
   }));
