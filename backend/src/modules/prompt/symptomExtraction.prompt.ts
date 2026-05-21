@@ -4,7 +4,7 @@ export const symptomExtractionInstructions = [
   'Wenn im Text eine Schmerzintensität genannt wird, gib sie als painLevel mit einer ganzen Zahl von 1 bis 10 zurück.',
   'Wenn keine Schmerzintensität genannt wird oder die Beschwerde keine Schmerzangabe hat, lasse painLevel weg.',
   'Wenn im Text eine Dauer genannt wird, gib sie als duration mit genau einer dieser vier Optionen zurück: today, days, week, weeks.',
-  'Ordne die Dauer so zu: today = Seit heute, days = Seit ein paar Tagen, week = Seit einer Woche, weeks = Seit mehr als 2 Wochen.',
+  'Ordne die Dauer so zu: today = Seit heute (0-1 Tag), days = Seit ein paar Tagen (2-6 Tage), week = Seit einer Woche (7-13 Tage), weeks = Seit mehr als 2 Wochen (ab 14 Tagen).',
   'Wenn keine Dauer genannt wird oder sie nicht sicher zuordenbar ist, lasse duration weg.',
   'Verwende nur diese Regionen: Kopf, Brust, Rücken, Arme, Bauch, Beine, Verbrennung, Allgemein, Psychische Probleme.',
   'Verwende nur diese Seiten/Unteroptionen, wenn sie eindeutig genannt oder sicher ableitbar sind:',
