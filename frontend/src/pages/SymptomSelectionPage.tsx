@@ -7,16 +7,18 @@ import Button from "../components/Button";
 import Modal from "../components/Modal";
 import SymptomButtonGrid from "../features/symptoms/SymptomButtonGrid";
 import { useAssessment } from "../lib/AssessmentContext";
+import { extractSymptomsFromText } from "../lib/symptomExtractionApi";
 import {
   BODY_AREA_LABELS,
   BODY_AREA_REGION_IDS,
   getBodyRegionsForCategory,
+  getMeasurementConfig,
   isAdministrativeSymptom,
   isCriticalSymptom,
   MAX_SYMPTOMS,
   type BodyAreaCategory,
 } from "../features/symptoms/symptoms.constants";
-import type { SelectedSymptom } from "../types/assessment";
+import type { SelectedSymptom, Symptom } from "../types/assessment";
 
 type SelectionMeta = {
   countsAsMainTile?: boolean;
@@ -219,8 +221,7 @@ export default function SymptomSelectionPage() {
     patientData,
     selectedSymptoms: contextSymptoms,
     setSelectedSymptoms: setContextSymptoms,
-    setSymptomDetails,
-    submitTextAssessment,
+    setSymptomDetails
   } = useAssessment();
 
   const [selectedCategory, setSelectedCategory] = useState<BodyAreaCategory | null>(initialCategory);
@@ -337,10 +338,40 @@ export default function SymptomSelectionPage() {
     setIsTextSubmitting(true);
 
     try {
-      await submitTextAssessment(trimmedText, "text");
+      const extractionResult = await extractSymptomsFromText(trimmedText, "text");
+
+      if (extractionResult.invalidInput || extractionResult.symptoms.length === 0) {
+        throw new Error(extractionResult.message ?? "Die Freitextangaben konnten nicht ausgewertet werden.");
+      }
+
+      const extractedSymptoms: SelectedSymptom[] = extractionResult.symptoms.slice(0, MAX_SYMPTOMS).map((symptom) => ({
+        region: symptom.region,
+        side: symptom.side,
+        mainKey: symptom.side ? `${symptom.region} (${symptom.side})` : symptom.region,
+        isCritical: isCriticalSymptom(symptom.region, symptom.side),
+      }));
+
+      const extractedDetails: Symptom[] = extractedSymptoms.map((symptom, index) => {
+        const config = getMeasurementConfig(symptom.region, symptom.side);
+        const extracted = extractionResult.symptoms[index];
+
+        return {
+          id: `symptom-${Date.now()}-${index}`,
+          region: symptom.region,
+          side: symptom.side,
+          measurementType: config.type,
+          measurementValue: extracted?.painLevel ?? config.defaultValue,
+          duration: extracted?.duration,
+          active: true,
+        };
+      });
+
+      setSelectedSymptoms(extractedSymptoms);
+      setContextSymptoms(extractedSymptoms);
+      setSymptomDetails(extractedDetails);
       setIsModalOpen(false);
       setSymptomText("");
-      navigate("/result");
+      navigate("/symptom-details");
     } catch (error) {
       setTextSubmitError(
         error instanceof Error
