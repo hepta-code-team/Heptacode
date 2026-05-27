@@ -34,7 +34,7 @@ export default function WizardNavigation() {
               aria-current={isActive ? "step" : undefined}
             >
               <span
-                className={`flex h-4 items-center justify-center truncate text-center font-['DM_Sans:SemiBold',sans-serif] text-[11px] font-semibold transition-colors ${
+                className={`flex h-4 items-center justify-center truncate text-center font-['DM_Sans:SemiBold',sans-serif] text-[13px] font-semibold transition-colors ${
                   isActive || isComplete ? "text-app-text-primary" : "text-transparent"
                 }`}
                 style={{ fontVariationSettings: "'opsz' 14" }}
