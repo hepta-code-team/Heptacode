@@ -12,27 +12,21 @@ interface EmergencySymptomGridProps {
 const symptoms = [
   {
     name: "Akute Atemnot",
-    desc: "Plötzliche Probleme beim Atmen oder starke Luftnot",
+    desc: "Plötzliche Probleme beim Atmen oder starke Luftnot.",
     descLong: "Plötzliche oder starke Probleme beim Atmen. Sie bekommen schlecht Luft oder fühlen sich, als würde die Atmung nicht ausreichen.",
     icon: imgIconAtemnot,
   },
   {
     name: "Starke Brustschmerzen",
-    desc: "Starker Schmerz oder Druck in der Brust",
+    desc: "Starker Schmerz, Druck oder ein Engegefühl in der Brust, das nicht nachlässt.",
     descLong: "Starker Schmerz, Druck oder Engegefühl in der Brust. Besonders wichtig, wenn es plötzlich beginnt oder nicht nachlässt.",
     icon: imgHeartPain,
   },
   {
     name: "Seh-/Sprachstörungen oder Lähmung",
-    desc: "Plötzliche Seh-, Sprach- oder Bewegungsprobleme",
+    desc: "Plötzlich auftetende Seh-, Sprach- oder Bewegungsprobleme. Außerdem ein hängender Mundwinkel oder verwaschene Sprache.",
     descLong: "Einseitige Lähmung oder Taubheit, ein hängender Mundwinkel, verwaschene Sprache, starke Verwirrtheit oder plötzlich auftretende Sehstörungen.",
     icon: imgConfusion,
-  },
-  {
-    name: "Allergische Reaktion",
-    desc: "Starke allergische Reaktion",
-    descLong: "Starke Atemnot, ein Engegefühl im Hals, Schwellungen im Gesicht, starker Hautausschlag oder Schwindel und Kreislaufprobleme.",
-    icon: allergy,
   },
   {
     name: "Starke Blutungen / Knochenbruch",
@@ -40,10 +34,15 @@ const symptoms = [
     descLong: "Starke Blutung, die nicht aufhört oder schnell zu viel Blutverlust führt. Auch bei tiefen Wunden, sichtbarer Fehlstellung oder Verdacht auf einen Knochenbruch.",
     icon: imgSevereBleeding,
   },
-
+  {
+    name: "Allergische Reaktion",
+    desc: "Starke allergische Reaktion, wie Atmenot, ein Engegefühl im Hals oder Schwellungen.",
+    descLong: "Starke Atemnot, ein Engegefühl im Hals, Schwellungen im Gesicht, starker Hautausschlag oder Schwindel und Kreislaufprobleme.",
+    icon: allergy,
+  },
   {
     name: "Starke Kopfschmerzen",
-    desc: "Sehr starke oder plötzlich einsetzende Kopfschmerzen",
+    desc: "Sehr starke, ungewohnte oder plötzlich einsetzende Kopfschmerzen.",
     descLong: "Sehr starke, ungewohnte oder plötzlich einsetzende Kopfschmerzen. Besonders auffällig, wenn sie anders sind als sonst oder sehr heftig beginnen.",
     icon: imgHeadache,
   },

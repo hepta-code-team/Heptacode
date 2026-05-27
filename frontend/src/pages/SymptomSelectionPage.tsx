@@ -63,7 +63,7 @@ function AnatomyFigure({
   return (
     <svg
       viewBox="0 0 220 350"
-      className="mx-auto h-[220px] w-[150px] md:h-[320px] md:w-[205px]"
+      className="mx-auto h-[330px] w-[210px] md:h-[390px] md:w-[245px]"
       role="img"
       aria-label="Klickbare Körperauswahl"
     >
@@ -241,8 +241,8 @@ export default function SymptomSelectionPage() {
       onBack={() => navigate("/medical-data")}
       maxWidth="2xl"
     >
-      <div className="grid grid-cols-1 lg:grid-cols-[300px_minmax(0,1fr)] gap-5 xl:gap-6 items-start">
-        <div className="rounded-[18px] bg-[#f5f7fa] p-4">
+      <div className="grid grid-cols-1 lg:grid-cols-[360px_minmax(0,1fr)] gap-5 xl:gap-6 items-start">
+        <div className="rounded-[18px] bg-[#f5f7fa] border-2 border-[#486284FF] p-4">
           <p
             className="mb-3 text-center font-['DM_Sans:Bold',sans-serif] font-bold text-app-text-primary text-sm"
             style={{ fontVariationSettings: "'opsz' 14" }}
