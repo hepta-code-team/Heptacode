@@ -149,7 +149,7 @@
   }
 
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground font-sans;
   }
 
   /**
@@ -159,7 +159,7 @@
 
   html {
     font-size: var(--font-size);
-  }
+    font-family: ui-sans-serif, system-ui, sans-serif;  }
 
   h1 {
     font-size: var(--text-2xl);

@@ -238,7 +238,7 @@ export default function SymptomSelectionPage() {
     <PageShell
       title="Wo haben Sie Beschwerden?"
       subtitle="Wählen Sie einen Bereich am Körper und ergänzen Sie bis zu 3 passende Beschwerden."
-      onBack={() => navigate("/patient-data")}
+      onBack={() => navigate("/medical-data")}
       maxWidth="2xl"
     >
       <div className="grid grid-cols-1 lg:grid-cols-[300px_minmax(0,1fr)] gap-5 xl:gap-6 items-start">

@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from "react-router";
 const pages = [
   { path: "/", name: "Red Flags" },
   { path: "/patient-data", name: "Stammdaten" },
+  { path: "/medical-data", name: "Medizinische Angaben" },
   { path: "/symptom-selection", name: "Beschwerden" },
   { path: "/symptom-details", name: "Details" },
   { path: "/result", name: "Auswertung" },

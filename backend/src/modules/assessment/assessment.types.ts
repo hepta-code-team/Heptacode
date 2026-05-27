@@ -14,6 +14,10 @@ export const patientDataSchema = z.object({
   recentAbroad: z.boolean(),
   recentAbroadDetails: z.string(),
   conditions: z.array(z.string()),
+  isSmoker: z.boolean(),
+  smokingSinceYears: z.string(),
+  cigarettesPerDay: z.string(),
+  conditionDetails: z.record(z.string(), z.string()),
 })
 
 export const selectedSymptomSchema = z.object({
