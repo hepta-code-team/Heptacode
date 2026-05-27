@@ -275,7 +275,7 @@ export default function MedicalDataPage() {
       subtitle="Ergänzen Sie optionale Angaben, falls sie für Ihre Beschwerden relevant sind."
       onBack={() => navigate("/patient-data")}
     >
-      {formData.gender === "Weiblich" && (
+      {(formData.gender === "Weiblich" || formData.gender === "Divers") && (
         <div className="bg-[#eff2f6] rounded-[14px] p-3">
           <p
             className="font-['DM_Sans:Bold',sans-serif] font-bold text-app-text-body text-sm mb-2"

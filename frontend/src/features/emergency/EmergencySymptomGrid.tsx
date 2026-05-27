@@ -3,8 +3,7 @@ import imgHeadache from "../../assets/emergency/headache.png";
 import imgHeartPain from "../../assets/emergency/heartpain.png";
 import imgIconAtemnot from "../../assets/emergency/shortness-of-breath.png";
 import imgSevereBleeding from "../../assets/emergency/severbleeding.png";
-import imgStomachPain from "../../assets/emergency/stomachpain.png";
-
+import allergy from "../../assets/emergency/allergy.png";
 interface EmergencySymptomGridProps {
   onSymptomClick: () => void;
   variant?: "mobile" | "desktop";
@@ -24,10 +23,16 @@ const symptoms = [
     icon: imgHeartPain,
   },
   {
-    name: "Starke Bauchschmerzen",
-    desc: "Sehr starke Schmerzen im Bauchbereich",
-    descLong: "Sehr starker Bauchschmerz, der plötzlich auftritt oder rasch schlimmer wird. Vor allem auffällig bei harter Bauchdecke, Übelkeit oder starkem Unwohlsein.",
-    icon: imgStomachPain,
+    name: "Seh-/Sprachstörungen oder Lähmung",
+    desc: "Plötzliche Seh-, Sprach- oder Bewegungsprobleme",
+    descLong: "Einseitige Lähmung oder Taubheit, ein hängender Mundwinkel, verwaschene Sprache, starke Verwirrtheit oder plötzlich auftretende Sehstörungen.",
+    icon: imgConfusion,
+  },
+  {
+    name: "Allergische Reaktion",
+    desc: "Starke allergische Reaktion",
+    descLong: "Starke Atemnot, ein Engegefühl im Hals, Schwellungen im Gesicht, starker Hautausschlag oder Schwindel und Kreislaufprobleme.",
+    icon: allergy,
   },
   {
     name: "Starke Blutungen / Knochenbruch",
@@ -35,12 +40,7 @@ const symptoms = [
     descLong: "Starke Blutung, die nicht aufhört oder schnell zu viel Blutverlust führt. Auch bei tiefen Wunden, sichtbarer Fehlstellung oder Verdacht auf einen Knochenbruch.",
     icon: imgSevereBleeding,
   },
-  {
-    name: "Seh-/Sprachstörungen oder Lähmung",
-    desc: "Plötzliche Seh-, Sprach- oder Bewegungsprobleme",
-    descLong: "Plötzliche Probleme beim Sehen, Sprechen oder Verstehen sowie die Lähmung einer Körperhälfte.",
-    icon: imgConfusion,
-  },
+
   {
     name: "Starke Kopfschmerzen",
     desc: "Sehr starke oder plötzlich einsetzende Kopfschmerzen",

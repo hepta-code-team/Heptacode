@@ -20,12 +20,12 @@ const GENDER_OPTIONS: Array<{ label: string; icon: LucideIcon }> = [
   { label: "Divers", icon: Transgender },
 ];
 
-const MOOD_OPTIONS: Array<{ label: string; icon: LucideIcon }> = [
-  { label: "Sehr schlecht", icon: Frown },
-  { label: "Schlecht", icon: Annoyed },
-  { label: "Mittel", icon: Meh },
-  { label: "Gut", icon: Smile },
-  { label: "Sehr gut", icon: Laugh },
+const MOOD_OPTIONS: Array<{ label: string; icon: LucideIcon; color: string; bgColor: string }> = [
+  { label: "Sehr schlecht", icon: Frown, color: "#EF4444", bgColor: "#FEE2E2" },
+  { label: "Schlecht", icon: Annoyed, color: "#F97316", bgColor: "#FFEDD5" },
+  { label: "Mittel", icon: Meh, color: "#EAB308", bgColor: "#FEF9C3" },
+  { label: "Gut", icon: Smile, color: "#84CC16", bgColor: "#ECFCCB" },
+  { label: "Sehr gut", icon: Laugh, color: "#10B981", bgColor: "#D1FAE5" },
 ];
 
 function isNumberInRange(value: string, min: number, max: number) {
@@ -252,13 +252,10 @@ export default function PatientDataPage() {
           >
             Wie ist Ihre allgemeine Stimmung heute?
           </p>
-          <p className="font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-primary text-xs">
-            Optional. Diese Angabe hilft nur dabei, dass sich die Einschätzung persönlicher anfühlt.
-          </p>
         </div>
 
         <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-5">
-          {MOOD_OPTIONS.map(({ label, icon: Icon }) => {
+          {MOOD_OPTIONS.map(({ label, icon: Icon, color, bgColor }) => {
             const isSelected = mood === label;
 
             return (
@@ -266,13 +263,19 @@ export default function PatientDataPage() {
                 key={label}
                 type="button"
                 onClick={() => setMood(isSelected ? "" : label)}
-                className={`flex min-h-12 items-center justify-center gap-1.5 rounded-[10px] px-2 py-2 text-center transition-all ${
-                  isSelected
-                    ? "bg-[#486284] text-white"
-                    : "bg-white text-app-text-body hover:bg-[#dde3ea]"
-                }`}
+                className="flex min-h-12 items-center justify-center gap-1.5 rounded-[10px] border px-2 py-2 text-center text-app-text-body transition-all hover:opacity-90"
+                style={{
+                  backgroundColor: isSelected ? bgColor : "#ffffff",
+                  borderColor: isSelected ? color : "transparent",
+                  boxShadow: isSelected ? `0 0 0 2px ${color}33` : "none",
+                }}
               >
-                <Icon className="size-4 flex-shrink-0" strokeWidth={2.3} aria-hidden="true" />
+                <Icon
+                  className="size-4 flex-shrink-0"
+                  color={color}
+                  strokeWidth={2.3}
+                  aria-hidden="true"
+                />
                 <span
                   className="font-['DM_Sans:SemiBold',sans-serif] font-semibold text-xs leading-tight"
                   style={{ fontVariationSettings: "'opsz' 14" }}
