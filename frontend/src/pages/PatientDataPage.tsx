@@ -254,7 +254,7 @@ export default function PatientDataPage() {
           </p>
         </div>
 
-        <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-5">
+        <div className="flex flex-wrap justify-center gap-1.5 sm:grid sm:grid-cols-5">
           {MOOD_OPTIONS.map(({ label, icon: Icon, color, bgColor }) => {
             const isSelected = mood === label;
 
@@ -263,7 +263,7 @@ export default function PatientDataPage() {
                 key={label}
                 type="button"
                 onClick={() => setMood(isSelected ? "" : label)}
-                className="flex min-h-12 items-center justify-center gap-1.5 rounded-[10px] border px-2 py-2 text-center text-app-text-body transition-all hover:opacity-90"
+                className="flex min-h-11 w-[calc((100%-0.75rem)/3)] items-center justify-center gap-1 rounded-[10px] border px-1.5 py-2 text-center text-app-text-body transition-all hover:opacity-90 sm:w-auto sm:gap-1.5 sm:px-2"
                 style={{
                   backgroundColor: isSelected ? bgColor : "#ffffff",
                   borderColor: isSelected ? color : "transparent",
