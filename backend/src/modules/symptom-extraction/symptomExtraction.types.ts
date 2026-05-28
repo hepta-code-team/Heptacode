@@ -1,12 +1,11 @@
 import { z } from 'zod'
+import {
+  SYMPTOM_MEASUREMENT_TYPES,
+  TRIAGE_SYMPTOM_DURATIONS,
+  type TriageSymptom,
+} from '../../../../shared/symptom.types.js'
 
-// Typ für das ausgewählte Symptom
-export interface SelectedSymptom {
-  region: string
-  side?: string
-  painLevel?: number
-  duration?: 'today' | 'days' | 'week' | 'weeks'
-}
+export type ExtractedSymptom = TriageSymptom
 
 // Typ für die Anfrage
 export interface SymptomExtractionRequest {
@@ -20,7 +19,7 @@ export interface SymptomExtractionRequest {
 export interface SymptomExtractionResponse {
   text: string
   inputType: 'text' | 'speech'
-  symptoms: SelectedSymptom[]
+  symptoms: ExtractedSymptom[]
   invalidInput?: boolean
   // TA 1.8: true bedeutet, dass keine KI-Antwort rechtzeitig oder strukturiert verfuegbar war.
   aiUnavailable?: boolean
@@ -28,17 +27,17 @@ export interface SymptomExtractionResponse {
 }
 
 // Schema für das ausgewählte Symptom
-export const selectedSymptomSchema = z.object({
+export const extractedSymptomSchema = z.object({
   region: z.string().min(1),
   side: z.string().min(1).optional(),
-  // Passt zur aktuellen Frontend-Schmerzskala, die ganze Zahlen von 1 bis 10 verwendet.
-  painLevel: z.number().int().min(1).max(10).optional(),
-  duration: z.enum(['today', 'days', 'week', 'weeks']).optional(),
+  measurementType: z.enum(SYMPTOM_MEASUREMENT_TYPES).optional(),
+  measurementValue: z.number().optional(),
+  duration: z.enum(TRIAGE_SYMPTOM_DURATIONS).optional(),
 })
 
 // Strict AI output contract: Das Model darf nur bis zu drei frontend-kompatible Symptome zurückgeben.
 export const symptomExtractionAiResultSchema = z.object({
-  symptoms: z.array(selectedSymptomSchema).max(3),
+  symptoms: z.array(extractedSymptomSchema).max(3),
 })
 
 // Strict AI output contract: Das Model bewertet, ob überhaupt medizinisch sinnvoller Freitext vorliegt.

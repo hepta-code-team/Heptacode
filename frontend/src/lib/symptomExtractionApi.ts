@@ -2,7 +2,7 @@ import { apiClient } from "./apiClient";
 import type {
   ExtractedSymptom,
   SymptomExtractionAiResult,
-} from "@heptacode/shared/symptomExtraction.types";
+} from "../../../shared/symptomExtraction.types";
 
 export type { ExtractedSymptom, SymptomExtractionAiResult };
 

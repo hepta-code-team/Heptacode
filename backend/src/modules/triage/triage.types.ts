@@ -1,6 +1,10 @@
 import { z } from 'zod'
 import type { PatientData } from '../../../../shared/patientData.types.js'
-import type { TriageSymptom } from '../../../../shared/symptom.types.js'
+import {
+  SYMPTOM_MEASUREMENT_TYPES,
+  TRIAGE_SYMPTOM_DURATIONS,
+  type TriageSymptom,
+} from '../../../../shared/symptom.types.js'
 
 export type { PatientData } from '../../../../shared/patientData.types.js'
 export type { TriageSymptom } from '../../../../shared/symptom.types.js'
@@ -96,8 +100,9 @@ export const patientDataSchema = z.object({
 export const triageSymptomSchema = z.object({
   region: z.string().min(1),
   side: z.string().min(1).optional(),
-  painLevel: z.number().int().min(1).max(10).optional(),
-  duration: z.enum(['today', 'days', 'week', 'weeks']).optional(),
+  measurementType: z.enum(SYMPTOM_MEASUREMENT_TYPES).optional(),
+  measurementValue: z.number().optional(),
+  duration: z.enum(TRIAGE_SYMPTOM_DURATIONS).optional(),
 })
 
 // TA 2.5: Schema fuer validierte KI-Responses mit CareLevel, MedicalSpecialty und reasons.

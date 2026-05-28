@@ -66,7 +66,9 @@ function formatSymptoms(symptoms: TriageSymptom[]): string {
     .map((symptom, index) => {
       const parts = [
         symptom.side ? `${symptom.region} (${symptom.side})` : symptom.region,
-        symptom.painLevel !== undefined ? `Schmerzstaerke ${symptom.painLevel}/10` : null,
+        symptom.measurementValue !== undefined
+          ? `${symptom.measurementType === 'temperature' ? 'Temperatur' : 'Messwert'} ${symptom.measurementValue}${symptom.measurementType === 'temperature' ? '°C' : '/10'}`
+          : null,
         symptom.duration ? DURATION_LABELS[symptom.duration] : null,
       ].filter((part): part is string => part !== null)
 
@@ -74,10 +76,6 @@ function formatSymptoms(symptoms: TriageSymptom[]): string {
     })
     .join('\n')
 }
-
-
-
-
 
 // Funktion um Versorgungsebene, Fachrichtung und Review Summary vom AI zu requesten
 async function requestTriageFromAi(
@@ -122,12 +120,12 @@ async function requestTriageFromAi(
 // Fallback fuer strukturierte Symptome: Ohne KI wird anhand der staerksten Schmerzangabe entschieden.
 // Der Fallback ist bewusst vorsichtig, damit im Zweifel eher aerztlich abgeklaert wird.
 function createFallbackTriage(symptoms: TriageSymptom[]): TriageResponse {
-  const strongestPainLevel = Math.max(
+  const strongestMeasurementValue = Math.max(
     0,
-    ...symptoms.map((symptom) => symptom.painLevel ?? 0),
+    ...symptoms.map((symptom) => symptom.measurementValue ?? 0),
   )
 
-  if (strongestPainLevel >= 8) {
+  if (strongestMeasurementValue >= 8) {
     return {
       careLevel: 'emergency',
       recommendedSpecialty: 'emergency_medicine',
@@ -139,7 +137,7 @@ function createFallbackTriage(symptoms: TriageSymptom[]): TriageResponse {
     }
   }
 
-  if (strongestPainLevel >= 5 || symptoms.length > 0) {
+  if (strongestMeasurementValue >= 5 || symptoms.length > 0) {
     return {
       careLevel: 'doctor',
       recommendedSpecialty: 'general_practice',

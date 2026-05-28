@@ -61,8 +61,8 @@ function summarizeSymptoms(symptoms: TriageSymptom[]): string {
     .map((symptom) => {
       const parts = [
         symptomLabel(symptom),
-        symptom.painLevel !== undefined
-          ? `Schmerzstärke ${symptom.painLevel}/10`
+        symptom.measurementValue !== undefined
+          ? `${symptom.measurementType === 'temperature' ? 'Temperatur' : 'Messwert'} ${symptom.measurementValue}${symptom.measurementType === 'temperature' ? '°C' : '/10'}`
           : null,
         formatDuration(symptom.duration),
       ].filter((part): part is string => part !== null)

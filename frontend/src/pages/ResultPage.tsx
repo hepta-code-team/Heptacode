@@ -21,7 +21,7 @@ export default function ResultPage() {
 
   const getSymptomCareLevel = (symptom: Symptom): CareLevel => {
     const config = getMeasurementConfig(symptom.region, symptom.side);
-    const value = symptom.painLevel ?? 0;
+    const value = symptom.measurementValue ?? 0;
 
     if (config.type === "temperature") {
       if (symptom.duration && value >= 40 && isMultipleDays(symptom.duration)) return "emergency";
@@ -70,7 +70,7 @@ export default function ResultPage() {
 
   const getMeasurementSummary = (symptom: Symptom) => {
     const config = getMeasurementConfig(symptom.region, symptom.side);
-    const value = symptom.painLevel ?? 0;
+    const value = symptom.measurementValue ?? 0;
 
     if (config.type === "temperature") {
       return `${config.title} ${value.toFixed(1)} ${config.unit}`;
@@ -201,7 +201,8 @@ export default function ResultPage() {
               symptoms: symptomDetails.slice(0, 3).map((symptom) => ({
                 region: symptom.region,
                 ...(symptom.side ? { side: symptom.side } : {}),
-                ...(symptom.painLevel !== undefined ? { painLevel: symptom.painLevel } : {}),
+                measurementType: symptom.measurementType,
+                ...(symptom.measurementValue !== undefined ? { measurementValue: symptom.measurementValue } : {}),
                 ...(symptom.duration ? { duration: symptom.duration } : {}),
               })),
             }

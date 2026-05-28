@@ -5,13 +5,19 @@ import {
   SYMPTOM_REGION_NAMES,
   type SymptomRegionName,
 } from './symptomTaxonomy.js'
+import {
+  SYMPTOM_MEASUREMENT_TYPES,
+  type SymptomMeasurementType,
+  type TriageSymptomDuration,
+} from '../../../shared/symptom.types.js'
 
 /** Ein vom Frontend direkt verwendbares extrahiertes Symptom. */
 export interface ExtractedSymptom {
   region: SymptomRegionName
   side?: string
-  painLevel?: number
-  duration?: (typeof SYMPTOM_DURATION_IDS)[number]
+  measurementType?: SymptomMeasurementType
+  measurementValue?: number
+  duration?: TriageSymptomDuration
 }
 
 /** KI-Response: Symptom-Extraktion (TA2.3). */
@@ -29,7 +35,8 @@ export const extractedSymptomSchema = z
   .object({
     region: z.enum(SYMPTOM_REGION_NAMES),
     side: z.string().min(1).optional(),
-    painLevel: z.number().int().min(1).max(10).optional(),
+    measurementType: z.enum(SYMPTOM_MEASUREMENT_TYPES).optional(),
+    measurementValue: z.number().optional(),
     duration: z.enum(SYMPTOM_DURATION_IDS).optional(),
   })
   .superRefine((value, context) => {
