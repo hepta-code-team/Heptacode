@@ -63,7 +63,7 @@ function AnatomyFigure({
   return (
     <svg
       viewBox="0 0 220 350"
-      className="mx-auto h-[220px] w-[150px] md:h-[320px] md:w-[205px]"
+      className="mx-auto h-[330px] w-[210px] md:h-[390px] md:w-[245px]"
       role="img"
       aria-label="Klickbare Körperauswahl"
     >
@@ -83,21 +83,21 @@ function AnatomyFigure({
         className={interactiveClass}
       >
         <path
-          d="M69 96 C45 106 33 135 27 178 C23 205 31 229 45 229 C58 229 59 205 62 183 C66 151 75 125 86 112 Z"
+          d="M55 103 C47 109 43 119 42 132 L37 203 C36 218 43 228 54 228 C65 228 70 219 70 205 L75 135 C76 121 81 109 90 102 L90 93 Z"
           fill={partFill("arms")}
           stroke={partStroke("arms")}
           strokeWidth="4"
           filter="url(#body-shadow)"
         />
         <path
-          d="M151 96 C175 106 187 135 193 178 C197 205 189 229 175 229 C162 229 161 205 158 183 C154 151 145 125 134 112 Z"
+          d="M165 103 C173 109 177 119 178 132 L183 203 C184 218 177 228 166 228 C155 228 150 219 150 205 L145 135 C144 121 139 109 130 102 L130 93 Z"
           fill={partFill("arms")}
           stroke={partStroke("arms")}
           strokeWidth="4"
           filter="url(#body-shadow)"
         />
-        <text x="23" y="168" fill={labelFill("arms")} fontSize="13" fontWeight="700" transform="rotate(-75 23 168)">Arm</text>
-        <text x="183" y="168" fill={labelFill("arms")} fontSize="13" fontWeight="700" transform="rotate(75 183 168)">Arm</text>
+        <text x="54" y="168" textAnchor="middle" fill={labelFill("arms")} fontSize="13" fontWeight="700" transform="rotate(-86 54 168)">Arm</text>
+        <text x="166" y="168" textAnchor="middle" fill={labelFill("arms")} fontSize="13" fontWeight="700" transform="rotate(86 166 168)">Arm</text>
       </g>
 
       <g
@@ -110,21 +110,21 @@ function AnatomyFigure({
         className={interactiveClass}
       >
         <path
-          d="M76 214 C91 219 105 221 110 221 L104 326 C103 339 94 346 84 342 C75 338 75 326 76 316 Z"
+          d="M66 217 H104 L101 318 C101 333 92 343 80 343 C68 343 61 333 62 318 Z"
           fill={partFill("legs")}
           stroke={partStroke("legs")}
           strokeWidth="4"
           filter="url(#body-shadow)"
         />
         <path
-          d="M110 221 C115 221 129 219 144 214 L144 316 C145 326 145 338 136 342 C126 346 117 339 116 326 Z"
+          d="M116 217 H154 L158 318 C159 333 152 343 140 343 C128 343 119 333 119 318 Z"
           fill={partFill("legs")}
           stroke={partStroke("legs")}
           strokeWidth="4"
           filter="url(#body-shadow)"
         />
-        <text x="83" y="282" fill={labelFill("legs")} fontSize="13" fontWeight="700" transform="rotate(88 83 282)">Bein</text>
-        <text x="133" y="282" fill={labelFill("legs")} fontSize="13" fontWeight="700" transform="rotate(92 133 282)">Bein</text>
+        <text x="82" y="282" textAnchor="middle" fill={labelFill("legs")} fontSize="13" fontWeight="700" transform="rotate(-90 82 282)">Bein</text>
+        <text x="138" y="282" textAnchor="middle" fill={labelFill("legs")} fontSize="13" fontWeight="700" transform="rotate(90 138 282)">Bein</text>
       </g>
 
       <g
@@ -137,13 +137,13 @@ function AnatomyFigure({
         className={interactiveClass}
       >
         <path
-          d="M76 88 C86 78 134 78 144 88 C157 106 165 151 153 183 C145 205 130 219 110 221 C90 219 75 205 67 183 C55 151 63 106 76 88 Z"
+          d="M75 89 C82 83 94 80 110 80 C126 80 138 83 145 89 C151 95 154 104 154 116 L154 208 C154 215 151 219 144 219 L76 219 C69 219 66 215 66 208 L66 116 C66 104 69 95 75 89 Z"
           fill={partFill("torso")}
           stroke={partStroke("torso")}
           strokeWidth="4"
           filter="url(#body-shadow)"
         />
-        <path d="M88 82 C95 95 125 95 132 82" fill="none" stroke="#d7dee7" strokeWidth="4" strokeLinecap="round" />
+        <path d="M86 91 C97 96 123 96 134 91" fill="none" stroke="#d7dee7" strokeWidth="4" strokeLinecap="round" />
         <text x="110" y="151" textAnchor="middle" fill={labelFill("torso")} fontSize="15" fontWeight="700">Torso</text>
       </g>
 
@@ -165,7 +165,6 @@ function AnatomyFigure({
           strokeWidth="4"
           filter="url(#body-shadow)"
         />
-        <path d="M99 42 C102 45 118 45 121 42" fill="none" stroke={labelFill("head")} strokeWidth="3" strokeLinecap="round" opacity="0.75" />
         <text x="110" y="34" textAnchor="middle" fill={labelFill("head")} fontSize="13" fontWeight="700">Kopf</text>
       </g>
     </svg>
@@ -238,88 +237,91 @@ export default function SymptomSelectionPage() {
     <PageShell
       title="Wo haben Sie Beschwerden?"
       subtitle="Wählen Sie einen Bereich am Körper und ergänzen Sie bis zu 3 passende Beschwerden."
-      onBack={() => navigate("/patient-data")}
+      onBack={() => navigate("/medical-data")}
       maxWidth="2xl"
     >
-      <div className="grid grid-cols-1 lg:grid-cols-[300px_minmax(0,1fr)] gap-5 xl:gap-6 items-start">
-        <div className="rounded-[18px] bg-[#f5f7fa] p-4">
-          <p
-            className="mb-3 text-center font-['DM_Sans:Bold',sans-serif] font-bold text-app-text-primary text-sm"
-            style={{ fontVariationSettings: "'opsz' 14" }}
-          >
-            Bereich wählen
-          </p>
-          <AnatomyFigure selectedCategory={selectedCategory} onSelect={handleCategorySelect} />
-
-          <div className="mt-3 grid grid-cols-1 gap-2">
-            {supportingAreas.map((area) => {
-              const Icon = area.icon;
-              const isSelected = selectedCategory === area.id;
-
-              return (
-                <button
-                  key={area.id}
-                  type="button"
-                  onClick={() => handleCategorySelect(area.id)}
-                  className={`rounded-[14px] p-3 text-left transition-all ${
-                    isSelected ? "bg-[#486284] text-app-text-on-primary" : "bg-white text-app-text-body hover:bg-[#dde3ea]"
-                  }`}
-                  aria-pressed={isSelected}
-                >
-                  <div className="flex items-start gap-3">
-                    <div
-                      className={`flex size-10 flex-shrink-0 items-center justify-center rounded-full ${
-                        isSelected ? "bg-white/20 text-app-text-on-primary" : "bg-[#eff2f6] text-app-text-primary"
-                      }`}
-                    >
-                      <Icon className="size-5" aria-hidden="true" />
-                    </div>
-                    <div>
-                      <p
-                        className="font-['DM_Sans:Bold',sans-serif] font-bold text-sm"
-                        style={{ fontVariationSettings: "'opsz' 14" }}
-                      >
-                        {area.label}
-                      </p>
-                      <p
-                        className={`font-['DM_Sans:Medium',sans-serif] font-medium text-xs leading-snug ${
-                          isSelected ? "text-app-text-on-primary/85" : "text-app-text-primary"
-                        }`}
-                        style={{ fontVariationSettings: "'opsz' 14" }}
-                      >
-                        {area.description}
-                      </p>
-                    </div>
-                  </div>
-                </button>
-              );
-            })}
-            <button
-              type="button"
-              onClick={() => setIsModalOpen(true)}
-              className="rounded-[14px] bg-white p-3 text-left text-app-text-body transition-all hover:bg-[#dde3ea]"
+      <div className="grid grid-cols-1 lg:grid-cols-[360px_minmax(0,1fr)] gap-5 xl:gap-6 items-start">
+        <div>
+          <div className="rounded-[18px] bg-[#f5f7fa] border-2 border-[#486284FF] p-4">
+            <p
+              className="mb-3 text-center font-['DM_Sans:Bold',sans-serif] font-bold text-app-text-primary text-sm"
+              style={{ fontVariationSettings: "'opsz' 14" }}
             >
-              <div className="flex items-start gap-3">
-                <div className="flex size-10 flex-shrink-0 items-center justify-center rounded-full bg-[#eff2f6] text-app-text-primary">
-                  <Mic className="size-5" aria-hidden="true" />
-                </div>
-                <div>
-                  <p
-                    className="font-['DM_Sans:Bold',sans-serif] font-bold text-sm"
-                    style={{ fontVariationSettings: "'opsz' 14" }}
+              Bereich wählen
+            </p>
+            <AnatomyFigure selectedCategory={selectedCategory} onSelect={handleCategorySelect} />
+
+            <div className="mt-3 grid grid-cols-1 gap-2">
+              {supportingAreas.map((area) => {
+                const Icon = area.icon;
+                const isSelected = selectedCategory === area.id;
+
+                return (
+                  <button
+                    key={area.id}
+                    type="button"
+                    onClick={() => handleCategorySelect(area.id)}
+                    className={`rounded-[14px] p-3 text-left transition-all ${
+                      isSelected ? "bg-[#486284] text-app-text-on-primary" : "bg-white text-app-text-body hover:bg-[#dde3ea]"
+                    }`}
+                    aria-pressed={isSelected}
                   >
-                    Symptome beschreiben
-                  </p>
-                  <p
-                    className="font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-primary text-xs leading-snug"
-                    style={{ fontVariationSettings: "'opsz' 14" }}
-                  >
-                    Freitext oder Spracheingabe
-                  </p>
-                </div>
-              </div>
-            </button>
+                    <div className="flex items-start gap-3">
+                      <div
+                        className={`flex size-10 flex-shrink-0 items-center justify-center rounded-full ${
+                          isSelected ? "bg-white/20 text-app-text-on-primary" : "bg-[#eff2f6] text-app-text-primary"
+                        }`}
+                      >
+                        <Icon className="size-5" aria-hidden="true" />
+                      </div>
+                      <div>
+                        <p
+                          className="font-['DM_Sans:Bold',sans-serif] font-bold text-sm"
+                          style={{ fontVariationSettings: "'opsz' 14" }}
+                        >
+                          {area.label}
+                        </p>
+                        <p
+                          className={`font-['DM_Sans:Medium',sans-serif] font-medium text-xs leading-snug ${
+                            isSelected ? "text-app-text-on-primary/85" : "text-app-text-primary"
+                          }`}
+                          style={{ fontVariationSettings: "'opsz' 14" }}
+                        >
+                          {area.description}
+                        </p>
+                      </div>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
           </div>
+
+          <button
+            type="button"
+            onClick={() => setIsModalOpen(true)}
+            className="mt-3 w-full rounded-[16px] border border-[#d7dee7] bg-white p-4 text-left text-app-text-body shadow-sm transition-all hover:border-[#486284] hover:bg-[#f5f7fa]"
+          >
+            <div className="flex items-start gap-3">
+              <div className="flex size-11 flex-shrink-0 items-center justify-center rounded-full bg-[#486284] text-app-text-on-primary">
+                <Mic className="size-5" aria-hidden="true" />
+              </div>
+              <div>
+                <p
+                  className="font-['DM_Sans:Bold',sans-serif] font-bold text-app-text-primary text-sm"
+                  style={{ fontVariationSettings: "'opsz' 14" }}
+                >
+                  Symptome beschreiben
+                </p>
+                <p
+                  className="font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-primary text-xs leading-snug"
+                  style={{ fontVariationSettings: "'opsz' 14" }}
+                >
+                  Per Freitext oder Spracheingabe schildern
+                </p>
+              </div>
+            </div>
+          </button>
         </div>
 
         <div>
@@ -437,7 +439,7 @@ export default function SymptomSelectionPage() {
           setSymptomText("");
         }}
         title="Beschreiben Sie Ihre Symptome"
-        subtitle="Bitte beschreiben Sie Ihre Symptome in 1-2 Sätzen. Nennen Sie dabei die Stärke und Dauer der jeweiligen Symptome."
+        subtitle="Bitte beschreiben Sie Ihre Symptome in 1-2 Sätzen. Nennen Sie dabei Symptom, Stärke und Dauer."
       >
         <textarea
           value={symptomText}

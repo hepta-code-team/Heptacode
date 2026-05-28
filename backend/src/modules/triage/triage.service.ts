@@ -43,6 +43,16 @@ function formatPatientData(patientData?: PatientData): string {
     `Substanzbeeinflussung: ${patientData.substanceInfluence || 'Keine Angabe'}`,
     `Auslandsaufenthalt: ${patientData.recentAbroad ? patientData.recentAbroadDetails || 'Ja' : 'Nein'}`,
     `Vorerkrankungen: ${patientData.conditions.length > 0 ? patientData.conditions.join(', ') : 'Keine Angabe'}`,
+    `Raucher: ${patientData.isSmoker ? 'Ja' : 'Nein'}`,
+    `Rauchdauer: ${patientData.isSmoker ? patientData.smokingSinceYears || 'Keine Angabe' : 'Nicht zutreffend'}`,
+    `Zigaretten pro Tag: ${patientData.isSmoker ? patientData.cigarettesPerDay || 'Keine Angabe' : 'Nicht zutreffend'}`,
+    `Details zu Vorerkrankungen: ${
+      Object.keys(patientData.conditionDetails).length > 0
+        ? Object.entries(patientData.conditionDetails)
+            .map(([condition, detail]) => `${condition}: ${detail}`)
+            .join('; ')
+        : 'Keine Angabe'
+    }`,
   ].join('\n')
 }
 
@@ -242,5 +252,3 @@ return requestTriageWithFallback(patientData, triageSymptoms)
   
 
 }
-
-
