@@ -143,7 +143,7 @@ function AnatomyFigure({
           strokeWidth="4"
           filter="url(#body-shadow)"
         />
-        <path d="M86 86 C97 91 123 91 134 86" fill="none" stroke="#d7dee7" strokeWidth="4" strokeLinecap="round" />
+        <path d="M86 91 C97 96 123 96 134 91" fill="none" stroke="#d7dee7" strokeWidth="4" strokeLinecap="round" />
         <text x="110" y="151" textAnchor="middle" fill={labelFill("torso")} fontSize="15" fontWeight="700">Torso</text>
       </g>
 

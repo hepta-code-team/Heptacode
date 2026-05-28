@@ -10,6 +10,8 @@ import type { PatientData } from "../../../shared/patientData.types";
 
 const WEIGHT_MIN = 3;
 const WEIGHT_MAX = 300;
+const HEIGHT_MIN = 45;
+const HEIGHT_MAX = 250;
 const BIRTH_MONTH_MIN = 1;
 const BIRTH_MONTH_MAX = 12;
 const MAX_PATIENT_AGE_YEARS = 125;
@@ -66,10 +68,13 @@ export default function PatientDataPage() {
 
   const isFormValid =
     Boolean(formData.birthMonth && formData.birthYear && formData.gender) &&
+    isNumberInRange(formData.height, HEIGHT_MIN, HEIGHT_MAX) &&
     isNumberInRange(formData.weight, WEIGHT_MIN, WEIGHT_MAX) &&
     isNumberInRange(formData.birthMonth, BIRTH_MONTH_MIN, BIRTH_MONTH_MAX) &&
     isNumberInRange(formData.birthYear, birthYearMin, currentYear);
 
+  const hasHeightError =
+    (showValidationErrors || formData.height !== "") && !isNumberInRange(formData.height, HEIGHT_MIN, HEIGHT_MAX);
   const hasWeightError =
     (showValidationErrors || formData.weight !== "") && !isNumberInRange(formData.weight, WEIGHT_MIN, WEIGHT_MAX);
   const hasBirthMonthError =
@@ -105,7 +110,7 @@ export default function PatientDataPage() {
       subtitle="Diese Informationen helfen uns, Sie optimal zu beraten."
       onBack={() => navigate("/")}
     >
-      <div className="grid grid-cols-1 gap-3 md:grid-cols-[1fr_0.5fr_1.5fr] md:items-stretch">
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-[1fr_1.1fr_1.5fr] md:items-stretch">
         <div className="h-full bg-[#eff2f6] rounded-[14px] p-3">
           <Label
             htmlFor="birthMonth"
@@ -162,7 +167,7 @@ export default function PatientDataPage() {
               </p>
               {hasBirthYearError && (
                 <p id="birth-year-error" className="mt-1 text-xs font-medium text-app-text-danger">
-                  Bitte Jahr zwischen {birthYearMin} und {currentYear} angeben.
+                  Bitte Jahr zwischen {birthYearMin}-{currentYear} angeben.
                 </p>
               )}
             </div>
@@ -170,15 +175,47 @@ export default function PatientDataPage() {
         </div>
 
         <div className="h-full bg-[#eff2f6] rounded-[14px] p-3">
-          <Label
-            htmlFor="weight"
-            className="font-['DM_Sans:Bold',sans-serif] font-bold text-app-text-body text-sm mb-1.5 block"
+          <p
+            className="font-['DM_Sans:Bold',sans-serif] font-bold text-app-text-body text-sm mb-1.5"
             style={{ fontVariationSettings: "'opsz' 14" }}
           >
-            Gewicht <span className="text-app-text-danger">*</span>
-          </Label>
-          <div className="flex flex-col gap-1">
+            Größe & Gewicht <span className="text-app-text-danger">*</span>
+          </p>
+          <div className="grid grid-cols-2 gap-1.5">
             <div>
+              <Label htmlFor="height" className="sr-only">
+                Größe
+              </Label>
+              <Input
+                id="height"
+                type="number"
+                placeholder="175"
+                min={HEIGHT_MIN}
+                max={HEIGHT_MAX}
+                aria-invalid={hasHeightError}
+                aria-describedby={hasHeightError ? "height-error" : undefined}
+                value={formData.height}
+                onChange={(event) => setFormData({ ...formData, height: event.target.value })}
+                className={`bg-white text-xs h-8 ${
+                  hasHeightError
+                    ? "border border-red-500 focus-visible:border-red-500 focus-visible:ring-red-500/30"
+                    : "border-none"
+                }`}
+              />
+              <p className="font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-body text-xs mt-0.5">
+                cm
+              </p>
+              {hasHeightError && (
+                <p id="height-error" className="mt-1 text-xs font-medium text-app-text-danger">
+                  Bitte Größe zwischen {HEIGHT_MIN}-{HEIGHT_MAX} cm angeben.
+                </p>
+              )}
+            </div>
+
+            <div>
+              <Label htmlFor="weight" className="sr-only">
+                Gewicht
+              </Label>
               <Input
                 id="weight"
                 type="number"
@@ -200,7 +237,7 @@ export default function PatientDataPage() {
               </p>
               {hasWeightError && (
                 <p id="weight-error" className="mt-1 text-xs font-medium text-app-text-danger">
-                  Bitte Gewicht zwischen {WEIGHT_MIN} und {WEIGHT_MAX} kg angeben.
+                  Bitte Gewicht zwischen {WEIGHT_MIN}-{WEIGHT_MAX} kg angeben.
                 </p>
               )}
             </div>
@@ -247,7 +284,7 @@ export default function PatientDataPage() {
       <div className="mt-3 rounded-[14px] bg-[#eff2f6] p-3">
         <div className="mb-2">
           <p
-            className="font-['DM_Sans:Bold',sans-serif] font-bold text-app-text-body text-sm"
+            className="font-['DM_Sans:Bold',sans-serif] font-bold text-app-text-body text-base"
             style={{ fontVariationSettings: "'opsz' 14" }}
           >
             Wie ist Ihre allgemeine Stimmung heute?
