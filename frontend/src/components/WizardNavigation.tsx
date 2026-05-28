@@ -17,8 +17,9 @@ export default function WizardNavigation() {
   const currentIndex = pages.findIndex((p) => p.path === activePath);
 
   return (
-    <div className="fixed bottom-6 left-8 right-8 hidden bg-white px-8 py-3  md:block">
-      <div className="mx-auto max-w-5xl">
+      <div className="fixed bottom-6 left-1/2 hidden min-w-[60vw] -translate-x-1/2 rounded-2xl border
+      border-gray-300 bg-white px-8 py-3 shadow-md md:block">
+        <div className="mx-auto max-w-5xl">
         <div className="grid gap-2" style={{ gridTemplateColumns: `repeat(${pages.length}, minmax(0, 1fr))` }}>
           {pages.map((page, index) => {
             const isActive = index === currentIndex;
