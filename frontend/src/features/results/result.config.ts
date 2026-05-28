@@ -1,40 +1,32 @@
-export type CareLevel = "selfcare" | "doctor" | "specialist" | "emergency";
+import {
+  CARE_LEVELS,
+  MEDICAL_SPECIALTIES,
+  type CareLevel,
+  type MedicalSpecialty,
+  type ResultConfig,
+} from "../../../../shared/result.types";
 
-export type MedicalSpecialty =
-  | "internal_medicine"
-  | "cardiology"
-  | "neurology"
-  | "orthopedics"
-  | "gastroenterology"
-  | "pulmonology"
-  | "dermatology"
-  | "urology"
-  | "gynecology"
-  | "psychiatry"
-  | "pediatrics"
-  | "dentistry"
-  | "ophthalmology"
-  | "otolaryngology";
-
-// This creates the visual result card displayed on the last page
-export interface TriageResult {
+export interface TriageResult extends ResultConfig {
   careLevel: CareLevel;
   recommendedSpecialty?: MedicalSpecialty;
-  title: string;
   titleSupplement?: string;
-  color: string;
-  bgColor: string;
-  description: string;
   reasons: string[];
 }
 
-export const CARE_LEVELS: CareLevel[] = ["selfcare", "doctor", "specialist", "emergency"];
+export type BasicCareLevel = Exclude<CareLevel, "specialist">;
 
 export function isCareLevel(value: string | null): value is CareLevel {
   return value !== null && CARE_LEVELS.includes(value as CareLevel);
 }
 
+export function isMedicalSpecialty(value: string | null): value is MedicalSpecialty {
+  return value !== null && MEDICAL_SPECIALTIES.includes(value as MedicalSpecialty);
+}
+
 export const MEDICAL_SPECIALTY_LABELS: Record<MedicalSpecialty, string> = {
+  home_care: "Häusliche Versorgung",
+  emergency_medicine: "Notfallmedizin",
+  general_practice: "Hausärztliche Versorgung",
   internal_medicine: "Innere Medizin",
   cardiology: "Kardiologie",
   neurology: "Neurologie",
@@ -52,6 +44,9 @@ export const MEDICAL_SPECIALTY_LABELS: Record<MedicalSpecialty, string> = {
 };
 
 export const MEDICAL_SPECIALTY_EXPLANATIONS: Partial<Record<MedicalSpecialty, string>> = {
+  home_care: "Selbstversorgung und Beobachtung",
+  emergency_medicine: "Akute Notfallversorgung",
+  general_practice: "Erste ärztliche Abklärung",
   internal_medicine: "Erkrankungen der inneren Organe",
   cardiology: "Herzmedizin",
   neurology: "Nervenheilkunde",
@@ -64,10 +59,6 @@ export const MEDICAL_SPECIALTY_EXPLANATIONS: Partial<Record<MedicalSpecialty, st
   psychiatry: "Seelische Gesundheit",
   pediatrics: "Kinder- und Jugendmedizin",
 };
-
-export function isMedicalSpecialty(value: string | null): value is MedicalSpecialty {
-  return value !== null && value in MEDICAL_SPECIALTY_LABELS;
-}
 
 export function createSpecialtyConfig(
   specialty: MedicalSpecialty,
@@ -86,14 +77,14 @@ export function createSpecialtyConfig(
   };
 }
 
-export const TRIAGE_CONFIGS: Record<CareLevel, Omit<TriageResult, "careLevel" | "reasons">> = {
+export const TRIAGE_CONFIGS: Record<BasicCareLevel, Omit<TriageResult, "careLevel" | "reasons">> = {
   emergency: {
     title: "Begeben Sie sich umgehend in die Notaufnahme oder wählen Sie die 112.",
     color: "#FF2546",
     bgColor: "#ffcdcd",
     description:
       "Aufgrund Ihrer Angaben empfehlen wir dringend, sofort den Notruf 112 zu wählen. " +
-        "Ihre Symptome deuten auf einen medizinischen Notfall hin, der sofortige professionelle Hilfe erfordert.",
+      "Ihre Symptome deuten auf einen medizinischen Notfall hin, der sofortige professionelle Hilfe erfordert.",
   },
   doctor: {
     title: "Kontaktieren Sie Ihren Hausarzt",
@@ -101,14 +92,7 @@ export const TRIAGE_CONFIGS: Record<CareLevel, Omit<TriageResult, "careLevel" | 
     bgColor: "#FEF3C7",
     description:
       "Ihre Symptome sollten zeitnah ärztlich abgeklärt werden. Bitte vereinbaren Sie einen Termin bei Ihrem Hausarzt " +
-        "oder besuchen Sie eine ärztliche Bereitschaftspraxis.",
-  },
-  specialist: {
-    title: "Fachärztliche Versorgung",
-    color: "#3B82F6",
-    bgColor: "#DBEAFE",
-    description:
-      "Ihre Beschwerden sollten gezielt fachärztlich abgeklärt werden. Die passende Fachrichtung ergibt sich aus Ihren Angaben.",
+      "oder besuchen Sie eine ärztliche Bereitschaftspraxis.",
   },
   selfcare: {
     title: "Häusliche Versorgung",

@@ -1,5 +1,7 @@
 import { z } from 'zod'
 import type { PatientData } from '../../../../shared/patientData.types.js'
+import { CARE_LEVELS, MEDICAL_SPECIALTIES } from '../../../../shared/result.types.js'
+import type { CareLevel, MedicalSpecialty } from '../../../../shared/result.types.js'
 import {
   SYMPTOM_MEASUREMENT_TYPES,
   TRIAGE_SYMPTOM_DURATIONS,
@@ -7,17 +9,8 @@ import {
 } from '../../../../shared/symptom.types.js'
 
 export type { PatientData } from '../../../../shared/patientData.types.js'
+export type { CareLevel, MedicalSpecialty } from '../../../../shared/result.types.js'
 export type { TriageSymptom } from '../../../../shared/symptom.types.js'
-
-// Versorgungsebenen für die Triage
-export const CARE_LEVELS = [
-  'emergency',
-  'doctor',
-  'specialist',
-  'selfcare',
-] as const
-
-export type CareLevel = (typeof CARE_LEVELS)[number]
 
 // Typ für die Review Summary
 export interface ReviewSummary {
@@ -33,27 +26,7 @@ export const reviewSummarySchema = z.object({
 export const careLevelSchema = z.enum(CARE_LEVELS)
 
 // Medizinische Versorgungsangebote
-export const medicalSpecialtySchema = z.enum([
-  'home_care',
-  'emergency_medicine',
-  'general_practice',
-  'internal_medicine',
-  'cardiology',
-  'neurology',
-  'orthopedics',
-  'gastroenterology',
-  'pulmonology',
-  'dermatology',
-  'urology',
-  'gynecology',
-  'psychiatry',
-  'pediatrics',
-  'dentistry',
-  'ophthalmology',
-  'otolaryngology',
-])
-
-export type MedicalSpecialty = z.infer<typeof medicalSpecialtySchema>
+export const medicalSpecialtySchema = z.enum(MEDICAL_SPECIALTIES)
 
 // Typ für die Anfrage
 export interface TriageRequest {

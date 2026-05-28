@@ -5,6 +5,9 @@ export type CareLevel = (typeof CARE_LEVELS)[number];
 
 // Defined list of specialists
 export const MEDICAL_SPECIALTIES = [
+    "home_care",
+    "emergency_medicine",
+    "general_practice",
     "internal_medicine",
     "cardiology",
     "neurology",

@@ -1,5 +1,7 @@
 import type { PatientData } from "../../../shared/patientData.types";
 export type { PatientData } from "../../../shared/patientData.types";
+import type { CareLevel, MedicalSpecialty } from "../../../shared/result.types";
+export type { CareLevel, MedicalSpecialty } from "../../../shared/result.types";
 import type {
   SelectedSymptom,
   SymptomMeasurementType,
@@ -12,8 +14,6 @@ export type {
   TriageSymptom,
   TriageSymptomDuration,
 } from "../../../shared/symptom.types";
-
-export type CareLevel = "emergency" | "doctor" | "selfcare";
 
 export interface SymptomDraft extends TriageSymptom {
   id: string;
@@ -40,6 +40,7 @@ export interface AssessmentPayload {
 
 export interface AssessmentResult {
   careLevel: CareLevel;
+  recommendedSpecialty?: MedicalSpecialty;
   reasons: string[];
   summary?: string;
   createdAt?: string;
