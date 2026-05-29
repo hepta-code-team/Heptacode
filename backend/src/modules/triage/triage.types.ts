@@ -2,6 +2,8 @@ import { z } from 'zod'
 import type { PatientData } from '../../../../shared/patientData.types.js'
 import { CARE_LEVELS, MEDICAL_SPECIALTIES } from '../../../../shared/result.types.js'
 import type { CareLevel, MedicalSpecialty } from '../../../../shared/result.types.js'
+import { SYMPTOM_INPUT_TYPES } from '../../../../shared/symptomExtraction.types.js'
+import type { SymptomInputType } from '../../../../shared/symptomExtraction.types.js'
 import {
   SYMPTOM_MEASUREMENT_TYPES,
   TRIAGE_SYMPTOM_DURATIONS,
@@ -33,7 +35,7 @@ export interface TriageRequest {
   patientData?: PatientData
   symptoms?: TriageSymptom[]
   text?: string
-  inputType?: 'text' | 'speech'
+  inputType?: SymptomInputType
   emergencyFromLanding?: boolean
 }
 
@@ -111,7 +113,7 @@ export const triageRequestSchema = z
     patientData: patientDataSchema.optional(),
     symptoms: z.array(triageSymptomSchema).max(3).optional(),
     text: z.string().trim().min(1).optional(),
-    inputType: z.enum(['text', 'speech']).optional(),
+    inputType: z.enum(SYMPTOM_INPUT_TYPES).optional(),
     emergencyFromLanding: z.boolean().optional(),
   })
   .refine(

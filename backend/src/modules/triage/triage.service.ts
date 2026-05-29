@@ -5,6 +5,7 @@ import type {
   TriageResponse,
 } from './triage.types.js'
 import type { PatientData } from "../../../../shared/patientData.types.js"
+import type { SymptomInputType } from "../../../../shared/symptomExtraction.types.js"
 import type { TriageSymptom } from "../../../../shared/symptom.types.js"
 import { triageAiResultSchema } from './triage.types.js'
 import { triageInstructions } from '../prompt/triage.prompt.js'
@@ -194,7 +195,7 @@ export async function evaluateTriage(
   symptoms: TriageSymptom[] | undefined,
   emergencyFromLanding?: boolean,
   text?: string,
-  inputType: 'text' | 'speech' = 'text',
+  inputType: SymptomInputType = 'text',
 ): Promise<TriageResponse> {
   if (emergencyFromLanding) {
     const result: TriageResponse = {

@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { CARE_LEVELS, MEDICAL_SPECIALTIES } from '../../../../shared/result.types.js'
 import { SYMPTOM_MEASUREMENT_TYPES, TRIAGE_SYMPTOM_DURATIONS } from '../../../../shared/symptom.types.js'
 
 export const patientDataSchema = z.object({
@@ -43,7 +44,8 @@ export const assessmentPayloadSchema = z.object({
 })
 
 export const assessmentAiResultSchema = z.object({
-  careLevel: z.enum(['emergency', 'doctor', 'selfcare']),
+  careLevel: z.enum(CARE_LEVELS),
+  recommendedSpecialty: z.enum(MEDICAL_SPECIALTIES).optional(),
   reasons: z.array(z.string().min(1)).min(1).max(5),
   summary: z.string().min(1),
 })

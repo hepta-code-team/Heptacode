@@ -24,9 +24,6 @@ export function isMedicalSpecialty(value: string | null): value is MedicalSpecia
 }
 
 export const MEDICAL_SPECIALTY_LABELS: Record<MedicalSpecialty, string> = {
-  home_care: "Häusliche Versorgung",
-  emergency_medicine: "Notfallmedizin",
-  general_practice: "Hausärztliche Versorgung",
   internal_medicine: "Innere Medizin",
   cardiology: "Kardiologie",
   neurology: "Neurologie",
@@ -44,9 +41,6 @@ export const MEDICAL_SPECIALTY_LABELS: Record<MedicalSpecialty, string> = {
 };
 
 export const MEDICAL_SPECIALTY_EXPLANATIONS: Partial<Record<MedicalSpecialty, string>> = {
-  home_care: "Selbstversorgung und Beobachtung",
-  emergency_medicine: "Akute Notfallversorgung",
-  general_practice: "Erste ärztliche Abklärung",
   internal_medicine: "Erkrankungen der inneren Organe",
   cardiology: "Herzmedizin",
   neurology: "Nervenheilkunde",

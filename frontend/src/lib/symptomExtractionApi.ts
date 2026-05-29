@@ -1,15 +1,16 @@
 import { apiClient } from "./apiClient";
 import type {
-  ExtractedSymptom,
   SymptomExtractionAiResult,
+  SymptomInputType,
 } from "../../../shared/symptomExtraction.types";
+import type { TriageSymptom } from "../../../shared/symptom.types";
 
-export type { ExtractedSymptom, SymptomExtractionAiResult };
+export type { SymptomExtractionAiResult, SymptomInputType, TriageSymptom };
 
 export interface SymptomExtractionResponse {
   text: string;
-  inputType: "text" | "speech";
-  symptoms: ExtractedSymptom[];
+  inputType: SymptomInputType;
+  symptoms: TriageSymptom[];
   invalidInput?: boolean;
   aiUnavailable?: boolean;
   message?: string;
@@ -17,7 +18,7 @@ export interface SymptomExtractionResponse {
 
 export async function extractSymptomsFromText(
   symptomText: string,
-  inputType: "text" | "speech" = "text",
+  inputType: SymptomInputType = "text",
 ): Promise<SymptomExtractionResponse> {
   return apiClient.post<SymptomExtractionResponse>("/api/v1/symptoms/extraction", {
     symptomText,

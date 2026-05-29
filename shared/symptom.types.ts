@@ -6,11 +6,13 @@ export const SYMPTOM_MEASUREMENT_TYPES = ['pain', 'temperature', 'feeling', 'sev
 
 export type SymptomMeasurementType = (typeof SYMPTOM_MEASUREMENT_TYPES)[number]
 
+// Initial user selection: body region plus optional detailed localisation.
 export interface SelectedSymptom {
   region: string
   side?: string
 }
 
+// Expanded symptom data used for triage.
 export interface TriageSymptom extends SelectedSymptom {
   measurementType?: SymptomMeasurementType
   measurementValue?: number
