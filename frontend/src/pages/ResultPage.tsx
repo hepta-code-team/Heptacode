@@ -106,13 +106,6 @@ export default function ResultPage() {
           }
         | undefined;
 
-      const fallbackRecommendedSpecialty =
-        careLevel === "emergency"
-          ? "emergency_medicine"
-          : careLevel === "selfcare"
-            ? "home_care"
-            : "general_practice";
-
       const safeCareLevel = CARE_LEVELS.includes((result?.careLevel ?? "") as CareLevel)
         ? result?.careLevel
         : careLevel;
@@ -121,7 +114,7 @@ export default function ResultPage() {
         (result?.recommendedSpecialty ?? "") as (typeof MEDICAL_SPECIALTIES)[number],
       )
         ? result?.recommendedSpecialty
-        : recommendedSpecialty ?? fallbackRecommendedSpecialty;
+        : recommendedSpecialty ?? undefined;
 
       const fallbackReasons =
         result?.reasons?.length
@@ -180,7 +173,7 @@ export default function ResultPage() {
         },
         triage: {
           careLevel: safeCareLevel,
-          recommendedSpecialty: safeRecommendedSpecialty,
+          ...(safeRecommendedSpecialty ? { recommendedSpecialty: safeRecommendedSpecialty } : {}),
           reasons: fallbackReasons,
         },
         ...(patientData ? { patientData } : {}),
