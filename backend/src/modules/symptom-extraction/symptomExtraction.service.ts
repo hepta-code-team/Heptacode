@@ -7,6 +7,8 @@ import {
   symptomInputValidationAiResultSchema,
 } from './symptomExtraction.types.js'
 import {
+  createSymptomExtractionPrompt,
+  createSymptomValidationPrompt,
   symptomExtractionInstructions,
   symptomValidationInstructions,
 } from '../prompt/symptomExtraction.prompt.js'
@@ -66,7 +68,7 @@ async function requestInputValidationFromAi(text: string, inputType: SymptomInpu
       { role: 'system', content: symptomValidationInstructions },
       {
         role: 'user',
-        content: `Input-Typ: ${inputType}\nFreitext: ${text}`,
+        content: createSymptomValidationPrompt({ text, inputType }),
       },
     ],
     schema: symptomInputValidationAiResultSchema,
@@ -82,7 +84,7 @@ async function requestSymptomsFromAi(text: string, inputType: SymptomInputType) 
       { role: 'system', content: symptomExtractionInstructions },
       {
         role: 'user',
-        content: `Input-Typ: ${inputType}\nFreitext: ${text}`,
+        content: createSymptomExtractionPrompt({ text, inputType }),
       },
     ],
     schema: symptomExtractionAiResultSchema,

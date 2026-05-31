@@ -6,7 +6,7 @@ import {triageAiResultSchema} from './triage.types.js'
 import type {PatientData} from "../../../../shared/patientData.types.js"
 import type {SymptomInputType} from "../../../../shared/symptomExtraction.types.js"
 import type {TriageSymptom} from "../../../../shared/symptom.types.js"
-import {triageInstructions} from '../prompt/triage.prompt.js'
+import {triageInstructions, createTriagePrompt} from '../prompt/triage.prompt.js'
 
 function createBadRequestError(message: string): Error & { statusCode: number } {
   const error = new Error(message) as Error & { statusCode: number }
@@ -87,13 +87,10 @@ async function requestTriageFromAi(
       { role: 'system', content: triageInstructions },
       {
         role: 'user',
-        content: [
-          'Stammdaten:',
-          formatPatientData(patientData),
-          '',
-          'Symptome:',
-          formatSymptoms(symptoms),
-        ].join('\n'),
+       content: createTriagePrompt({
+        patientDataText: formatPatientData(patientData),
+        symptomsText: formatSymptoms(symptoms),
+      }),
       },
     ],
     schema: triageAiResultSchema,

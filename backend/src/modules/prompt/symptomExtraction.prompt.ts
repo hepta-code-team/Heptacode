@@ -1,3 +1,10 @@
+import type {SymptomInputType} from '../../../../shared/symptomExtraction.types.js'
+
+type SymptomExtractionPromptInput = {
+  text: String
+  inputType: SymptomInputType
+}
+
 export const symptomExtractionInstructions = [
 'Du extrahierst aus deutschem medizinischem Freitext bis zu drei Beschwerden in Erwähnungsreihenfolge.',
   'Gib ausschließlich Beschwerden zurück, die auf die vorhandenen Frontend-Optionen passen.',
@@ -25,6 +32,13 @@ export const symptomExtractionInstructions = [
   'Erfinde nichts. Wenn kein passendes Symptom erkennbar ist, gib eine leere Liste zurück.',
 ].join('\n')
 
+export function createSymptomExtractionPrompt(input: SymptomExtractionPromptInput): string {
+  return [
+    'Input-Typ: $(input.inputType)',
+    'Freitext: $(input.text)',
+  ].join('\n')
+}
+
 export const symptomValidationInstructions = [
   //Prompt von ChatGPT erstellt:
   'Du bewertest, ob ein deutscher Freitext eine sinnvolle medizinische Beschreibung von Beschwerden enthält.',
@@ -32,3 +46,10 @@ export const symptomValidationInstructions = [
   'Gültig sind Texte, die erkennbare gesundheitliche Beschwerden, Symptome oder relevante medizinische Kontexte beschreiben.',
   'Antworte nur mit dem vorgegebenen JSON-Format.',
 ].join('\n')
+
+export function createSymptomValidationPrompt(input: SymptomExtractionPromptInput): string {
+  return [
+    'Input-Typ: $(input.inputType)',
+    'Freitext: $(input.text)',
+  ].join('\n')
+}

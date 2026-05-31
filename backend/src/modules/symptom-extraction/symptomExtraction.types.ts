@@ -52,6 +52,7 @@ export const extractedSymptomSchema = z
     }
   })
 
+
 export const symptomExtractionAiResultSchema = z.object({
   symptoms: z.array(extractedSymptomSchema).max(3),
 })

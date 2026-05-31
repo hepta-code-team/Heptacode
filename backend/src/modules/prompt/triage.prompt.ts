@@ -14,3 +14,18 @@ export const triageInstructions = [
   'Gib in reasons kurze, konkrete Begruendungen auf Deutsch zurueck.',
   'Erfinde keine zusaetzlichen Symptome oder Stammdaten.',
 ].join('\n')
+
+type TriagePromptInput = {
+  patientDataText: string
+  symptomsText: string
+}
+
+export function createTriagePrompt(input: TriagePromptInput): string {
+  return [
+    'Stammdaten:',
+    input.patientDataText,
+    '',
+    'Symptome:',
+    input.symptomsText,
+  ].join('\n')
+}
