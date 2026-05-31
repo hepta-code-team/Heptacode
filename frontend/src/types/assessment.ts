@@ -1,36 +1,46 @@
 import type { PatientData } from "../../../shared/patientData.types";
 export type { PatientData } from "../../../shared/patientData.types";
-import type { TriageSymptom } from "../../../shared/symptom.types";
+import type { CareLevel, MedicalSpecialty } from "../../../shared/result.types";
+export type { CareLevel, MedicalSpecialty } from "../../../shared/result.types";
+import type {
+  SelectedSymptom,
+  SymptomMeasurementType,
+  TriageSymptom,
+  TriageSymptomDuration,
+} from "../../../shared/symptom.types";
+export type {
+  SelectedSymptom,
+  SymptomMeasurementType,
+  TriageSymptom,
+  TriageSymptomDuration,
+} from "../../../shared/symptom.types";
 
-export type SymptomMeasurementType = "pain" | "temperature" | "feeling" | "severity";
-export type CareLevel = "emergency" | "doctor" | "selfcare";
-
-export interface SymptomDetailPayload {
+export interface SymptomDraft extends TriageSymptom {
   id: string;
-  region: string;
-  side?: string;
+  active: boolean;
   measurementType: SymptomMeasurementType;
   measurementValue: number;
-  duration: string;
-  active: boolean;
 }
 
-export type SelectedSymptom = TriageSymptom;
-
-export interface Symptom extends TriageSymptom {
+export interface SymptomDetailPayload extends TriageSymptom {
   id: string;
   active: boolean;
   measurementType: SymptomMeasurementType;
+  measurementValue: number;
+  duration: TriageSymptomDuration;
 }
+
+export type Symptom = SymptomDetailPayload;
 
 export interface AssessmentPayload {
   patientData: PatientData;
   selectedSymptoms: SelectedSymptom[];
-  symptomDetails: Symptom[];
+  symptomDetails: SymptomDetailPayload[];
 }
 
 export interface AssessmentResult {
   careLevel: CareLevel;
+  recommendedSpecialty?: MedicalSpecialty;
   reasons: string[];
   summary?: string;
   createdAt?: string;
@@ -39,5 +49,5 @@ export interface AssessmentResult {
 export interface Assessment {
   patientData?: PatientData;
   selectedSymptoms: SelectedSymptom[];
-  symptomDetails: Symptom[];
+  symptomDetails: SymptomDetailPayload[];
 }

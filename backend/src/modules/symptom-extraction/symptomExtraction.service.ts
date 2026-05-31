@@ -1,6 +1,7 @@
 import { requestStructuredAiResponse } from '../../ai/llmAdapter.js'
 import { isAiRequestError } from '../../ai/timeout.js'
 import type { SymptomExtractionResponse } from './symptomExtraction.types.js'
+import type { SymptomInputType } from '../../../../shared/symptomExtraction.types.js'
 import {
   symptomExtractionAiResultSchema,
   symptomInputValidationAiResultSchema,
@@ -58,7 +59,7 @@ function detectHeuristicInvalidInput(text: string): string | null {
   return null
 }
 
-async function requestInputValidationFromAi(text: string, inputType: 'text' | 'speech') {
+async function requestInputValidationFromAi(text: string, inputType: SymptomInputType) {
   // Die KI prüft hier nur, ob der Inhalt überhaupt medizinisch sinnvoll ist.
   return requestStructuredAiResponse({
     messages: [
@@ -74,7 +75,7 @@ async function requestInputValidationFromAi(text: string, inputType: 'text' | 's
   })
 }
 
-async function requestSymptomsFromAi(text: string, inputType: 'text' | 'speech') {
+async function requestSymptomsFromAi(text: string, inputType: SymptomInputType) {
   // Das model ist auf unsere feste Symptomtaxonomie beschränkt, so dass das Frontend die Ergebnis direkt verarbeiten kann.
   return requestStructuredAiResponse({
     messages: [
@@ -92,7 +93,7 @@ async function requestSymptomsFromAi(text: string, inputType: 'text' | 'speech')
 
 export async function extractSymptoms(
   text: string,
-  inputType: 'text' | 'speech' = 'text',
+  inputType: SymptomInputType = 'text',
 ): Promise<SymptomExtractionResponse> {
   const heuristicInvalidReason = detectHeuristicInvalidInput(text)
 
