@@ -52,7 +52,7 @@ describe('extractSymptoms', () => {
         reason: 'Medizinische Beschwerde erkannt.',
       })
       .mockResolvedValueOnce({
-        symptoms: [{ region: 'Kopf', painLevel: 6, duration: 'days' }],
+        symptoms: [{ region: 'Kopf', measurementType: 'pain', measurementValue: 6, duration: 'days' }],
       })
 
     const result = await extractSymptoms('Ich habe seit Tagen Kopfschmerzen.', 'speech')
@@ -60,7 +60,7 @@ describe('extractSymptoms', () => {
     expect(result).toEqual({
       text: 'Ich habe seit Tagen Kopfschmerzen.',
       inputType: 'speech',
-      symptoms: [{ region: 'Kopf', painLevel: 6, duration: 'days' }],
+      symptoms: [{ region: 'Kopf', measurementType: 'pain', measurementValue: 6, duration: 'days' }],
     })
     expect(requestStructuredAiResponseMock).toHaveBeenCalledTimes(2)
   })
@@ -69,7 +69,7 @@ describe('extractSymptoms', () => {
     requestStructuredAiResponseMock
       .mockRejectedValueOnce(new AiResponseError('validation timeout'))
       .mockResolvedValueOnce({
-        symptoms: [{ region: 'Bauch', painLevel: 4 }],
+        symptoms: [{ region: 'Bauch', measurementType: 'pain', measurementValue: 4 }],
       })
 
     const result = await extractSymptoms('Ich habe Bauchschmerzen.')
@@ -77,7 +77,7 @@ describe('extractSymptoms', () => {
     expect(result).toEqual({
       text: 'Ich habe Bauchschmerzen.',
       inputType: 'text',
-      symptoms: [{ region: 'Bauch', painLevel: 4 }],
+      symptoms: [{ region: 'Bauch', measurementType: 'pain', measurementValue: 4 }],
     })
     expect(requestStructuredAiResponseMock).toHaveBeenCalledTimes(2)
   })

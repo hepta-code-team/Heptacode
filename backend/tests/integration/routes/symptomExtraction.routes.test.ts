@@ -37,7 +37,7 @@ describe('POST /api/v1/symptoms/extraction', () => {
       })
       .mockResolvedValueOnce({
         symptoms: [
-          { region: 'Kopf', painLevel: 7, duration: 'days' },
+          { region: 'Kopf', measurementType: 'pain', measurementValue: 7, duration: 'days' },
           { region: 'Allgemein', side: 'Uebelkeit/Schwindel' },
         ],
       })
@@ -56,7 +56,7 @@ describe('POST /api/v1/symptoms/extraction', () => {
       text: 'Ich habe seit ein paar Tagen starke Kopfschmerzen und Uebelkeit.',
       inputType: 'speech',
       symptoms: [
-        { region: 'Kopf', painLevel: 7, duration: 'days' },
+        { region: 'Kopf', measurementType: 'pain', measurementValue: 7, duration: 'days' },
         { region: 'Allgemein', side: 'Uebelkeit/Schwindel' },
       ],
     })
@@ -84,7 +84,7 @@ describe('POST /api/v1/symptoms/extraction', () => {
         reason: 'Medizinische Beschwerde erkannt.',
       })
       .mockResolvedValueOnce({
-        symptoms: [{ region: 'Bauch', painLevel: 5, duration: 'today' }],
+        symptoms: [{ region: 'Bauch', measurementType: 'pain', measurementValue: 5, duration: 'today' }],
       })
 
     const response = await app.inject({
@@ -99,7 +99,7 @@ describe('POST /api/v1/symptoms/extraction', () => {
     expect(response.json()).toEqual({
       text: 'Seit heute Bauchschmerzen.',
       inputType: 'text',
-      symptoms: [{ region: 'Bauch', painLevel: 5, duration: 'today' }],
+      symptoms: [{ region: 'Bauch', measurementType: 'pain', measurementValue: 5, duration: 'today' }],
     })
   })
 
