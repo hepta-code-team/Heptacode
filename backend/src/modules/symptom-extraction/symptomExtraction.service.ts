@@ -81,7 +81,7 @@ async function requestSymptomsFromAi(text: string, inputType: SymptomInputType) 
   // Das model ist auf unsere feste Symptomtaxonomie beschränkt, so dass das Frontend die Ergebnis direkt verarbeiten kann.
   return requestStructuredAiResponse({
     messages: [
-      { role: 'system', content: symptomExtractionInstructions },
+      { role: 'system', content: symptomExtractionInstructions},
       {
         role: 'user',
         content: createSymptomExtractionPrompt({ text, inputType }),

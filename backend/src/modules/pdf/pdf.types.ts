@@ -1,9 +1,9 @@
 import { z } from 'zod'
-import { patientDataSchema, triageSymptomSchema, reviewSummarySchema, medicalSpecialtySchema } from '../triage/triage.types.js'
-import type { PatientData } from '../../../../shared/patientData.types.js'
 import { CARE_LEVELS } from '../../../../shared/result.types.js'
 import type { CareLevel, MedicalSpecialty } from '../../../../shared/result.types.js'
+import type { PatientData } from '../../../../shared/patientData.types.js'
 import type { TriageSymptom } from '../../../../shared/symptom.types.js'
+import { patientDataSchema, triageSymptomSchema, reviewSummarySchema, medicalSpecialtySchema } from '../triage/triage.types.js'
 import type { ReviewSummary } from '../triage/triage.types.js'
 
 export interface PdfSection {
