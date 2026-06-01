@@ -1,17 +1,12 @@
-import type { SymptomDetailPayload, SymptomMeasurementType } from "../../types/assessment";
-import type { TriageSymptomDuration } from "../../../../shared/symptom.types";
-import { getMeasurementConfig } from "./symptoms.constants";
+import type { SymptomDetailPayload, SymptomDraft } from "../../types/assessment";
 
-type SymptomDraft = {
-  id: string;
-  region: string;
-  side?: string;
-  painLevel?: number;
-  measurementValue?: number;
-  duration?: string;
-  active: boolean;
-  measurementType: SymptomMeasurementType;
+type CompleteSymptomDraft = SymptomDraft & {
+  duration: NonNullable<SymptomDraft["duration"]>;
 };
+
+function hasDuration(symptom: SymptomDraft): symptom is CompleteSymptomDraft {
+  return symptom.duration !== undefined;
+}
 
 type HandleSubmitAssessmentArgs = {
   symptomDetails: SymptomDraft[];
@@ -32,18 +27,20 @@ export async function handleSubmitAssessment({
 }: HandleSubmitAssessmentArgs) {
   const activeSymptoms = symptomDetails.filter((symptom) => symptom.active);
 
-  if (activeSymptoms.some((symptom) => !symptom.duration)) {
+  if (activeSymptoms.some((symptom) => !hasDuration(symptom))) {
     setShowValidationErrors(true);
     return;
   }
 
-  const payloadSymptoms: SymptomDetailPayload[] = activeSymptoms.map((symptom) => ({
+  const completeSymptoms = activeSymptoms.filter(hasDuration);
+
+  const payloadSymptoms: SymptomDetailPayload[] = completeSymptoms.map((symptom) => ({
     id: symptom.id,
     region: symptom.region,
     side: symptom.side,
     measurementType: symptom.measurementType,
-    measurementValue: symptom.measurementValue ?? symptom.painLevel ?? getMeasurementConfig(symptom.region, symptom.side).defaultValue,
-    duration: (symptom.duration as TriageSymptomDuration) ?? "today",
+    measurementValue: symptom.measurementValue,
+    duration: symptom.duration,
     active: true,
   }));
 

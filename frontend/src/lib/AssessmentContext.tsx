@@ -1,12 +1,5 @@
 import { createContext, useContext, useState, ReactNode } from "react";
-import type {
-  AssessmentPayload,
-  AssessmentResult,
-  PatientData,
-  SelectedSymptom,
-  Symptom,
-  SymptomDetailPayload,
-} from "../types/assessment";
+import type { AssessmentPayload, AssessmentResult, PatientData, SelectedSymptom, Symptom } from "../types/assessment";
 import { apiClient } from "./apiClient";
 
 interface AssessmentContextType {
@@ -18,11 +11,7 @@ interface AssessmentContextType {
   setSymptomDetails: (details: Symptom[]) => void;
   assessmentResult: AssessmentResult | null;
   setAssessmentResult: (result: AssessmentResult | null) => void;
-  submitAssessment: (details: SymptomDetailPayload[]) => Promise<AssessmentResult>;
-  submitTextAssessment: (
-    text: string,
-    inputType?: "text" | "speech",
-  ) => Promise<AssessmentResult>;
+  submitAssessment: (details: Symptom[]) => Promise<AssessmentResult>;
   resetAssessment: () => void;
 }
 
@@ -34,7 +23,7 @@ export function AssessmentProvider({ children }: { children: ReactNode }) {
   const [symptomDetails, setSymptomDetails] = useState<Symptom[]>([]);
   const [assessmentResult, setAssessmentResult] = useState<AssessmentResult | null>(null);
 
-  const submitAssessment = async (details: SymptomDetailPayload[]) => {
+  const submitAssessment = async (details: Symptom[]) => {
     if (!patientData) {
       throw new Error("Patientendaten fehlen. Bitte gehen Sie zurück und füllen Sie die Stammdaten aus.");
     }
@@ -53,53 +42,6 @@ export function AssessmentProvider({ children }: { children: ReactNode }) {
     setAssessmentResult(result);
 
     return result;
-  };
-
-  const submitTextAssessment = async (
-    text: string,
-    inputType: "text" | "speech" = "text",
-  ) => {
-    if (!patientData) {
-      throw new Error("Patientendaten fehlen. Bitte gehen Sie zurück und füllen Sie die Stammdaten aus.");
-    }
-
-    const result = await apiClient.post<{
-      careLevel: AssessmentResult["careLevel"];
-      recommendedSpecialty?: AssessmentResult["recommendedSpecialty"];
-      reasons: string[];
-      reviewSummary?: AssessmentResult["reviewSummary"];
-      recommendedSpecialties?: AssessmentResult["recommendedSpecialties"];
-      aiUnavailable?: boolean;
-    }>("/api/v1/triage/evaluate", {
-      patientData,
-      text,
-      inputType,
-    });
-
-    const reviewSummary = result.reviewSummary ?? {
-      plainLanguage: "Die Angaben wurden strukturiert ausgewertet.",
-      professionalSummary: `Freitextangaben:\n${text.trim()}`,
-    };
-
-    const normalizedResult: AssessmentResult = {
-      careLevel: result.careLevel,
-      recommendedSpecialty: result.recommendedSpecialty,
-      reasons:
-        result.reasons.length > 0
-          ? result.reasons
-          : ["Die Angaben wurden ausgewertet. Bitte suchen Sie bei Verschlechterung medizinische Hilfe."],
-      reviewSummary,
-      recommendedSpecialties: result.recommendedSpecialties,
-      summary: reviewSummary.plainLanguage,
-      aiUnavailable: result.aiUnavailable,
-      createdAt: new Date().toISOString(),
-    };
-
-    setSelectedSymptoms([]);
-    setSymptomDetails([]);
-    setAssessmentResult(normalizedResult);
-
-    return normalizedResult;
   };
 
   const resetAssessment = () => {
@@ -121,7 +63,6 @@ export function AssessmentProvider({ children }: { children: ReactNode }) {
         assessmentResult,
         setAssessmentResult,
         submitAssessment,
-        submitTextAssessment,
         resetAssessment,
       }}
     >

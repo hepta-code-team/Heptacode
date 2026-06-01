@@ -1,274 +1,88 @@
-import { useMemo, useState, type ReactNode } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router";
-import { Baby, Check, HeartPulse, ChevronDown } from "lucide-react";
-import type { LucideIcon } from "lucide-react";
+import { Annoyed, Frown, Laugh, Mars, Meh, Smile, Transgender, Venus, type LucideIcon } from "lucide-react";
 import PageShell from "../components/PageShell";
 import Button from "../components/Button";
-import {useAssessment} from "../lib/AssessmentContext";
-import {Input} from "../components/ui/input";
-import {Label} from "../components/ui/label";
-import {PRE_EXISTING_CONDITIONS} from "../features/symptoms/symptoms.constants";
-import type {PatientData} from "../../../shared/patientData.types";
+import { useAssessment } from "../lib/AssessmentContext";
+import { Input } from "../components/ui/input";
+import { Label } from "../components/ui/label";
+import type { PatientData } from "../../../shared/patientData.types";
 
-const HEIGHT_MIN = 40;
+const WEIGHT_MIN = 3;
+const WEIGHT_MAX = 300;
+const HEIGHT_MIN = 45;
 const HEIGHT_MAX = 250;
-const WEIGHT_MIN = 1;
-const WEIGHT_MAX = 1000;
 const BIRTH_MONTH_MIN = 1;
 const BIRTH_MONTH_MAX = 12;
 const MAX_PATIENT_AGE_YEARS = 125;
 
-type PatientDataForm = PatientData & {
-  currentMood?: string;
-  smokerStatus?: string;
-  takesBloodThinners?: boolean;
-  immuneSystemStatus?: string;
-};
-
-function MedicalAccordionPanel({
-    title,
-    icon: Icon,
-    isOpen,
-    onToggle,
-    summary,
-    children,
-}: {
-    title: string;
-    icon: LucideIcon;
-    isOpen: boolean;
-    onToggle: () => void;
-    summary: string;
-    children: ReactNode;
-}) {
-    return (
-        <div className="bg-[#eff2f6] rounded-[14px] p-3">
-            <button
-                type="button"
-                onClick={onToggle}
-                className="w-full flex items-center gap-3 text-left"
-                aria-expanded={isOpen}
-            >
-                <span className="flex size-9 flex-shrink-0 items-center justify-center rounded-full bg-white text-app-text-primary">
-                    <Icon className="size-5" aria-hidden="true"/>
-                </span>
-                <span className="min-w-0 flex-1">
-                    <span
-                        className="font-['DM_Sans:Bold',sans-serif] font-bold text-app-text-body text-sm block"
-                        style={{fontVariationSettings: "'opsz' 14"}}
-                    >
-                        {title}
-                    </span>
-                    <span
-                        className="font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-primary text-xs block truncate"
-                        style={{fontVariationSettings: "'opsz' 14"}}
-                    >
-                        {summary}
-                    </span>
-                </span>
-                <ChevronDown
-                    className={`size-5 flex-shrink-0 text-app-text-primary transition-transform ${isOpen ? "rotate-180" : ""}`}
-                    aria-hidden="true"
-                />
-            </button>
-            {isOpen && <div className="mt-3">{children}</div>}
-        </div>
-    );
-}
-const moodOptions = [
-  { value: "Sehr schlecht", emoji: "😣", label: "Sehr schlecht" },
-  { value: "Schlecht", emoji: "🙁", label: "Schlecht" },
-  { value: "Eher schlecht", emoji: "😐", label: "Eher schlecht" },
-  { value: "Okay", emoji: "🙂", label: "Okay" },
-  { value: "Gut", emoji: "😊", label: "Gut" },
-  { value: "Sehr gut", emoji: "😄", label: "Sehr gut" },
+const GENDER_OPTIONS: Array<{ label: string; icon: LucideIcon }> = [
+  { label: "Männlich", icon: Mars },
+  { label: "Weiblich", icon: Venus },
+  { label: "Divers", icon: Transgender },
 ];
 
-function SelectionMark({ selected }: { selected: boolean }) {
-  return (
-    <span
-      className={`flex size-5 flex-shrink-0 items-center justify-center rounded-[6px] border-2 transition-all ${
-        selected ? "border-current bg-white/20" : "border-[#828b93]"
-      }`}
-      aria-hidden="true"
-    >
-      {selected && <Check className="size-3.5" strokeWidth={3} />}
-    </span>
-  );
-}
+const MOOD_OPTIONS: Array<{ label: string; icon: LucideIcon; color: string; bgColor: string }> = [
+  { label: "Sehr schlecht", icon: Frown, color: "#EF4444", bgColor: "#FEE2E2" },
+  { label: "Schlecht", icon: Annoyed, color: "#F97316", bgColor: "#FFEDD5" },
+  { label: "Mittel", icon: Meh, color: "#EAB308", bgColor: "#FEF9C3" },
+  { label: "Gut", icon: Smile, color: "#84CC16", bgColor: "#ECFCCB" },
+  { label: "Sehr gut", icon: Laugh, color: "#10B981", bgColor: "#D1FAE5" },
+];
 
 function isNumberInRange(value: string, min: number, max: number) {
   const numberValue = Number(value);
   return value !== "" && Number.isFinite(numberValue) && numberValue >= min && numberValue <= max;
 }
 
-function isBirthDateValid(birthMonth: string, birthYear: string, currentMonth: number, currentYear: number) {
-  const month = Number(birthMonth);
-  const year = Number(birthYear);
-  const minYear = currentYear - MAX_PATIENT_AGE_YEARS;
-
-  if (!Number.isFinite(month) || !Number.isFinite(year)) {
-    return false;
-  }
-
-  if (month < BIRTH_MONTH_MIN || month > BIRTH_MONTH_MAX) {
-    return false;
-  }
-
-  if (year < minYear || year > currentYear) {
-    return false;
-  }
-
-  if (year === currentYear && month > currentMonth) {
-    return false;
-  }
-
-  return true;
-}
-
-function calculateAge(birthMonth: string, birthYear: string, currentMonth: number, currentYear: number) {
-  const month = Number(birthMonth);
-  const year = Number(birthYear);
-
-  if (!Number.isFinite(month) || !Number.isFinite(year)) {
-    return null;
-  }
-
-  const ageInMonths = (currentYear - year) * 12 + (currentMonth - month);
-
-  if (ageInMonths < 0) {
-    return null;
-  }
-
-  if (ageInMonths < 12) {
-    return `${ageInMonths} ${ageInMonths === 1 ? "Monat" : "Monate"}`;
-  }
-
-  const years = Math.floor(ageInMonths / 12);
-  const remainingMonths = ageInMonths % 12;
-
-  if (remainingMonths === 0) {
-    return `${years} ${years === 1 ? "Jahr" : "Jahre"}`;
-  }
-
-  return `${years} ${years === 1 ? "Jahr" : "Jahre"} und ${remainingMonths} ${
-    remainingMonths === 1 ? "Monat" : "Monate"
-  }`;
-}
-
-function calculateBmi(height: string, weight: string) {
-  const heightInCm = Number(height);
-  const weightInKg = Number(weight);
-
-  if (!Number.isFinite(heightInCm) || !Number.isFinite(weightInKg) || heightInCm <= 0 || weightInKg <= 0) {
-    return null;
-  }
-
-  const heightInMeters = heightInCm / 100;
-  return weightInKg / (heightInMeters * heightInMeters);
-}
-
-function getBmiCategory(bmi: number) {
-  if (bmi < 18.5) {
-    return "Untergewicht";
-  }
-
-  if (bmi < 25) {
-    return "Normalgewicht";
-  }
-
-  if (bmi < 30) {
-    return "Übergewicht";
-  }
-
-  return "Adipositas";
-}
-
-function createInitialPatientData(patientData?: Partial<PatientDataForm>): PatientDataForm {
-  return {
-    birthMonth: "",
-    birthYear: "",
-    height: "",
-    weight: "",
-    gender: "",
-    isPregnant: false,
-    isBreastfeeding: false,
-    currentMood: "",
-    smokerStatus: "Nicht angegeben",
-    takesBloodThinners: false,
-    immuneSystemStatus: "Nicht angegeben",
-    allergies: "",
-    medications: "",
-    substanceInfluence: "Nein",
-    recentAbroad: false,
-    recentAbroadDetails: "",
-    conditions: [],
-    ...patientData,
-  };
-}
+const createInitialPatientData = (patientData?: Partial<PatientData>): PatientData => ({
+  birthMonth: "",
+  birthYear: "",
+  height: "",
+  weight: "",
+  gender: "",
+  isPregnant: false,
+  isBreastfeeding: false,
+  allergies: "",
+  medications: "",
+  substanceInfluence: "Nein",
+  recentAbroad: false,
+  recentAbroadDetails: "",
+  conditions: [],
+  isSmoker: false,
+  smokingSinceYears: "",
+  cigarettesPerDay: "",
+  conditionDetails: {},
+  ...patientData,
+});
 
 export default function PatientDataPage() {
   const navigate = useNavigate();
   const { patientData, setPatientData } = useAssessment();
-
-  const now = new Date();
-  const currentMonth = now.getMonth() + 1;
-  const currentYear = now.getFullYear();
+  const currentYear = new Date().getFullYear();
   const birthYearMin = currentYear - MAX_PATIENT_AGE_YEARS;
 
-  const [formData, setFormData] = useState<PatientDataForm>(() =>
-    createInitialPatientData(patientData as Partial<PatientDataForm> | undefined)
-  );
-
+  const [formData, setFormData] = useState<PatientData>(() => createInitialPatientData(patientData ?? undefined));
+  const [mood, setMood] = useState("");
   const [showValidationErrors, setShowValidationErrors] = useState(false);
-
-  const age = useMemo(
-    () => calculateAge(formData.birthMonth, formData.birthYear, currentMonth, currentYear),
-    [formData.birthMonth, formData.birthYear, currentMonth, currentYear]
-  );
-
-  const bmi = useMemo(() => calculateBmi(formData.height, formData.weight), [
-    formData.height,
-    formData.weight,
-  ]);
-
-  const shouldShowAgeFeedback =
-    age !== null &&
-    isBirthDateValid(formData.birthMonth, formData.birthYear, currentMonth, currentYear);
-
-  const shouldShowBmiFeedback =
-    !formData.isPregnant &&
-    bmi !== null &&
-    isNumberInRange(formData.height, HEIGHT_MIN, HEIGHT_MAX) &&
-    isNumberInRange(formData.weight, WEIGHT_MIN, WEIGHT_MAX);
 
   const isFormValid =
     Boolean(formData.birthMonth && formData.birthYear && formData.gender) &&
-    isBirthDateValid(formData.birthMonth, formData.birthYear, currentMonth, currentYear) &&
     isNumberInRange(formData.height, HEIGHT_MIN, HEIGHT_MAX) &&
-    isNumberInRange(formData.weight, WEIGHT_MIN, WEIGHT_MAX);
+    isNumberInRange(formData.weight, WEIGHT_MIN, WEIGHT_MAX) &&
+    isNumberInRange(formData.birthMonth, BIRTH_MONTH_MIN, BIRTH_MONTH_MAX) &&
+    isNumberInRange(formData.birthYear, birthYearMin, currentYear);
 
+  const hasHeightError =
+    (showValidationErrors || formData.height !== "") && !isNumberInRange(formData.height, HEIGHT_MIN, HEIGHT_MAX);
+  const hasWeightError =
+    (showValidationErrors || formData.weight !== "") && !isNumberInRange(formData.weight, WEIGHT_MIN, WEIGHT_MAX);
   const hasBirthMonthError =
     (showValidationErrors || formData.birthMonth !== "") &&
     !isNumberInRange(formData.birthMonth, BIRTH_MONTH_MIN, BIRTH_MONTH_MAX);
-
   const hasBirthYearError =
     (showValidationErrors || formData.birthYear !== "") &&
     !isNumberInRange(formData.birthYear, birthYearMin, currentYear);
-
-  const hasFutureBirthDateError =
-    (showValidationErrors || Boolean(formData.birthMonth && formData.birthYear)) &&
-    isNumberInRange(formData.birthMonth, BIRTH_MONTH_MIN, BIRTH_MONTH_MAX) &&
-    isNumberInRange(formData.birthYear, birthYearMin, currentYear) &&
-    !isBirthDateValid(formData.birthMonth, formData.birthYear, currentMonth, currentYear);
-
-  const hasHeightError =
-    (showValidationErrors || formData.height !== "") &&
-    !isNumberInRange(formData.height, HEIGHT_MIN, HEIGHT_MAX);
-
-  const hasWeightError =
-    (showValidationErrors || formData.weight !== "") &&
-    !isNumberInRange(formData.weight, WEIGHT_MIN, WEIGHT_MAX);
-
   const hasGenderError = showValidationErrors && !formData.gender;
 
   const handleContinue = () => {
@@ -281,42 +95,54 @@ export default function PatientDataPage() {
     navigate("/medical-data");
   };
 
+  const setGender = (gender: string) => {
+    setFormData({
+      ...formData,
+      gender,
+      isPregnant: gender === "Weiblich" ? formData.isPregnant : false,
+      isBreastfeeding: gender === "Weiblich" ? formData.isBreastfeeding : false,
+    });
+  };
+
   return (
     <PageShell
       title="Bitte geben Sie Ihre Stammdaten ein"
       subtitle="Diese Informationen helfen uns, Sie optimal zu beraten."
       onBack={() => navigate("/")}
     >
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-        <div className="bg-[#eff2f6] rounded-[14px] p-3">
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-[1fr_1.1fr_1.5fr] md:items-stretch">
+        <div className="h-full bg-[#eff2f6] rounded-[14px] p-3">
           <Label
             htmlFor="birthMonth"
-            className="font-['DM_Sans:Bold',sans-serif] font-bold text-[#3e3e3e] text-sm mb-1.5 block"
+            className="font-['DM_Sans:Bold',sans-serif] font-bold text-app-text-body text-sm mb-1.5 block"
             style={{ fontVariationSettings: "'opsz' 14" }}
           >
-            Geburtsdatum
+            Geburtsdatum <span className="text-app-text-danger">*</span>
           </Label>
-
           <div className="flex gap-1.5">
             <div className="flex-1">
               <Input
                 id="birthMonth"
                 type="number"
                 placeholder="MM"
-                min={BIRTH_MONTH_MIN}
-                max={BIRTH_MONTH_MAX}
+                min="1"
+                max="12"
                 value={formData.birthMonth}
                 onChange={(event) => setFormData({ ...formData, birthMonth: event.target.value })}
-                aria-invalid={hasBirthMonthError || hasFutureBirthDateError}
                 className={`bg-white text-xs h-8 ${
-                  hasBirthMonthError || hasFutureBirthDateError
+                  hasBirthMonthError
                     ? "border border-red-500 focus-visible:border-red-500 focus-visible:ring-red-500/30"
                     : "border-none"
                 }`}
               />
-              <p className="font-['DM_Sans:Medium',sans-serif] font-medium text-[#3e3e3e] text-xs mt-0.5">
+              <p className="font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-body text-xs mt-0.5">
                 Monat
               </p>
+              {hasBirthMonthError && (
+                <p id="birth-month-error" className="mt-1 text-xs font-medium text-app-text-danger">
+                  Bitte Monat zwischen 1-12 wählen.
+                </p>
+              )}
             </div>
 
             <div className="flex-1">
@@ -326,155 +152,120 @@ export default function PatientDataPage() {
                 placeholder="JJJJ"
                 min={birthYearMin}
                 max={currentYear}
+                aria-invalid={hasBirthYearError}
+                aria-describedby={hasBirthYearError ? "birth-year-error" : undefined}
                 value={formData.birthYear}
                 onChange={(event) => setFormData({ ...formData, birthYear: event.target.value })}
-                aria-invalid={hasBirthYearError || hasFutureBirthDateError}
                 className={`bg-white text-xs h-8 ${
-                  hasBirthYearError || hasFutureBirthDateError
+                  hasBirthYearError
                     ? "border border-red-500 focus-visible:border-red-500 focus-visible:ring-red-500/30"
                     : "border-none"
                 }`}
               />
-              <p className="font-['DM_Sans:Medium',sans-serif] font-medium text-[#3e3e3e] text-xs mt-0.5">
+              <p className="font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-body text-xs mt-0.5">
                 Jahr
               </p>
-            </div>
-          </div>
-
-          {hasBirthMonthError && (
-            <p className="mt-1 text-xs font-medium text-red-600">
-              Bitte Monat zwischen 1 und 12 wählen.
-            </p>
-          )}
-
-          {hasBirthYearError && (
-            <p className="mt-1 text-xs font-medium text-red-600">
-              Bitte Jahr zwischen {birthYearMin} und {currentYear} angeben.
-            </p>
-          )}
-
-          {hasFutureBirthDateError && (
-            <p className="mt-1 text-xs font-medium text-red-600">
-              Das Geburtsdatum darf nicht in der Zukunft liegen.
-            </p>
-          )}
-
-          {shouldShowAgeFeedback && (
-            <p className="mt-2 rounded-[10px] bg-white px-3 py-2 text-xs font-medium text-[#486284]">
-              Ihr Alter beträgt {age}.
-            </p>
-          )}
-        </div>
-
-        <div className="bg-[#eff2f6] rounded-[14px] p-3">
-          <Label
-            htmlFor="height"
-            className="font-['DM_Sans:Bold',sans-serif] font-bold text-[#3e3e3e] text-sm mb-1.5 block"
-            style={{ fontVariationSettings: "'opsz' 14" }}
-          >
-            Körpergröße & Gewicht
-          </Label>
-
-          <div className="flex flex-col gap-2">
-            <div>
-              <div className="flex flex-row gap-2">
-                <Input
-                  id="height"
-                  type="number"
-                  placeholder="175"
-                  min={HEIGHT_MIN}
-                  max={HEIGHT_MAX}
-                  value={formData.height}
-                  onChange={(event) => setFormData({ ...formData, height: event.target.value })}
-                  aria-invalid={hasHeightError}
-                  className={`bg-white text-xs h-8 ${
-                    hasHeightError
-                      ? "border border-red-500 focus-visible:border-red-500 focus-visible:ring-red-500/30"
-                      : "border-none"
-                  }`}
-                />
-                <p className="font-['DM_Sans:Medium',sans-serif] font-medium text-[#3e3e3e] text-xs mt-2">
-                  cm
-                </p>
-              </div>
-
-              {hasHeightError && (
-                <p className="mt-1 text-xs font-medium text-red-600">
-                  Bitte Körpergröße zwischen {HEIGHT_MIN} und {HEIGHT_MAX} cm angeben.
+              {hasBirthYearError && (
+                <p id="birth-year-error" className="mt-1 text-xs font-medium text-app-text-danger">
+                  Bitte Jahr zwischen {birthYearMin}-{currentYear} angeben.
                 </p>
               )}
             </div>
-
-            <div>
-              <div className="flex flex-row gap-2">
-                <Input
-                  id="weight"
-                  type="number"
-                  placeholder="70"
-                  min={WEIGHT_MIN}
-                  max={WEIGHT_MAX}
-                  value={formData.weight}
-                  onChange={(event) => setFormData({ ...formData, weight: event.target.value })}
-                  aria-invalid={hasWeightError}
-                  className={`bg-white text-xs h-8 ${
-                    hasWeightError
-                      ? "border border-red-500 focus-visible:border-red-500 focus-visible:ring-red-500/30"
-                      : "border-none"
-                  }`}
-                />
-                <p className="font-['DM_Sans:Medium',sans-serif] font-medium text-[#3e3e3e] text-xs mt-2">
-                  kg
-                </p>
-              </div>
-
-              {hasWeightError && (
-                <p className="mt-1 text-xs font-medium text-red-600">
-                  Bitte Gewicht zwischen {WEIGHT_MIN} und {WEIGHT_MAX} kg angeben.
-                </p>
-              )}
-            </div>
-
-            {shouldShowBmiFeedback && bmi !== null && (
-              <p className="rounded-[10px] bg-white px-3 py-2 text-xs font-medium text-[#486284]">
-                Ihr BMI beträgt {bmi.toFixed(1)} - {getBmiCategory(bmi)}.
-              </p>
-            )}
           </div>
         </div>
 
-        <div className="bg-[#eff2f6] rounded-[14px] p-3">
+        <div className="h-full bg-[#eff2f6] rounded-[14px] p-3">
           <p
-            className={`font-['DM_Sans:Bold',sans-serif] font-bold text-sm mb-1.5 ${
-              hasGenderError ? "text-red-700" : "text-[#3e3e3e]"
-            }`}
+            className="font-['DM_Sans:Bold',sans-serif] font-bold text-app-text-body text-sm mb-1.5"
             style={{ fontVariationSettings: "'opsz' 14" }}
           >
-            Bei Geburt zugewiesenes Geschlecht
+            Größe & Gewicht <span className="text-app-text-danger">*</span>
           </p>
+          <div className="grid grid-cols-2 gap-1.5">
+            <div>
+              <Label htmlFor="height" className="sr-only">
+                Größe
+              </Label>
+              <Input
+                id="height"
+                type="number"
+                placeholder="175"
+                min={HEIGHT_MIN}
+                max={HEIGHT_MAX}
+                aria-invalid={hasHeightError}
+                aria-describedby={hasHeightError ? "height-error" : undefined}
+                value={formData.height}
+                onChange={(event) => setFormData({ ...formData, height: event.target.value })}
+                className={`bg-white text-xs h-8 ${
+                  hasHeightError
+                    ? "border border-red-500 focus-visible:border-red-500 focus-visible:ring-red-500/30"
+                    : "border-none"
+                }`}
+              />
+              <p className="font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-body text-xs mt-0.5">
+                cm
+              </p>
+              {hasHeightError && (
+                <p id="height-error" className="mt-1 text-xs font-medium text-app-text-danger">
+                  Bitte Größe zwischen {HEIGHT_MIN}-{HEIGHT_MAX} cm angeben.
+                </p>
+              )}
+            </div>
 
-          <div className="flex flex-col gap-1">
-            {["Männlich", "Weiblich"].map((gender) => (
+            <div>
+              <Label htmlFor="weight" className="sr-only">
+                Gewicht
+              </Label>
+              <Input
+                id="weight"
+                type="number"
+                placeholder="70"
+                min={WEIGHT_MIN}
+                max={WEIGHT_MAX}
+                aria-invalid={hasWeightError}
+                aria-describedby={hasWeightError ? "weight-error" : undefined}
+                value={formData.weight}
+                onChange={(event) => setFormData({ ...formData, weight: event.target.value })}
+                className={`bg-white text-xs h-8 ${
+                  hasWeightError
+                    ? "border border-red-500 focus-visible:border-red-500 focus-visible:ring-red-500/30"
+                    : "border-none"
+                }`}
+              />
+              <p className="font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-body text-xs mt-0.5">
+                kg
+              </p>
+              {hasWeightError && (
+                <p id="weight-error" className="mt-1 text-xs font-medium text-app-text-danger">
+                  Bitte Gewicht zwischen {WEIGHT_MIN}-{WEIGHT_MAX} kg angeben.
+                </p>
+              )}
+            </div>
+          </div>
+        </div>
+
+        <div className="h-full bg-[#eff2f6] rounded-[14px] p-3">
+          <p
+            className="font-['DM_Sans:Bold',sans-serif] font-bold text-app-text-body text-sm mb-1.5"
+            style={{ fontVariationSettings: "'opsz' 14" }}
+          >
+            Bei Geburt zugewiesenes Geschlecht <span className="text-app-text-danger">*</span>
+          </p>
+          <div className="grid grid-cols-3 gap-1.5">
+            {GENDER_OPTIONS.map(({ label: gender, icon: Icon }) => (
               <button
                 key={gender}
                 type="button"
-                onClick={() =>
-                  setFormData({
-                    ...formData,
-                    gender,
-                    isPregnant: false,
-                    isBreastfeeding: false,
-                  })
-                }
-                className={`p-2 rounded-[8px] text-left transition-all ${
+                onClick={() => setGender(gender)}
+                className={`flex min-h-10 items-center justify-center gap-1.5 rounded-[8px] px-2 py-2 text-center transition-all ${
                   formData.gender === gender
                     ? "bg-[#486284] text-white"
-                    : `bg-white text-[#3e3e3e] hover:bg-[#dde3ea] ${
-                        hasGenderError ? "border border-red-200" : ""
-                      }`
+                    : `bg-white text-app-text-body hover:bg-[#dde3ea] ${hasGenderError ? "border border-red-200" : ""}`
                 }`}
               >
+                <Icon className="size-4 flex-shrink-0" strokeWidth={2.3} aria-hidden="true" />
                 <span
-                  className="font-['DM_Sans:Medium',sans-serif] font-medium text-xs"
+                  className="font-['DM_Sans:SemiBold',sans-serif] font-semibold text-xs leading-tight sm:text-sm"
                   style={{ fontVariationSettings: "'opsz' 14" }}
                 >
                   {gender}
@@ -482,93 +273,51 @@ export default function PatientDataPage() {
               </button>
             ))}
           </div>
-
           {hasGenderError && (
-            <p className="mt-1.5 text-xs font-medium text-red-600">
+            <p className="mt-1.5 text-xs font-medium text-app-text-danger">
               Bitte Geschlecht auswählen.
             </p>
           )}
         </div>
       </div>
 
-      {formData.gender === "Weiblich" && (
-        <div className="mt-3 bg-[#eff2f6] rounded-[14px] p-3">
+      <div className="mt-3 rounded-[14px] bg-[#eff2f6] p-3">
+        <div className="mb-2">
           <p
-            className="font-['DM_Sans:Bold',sans-serif] font-bold text-[#3e3e3e] text-sm mb-2"
+            className="font-['DM_Sans:Bold',sans-serif] font-bold text-app-text-body text-base"
             style={{ fontVariationSettings: "'opsz' 14" }}
           >
-            Schwangerschaft / Stillen
+            Wie ist Ihre allgemeine Stimmung heute?
           </p>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-            {[
-              { key: "isPregnant", label: "Derzeit schwanger", icon: Baby },
-              { key: "isBreastfeeding", label: "Derzeit stillend", icon: HeartPulse },
-            ].map((item) => {
-              const key = item.key as "isPregnant" | "isBreastfeeding";
-              const Icon = item.icon;
-              const isSelected = formData[key];
-
-              return (
-                <button
-                  key={item.key}
-                  type="button"
-                  onClick={() => setFormData({ ...formData, [key]: !formData[key] })}
-                  className={`w-full p-3 rounded-[12px] text-left transition-all flex items-center gap-3 ${
-                    isSelected
-                      ? "bg-[#486284] text-white"
-                      : "bg-white text-[#3e3e3e] hover:bg-[#dde3ea]"
-                  }`}
-                >
-                  <Icon
-                    className={`size-5 flex-shrink-0 ${isSelected ? "text-white" : "text-[#486284]"}`}
-                    aria-hidden="true"
-                  />
-                  <span
-                    className="font-['DM_Sans:SemiBold',sans-serif] font-semibold text-sm flex-1"
-                    style={{ fontVariationSettings: "'opsz' 14" }}
-                  >
-                    {item.label}
-                  </span>
-                  <SelectionMark selected={isSelected} />
-                </button>
-              );
-            })}
-          </div>
         </div>
-      )}
 
-      <div className="mt-3 bg-[#eff2f6] rounded-[14px] p-3">
-        <p
-          className="font-['DM_Sans:Bold',sans-serif] font-bold text-[#3e3e3e] text-sm mb-2"
-          style={{ fontVariationSettings: "'opsz' 14" }}
-        >
-          Wie geht es Ihnen aktuell?
-        </p>
-
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2">
-          {moodOptions.map((mood) => {
-            const isSelected = formData.currentMood === mood.value;
+        <div className="flex flex-wrap justify-center gap-1.5 sm:grid sm:grid-cols-5">
+          {MOOD_OPTIONS.map(({ label, icon: Icon, color, bgColor }) => {
+            const isSelected = mood === label;
 
             return (
               <button
-                key={mood.value}
+                key={label}
                 type="button"
-                onClick={() => setFormData({ ...formData, currentMood: mood.value })}
-                className={`min-h-[86px] rounded-[12px] p-2 text-center transition-all flex flex-col items-center justify-center gap-1 ${
-                  isSelected
-                    ? "bg-[#486284] text-white"
-                    : "bg-white text-[#3e3e3e] hover:bg-[#dde3ea]"
-                }`}
+                onClick={() => setMood(isSelected ? "" : label)}
+                className="flex min-h-11 w-[calc((100%-0.75rem)/3)] items-center justify-center gap-1 rounded-[10px] border px-1.5 py-2 text-center text-app-text-body transition-all hover:opacity-90 sm:w-auto sm:gap-1.5 sm:px-2"
+                style={{
+                  backgroundColor: isSelected ? bgColor : "#ffffff",
+                  borderColor: isSelected ? color : "transparent",
+                  boxShadow: isSelected ? `0 0 0 2px ${color}33` : "none",
+                }}
               >
-                <span className="text-3xl" aria-hidden="true">
-                  {mood.emoji}
-                </span>
+                <Icon
+                  className="size-4 flex-shrink-0"
+                  color={color}
+                  strokeWidth={2.3}
+                  aria-hidden="true"
+                />
                 <span
                   className="font-['DM_Sans:SemiBold',sans-serif] font-semibold text-xs leading-tight"
                   style={{ fontVariationSettings: "'opsz' 14" }}
                 >
-                  {mood.label}
+                  {label}
                 </span>
               </button>
             );

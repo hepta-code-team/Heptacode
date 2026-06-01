@@ -7,16 +7,14 @@ export interface PatientData {
     gender: string
     isPregnant: boolean
     isBreastfeeding: boolean
-    currentMood?: string
-    smokerStatus?: string
-    takesBloodThinners?: boolean
-    immuneSystemStatus?: string
-    immuneSystemDetails?: string
-    drugDetails?: string
     allergies: string
     medications: string
     substanceInfluence: string
     recentAbroad: boolean
     recentAbroadDetails: string
     conditions: string[]
+    isSmoker: boolean
+    smokingSinceYears: string
+    cigarettesPerDay: string
+    conditionDetails: Record<string, string>
 }

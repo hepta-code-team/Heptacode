@@ -4,11 +4,11 @@ import { extractSymptoms } from '../symptom-extraction/symptomExtraction.service
 import type {
   MedicalSpecialty,
   PatientData,
-  RecommendedSpecialtyItem,
   TriageResponse,
   TriageSymptom,
 } from './triage.types.js'
 import { triageAiResultSchema } from './triage.types.js'
+import type { SymptomInputType } from '../../../../shared/symptomExtraction.types.js'
 import { triageInstructions } from '../prompt/triage.prompt.js'
 
 function createBadRequestError(message: string): Error & { statusCode: number } {
@@ -17,7 +17,6 @@ function createBadRequestError(message: string): Error & { statusCode: number } 
   return error
 }
 
-// Konstante fuer die Dauer-Labels
 const DURATION_LABELS: Record<NonNullable<TriageSymptom['duration']>, string> = {
   today: 'Seit heute',
   days: 'Seit ein paar Tagen',
@@ -25,21 +24,11 @@ const DURATION_LABELS: Record<NonNullable<TriageSymptom['duration']>, string> = 
   weeks: 'Seit mehr als 2 Wochen',
 }
 
-const SPECIALTY_LABELS: Record<MedicalSpecialty, string> = {
-  internal_medicine: 'Innere Medizin',
-  cardiology: 'Kardiologie',
-  neurology: 'Neurologie',
-  orthopedics: 'Orthopädie',
-  gastroenterology: 'Gastroenterologie',
-  pulmonology: 'Pneumologie',
-  dermatology: 'Dermatologie',
-  urology: 'Urologie',
-  gynecology: 'Gynäkologie',
-  psychiatry: 'Psychiatrie',
-  pediatrics: 'Pädiatrie',
-  dentistry: 'Zahnmedizin',
-  ophthalmology: 'Augenheilkunde',
-  otolaryngology: 'HNO',
+const MEASUREMENT_LABELS: Record<NonNullable<TriageSymptom['measurementType']>, string> = {
+  pain: 'Schmerzstaerke',
+  temperature: 'Temperatur',
+  feeling: 'Beschwerdegefuehl',
+  severity: 'Schweregrad',
 }
 
 function hasText(value: string | undefined): value is string {
@@ -51,6 +40,10 @@ function buildPatientDataLines(patientData?: PatientData): string[] {
     return ['Keine Stammdaten uebergeben.']
   }
 
+  const conditionDetails = Object.entries(patientData.conditionDetails)
+    .filter(([, detail]) => hasText(detail))
+    .map(([condition, detail]) => `${condition}: ${detail.trim()}`)
+
   return [
     `Geburtsmonat: ${patientData.birthMonth}`,
     `Geburtsjahr: ${patientData.birthYear}`,
@@ -59,38 +52,47 @@ function buildPatientDataLines(patientData?: PatientData): string[] {
     `Geschlecht: ${patientData.gender}`,
     patientData.isPregnant ? 'Schwanger: Ja' : null,
     patientData.isBreastfeeding ? 'Stillend: Ja' : null,
-    hasText(patientData.currentMood) ? `Aktuelle Stimmung: ${patientData.currentMood.trim()}` : null,
-    hasText(patientData.smokerStatus) && patientData.smokerStatus.trim() !== 'Nicht angegeben'
-      ? `Raucherstatus: ${patientData.smokerStatus.trim()}`
-      : null,
-    patientData.takesBloodThinners ? 'Blutverduenner: Ja' : null,
-    hasText(patientData.immuneSystemStatus) && patientData.immuneSystemStatus.trim() !== 'Nicht angegeben'
-      ? `Immunsystem: ${patientData.immuneSystemStatus.trim()}`
-      : null,
-    hasText(patientData.immuneSystemDetails)
-      ? `Immunsystem Details: ${patientData.immuneSystemDetails.trim()}`
-      : null,
     hasText(patientData.allergies) ? `Allergien: ${patientData.allergies.trim()}` : null,
     hasText(patientData.medications) ? `Medikamente: ${patientData.medications.trim()}` : null,
     hasText(patientData.substanceInfluence) && patientData.substanceInfluence.trim() !== 'Nein'
       ? `Substanzbeeinflussung: ${patientData.substanceInfluence.trim()}`
       : null,
-    hasText(patientData.drugDetails) ? `Substanz Details: ${patientData.drugDetails.trim()}` : null,
     patientData.recentAbroad
       ? `Auslandsaufenthalt: ${hasText(patientData.recentAbroadDetails) ? patientData.recentAbroadDetails.trim() : 'Ja'}`
       : null,
     patientData.conditions.length > 0
       ? `Vorerkrankungen: ${patientData.conditions.join(', ')}`
       : null,
+    patientData.isSmoker ? 'Raucher: Ja' : 'Raucher: Nein',
+    patientData.isSmoker && hasText(patientData.smokingSinceYears)
+      ? `Rauchdauer: ${patientData.smokingSinceYears.trim()} Jahre`
+      : null,
+    patientData.isSmoker && hasText(patientData.cigarettesPerDay)
+      ? `Zigaretten pro Tag: ${patientData.cigarettesPerDay.trim()}`
+      : null,
+    conditionDetails.length > 0
+      ? `Details zu Vorerkrankungen: ${conditionDetails.join('; ')}`
+      : null,
   ].filter((line): line is string => line !== null)
 }
 
-// Funktion um die Patientendaten fuer die KI zu formatieren
 function formatPatientData(patientData?: PatientData): string {
   return buildPatientDataLines(patientData).join('\n')
 }
 
-// Funktion um die Symptome fuer die KI zu formatieren
+function formatMeasurement(symptom: TriageSymptom): string | null {
+  if (symptom.measurementValue === undefined) {
+    return null
+  }
+
+  if (symptom.measurementType === 'temperature') {
+    return `Temperatur ${symptom.measurementValue}°C`
+  }
+
+  const label = symptom.measurementType ? MEASUREMENT_LABELS[symptom.measurementType] : 'Messwert'
+  return `${label} ${symptom.measurementValue}/10`
+}
+
 function formatSymptoms(symptoms: TriageSymptom[]): string {
   if (symptoms.length === 0) {
     return 'Keine Symptome uebergeben.'
@@ -100,13 +102,33 @@ function formatSymptoms(symptoms: TriageSymptom[]): string {
     .map((symptom, index) => {
       const parts = [
         symptom.side ? `${symptom.region} (${symptom.side})` : symptom.region,
-        symptom.painLevel !== undefined ? `Schmerzstaerke ${symptom.painLevel}/10` : null,
+        formatMeasurement(symptom),
         symptom.duration ? DURATION_LABELS[symptom.duration] : null,
       ].filter((part): part is string => part !== null)
 
       return `${index + 1}. ${parts.join(', ')}`
     })
     .join('\n')
+}
+
+function getComparableMeasurementValue(symptom: TriageSymptom): number {
+  if (symptom.measurementValue === undefined) {
+    return 0
+  }
+
+  if (symptom.measurementType === 'temperature') {
+    if (symptom.measurementValue >= 40) {
+      return 9
+    }
+
+    if (symptom.measurementValue >= 39) {
+      return 6
+    }
+
+    return 0
+  }
+
+  return symptom.measurementValue
 }
 
 function inferSpecialistFromSymptoms(symptoms: TriageSymptom[]): MedicalSpecialty | undefined {
@@ -124,11 +146,13 @@ function inferSpecialistFromSymptoms(symptoms: TriageSymptom[]): MedicalSpecialt
     return 'dermatology'
   }
 
-  if (primary.region === 'Kopf' && (primary.painLevel ?? 0) >= 5) {
+  const measurementValue = getComparableMeasurementValue(primary)
+
+  if (primary.region === 'Kopf' && measurementValue >= 5) {
     return 'neurology'
   }
 
-  if (primary.region === 'Bauch' && (primary.painLevel ?? 0) >= 5) {
+  if (primary.region === 'Bauch' && measurementValue >= 5) {
     return 'gastroenterology'
   }
 
@@ -182,7 +206,7 @@ function applySpecialistEscalation(
   }
 
   const isPersistent = primary.duration === 'days' || primary.duration === 'week' || primary.duration === 'weeks'
-  const isPronounced = (primary.painLevel ?? 0) >= 5
+  const isPronounced = getComparableMeasurementValue(primary) >= 5
 
   if (!isPersistent && !isPronounced) {
     return result
@@ -195,38 +219,10 @@ function applySpecialistEscalation(
   }
 }
 
-function buildRecommendedSpecialties(result: TriageResponse): RecommendedSpecialtyItem[] | undefined {
-  if (result.careLevel !== 'specialist' || !result.recommendedSpecialty) {
-    return undefined
-  }
-
-  return [
-    {
-      specialty: result.recommendedSpecialty,
-      label: SPECIALTY_LABELS[result.recommendedSpecialty],
-      reason:
-        result.reasons[0] ??
-        `Aufgrund Ihrer Angaben ist eine fachärztliche Abklärung in ${SPECIALTY_LABELS[result.recommendedSpecialty]} sinnvoll.`,
-      priority: 1,
-    },
-  ]
-}
-
-function attachPresentationFields(result: TriageResponse): TriageResponse {
-  const recommendedSpecialties = buildRecommendedSpecialties(result)
-
-  return {
-    ...result,
-    ...(recommendedSpecialties ? { recommendedSpecialties } : {}),
-  }
-}
-
-// Funktion um Versorgungsebene, Fachrichtung und Review Summary vom AI zu requesten
 async function requestTriageFromAi(
   patientData: PatientData | undefined,
   symptoms: TriageSymptom[],
 ): Promise<TriageResponse> {
-  // Die KI erhaelt bereits strukturierte Eingaben und muss eine validierbare JSON-Antwort liefern.
   const parsed = await requestStructuredAiResponse({
     messages: [
       { role: 'system', content: triageInstructions },
@@ -246,20 +242,18 @@ async function requestTriageFromAi(
     temperature: 0,
   })
 
-  return attachPresentationFields(applySpecialistEscalation(normalizeTriageResult(parsed, symptoms), symptoms))
+  return applySpecialistEscalation(normalizeTriageResult(parsed, symptoms), symptoms)
 }
 
-// Fallback fuer strukturierte Symptome: Ohne KI wird anhand der staerksten Schmerzangabe entschieden.
-// Der Fallback ist bewusst vorsichtig, damit im Zweifel eher aerztlich abgeklaert wird.
 function createFallbackTriage(symptoms: TriageSymptom[]): TriageResponse {
-  const strongestPainLevel = Math.max(
+  const strongestMeasurementValue = Math.max(
     0,
-    ...symptoms.map((symptom) => symptom.painLevel ?? 0),
+    ...symptoms.map(getComparableMeasurementValue),
   )
   const hasEmergencyPattern = symptoms.some((symptom) => {
     const region = symptom.region.toLowerCase()
     const side = symptom.side?.toLowerCase() ?? ''
-    const painLevel = symptom.painLevel ?? 0
+    const measurementValue = getComparableMeasurementValue(symptom)
 
     if (region === 'psychische probleme' && side === 'suizidgedanken') {
       return true
@@ -271,10 +265,11 @@ function createFallbackTriage(symptoms: TriageSymptom[]): TriageResponse {
 
     if (region === 'brust') {
       return (
-        painLevel >= 5 ||
+        measurementValue >= 5 ||
         side === 'linksseitig' ||
         side === 'brustmitte' ||
-        side === 'atemabhaengig'
+        side === 'atemabhaengig' ||
+        side === 'atemabhängig'
       )
     }
 
@@ -292,7 +287,7 @@ function createFallbackTriage(symptoms: TriageSymptom[]): TriageResponse {
     }
   }
 
-  if (strongestPainLevel >= 8) {
+  if (strongestMeasurementValue >= 8) {
     return {
       careLevel: 'emergency',
       reasons: [
@@ -303,7 +298,7 @@ function createFallbackTriage(symptoms: TriageSymptom[]): TriageResponse {
     }
   }
 
-  if (strongestPainLevel >= 5 || symptoms.length > 0) {
+  if (strongestMeasurementValue >= 5 || symptoms.length > 0) {
     return {
       careLevel: 'doctor',
       reasons: [
@@ -321,8 +316,6 @@ function createFallbackTriage(symptoms: TriageSymptom[]): TriageResponse {
   }
 }
 
-// Spezieller Fallback fuer Freitext: Wenn die KI keine Symptome extrahieren kann,
-// ist eine sichere Selfcare-Einstufung nicht moeglich.
 function createTextExtractionFallbackTriage(): TriageResponse {
   return {
     careLevel: 'doctor',
@@ -334,7 +327,6 @@ function createTextExtractionFallbackTriage(): TriageResponse {
   }
 }
 
-// Wrapper fuer den KI-Call: bekannte KI-Ausfaelle werden abgefangen, echte Programmierfehler nicht.
 async function requestTriageWithFallback(
   patientData: PatientData | undefined,
   symptoms: TriageSymptom[],
@@ -342,7 +334,6 @@ async function requestTriageWithFallback(
   try {
     return await requestTriageFromAi(patientData, symptoms)
   } catch (error) {
-    // Nur Timeout/API/Antwortformat-Fehler loesen den medizinischen Fallback aus.
     if (!isAiRequestError(error)) {
       throw error
     }
@@ -351,13 +342,12 @@ async function requestTriageWithFallback(
   }
 }
 
-// Funktion um die Versorgungsebene zu evaluieren
 export async function evaluateTriage(
   patientData: PatientData | undefined,
   symptoms: TriageSymptom[] | undefined,
   emergencyFromLanding?: boolean,
   text?: string,
-  inputType: 'text' | 'speech' = 'text',
+  inputType: SymptomInputType = 'text',
 ): Promise<TriageResponse> {
   if (emergencyFromLanding) {
     const result: TriageResponse = {
@@ -371,10 +361,9 @@ export async function evaluateTriage(
       },
     }
 
-    return attachPresentationFields(result)
+    return result
   }
 
-  // Wenn Freitext uebergeben wurde, wird zuerst die Symptom-Extraktion ausgefuehrt und deren Ergebnis fuer die Triage verwendet.
   if (text) {
     const extractionResult = await extractSymptoms(text, inputType)
 

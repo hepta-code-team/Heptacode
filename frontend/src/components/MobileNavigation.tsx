@@ -9,7 +9,6 @@ const pages = [
   { path: "/result", name: "Auswertung" },
 ];
 
-
 export default function MobileNavigation() {
   const navigate = useNavigate();
   const location = useLocation();
