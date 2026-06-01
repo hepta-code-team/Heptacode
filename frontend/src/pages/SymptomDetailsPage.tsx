@@ -6,7 +6,7 @@ import SymptomButtonGrid from "../features/symptoms/SymptomButtonGrid";
 import Modal from "../components/Modal";
 import Button from "../components/Button";
 import { useAssessment } from "../lib/AssessmentContext";
-import { getMeasurementConfig } from "../features/symptoms/symptoms.constants";
+import { getMeasurementConfig, MAX_SYMPTOMS } from "../features/symptoms/symptoms.constants";
 import type { SymptomMeasurementType } from "../types/assessment";
 import type { TriageSymptom } from "../../../shared/symptom.types";
 import { handleSubmitAssessment } from "../features/symptoms/handleSubmitAssessment";
@@ -53,15 +53,30 @@ export default function SymptomDetailsPage() {
     };
   };
 
-  // Initialize local symptomDetails from selectedSymptoms
-  const [symptomDetails, setLocalSymptomDetails] = useState<SymptomDraft[]>(() => {
-    // If context already has details, use them
-    if (contextDetails.length > 0) {
-      return contextDetails.map(normalizeSymptom);
-    }
-
-    return selectedSymptoms.map((s, idx) => createSymptomDetails(s.region, s.side, idx));
+  const createEmptySymptom = (index: number): SymptomDraft => ({
+    id: `symptom-placeholder-${Date.now()}-${index}`,
+    region: "",
+    side: undefined,
+    measurementType: "pain",
+    painLevel: 0,
+    active: false,
   });
+
+  const buildInitialSymptomDetails = (): SymptomDraft[] => {
+    const activeSymptoms = contextDetails.length > 0
+      ? contextDetails.map(normalizeSymptom)
+      : selectedSymptoms.map((s, idx) => normalizeSymptom(s, idx));
+
+    const placeholders = Array.from(
+      { length: Math.max(0, MAX_SYMPTOMS - activeSymptoms.length) },
+      (_, index) => createEmptySymptom(index),
+    );
+
+    return [...activeSymptoms, ...placeholders];
+  };
+
+  // Initialize local symptomDetails from selectedSymptoms or stored context
+  const [symptomDetails, setLocalSymptomDetails] = useState<SymptomDraft[]>(buildInitialSymptomDetails);
 
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [showValidationErrors, setShowValidationErrors] = useState(false);
@@ -103,10 +118,13 @@ export default function SymptomDetailsPage() {
 
     setContextDetails(
       activeSymptoms.map((symptom) => ({
+        id: symptom.id,
         region: symptom.region,
         side: symptom.side,
         painLevel: symptom.painLevel,
         duration: symptom.duration,
+        active: symptom.active,
+        measurementType: symptom.measurementType,
       })),
     );
 
