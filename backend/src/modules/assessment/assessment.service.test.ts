@@ -1,15 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { requestStructuredAiResponse } from '../../ai/llmAdapter.js'
-import { AiResponseError } from '../../ai/timeout.js'
+import { evaluateTriage } from '../triage/triage.service.js'
 import { evaluateAssessmentWithAi } from './assessment.service.js'
 import type { AssessmentPayload } from './assessment.types.js'
 
-vi.mock('../../ai/llmAdapter.js', () => ({
-  requestStructuredAiResponse: vi.fn(),
+vi.mock('../triage/triage.service.js', () => ({
+  evaluateTriage: vi.fn(),
 }))
 
-const requestStructuredAiResponseMock = vi.mocked(requestStructuredAiResponse)
+const evaluateTriageMock = vi.mocked(evaluateTriage)
 
 function createPayload(): AssessmentPayload {
   return {
@@ -27,6 +26,10 @@ function createPayload(): AssessmentPayload {
       recentAbroad: false,
       recentAbroadDetails: '',
       conditions: ['Asthma'],
+      isSmoker: false,
+      smokingSinceYears: '',
+      cigarettesPerDay: '',
+      conditionDetails: {},
     },
     selectedSymptoms: [{ region: 'Kopf', side: 'links' }],
     symptomDetails: [
@@ -48,11 +51,14 @@ describe('evaluateAssessmentWithAi', () => {
     vi.clearAllMocks()
   })
 
-  it('gibt ein gueltiges KI-Ergebnis mit createdAt zurueck', async () => {
-    requestStructuredAiResponseMock.mockResolvedValueOnce({
+  it('gibt ein gueltiges Triage-Ergebnis mit createdAt zurueck', async () => {
+    evaluateTriageMock.mockResolvedValueOnce({
       careLevel: 'doctor',
       reasons: ['Die Beschwerden sollten aerztlich eingeordnet werden.'],
-      summary: 'Bitte lassen Sie die Beschwerden zeitnah abklaeren.',
+      reviewSummary: {
+        plainLanguage: 'Bitte lassen Sie die Beschwerden zeitnah abklaeren.',
+        professionalSummary: 'Care Level: doctor.',
+      },
     })
 
     const result = await evaluateAssessmentWithAi(createPayload())
@@ -61,51 +67,63 @@ describe('evaluateAssessmentWithAi', () => {
       careLevel: 'doctor',
       reasons: ['Die Beschwerden sollten aerztlich eingeordnet werden.'],
       summary: 'Bitte lassen Sie die Beschwerden zeitnah abklaeren.',
+      reviewSummary: {
+        plainLanguage: 'Bitte lassen Sie die Beschwerden zeitnah abklaeren.',
+        professionalSummary: 'Care Level: doctor.',
+      },
     })
     expect(Date.parse(result.createdAt)).not.toBeNaN()
-    expect(requestStructuredAiResponseMock).toHaveBeenCalledTimes(1)
-    expect(requestStructuredAiResponseMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        schemaName: 'assessment_result',
-        temperature: 0,
-      }),
+    expect(evaluateTriageMock).toHaveBeenCalledTimes(1)
+    expect(evaluateTriageMock).toHaveBeenCalledWith(
+      createPayload().patientData,
+      [
+        {
+          region: 'Kopf',
+          side: 'links',
+          measurementType: 'pain',
+          measurementValue: 7,
+          duration: 'days',
+        },
+      ],
     )
   })
 
-  it('uebergibt formatierte Patientendaten und Symptomdetails an die KI', async () => {
-    requestStructuredAiResponseMock.mockResolvedValueOnce({
+  it('nutzt eine Fallback-Review-Summary, wenn die Triage keine Summary liefert', async () => {
+    evaluateTriageMock.mockResolvedValueOnce({
       careLevel: 'doctor',
       reasons: ['Die Beschwerden sollten aerztlich eingeordnet werden.'],
-      summary: 'Bitte lassen Sie die Beschwerden zeitnah abklaeren.',
     })
-
-    await evaluateAssessmentWithAi(createPayload())
-
-    const request = requestStructuredAiResponseMock.mock.calls[0]?.[0]
-    const userMessage = request?.messages.find((message) => message.role === 'user')
-
-    expect(userMessage?.content).toContain('Geburtsjahr: 1990')
-    expect(userMessage?.content).toContain('Kopf (links)')
-    expect(userMessage?.content).toContain('Schmerzstaerke: 7/10')
-    expect(userMessage?.content).toContain('Seit ein paar Tagen')
-  })
-
-  it('nutzt den Beispiel-Fallback bei bekannten KI-Fehlern', async () => {
-    requestStructuredAiResponseMock.mockRejectedValueOnce(new AiResponseError('timeout'))
 
     const result = await evaluateAssessmentWithAi(createPayload())
 
     expect(result).toMatchObject({
       careLevel: 'doctor',
-      summary:
-        'Bitte lassen Sie die angegebenen Beschwerden zeitnah medizinisch abklaeren. Bei ploetzlicher Verschlechterung oder akuter Gefahr waehlen Sie den Notruf.',
+      reasons: ['Die Beschwerden sollten aerztlich eingeordnet werden.'],
     })
-    expect(result.reasons[0]).toContain('Kopf (links)')
-    expect(Date.parse(result.createdAt)).not.toBeNaN()
+    expect(result.summary).toBe(result.reviewSummary.plainLanguage)
+    expect(result.reviewSummary.professionalSummary).toContain('Geburtsjahr: 1990')
+    expect(result.reviewSummary.professionalSummary).toContain('Kopf (links)')
+    expect(result.reviewSummary.professionalSummary).toContain('Schmerzstaerke: 7/10')
+  })
+
+  it('uebernimmt den aiUnavailable-Status aus der Triage', async () => {
+    evaluateTriageMock.mockResolvedValueOnce({
+      careLevel: 'doctor',
+      reasons: ['Fallback wurde genutzt.'],
+      aiUnavailable: true,
+    })
+
+    const result = await evaluateAssessmentWithAi(createPayload())
+
+    expect(result).toMatchObject({
+      careLevel: 'doctor',
+      reasons: ['Fallback wurde genutzt.'],
+      aiUnavailable: true,
+    })
   })
 
   it('reicht unerwartete Fehler weiter', async () => {
-    requestStructuredAiResponseMock.mockRejectedValueOnce(new Error('boom'))
+    evaluateTriageMock.mockRejectedValueOnce(new Error('boom'))
 
     await expect(evaluateAssessmentWithAi(createPayload())).rejects.toThrow('boom')
   })

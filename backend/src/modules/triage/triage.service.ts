@@ -7,7 +7,7 @@ import type {
   TriageResponse,
   TriageSymptom,
 } from './triage.types.js'
-import { triageAiResultSchema } from './triage.types.js'
+import { triageAiResponseSchema } from '../../shared/validation.js'
 import type { SymptomInputType } from '../../../../shared/symptomExtraction.types.js'
 import { triageInstructions } from '../prompt/triage.prompt.js'
 
@@ -237,7 +237,7 @@ async function requestTriageFromAi(
         ].join('\n'),
       },
     ],
-    schema: triageAiResultSchema,
+    schema: triageAiResponseSchema,
     schemaName: 'triage_result',
     temperature: 0,
   })

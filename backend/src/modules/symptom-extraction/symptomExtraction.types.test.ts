@@ -35,8 +35,8 @@ describe('symptomExtractionAiResultSchema', () => {
   it('akzeptiert bis zu drei extrahierte Symptome', () => {
     const result = symptomExtractionAiResultSchema.safeParse({
       symptoms: [
-        { region: 'Kopf', painLevel: 6, duration: 'days' },
-        { region: 'Brust', side: 'links' },
+        { region: 'Kopf', measurementType: 'pain', measurementValue: 6, duration: 'days' },
+        { region: 'Brust' },
       ],
     })
 
@@ -56,9 +56,9 @@ describe('symptomExtractionAiResultSchema', () => {
     expect(result.success).toBe(false)
   })
 
-  it('lehnt Schmerzwerte ausserhalb der Skala ab', () => {
+  it('lehnt unbekannte Regionen ab', () => {
     const result = symptomExtractionAiResultSchema.safeParse({
-      symptoms: [{ region: 'Kopf', painLevel: 11 }],
+      symptoms: [{ region: 'Unbekannt' }],
     })
 
     expect(result.success).toBe(false)

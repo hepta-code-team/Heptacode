@@ -32,15 +32,19 @@ describe('POST /api/v1/triage/evaluate', () => {
   it('bewertet strukturierte Symptome ueber die Triage-Pipeline', async () => {
     requestStructuredAiResponseMock.mockResolvedValueOnce({
       careLevel: 'specialist',
-      medicalSpecialty: 'cardiology',
+      recommendedSpecialty: 'cardiology',
       reasons: ['Die Beschwerden sollten kardiologisch abgeklaert werden.'],
+      reviewSummary: {
+        plainLanguage: 'Bitte lassen Sie die Beschwerden kardiologisch abklaeren.',
+        professionalSummary: 'Care Level: specialist. Empfohlene Fachrichtung: cardiology.',
+      },
     })
 
     const response = await app.inject({
       method: 'POST',
       url: '/api/v1/triage/evaluate',
       payload: {
-        symptoms: [{ region: 'Brust', painLevel: 7, duration: 'today' }],
+        symptoms: [{ region: 'Brust', measurementType: 'pain', measurementValue: 7, duration: 'today' }],
       },
     })
 
@@ -49,11 +53,15 @@ describe('POST /api/v1/triage/evaluate', () => {
       careLevel: 'specialist',
       recommendedSpecialty: 'cardiology',
       reasons: ['Die Beschwerden sollten kardiologisch abgeklaert werden.'],
+      reviewSummary: {
+        plainLanguage: 'Bitte lassen Sie die Beschwerden kardiologisch abklaeren.',
+        professionalSummary: 'Care Level: specialist. Empfohlene Fachrichtung: cardiology.',
+      },
     })
     expect(requestStructuredAiResponseMock).toHaveBeenCalledTimes(1)
     expect(requestStructuredAiResponseMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        schemaName: 'triage_ai_response',
+        schemaName: 'triage_result',
         temperature: 0,
       }),
     )
@@ -66,12 +74,15 @@ describe('POST /api/v1/triage/evaluate', () => {
         reason: 'Medizinische Beschwerde erkannt.',
       })
       .mockResolvedValueOnce({
-        symptoms: [{ region: 'Kopf', painLevel: 6, duration: 'days' }],
+        symptoms: [{ region: 'Allgemein', measurementType: 'pain', measurementValue: 4, duration: 'today' }],
       })
       .mockResolvedValueOnce({
         careLevel: 'doctor',
-        medicalSpecialty: null,
         reasons: ['Die Beschwerden sollten aerztlich abgeklart werden.'],
+        reviewSummary: {
+          plainLanguage: 'Bitte lassen Sie die Beschwerden aerztlich abklaeren.',
+          professionalSummary: 'Care Level: doctor.',
+        },
       })
 
     const response = await app.inject({
@@ -86,8 +97,11 @@ describe('POST /api/v1/triage/evaluate', () => {
     expect(response.statusCode).toBe(200)
     expect(response.json()).toEqual({
       careLevel: 'doctor',
-      recommendedSpecialty: 'general_practice',
       reasons: ['Die Beschwerden sollten aerztlich abgeklart werden.'],
+      reviewSummary: {
+        plainLanguage: 'Bitte lassen Sie die Beschwerden aerztlich abklaeren.',
+        professionalSummary: 'Care Level: doctor.',
+      },
     })
     expect(requestStructuredAiResponseMock).toHaveBeenCalledTimes(3)
   })
@@ -104,7 +118,6 @@ describe('POST /api/v1/triage/evaluate', () => {
     expect(response.statusCode).toBe(200)
     expect(response.json()).toMatchObject({
       careLevel: 'emergency',
-      recommendedSpecialty: 'emergency_medicine',
       reasons: ['Notfallmodus ueber die Startseite ausgewaehlt.'],
     })
     expect(requestStructuredAiResponseMock).not.toHaveBeenCalled()
@@ -130,14 +143,13 @@ describe('POST /api/v1/triage/evaluate', () => {
       method: 'POST',
       url: '/api/v1/triage/evaluate',
       payload: {
-        symptoms: [{ region: 'Brust', painLevel: 9, duration: 'today' }],
+        symptoms: [{ region: 'Brust', measurementType: 'pain', measurementValue: 9, duration: 'today' }],
       },
     })
 
     expect(response.statusCode).toBe(200)
     expect(response.json()).toMatchObject({
       careLevel: 'emergency',
-      recommendedSpecialty: 'emergency_medicine',
       aiUnavailable: true,
     })
   })

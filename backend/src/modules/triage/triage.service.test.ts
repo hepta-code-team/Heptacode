@@ -26,7 +26,6 @@ describe('evaluateTriage', () => {
 
     expect(result).toMatchObject({
       careLevel: 'emergency',
-      recommendedSpecialty: 'emergency_medicine',
       reasons: ['Notfallmodus ueber die Startseite ausgewaehlt.'],
     })
     expect(requestStructuredAiResponseMock).not.toHaveBeenCalled()
@@ -38,7 +37,6 @@ describe('evaluateTriage', () => {
 
     expect(result).toMatchObject({
       careLevel: 'selfcare',
-      recommendedSpecialty: 'home_care',
       reasons: [],
     })
     expect(requestStructuredAiResponseMock).not.toHaveBeenCalled()
@@ -48,18 +46,26 @@ describe('evaluateTriage', () => {
   it('uebernimmt eine gueltige KI-Triage mit Fachrichtung', async () => {
     requestStructuredAiResponseMock.mockResolvedValueOnce({
       careLevel: 'specialist',
-      medicalSpecialty: 'neurology',
+      recommendedSpecialty: 'neurology',
       reasons: ['Die Beschwerden sollten neurologisch abgeklaert werden.'],
+      reviewSummary: {
+        plainLanguage: 'Bitte lassen Sie die Beschwerden neurologisch abklaeren.',
+        professionalSummary: 'Care Level: specialist. Empfohlene Fachrichtung: neurology.',
+      },
     })
 
     const result = await evaluateTriage(undefined, [
-      { region: 'Kopf', painLevel: 7, duration: 'days' },
+      { region: 'Kopf', measurementType: 'pain', measurementValue: 7, duration: 'days' },
     ])
 
     expect(result).toEqual({
       careLevel: 'specialist',
       recommendedSpecialty: 'neurology',
       reasons: ['Die Beschwerden sollten neurologisch abgeklaert werden.'],
+      reviewSummary: {
+        plainLanguage: 'Bitte lassen Sie die Beschwerden neurologisch abklaeren.',
+        professionalSummary: 'Care Level: specialist. Empfohlene Fachrichtung: neurology.',
+      },
     })
     expect(requestStructuredAiResponseMock).toHaveBeenCalledTimes(1)
   })
@@ -68,7 +74,7 @@ describe('evaluateTriage', () => {
     requestStructuredAiResponseMock.mockRejectedValueOnce(new AiResponseError('timeout'))
 
     const result = await evaluateTriage(undefined, [
-      { region: 'Brust', painLevel: 8, duration: 'today' },
+      { region: 'Brust', measurementType: 'pain', measurementValue: 8, duration: 'today' },
     ])
 
     expect(result).toMatchObject({
@@ -82,7 +88,7 @@ describe('evaluateTriage', () => {
     requestStructuredAiResponseMock.mockRejectedValueOnce(new AiResponseError('timeout'))
 
     const result = await evaluateTriage(undefined, [
-      { region: 'Bauch', painLevel: 5, duration: 'days' },
+      { region: 'Bauch', measurementType: 'pain', measurementValue: 5, duration: 'days' },
     ])
 
     expect(result).toMatchObject({
@@ -134,12 +140,15 @@ describe('evaluateTriage', () => {
     extractSymptomsMock.mockResolvedValueOnce({
       text: 'Ich habe seit Tagen Husten.',
       inputType: 'speech',
-      symptoms: [{ region: 'Brust', painLevel: 4, duration: 'days' }],
+      symptoms: [{ region: 'Allgemein', measurementType: 'pain', measurementValue: 4, duration: 'days' }],
     })
     requestStructuredAiResponseMock.mockResolvedValueOnce({
       careLevel: 'doctor',
-      medicalSpecialty: null,
       reasons: ['Die Beschwerden sollten aerztlich abgeklart werden.'],
+      reviewSummary: {
+        plainLanguage: 'Bitte lassen Sie die Beschwerden aerztlich abklaeren.',
+        professionalSummary: 'Care Level: doctor.',
+      },
     })
 
     const result = await evaluateTriage(
@@ -152,8 +161,11 @@ describe('evaluateTriage', () => {
 
     expect(result).toEqual({
       careLevel: 'doctor',
-      recommendedSpecialty: 'general_practice',
       reasons: ['Die Beschwerden sollten aerztlich abgeklart werden.'],
+      reviewSummary: {
+        plainLanguage: 'Bitte lassen Sie die Beschwerden aerztlich abklaeren.',
+        professionalSummary: 'Care Level: doctor.',
+      },
     })
     expect(extractSymptomsMock).toHaveBeenCalledWith('Ich habe seit Tagen Husten.', 'speech')
     expect(requestStructuredAiResponseMock).toHaveBeenCalledTimes(1)

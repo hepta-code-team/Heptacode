@@ -4,6 +4,7 @@ import { z } from 'zod'
 import { AI_REQUEST_OPTIONS, AiResponseError } from './timeout.js'
 
 const parseMock = vi.fn()
+const createMock = vi.fn()
 
 vi.mock('./client.js', () => ({
   aiClient: {
@@ -12,6 +13,11 @@ vi.mock('./client.js', () => ({
         completions: {
           parse: parseMock,
         },
+      },
+    },
+    chat: {
+      completions: {
+        create: createMock,
       },
     },
   },
@@ -89,6 +95,13 @@ describe('requestStructuredAiResponse', () => {
     const { requestStructuredAiResponse } = await import('./llmAdapter.js')
 
     parseMock.mockResolvedValueOnce({
+      choices: [
+        {
+          message: {},
+        },
+      ],
+    })
+    createMock.mockResolvedValueOnce({
       choices: [
         {
           message: {},

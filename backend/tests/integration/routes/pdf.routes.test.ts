@@ -18,7 +18,6 @@ function createPayload(): PdfExportRequest {
     },
     triage: {
       careLevel: 'doctor',
-      recommendedSpecialty: 'general_practice',
       reasons: ['Die Beschwerden sollten aerztlich eingeordnet werden.'],
     },
     patientData: {
@@ -35,8 +34,12 @@ function createPayload(): PdfExportRequest {
       recentAbroad: false,
       recentAbroadDetails: '',
       conditions: ['Asthma'],
+      isSmoker: false,
+      smokingSinceYears: '',
+      cigarettesPerDay: '',
+      conditionDetails: {},
     },
-    symptoms: [{ region: 'Kopf', side: 'links', painLevel: 6, duration: 'days' }],
+    symptoms: [{ region: 'Kopf', measurementType: 'pain', measurementValue: 6, duration: 'days' }],
   }
 }
 

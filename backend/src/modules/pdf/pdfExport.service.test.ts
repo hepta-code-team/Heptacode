@@ -23,8 +23,12 @@ describe('createPdfSummary', () => {
         recentAbroad: false,
         recentAbroadDetails: '',
         conditions: ['Asthma'],
+        isSmoker: false,
+        smokingSinceYears: '',
+        cigarettesPerDay: '',
+        conditionDetails: {},
       },
-      symptoms: [{ region: 'Kopf', side: 'links', painLevel: 6, duration: 'days' }],
+      symptoms: [{ region: 'Kopf', measurementType: 'pain', measurementValue: 6, duration: 'days' }],
     })
 
     const pdfContent = Buffer.from(result.contentBase64, 'base64').toString('utf8')

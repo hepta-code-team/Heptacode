@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
 
 import {
-  assessmentAiResultSchema,
   assessmentPayloadSchema,
+  assessmentResultSchema,
   symptomSchema,
 } from './assessment.types.js'
 
@@ -20,6 +20,10 @@ const validPatientData = {
   recentAbroad: false,
   recentAbroadDetails: '',
   conditions: [],
+  isSmoker: false,
+  smokingSinceYears: '',
+  cigarettesPerDay: '',
+  conditionDetails: {},
 }
 
 const validSymptom = {
@@ -80,11 +84,11 @@ describe('assessmentPayloadSchema', () => {
   })
 
   it('lehnt unvollstaendige Patientendaten ab', () => {
+    const incompletePatientData: Partial<typeof validPatientData> = { ...validPatientData }
+    delete incompletePatientData.conditionDetails
+
     const result = assessmentPayloadSchema.safeParse({
-      patientData: {
-        ...validPatientData,
-        birthYear: '',
-      },
+      patientData: incompletePatientData,
       selectedSymptoms: [{ region: 'Kopf' }],
       symptomDetails: [validSymptom],
     })
@@ -93,32 +97,47 @@ describe('assessmentPayloadSchema', () => {
   })
 })
 
-describe('assessmentAiResultSchema', () => {
+describe('assessmentResultSchema', () => {
   it('akzeptiert gueltige KI-Ergebnisse', () => {
-    const result = assessmentAiResultSchema.safeParse({
+    const result = assessmentResultSchema.safeParse({
       careLevel: 'doctor',
       reasons: ['Die Beschwerden sollten aerztlich eingeordnet werden.'],
+      reviewSummary: {
+        plainLanguage: 'Bitte lassen Sie die Beschwerden zeitnah abklaeren.',
+        professionalSummary: 'Care Level: doctor.',
+      },
       summary: 'Bitte lassen Sie die Beschwerden zeitnah abklaeren.',
+      createdAt: '2026-06-01T00:00:00.000Z',
     })
 
     expect(result.success).toBe(true)
   })
 
   it('lehnt leere Gruende ab', () => {
-    const result = assessmentAiResultSchema.safeParse({
+    const result = assessmentResultSchema.safeParse({
       careLevel: 'doctor',
       reasons: [],
+      reviewSummary: {
+        plainLanguage: 'Bitte lassen Sie die Beschwerden zeitnah abklaeren.',
+        professionalSummary: 'Care Level: doctor.',
+      },
       summary: 'Bitte lassen Sie die Beschwerden zeitnah abklaeren.',
+      createdAt: '2026-06-01T00:00:00.000Z',
     })
 
     expect(result.success).toBe(false)
   })
 
   it('lehnt mehr als fuenf Gruende ab', () => {
-    const result = assessmentAiResultSchema.safeParse({
+    const result = assessmentResultSchema.safeParse({
       careLevel: 'doctor',
       reasons: ['1', '2', '3', '4', '5', '6'],
+      reviewSummary: {
+        plainLanguage: 'Bitte lassen Sie die Beschwerden zeitnah abklaeren.',
+        professionalSummary: 'Care Level: doctor.',
+      },
       summary: 'Bitte lassen Sie die Beschwerden zeitnah abklaeren.',
+      createdAt: '2026-06-01T00:00:00.000Z',
     })
 
     expect(result.success).toBe(false)
