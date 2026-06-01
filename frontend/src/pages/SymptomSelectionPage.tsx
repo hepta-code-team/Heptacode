@@ -21,6 +21,8 @@ import type { TriageSymptom } from "../../../shared/symptom.types";
 
 
 const MAX_RECORDING_DURATION_MS = 120_000;
+const MAX_SYMPTOM_TEXT_WORDS = 400;
+const SYMPTOM_TEXT_WORD_LIMIT_ERROR = `Bitte beschreiben Sie Ihre Symptome mit maximal ${MAX_SYMPTOM_TEXT_WORDS} Wörtern.`;
 
 type BrowserSpeechRecognitionAlternative = {
   transcript: string;
@@ -79,6 +81,32 @@ const supportingAreas = [
     icon: Brain,
   },
 ];
+
+
+function getWords(text: string) {
+  return text.trim().match(/\S+/g) ?? [];
+}
+
+function getWordCount(text: string) {
+  return getWords(text).length;
+}
+
+function limitTextToMaxWords(text: string) {
+  const wordMatches = Array.from(text.matchAll(/\S+/g));
+
+  if (wordMatches.length <= MAX_SYMPTOM_TEXT_WORDS) {
+    return text;
+  }
+
+  const lastAllowedWord = wordMatches[MAX_SYMPTOM_TEXT_WORDS - 1];
+  const lastAllowedWordEnd = (lastAllowedWord.index ?? 0) + lastAllowedWord[0].length;
+
+  return text.slice(0, lastAllowedWordEnd);
+}
+
+function hasTooManySymptomTextWords(text: string) {
+  return getWordCount(text) > MAX_SYMPTOM_TEXT_WORDS;
+}
 
 function getSymptomKey(symptom: SelectedSymptom) {
   return symptom.side ? `${symptom.region} (${symptom.side})` : symptom.region;
@@ -265,6 +293,21 @@ export default function SymptomSelectionPage() {
   const selectedCategoryLabel = selectedCategory ? BODY_AREA_LABELS[selectedCategory] : "";
   const filteredRegions = useMemo(() => getBodyRegionsForCategory(selectedCategory), [selectedCategory]);
   const shouldShowInlineOptions = selectedCategory !== "torso";
+  const symptomTextWordCount = useMemo(() => getWordCount(symptomText), [symptomText]);
+
+  const handleSymptomTextChange = (text: string) => {
+    if (hasTooManySymptomTextWords(text)) {
+      setSymptomText(limitTextToMaxWords(text));
+      setSymptomTextError(SYMPTOM_TEXT_WORD_LIMIT_ERROR);
+      return;
+    }
+
+    setSymptomText(text);
+
+    if (symptomTextError === SYMPTOM_TEXT_WORD_LIMIT_ERROR) {
+      setSymptomTextError(null);
+    }
+  };
 
   const clearRecordingTimeout = () => {
     if (recordingTimeoutRef.current !== null) {
@@ -289,15 +332,22 @@ export default function SymptomSelectionPage() {
     const normalizedTranscript = transcript.trim();
 
     if (!normalizedTranscript) {
-      return normalizedBaseText;
+      return limitTextToMaxWords(normalizedBaseText);
     }
 
-    return normalizedBaseText ? `${normalizedBaseText} ${normalizedTranscript}` : normalizedTranscript;
+    const combinedTranscript = normalizedBaseText ? `${normalizedBaseText} ${normalizedTranscript}` : normalizedTranscript;
+
+    return limitTextToMaxWords(combinedTranscript);
   };
 
   const handleToggleSymptomRecording = () => {
     if (isRecordingSymptoms) {
       stopSymptomRecording();
+      return;
+    }
+
+    if (symptomTextWordCount >= MAX_SYMPTOM_TEXT_WORDS) {
+      setSymptomTextError(SYMPTOM_TEXT_WORD_LIMIT_ERROR);
       return;
     }
 
@@ -338,7 +388,13 @@ export default function SymptomSelectionPage() {
         recordedTextRef.current = appendTranscript(recordedTextRef.current, finalTranscript);
       }
 
-      setSymptomText(appendTranscript(recordedTextRef.current, interimTranscript));
+      const nextSymptomText = appendTranscript(recordedTextRef.current, interimTranscript);
+      setSymptomText(nextSymptomText);
+
+      if (getWordCount(nextSymptomText) >= MAX_SYMPTOM_TEXT_WORDS && (finalTranscript || interimTranscript)) {
+        setSymptomTextError(SYMPTOM_TEXT_WORD_LIMIT_ERROR);
+        stopSymptomRecording();
+      }
     };
 
     recognition.onerror = (event) => {
@@ -436,6 +492,12 @@ export default function SymptomSelectionPage() {
 
     if (!trimmedSymptomText) {
       setSymptomTextError("Bitte beschreiben Sie Ihre Symptome kurz.");
+      return;
+    }
+
+    if (hasTooManySymptomTextWords(trimmedSymptomText)) {
+      setSymptomText(limitTextToMaxWords(trimmedSymptomText));
+      setSymptomTextError(SYMPTOM_TEXT_WORD_LIMIT_ERROR);
       return;
     }
 
@@ -680,15 +742,26 @@ export default function SymptomSelectionPage() {
           setSymptomTextError(null);
         }}
         title="Beschreiben Sie Ihre Symptome"
-        subtitle="Bitte beschreiben Sie Ihre Symptome in 1-2 Sätzen. Nennen Sie dabei Symptom, Stärke und Dauer."
+        subtitle={`Bitte beschreiben Sie Ihre Symptome in 1-2 Sätzen. Nennen Sie dabei Symptom, Stärke und Dauer.`}
       >
         <textarea
           value={symptomText}
-          onChange={(event) => setSymptomText(event.target.value)}
+          onChange={(event) => handleSymptomTextChange(event.target.value)}
           placeholder="z.B. Ich habe seit 3 Tagen starke Kopfschmerzen (7/10) und leichte Übelkeit."
           className="w-full h-40 bg-[#eff2f6] rounded-[16px] p-4 resize-none border-none outline-none focus:ring-2 focus:ring-[#486284] font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-body text-base"
           style={{ fontVariationSettings: "'opsz' 14" }}
         />
+
+        <div className="mt-2 flex justify-end">
+          <span
+            className={`font-['DM_Sans:Medium',sans-serif] text-xs font-medium ${
+              symptomTextWordCount >= MAX_SYMPTOM_TEXT_WORDS ? "text-red-700" : "text-app-text-muted"
+            }`}
+            style={{ fontVariationSettings: "'opsz' 14" }}
+          >
+            {symptomTextWordCount}/{MAX_SYMPTOM_TEXT_WORDS} Wörter
+          </span>
+        </div>
 
         {symptomTextError && (
           <div className="mt-3 rounded-[14px] border border-red-200 bg-red-50 p-3 text-sm font-medium text-red-700">
