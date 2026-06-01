@@ -2,7 +2,7 @@ import { zodResponseFormat } from 'openai/helpers/zod'
 import type { ChatCompletionMessageParam } from 'openai/resources/chat/completions'
 import type { z } from 'zod'
 import { aiClient, aiModel, fallbackModel } from './client.js'
-import { AI_REQUEST_OPTIONS, AiResponseError, isAiAvailabilityError } from './timeout.js'
+import { AI_REQUEST_OPTIONS, AiResponseError, isAiAvailabilityError, isAiRequestError } from './timeout.js'
 
 type StructuredAiRequest<TSchema extends z.ZodTypeAny> = {
   messages: ChatCompletionMessageParam[]
@@ -61,7 +61,7 @@ async function requestWithModel<TSchema extends z.ZodTypeAny>(
     const content = completion.choices[0]?.message?.content
 
     if (!content) {
-      throw parseError
+      throw new AiResponseError(`AI returned no JSON content for ${schemaName}`)
     }
 
     let parsedJson: unknown
@@ -69,13 +69,13 @@ async function requestWithModel<TSchema extends z.ZodTypeAny>(
     try {
       parsedJson = JSON.parse(content)
     } catch {
-      throw parseError
+      throw new AiResponseError(`AI returned invalid JSON for ${schemaName}`)
     }
 
     const validated = schema.safeParse(parsedJson)
 
     if (!validated.success) {
-      throw parseError
+      throw new AiResponseError(`AI returned JSON that does not match ${schemaName}`)
     }
 
     return validated.data
@@ -118,7 +118,7 @@ export async function requestStructuredAiResponseWithModel<TSchema extends z.Zod
       model: aiModel,
     }
   } catch (error) {
-    if (fallbackModel === aiModel || !isAiAvailabilityError(error)) {
+    if (fallbackModel === aiModel || !isAiRequestError(error)) {
       throw error
     }
 
