@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { triageAiResultSchema, triageRequestSchema } from './triage.types.js'
+import { triageAiResultSchema, triageRequestSchema } from '../modules/triage/triage.types.js'
 
 describe('triageAiResultSchema', () => {
   it('akzeptiert gueltige Selfcare-Antworten ohne Fachrichtung', () => {

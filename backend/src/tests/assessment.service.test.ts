@@ -1,9 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { requestStructuredAiResponse } from '../../ai/llmAdapter.js'
-import { AiResponseError } from '../../ai/timeout.js'
-import { evaluateAssessmentWithAi } from './assessment.service.js'
-import type { AssessmentPayload } from './assessment.types.js'
+import { requestStructuredAiResponse } from '../ai/llmAdapter.js'
+import { AiResponseError } from '../ai/timeout.js'
+import { evaluateAssessmentWithAi } from '../modules/assessment/assessment.service.js'
+import type { AssessmentPayload } from '../modules/assessment/assessment.types.js'
 
 vi.mock('../../ai/llmAdapter.js', () => ({
   requestStructuredAiResponse: vi.fn(),

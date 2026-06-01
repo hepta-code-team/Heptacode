@@ -1,9 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { AiResponseError } from '../../ai/timeout.js'
-import { requestStructuredAiResponse } from '../../ai/llmAdapter.js'
-import { extractSymptoms } from '../symptom-extraction/symptomExtraction.service.js'
-import { evaluateTriage } from './triage.service.js'
+import { AiResponseError } from '../ai/timeout.js'
+import { requestStructuredAiResponse } from '../ai/llmAdapter.js'
+import { extractSymptoms } from '../modules/symptom-extraction/symptomExtraction.service.js'
+import { evaluateTriage } from '../modules/triage/triage.service.js'
 
 vi.mock('../../ai/llmAdapter.js', () => ({
   requestStructuredAiResponse: vi.fn(),

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { pdfExportRequestSchema } from './pdf.types.js'
+import { pdfExportRequestSchema } from '../modules/pdf/pdf.types.js'
 
 describe('pdfExportRequestSchema', () => {
   it('akzeptiert gueltige PDF-Exportdaten', () => {

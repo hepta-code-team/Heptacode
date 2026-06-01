@@ -4,7 +4,7 @@ import {
   symptomExtractionAiResultSchema,
   symptomExtractionRequestSchema,
   symptomInputValidationAiResultSchema,
-} from './symptomExtraction.types.js'
+} from '../modules/symptom-extraction/symptomExtraction.types.js'
 
 describe('symptomExtractionRequestSchema', () => {
   it('akzeptiert symptomText als Eingabe', () => {
