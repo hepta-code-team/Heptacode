@@ -21,11 +21,10 @@ Patienten werden sicher, schnell und laienverständlich durch das Gesundheitssys
 | Branch | Zweck |
 |---|---|
 | `main` | Stable — nur reviewed Code |
+| `dev` | Gemeinsamer Entwicklungs- und Integrationsbranch |
 | `tech-stack-v1` | wurde gelöscht/ War der erste Ansatz für unseren TechStack|
-| *`newFold-v1` | Aktuelle branch |
 | `feature/...` | Neue Features |
 
-# * Bedeutet: ist der Branch an dem aktuell gearbeitet wird
 ---
 
 ## Tech Stack
@@ -90,34 +89,66 @@ git push
 
 ## Projektstruktur
 
-```
+```text
 heptacode/
 ├── docker-compose.yml          # Produktion
 ├── docker-compose.dev.yml      # Entwicklung (Hot Reload)
 ├── .env.example                # Vorlage — nie echte Werte eintragen
 ├── .env.local                  # Echte Werte — NIEMALS in Git!
 ├── Makefile
+├── docs/
+│   └── FRONTEND_BACKEND_SCHNITTSTELLE.md
+├── shared/                     # Geteilte Typen zwischen Frontend und Backend
+│   ├── patientData.types.ts
+│   ├── result.types.ts
+│   ├── symptom.types.ts
+│   └── symptomExtraction.types.ts
 │
-├── frontend/                   # React + TypeScript + Tailwind + PrimeReact
+├── frontend/                   # React + TypeScript + Vite
 │   ├── Dockerfile
 │   ├── Dockerfile.dev
+│   ├── ARCHITECTURE.md
+│   ├── guidelines/
 │   ├── src/
-│   │   ├── main.tsx
-│   │   ├── App.tsx
-│   │   └── index.css
+│   │   ├── app/
+│   │   │   ├── App.tsx
+│   │   │   └── router.tsx
+│   │   ├── assets/
+│   │   ├── components/
+│   │   ├── features/
+│   │   ├── lib/
+│   │   ├── pages/
+│   │   ├── styles/
+│   │   ├── types/
+│   │   └── main.tsx
+│   ├── postcss.config.mjs
 │   ├── vite.config.ts
-│   ├── tailwind.config.ts
 │   └── tsconfig.json
 │
 └── backend/                    # Node.js + Fastify + Zod
     ├── Dockerfile
     ├── Dockerfile.dev
+    ├── docs/
     ├── src/
-    │   ├── index.ts
-    │   └── ai/
-    │       ├── client.ts       # MedGemma Client
-    │       ├── prompts.ts      # Prompts zentral
-    │       └── triage.ts       # Triage-Logik
+    │   ├── ai/
+    │   │   ├── client.ts       # LLM-Client
+    │   │   ├── llmAdapter.ts   # Adapter fuer Modellaufrufe
+    │   │   └── timeout.ts
+    │   ├── config/
+    │   │   └── env.ts
+    │   ├── modules/
+    │   │   ├── assessment/
+    │   │   ├── pdf/
+    │   │   ├── prompt/
+    │   │   ├── symptom-extraction/
+    │   │   └── triage/
+    │   ├── routes/
+    │   │   ├── assessment.routes.ts
+    │   │   ├── pdf.routes.ts
+    │   │   ├── symptomExtraction.routes.ts
+    │   │   └── triage.routes.ts
+    │   ├── app.ts
+    │   └── index.ts
     └── tsconfig.json
 ```
 

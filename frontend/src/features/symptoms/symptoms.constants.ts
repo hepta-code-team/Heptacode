@@ -124,6 +124,7 @@ export const PRE_EXISTING_CONDITIONS = [
   "Nierenerkrankungen",
   "Lebererkrankungen",
   "Epilepsie",
+  "Psychische Erkrankung",
   "Sonstige",
 ];
 

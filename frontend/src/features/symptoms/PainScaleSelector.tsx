@@ -83,8 +83,7 @@ export default function PainScaleSelector({ config, value, onValueChange }: Pain
               <button
                 key={temperature}
                 onClick={() => onValueChange(temperature)}
-                className={`flex-1 h-12 rounded-lg transition-all hover:opacity-90 flex items-center justify-center font-['DM_Sans:Bold',sans-serif] font-bold text-xs 
-                }`}
+                className="flex-1 h-12 rounded-lg transition-all hover:opacity-90 flex items-center justify-center font-['DM_Sans:Bold',sans-serif] font-bold text-xs"
                 style={{
                   backgroundColor: temperature > value ? "#E5E7EB" : getTemperatureColor(temperature),
                   color: temperature <= 38 ? "#3e3e3e" : "white",

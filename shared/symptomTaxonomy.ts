@@ -36,30 +36,26 @@ export const SYMPTOM_REGIONS = [
     name: 'Psychische Probleme',
     options: ['Angst/Panik', 'Suizidgedanken', 'Niedergeschlagenheit'],
   },
-] as const
+] as const;
 
-export type SymptomRegionName = (typeof SYMPTOM_REGIONS)[number]['name']
+export type SymptomRegionName = (typeof SYMPTOM_REGIONS)[number]['name'];
 
 export const SYMPTOM_REGION_NAMES = SYMPTOM_REGIONS.map((region) => region.name) as [
   SymptomRegionName,
   ...SymptomRegionName[],
-]
-
-export const SYMPTOM_DURATION_IDS = ['today', 'days', 'week', 'weeks'] as const
-
-export type SymptomDurationId = (typeof SYMPTOM_DURATION_IDS)[number]
+];
 
 const OPTIONS_BY_REGION = new Map(
   SYMPTOM_REGIONS.map((region) => [region.name, [...region.options]] as const),
-)
+);
 
 export function getOptionsForRegion(region: SymptomRegionName): readonly string[] {
-  return OPTIONS_BY_REGION.get(region) ?? []
+  return OPTIONS_BY_REGION.get(region) ?? [];
 }
 
 export function formatSymptomTaxonomyForPrompt(): string {
   return SYMPTOM_REGIONS.map((region) => {
-    const options = region.options.join(', ')
-    return `${region.name}: ${options}.`
-  }).join('\n')
+    const options = region.options.join(', ');
+    return `${region.name}: ${options}.`;
+  }).join('\n');
 }
