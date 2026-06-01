@@ -1,7 +1,7 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { KeyboardEvent } from "react";
 import { useNavigate, useSearchParams } from "react-router";
-import { Brain, Check, Mic, Sparkles, X } from "lucide-react";
+import { Brain, Check, Mic, MicOff, Sparkles, X } from "lucide-react";
 import PageShell from "../components/PageShell";
 import Button from "../components/Button";
 import Modal from "../components/Modal";
@@ -18,6 +18,52 @@ import {
 } from "../features/symptoms/symptoms.constants";
 import type { SelectedSymptom } from "../../../shared/symptom.types";
 import type { TriageSymptom } from "../../../shared/symptom.types";
+
+
+const MAX_RECORDING_DURATION_MS = 120_000;
+
+type BrowserSpeechRecognitionAlternative = {
+  transcript: string;
+};
+
+type BrowserSpeechRecognitionResult = {
+  isFinal: boolean;
+  [index: number]: BrowserSpeechRecognitionAlternative;
+};
+
+type BrowserSpeechRecognitionEvent = {
+  resultIndex: number;
+  results: {
+    length: number;
+    [index: number]: BrowserSpeechRecognitionResult;
+  };
+};
+
+type BrowserSpeechRecognitionErrorEvent = {
+  error: string;
+};
+
+type BrowserSpeechRecognition = {
+  continuous: boolean;
+  interimResults: boolean;
+  lang: string;
+  onend: (() => void) | null;
+  onerror: ((event: BrowserSpeechRecognitionErrorEvent) => void) | null;
+  onresult: ((event: BrowserSpeechRecognitionEvent) => void) | null;
+  onstart: (() => void) | null;
+  abort: () => void;
+  start: () => void;
+  stop: () => void;
+};
+
+type BrowserSpeechRecognitionConstructor = new () => BrowserSpeechRecognition;
+
+declare global {
+  interface Window {
+    SpeechRecognition?: BrowserSpeechRecognitionConstructor;
+    webkitSpeechRecognition?: BrowserSpeechRecognitionConstructor;
+  }
+}
 
 const supportingAreas = [
   {
@@ -209,12 +255,134 @@ export default function SymptomSelectionPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [symptomText, setSymptomText] = useState("");
   const [isExtractingSymptoms, setIsExtractingSymptoms] = useState(false);
+  const [isRecordingSymptoms, setIsRecordingSymptoms] = useState(false);
   const [symptomTextError, setSymptomTextError] = useState<string | null>(null);
   const symptomOptionsRef = useRef<HTMLDivElement | null>(null);
+  const speechRecognitionRef = useRef<BrowserSpeechRecognition | null>(null);
+  const recordingTimeoutRef = useRef<number | null>(null);
+  const recordedTextRef = useRef("");
 
   const selectedCategoryLabel = selectedCategory ? BODY_AREA_LABELS[selectedCategory] : "";
   const filteredRegions = useMemo(() => getBodyRegionsForCategory(selectedCategory), [selectedCategory]);
   const shouldShowInlineOptions = selectedCategory !== "torso";
+
+  const clearRecordingTimeout = () => {
+    if (recordingTimeoutRef.current !== null) {
+      window.clearTimeout(recordingTimeoutRef.current);
+      recordingTimeoutRef.current = null;
+    }
+  };
+
+  const stopSymptomRecording = () => {
+    clearRecordingTimeout();
+
+    if (speechRecognitionRef.current) {
+      speechRecognitionRef.current.stop();
+      return;
+    }
+
+    setIsRecordingSymptoms(false);
+  };
+
+  const appendTranscript = (baseText: string, transcript: string) => {
+    const normalizedBaseText = baseText.trim();
+    const normalizedTranscript = transcript.trim();
+
+    if (!normalizedTranscript) {
+      return normalizedBaseText;
+    }
+
+    return normalizedBaseText ? `${normalizedBaseText} ${normalizedTranscript}` : normalizedTranscript;
+  };
+
+  const handleToggleSymptomRecording = () => {
+    if (isRecordingSymptoms) {
+      stopSymptomRecording();
+      return;
+    }
+
+    const SpeechRecognition = window.SpeechRecognition ?? window.webkitSpeechRecognition;
+
+    if (!SpeechRecognition) {
+      setSymptomTextError("Spracheingabe wird von diesem Browser nicht unterstützt. Bitte nutzen Sie den Freitext.");
+      return;
+    }
+
+    const recognition = new SpeechRecognition();
+    recordedTextRef.current = symptomText.trim();
+    recognition.continuous = true;
+    recognition.interimResults = true;
+    recognition.lang = "de-DE";
+
+    recognition.onstart = () => {
+      setIsRecordingSymptoms(true);
+      setSymptomTextError(null);
+    };
+
+    recognition.onresult = (event) => {
+      let finalTranscript = "";
+      let interimTranscript = "";
+
+      for (let index = event.resultIndex; index < event.results.length; index += 1) {
+        const result = event.results[index];
+        const transcript = result[0]?.transcript ?? "";
+
+        if (result.isFinal) {
+          finalTranscript = appendTranscript(finalTranscript, transcript);
+        } else {
+          interimTranscript = appendTranscript(interimTranscript, transcript);
+        }
+      }
+
+      if (finalTranscript) {
+        recordedTextRef.current = appendTranscript(recordedTextRef.current, finalTranscript);
+      }
+
+      setSymptomText(appendTranscript(recordedTextRef.current, interimTranscript));
+    };
+
+    recognition.onerror = (event) => {
+      clearRecordingTimeout();
+      setIsRecordingSymptoms(false);
+      speechRecognitionRef.current = null;
+
+      if (event.error === "not-allowed" || event.error === "service-not-allowed") {
+        setSymptomTextError("Bitte erlauben Sie den Mikrofonzugriff, um Symptome diktieren zu können.");
+        return;
+      }
+
+      if (event.error !== "no-speech" && event.error !== "aborted") {
+        setSymptomTextError("Die Spracheingabe wurde unterbrochen. Bitte versuchen Sie es erneut oder nutzen Sie den Freitext.");
+      }
+    };
+
+    recognition.onend = () => {
+      clearRecordingTimeout();
+      setIsRecordingSymptoms(false);
+      speechRecognitionRef.current = null;
+    };
+
+    speechRecognitionRef.current = recognition;
+    recordingTimeoutRef.current = window.setTimeout(() => {
+      stopSymptomRecording();
+    }, MAX_RECORDING_DURATION_MS);
+
+    try {
+      recognition.start();
+    } catch (error) {
+      clearRecordingTimeout();
+      speechRecognitionRef.current = null;
+      setIsRecordingSymptoms(false);
+      setSymptomTextError(error instanceof Error ? error.message : "Die Spracheingabe konnte nicht gestartet werden.");
+    }
+  };
+
+  useEffect(() => {
+    return () => {
+      clearRecordingTimeout();
+      speechRecognitionRef.current?.abort();
+    };
+  }, []);
 
   const handleCategorySelect = (category: BodyAreaCategory) => {
     if (selectedCategory === category) {
@@ -263,6 +431,7 @@ export default function SymptomSelectionPage() {
   };
 
   const handleApplySymptomText = async () => {
+    stopSymptomRecording();
     const trimmedSymptomText = symptomText.trim();
 
     if (!trimmedSymptomText) {
@@ -505,6 +674,7 @@ export default function SymptomSelectionPage() {
       <Modal
         isOpen={isModalOpen}
         onClose={() => {
+          stopSymptomRecording();
           setIsModalOpen(false);
           setSymptomText("");
           setSymptomTextError(null);
@@ -527,14 +697,30 @@ export default function SymptomSelectionPage() {
         )}
 
         <div className="flex justify-between items-center mt-6">
-          <button
-            onClick={() => {}}
-            disabled={isExtractingSymptoms}
-            className="bg-[#486284] text-app-text-on-primary rounded-full w-16 h-16 hover:bg-[#3a4d68] transition-all shadow-lg flex items-center justify-center"
-            aria-label="Symptom diktieren"
-          >
-            <Mic className="size-8" aria-hidden="true" />
-          </button>
+          <div className="flex flex-col items-center gap-2">
+            <button
+              type="button"
+              onClick={handleToggleSymptomRecording}
+              disabled={isExtractingSymptoms}
+              className={`text-app-text-on-primary rounded-full w-16 h-16 transition-all shadow-lg flex items-center justify-center disabled:cursor-not-allowed disabled:opacity-60 ${
+                isRecordingSymptoms ? "bg-red-600 hover:bg-red-700 animate-pulse" : "bg-[#486284] hover:bg-[#3a4d68]"
+              }`}
+              aria-label={isRecordingSymptoms ? "Spracheingabe stoppen" : "Symptom diktieren"}
+              aria-pressed={isRecordingSymptoms}
+            >
+              {isRecordingSymptoms ? (
+                <MicOff className="size-8" aria-hidden="true" />
+              ) : (
+                <Mic className="size-8" aria-hidden="true" />
+              )}
+            </button>
+            <span
+              className="font-['DM_Sans:Medium',sans-serif] text-xs font-medium text-app-text-primary"
+              style={{ fontVariationSettings: "'opsz' 14" }}
+            >
+              {isRecordingSymptoms ? "Aufnahme läuft · max. 2 Min." : "Diktieren"}
+            </span>
+          </div>
 
           <button
             onClick={handleApplySymptomText}
