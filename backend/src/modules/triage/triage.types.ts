@@ -1,7 +1,13 @@
 import { z } from 'zod'
 import type { PatientData } from '../../../../shared/patientData.types.js'
-import { CARE_LEVELS, MEDICAL_SPECIALTIES } from '../../../../shared/result.types.js'
-import type { CareLevel, MedicalSpecialty } from '../../../../shared/result.types.js'
+import {
+  CARE_LEVELS,
+  MEDICAL_SPECIALTIES,
+} from '../../../../shared/result.types.js'
+import type {
+  CareLevel,
+  MedicalSpecialty,
+} from '../../../../shared/result.types.js'
 import { SYMPTOM_INPUT_TYPES } from '../../../../shared/symptomExtraction.types.js'
 import type { SymptomInputType } from '../../../../shared/symptomExtraction.types.js'
 import {
@@ -11,26 +17,21 @@ import {
 } from '../../../../shared/symptom.types.js'
 
 export type { PatientData } from '../../../../shared/patientData.types.js'
-export type { CareLevel, MedicalSpecialty } from '../../../../shared/result.types.js'
+export type {
+  CareLevel,
+  MedicalSpecialty,
+} from '../../../../shared/result.types.js'
 export type { TriageSymptom } from '../../../../shared/symptom.types.js'
 
-// Typ für die Review Summary
 export interface ReviewSummary {
   plainLanguage: string
   professionalSummary: string
 }
 
-export const reviewSummarySchema = z.object({
-  plainLanguage: z.string().min(1),
-  professionalSummary: z.string().min(1),
-})
-
 export const careLevelSchema = z.enum(CARE_LEVELS)
 
-// Medizinische Versorgungsangebote
 export const medicalSpecialtySchema = z.enum(MEDICAL_SPECIALTIES)
 
-// Typ für die Anfrage
 export interface TriageRequest {
   patientData?: PatientData
   symptoms?: TriageSymptom[]
@@ -39,18 +40,19 @@ export interface TriageRequest {
   emergencyFromLanding?: boolean
 }
 
-// Typ für die Antwort
 export interface TriageResponse {
   careLevel: CareLevel
   recommendedSpecialty?: MedicalSpecialty
   reasons: string[]
   reviewSummary?: ReviewSummary
-
-  // TA 1.8: true bedeutet, dass die Empfehlung aus dem definierten Fallback kommt.
   aiUnavailable?: boolean
 }
 
-// Schema für die Patientendaten
+export const reviewSummarySchema = z.object({
+  plainLanguage: z.string().min(1),
+  professionalSummary: z.string().min(1),
+})
+
 export const patientDataSchema = z.object({
   birthMonth: z.string(),
   birthYear: z.string(),
@@ -71,7 +73,6 @@ export const patientDataSchema = z.object({
   conditionDetails: z.record(z.string(), z.string()),
 })
 
-// Schema für das ausgewählte Symptom
 export const triageSymptomSchema = z.object({
   region: z.string().min(1),
   side: z.string().min(1).optional(),
@@ -80,34 +81,15 @@ export const triageSymptomSchema = z.object({
   duration: z.enum(TRIAGE_SYMPTOM_DURATIONS).optional(),
 })
 
-// TA 2.5: Schema fuer validierte KI-Responses mit CareLevel, MedicalSpecialty und reasons.
-export const triageAiResultSchema = z
-  .object({
-    careLevel: careLevelSchema,
-    medicalSpecialty: medicalSpecialtySchema.nullable(),
-    reasons: z.array(z.string().trim().min(1)).min(1).max(5),
-  })
-  .superRefine((value, ctx) => {
-    if (value.careLevel === 'specialist' && value.medicalSpecialty === null) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ['medicalSpecialty'],
-        message: 'medicalSpecialty ist erforderlich, wenn careLevel specialist ist',
-      })
-    }
+export const triageAiResultSchema = z.object({
+  careLevel: careLevelSchema,
+  recommendedSpecialty: medicalSpecialtySchema.nullish().transform((value) => value ?? undefined),
+  reasons: z
+    .union([z.array(z.string().min(1)).min(1).max(5), z.string().min(1)])
+    .transform((value) => (typeof value === 'string' ? [value] : value)),
+  reviewSummary: reviewSummarySchema.nullish().transform((value) => value ?? undefined),
+})
 
-    if (value.careLevel !== 'specialist' && value.medicalSpecialty !== null) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ['medicalSpecialty'],
-        message: 'medicalSpecialty muss null sein, wenn careLevel nicht specialist ist',
-      })
-    }
-  })
-
-export type TriageAiResponse = z.infer<typeof triageAiResultSchema>
-
-// Schema für die Anfrage
 export const triageRequestSchema = z
   .object({
     patientData: patientDataSchema.optional(),

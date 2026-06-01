@@ -37,6 +37,10 @@ function symptomLabel(symptom: TriageSymptom): string {
 }
 
 function summarizePatient(data: PatientData): string {
+  const conditionDetails = Object.entries(data.conditionDetails)
+    .filter(([, detail]) => detail.trim().length > 0)
+    .map(([condition, detail]) => `${condition}: ${detail.trim()}`)
+
   return [
     `Geburt: ${data.birthMonth}/${data.birthYear}`,
     `Größe / Gewicht: ${data.height} / ${data.weight}`,
@@ -49,7 +53,11 @@ function summarizePatient(data: PatientData): string {
     data.conditions.length > 0
       ? `Vorerkrankungen: ${data.conditions.join(', ')}`
       : 'Vorerkrankungen: —',
-  ].join('\n')
+    `Raucher: ${data.isSmoker ? 'Ja' : 'Nein'}`,
+    data.isSmoker ? `Rauchdauer: ${data.smokingSinceYears || '—'}` : null,
+    data.isSmoker ? `Zigaretten pro Tag: ${data.cigarettesPerDay || '—'}` : null,
+    conditionDetails.length > 0 ? `Details zu Vorerkrankungen: ${conditionDetails.join('; ')}` : null,
+  ].filter((line): line is string => line !== null).join('\n')
 }
 
 function summarizeSymptoms(symptoms: TriageSymptom[]): string {
