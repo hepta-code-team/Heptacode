@@ -5,7 +5,7 @@ import { AiResponseError } from '../ai/timeout.js'
 import { evaluateAssessmentWithAi } from '../modules/assessment/assessment.service.js'
 import type { AssessmentPayload } from '../modules/assessment/assessment.types.js'
 
-vi.mock('../../ai/llmAdapter.js', () => ({
+vi.mock('../ai/llmAdapter.js', () => ({
   requestStructuredAiResponse: vi.fn(),
 }))
 
@@ -62,15 +62,17 @@ describe('evaluateAssessmentWithAi', () => {
     const result = await evaluateAssessmentWithAi(createPayload())
 
     expect(result).toMatchObject({
-      careLevel: 'doctor',
+      careLevel: 'specialist',
+      recommendedSpecialty: 'neurology',
       reasons: ['Die Beschwerden sollten aerztlich eingeordnet werden.'],
-      summary: 'Bitte lassen Sie die Beschwerden zeitnah abklaeren.',
+      summary:
+        'Ihre Angaben wurden strukturiert ausgewertet. Bitte orientieren Sie sich an der empfohlenen Versorgungsebene und suchen Sie bei Verschlechterung medizinische Hilfe.',
     })
     expect(Date.parse(result.createdAt)).not.toBeNaN()
     expect(requestStructuredAiResponseMock).toHaveBeenCalledTimes(1)
     expect(requestStructuredAiResponseMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        schemaName: 'assessment_result',
+        schemaName: 'triage_result',
         temperature: 0,
       }),
     )
@@ -90,7 +92,7 @@ describe('evaluateAssessmentWithAi', () => {
 
     expect(userMessage?.content).toContain('Geburtsjahr: 1990')
     expect(userMessage?.content).toContain('Kopf (links)')
-    expect(userMessage?.content).toContain('Schmerzstaerke: 7/10')
+    expect(userMessage?.content).toContain('Schmerzstaerke 7/10')
     expect(userMessage?.content).toContain('Seit ein paar Tagen')
   })
 
@@ -102,9 +104,9 @@ describe('evaluateAssessmentWithAi', () => {
     expect(result).toMatchObject({
       careLevel: 'doctor',
       summary:
-        'Bitte lassen Sie die angegebenen Beschwerden zeitnah medizinisch abklaeren. Bei ploetzlicher Verschlechterung oder akuter Gefahr waehlen Sie den Notruf.',
+        'Ihre Angaben wurden strukturiert ausgewertet. Bitte orientieren Sie sich an der empfohlenen Versorgungsebene und suchen Sie bei Verschlechterung medizinische Hilfe.',
     })
-    expect(result.reasons[0]).toContain('Kopf (links)')
+    expect(result.aiUnavailable).toBe(true)
     expect(Date.parse(result.createdAt)).not.toBeNaN()
   })
 

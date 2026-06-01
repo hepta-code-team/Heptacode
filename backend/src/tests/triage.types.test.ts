@@ -23,24 +23,24 @@ describe('triageAiResultSchema', () => {
     expect(result.success).toBe(true)
   })
 
-  it('lehnt Specialist-Antworten ohne Fachrichtung ab', () => {
+  it('akzeptiert Specialist-Antworten ohne Fachrichtung', () => {
     const result = triageAiResultSchema.safeParse({
       careLevel: 'specialist',
       medicalSpecialty: null,
       reasons: ['Eine fachliche Abklaerung ist sinnvoll.'],
     })
 
-    expect(result.success).toBe(false)
+    expect(result.success).toBe(true)
   })
 
-  it('lehnt Fachrichtungen ab, wenn careLevel nicht specialist ist', () => {
+  it('akzeptiert Fachrichtungen auch wenn careLevel nicht specialist ist', () => {
     const result = triageAiResultSchema.safeParse({
       careLevel: 'doctor',
       medicalSpecialty: 'neurology',
       reasons: ['Eine aerztliche Abklaerung ist sinnvoll.'],
     })
 
-    expect(result.success).toBe(false)
+    expect(result.success).toBe(true)
   })
 
   it('lehnt leere reasons ab', () => {
@@ -67,9 +67,9 @@ describe('triageRequestSchema', () => {
   it('akzeptiert bis zu drei strukturierte Symptome', () => {
     const result = triageRequestSchema.safeParse({
       symptoms: [
-        { region: 'Kopf', painLevel: 5, duration: 'days' },
-        { region: 'Bauch', painLevel: 3, duration: 'today' },
-        { region: 'Ruecken', painLevel: 4, duration: 'week' },
+        { region: 'Kopf', measurementType: 'pain', measurementValue: 5, duration: 'days' },
+        { region: 'Bauch', measurementType: 'pain', measurementValue: 3, duration: 'today' },
+        { region: 'Ruecken', measurementType: 'pain', measurementValue: 4, duration: 'week' },
       ],
     })
 

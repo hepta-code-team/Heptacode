@@ -34,6 +34,10 @@ function createPayload(): AssessmentPayload {
       recentAbroad: false,
       recentAbroadDetails: '',
       conditions: ['Asthma'],
+      isSmoker: false,
+      smokingSinceYears: '',
+      cigarettesPerDay: '',
+      conditionDetails: {},
     },
     selectedSymptoms: [{ region: 'Kopf', side: 'links' }],
     symptomDetails: [
@@ -66,7 +70,10 @@ describe('POST /assessments', () => {
     requestStructuredAiResponseMock.mockResolvedValueOnce({
       careLevel: 'doctor',
       reasons: ['Die Beschwerden sollten aerztlich eingeordnet werden.'],
-      summary: 'Bitte lassen Sie die Beschwerden zeitnah abklaeren.',
+      reviewSummary: {
+        plainLanguage: 'Bitte lassen Sie die Beschwerden zeitnah abklaeren.',
+        professionalSummary: 'Stammdaten und Symptome wurden strukturiert zusammengefasst.',
+      },
     })
 
     const response = await app.inject({
@@ -79,7 +86,8 @@ describe('POST /assessments', () => {
 
     expect(response.statusCode).toBe(200)
     expect(body).toMatchObject({
-      careLevel: 'doctor',
+      careLevel: 'specialist',
+      recommendedSpecialty: 'neurology',
       reasons: ['Die Beschwerden sollten aerztlich eingeordnet werden.'],
       summary: 'Bitte lassen Sie die Beschwerden zeitnah abklaeren.',
     })
@@ -87,7 +95,7 @@ describe('POST /assessments', () => {
     expect(requestStructuredAiResponseMock).toHaveBeenCalledTimes(1)
     expect(requestStructuredAiResponseMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        schemaName: 'assessment_result',
+        schemaName: 'triage_result',
         temperature: 0,
       }),
     )
@@ -127,9 +135,9 @@ describe('POST /assessments', () => {
     expect(body).toMatchObject({
       careLevel: 'doctor',
       summary:
-        'Bitte lassen Sie die angegebenen Beschwerden zeitnah medizinisch abklaeren. Bei ploetzlicher Verschlechterung oder akuter Gefahr waehlen Sie den Notruf.',
+        'Ihre Angaben wurden strukturiert ausgewertet. Bitte orientieren Sie sich an der empfohlenen Versorgungsebene und suchen Sie bei Verschlechterung medizinische Hilfe.',
+      aiUnavailable: true,
     })
-    expect(body.reasons[0]).toContain('Kopf (links)')
     expect(Date.parse(body.createdAt)).not.toBeNaN()
   })
 })

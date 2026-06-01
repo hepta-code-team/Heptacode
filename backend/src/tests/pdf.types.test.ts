@@ -23,10 +23,17 @@ describe('pdfExportRequestSchema', () => {
         recentAbroad: false,
         recentAbroadDetails: '',
         conditions: [],
+        isSmoker: false,
+        smokingSinceYears: '',
+        cigarettesPerDay: '',
+        conditionDetails: {},
       },
-      symptoms: [{ region: 'Kopf', painLevel: 5, duration: 'days' }],
+      symptoms: [{ region: 'Kopf', measurementType: 'pain', measurementValue: 5, duration: 'days' }],
     })
 
+    if (!result.success) {
+      console.log(JSON.stringify(result.error.format(), null, 2))
+    }
     expect(result.success).toBe(true)
   })
 

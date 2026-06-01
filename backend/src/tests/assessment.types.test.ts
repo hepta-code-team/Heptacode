@@ -20,6 +20,10 @@ const validPatientData = {
   recentAbroad: false,
   recentAbroadDetails: '',
   conditions: [],
+  isSmoker: false,
+  smokingSinceYears: '',
+  cigarettesPerDay: '',
+  conditionDetails: {},
 }
 
 const validSymptom = {
@@ -83,7 +87,7 @@ describe('assessmentPayloadSchema', () => {
     const result = assessmentPayloadSchema.safeParse({
       patientData: {
         ...validPatientData,
-        birthYear: '',
+        isPregnant: 'false',
       },
       selectedSymptoms: [{ region: 'Kopf' }],
       symptomDetails: [validSymptom],
@@ -98,7 +102,12 @@ describe('assessmentResultSchema', () => {
     const result = assessmentResultSchema.safeParse({
       careLevel: 'doctor',
       reasons: ['Die Beschwerden sollten aerztlich eingeordnet werden.'],
+      reviewSummary: {
+        plainLanguage: 'Bitte lassen Sie die Beschwerden zeitnah abklaeren.',
+        professionalSummary: 'Stammdaten und Symptome wurden strukturiert zusammengefasst.',
+      },
       summary: 'Bitte lassen Sie die Beschwerden zeitnah abklaeren.',
+      createdAt: '2026-06-01T12:00:00Z',
     })
 
     expect(result.success).toBe(true)

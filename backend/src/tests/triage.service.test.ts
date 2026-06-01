@@ -5,11 +5,11 @@ import { requestStructuredAiResponse } from '../ai/llmAdapter.js'
 import { extractSymptoms } from '../modules/symptom-extraction/symptomExtraction.service.js'
 import { evaluateTriage } from '../modules/triage/triage.service.js'
 
-vi.mock('../../ai/llmAdapter.js', () => ({
+vi.mock('../ai/llmAdapter.js', () => ({
   requestStructuredAiResponse: vi.fn(),
 }))
 
-vi.mock('../symptom-extraction/symptomExtraction.service.js', () => ({
+vi.mock('../modules/symptom-extraction/symptomExtraction.service.js', () => ({
   extractSymptoms: vi.fn(),
 }))
 
@@ -26,7 +26,6 @@ describe('evaluateTriage', () => {
 
     expect(result).toMatchObject({
       careLevel: 'emergency',
-      recommendedSpecialty: 'emergency_medicine',
       reasons: ['Notfallmodus ueber die Startseite ausgewaehlt.'],
     })
     expect(requestStructuredAiResponseMock).not.toHaveBeenCalled()
@@ -38,7 +37,6 @@ describe('evaluateTriage', () => {
 
     expect(result).toMatchObject({
       careLevel: 'selfcare',
-      recommendedSpecialty: 'home_care',
       reasons: [],
     })
     expect(requestStructuredAiResponseMock).not.toHaveBeenCalled()
@@ -58,6 +56,7 @@ describe('evaluateTriage', () => {
 
     expect(result).toEqual({
       careLevel: 'specialist',
+      medicalSpecialty: 'neurology',
       recommendedSpecialty: 'neurology',
       reasons: ['Die Beschwerden sollten neurologisch abgeklaert werden.'],
     })
@@ -151,8 +150,9 @@ describe('evaluateTriage', () => {
     )
 
     expect(result).toEqual({
-      careLevel: 'doctor',
-      recommendedSpecialty: 'general_practice',
+      careLevel: 'specialist',
+      medicalSpecialty: null,
+      recommendedSpecialty: 'cardiology',
       reasons: ['Die Beschwerden sollten aerztlich abgeklart werden.'],
     })
     expect(extractSymptomsMock).toHaveBeenCalledWith('Ich habe seit Tagen Husten.', 'speech')

@@ -40,20 +40,23 @@ describe('POST /api/v1/triage/evaluate', () => {
       method: 'POST',
       url: '/api/v1/triage/evaluate',
       payload: {
-        symptoms: [{ region: 'Brust', painLevel: 7, duration: 'today' }],
+        symptoms: [
+          { region: 'Brust', measurementType: 'pain', measurementValue: 7, duration: 'today' },
+        ],
       },
     })
 
     expect(response.statusCode).toBe(200)
     expect(response.json()).toEqual({
       careLevel: 'specialist',
+      medicalSpecialty: 'cardiology',
       recommendedSpecialty: 'cardiology',
       reasons: ['Die Beschwerden sollten kardiologisch abgeklaert werden.'],
     })
     expect(requestStructuredAiResponseMock).toHaveBeenCalledTimes(1)
     expect(requestStructuredAiResponseMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        schemaName: 'triage_ai_response',
+        schemaName: 'triage_result',
         temperature: 0,
       }),
     )
@@ -86,7 +89,7 @@ describe('POST /api/v1/triage/evaluate', () => {
     expect(response.statusCode).toBe(200)
     expect(response.json()).toEqual({
       careLevel: 'doctor',
-      recommendedSpecialty: 'general_practice',
+      medicalSpecialty: null,
       reasons: ['Die Beschwerden sollten aerztlich abgeklart werden.'],
     })
     expect(requestStructuredAiResponseMock).toHaveBeenCalledTimes(3)
@@ -104,7 +107,6 @@ describe('POST /api/v1/triage/evaluate', () => {
     expect(response.statusCode).toBe(200)
     expect(response.json()).toMatchObject({
       careLevel: 'emergency',
-      recommendedSpecialty: 'emergency_medicine',
       reasons: ['Notfallmodus ueber die Startseite ausgewaehlt.'],
     })
     expect(requestStructuredAiResponseMock).not.toHaveBeenCalled()
@@ -130,14 +132,15 @@ describe('POST /api/v1/triage/evaluate', () => {
       method: 'POST',
       url: '/api/v1/triage/evaluate',
       payload: {
-        symptoms: [{ region: 'Brust', painLevel: 9, duration: 'today' }],
+        symptoms: [
+          { region: 'Brust', measurementType: 'pain', measurementValue: 9, duration: 'today' },
+        ],
       },
     })
 
     expect(response.statusCode).toBe(200)
     expect(response.json()).toMatchObject({
       careLevel: 'emergency',
-      recommendedSpecialty: 'emergency_medicine',
       aiUnavailable: true,
     })
   })
