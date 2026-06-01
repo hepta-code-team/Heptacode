@@ -27,6 +27,10 @@ function createPayload(): AssessmentPayload {
       recentAbroad: false,
       recentAbroadDetails: '',
       conditions: ['Asthma'],
+      isSmoker: false,
+      smokingSinceYears: '',
+      cigarettesPerDay: '',
+      conditionDetails: {},
     },
     selectedSymptoms: [{ region: 'Kopf', side: 'links' }],
     symptomDetails: [

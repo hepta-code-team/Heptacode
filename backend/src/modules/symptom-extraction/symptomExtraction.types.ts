@@ -1,47 +1,62 @@
 import { z } from 'zod'
+import type { SymptomExtractionAiResult, SymptomInputType } from '../../../../shared/symptomExtraction.types.js'
+import { SYMPTOM_INPUT_TYPES } from '../../../../shared/symptomExtraction.types.js'
+import {
+  SYMPTOM_MEASUREMENT_TYPES,
+  TRIAGE_SYMPTOM_DURATIONS,
+  type TriageSymptom,
+} from '../../../../shared/symptom.types.js'
+import { getOptionsForRegion, SYMPTOM_REGION_NAMES } from '../../../../shared/symptomTaxonomy.js'
 
-// Typ für das ausgewählte Symptom
-export interface SelectedSymptom {
-  region: string
-  side?: string
-  painLevel?: number
-  duration?: 'today' | 'days' | 'week' | 'weeks'
-}
+export type { SymptomExtractionAiResult, TriageSymptom }
 
 // Typ für die Anfrage
 export interface SymptomExtractionRequest {
   symptomText?: string
   text: string
   input?: string
-  inputType?: 'text' | 'speech'
+  inputType?: SymptomInputType
 }
 
 // Typ für die Antwort
 export interface SymptomExtractionResponse {
   text: string
-  inputType: 'text' | 'speech'
-  symptoms: SelectedSymptom[]
+  inputType: SymptomInputType
+  symptoms: TriageSymptom[]
   invalidInput?: boolean
   // TA 1.8: true bedeutet, dass keine KI-Antwort rechtzeitig oder strukturiert verfuegbar war.
   aiUnavailable?: boolean
   message?: string
 }
 
-// Schema für das ausgewählte Symptom
-export const selectedSymptomSchema = z.object({
-  region: z.string().min(1),
-  side: z.string().min(1).optional(),
-  // Passt zur aktuellen Frontend-Schmerzskala, die ganze Zahlen von 1 bis 10 verwendet.
-  painLevel: z.number().int().min(1).max(10).optional(),
-  duration: z.enum(['today', 'days', 'week', 'weeks']).optional(),
-})
+export const extractedSymptomSchema = z
+  .object({
+    region: z.enum(SYMPTOM_REGION_NAMES),
+    side: z.string().min(1).optional(),
+    measurementType: z.enum(SYMPTOM_MEASUREMENT_TYPES).optional(),
+    measurementValue: z.number().optional(),
+    duration: z.enum(TRIAGE_SYMPTOM_DURATIONS).optional(),
+  })
+  .superRefine((value, context) => {
+    if (!value.side) {
+      return
+    }
 
-// Strict AI output contract: Das Model darf nur bis zu drei frontend-kompatible Symptome zurückgeben.
+    const allowedOptions = getOptionsForRegion(value.region)
+    if (!allowedOptions.includes(value.side)) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['side'],
+        message: `side must be one of the options for region "${value.region}"`,
+      })
+    }
+  })
+
+
 export const symptomExtractionAiResultSchema = z.object({
-  symptoms: z.array(selectedSymptomSchema).max(3),
+  symptoms: z.array(extractedSymptomSchema).max(3),
 })
 
-// Strict AI output contract: Das Model bewertet, ob überhaupt medizinisch sinnvoller Freitext vorliegt.
 export const symptomInputValidationAiResultSchema = z.object({
   isValidMedicalInput: z.boolean(),
   reason: z.string().min(1),
@@ -53,7 +68,7 @@ export const symptomExtractionRequestSchema = z
     symptomText: z.string().trim().min(1).optional(),
     text: z.string().trim().min(1).optional(),
     input: z.string().trim().min(1).optional(),
-    inputType: z.enum(['text', 'speech']).optional(),
+    inputType: z.enum(SYMPTOM_INPUT_TYPES).optional(),
   })
   .refine((value) => Boolean(value.symptomText ?? value.text ?? value.input), {
     message: 'symptomText is required',

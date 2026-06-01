@@ -13,4 +13,8 @@ export interface PatientData {
     recentAbroad: boolean
     recentAbroadDetails: string
     conditions: string[]
+    isSmoker: boolean
+    smokingSinceYears: string
+    cigarettesPerDay: string
+    conditionDetails: Record<string, string>
 }

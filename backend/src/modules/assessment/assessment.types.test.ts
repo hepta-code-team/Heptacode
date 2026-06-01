@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import {
-  assessmentAiResultSchema,
+  assessmentResultSchema,
   assessmentPayloadSchema,
   symptomSchema,
 } from './assessment.types.js'
@@ -93,9 +93,9 @@ describe('assessmentPayloadSchema', () => {
   })
 })
 
-describe('assessmentAiResultSchema', () => {
+describe('assessmentResultSchema', () => {
   it('akzeptiert gueltige KI-Ergebnisse', () => {
-    const result = assessmentAiResultSchema.safeParse({
+    const result = assessmentResultSchema.safeParse({
       careLevel: 'doctor',
       reasons: ['Die Beschwerden sollten aerztlich eingeordnet werden.'],
       summary: 'Bitte lassen Sie die Beschwerden zeitnah abklaeren.',
@@ -105,7 +105,7 @@ describe('assessmentAiResultSchema', () => {
   })
 
   it('lehnt leere Gruende ab', () => {
-    const result = assessmentAiResultSchema.safeParse({
+    const result = assessmentResultSchema.safeParse({
       careLevel: 'doctor',
       reasons: [],
       summary: 'Bitte lassen Sie die Beschwerden zeitnah abklaeren.',
@@ -115,7 +115,7 @@ describe('assessmentAiResultSchema', () => {
   })
 
   it('lehnt mehr als fuenf Gruende ab', () => {
-    const result = assessmentAiResultSchema.safeParse({
+    const result = assessmentResultSchema.safeParse({
       careLevel: 'doctor',
       reasons: ['1', '2', '3', '4', '5', '6'],
       summary: 'Bitte lassen Sie die Beschwerden zeitnah abklaeren.',

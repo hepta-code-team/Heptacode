@@ -13,3 +13,7 @@ clean:
 	docker compose down --rmi all --volumes --remove-orphans
 setup-env:
 	@if not exist .env.local copy .env.example .env.local
+
+setup:
+	docker run --rm -v $(PWD):/workspace alpine touch /workspace/.env.local
+	@echo ".env.local erstellt"

@@ -3,9 +3,15 @@ import { PhoneCall } from "lucide-react";
 import PageShell from "../components/PageShell";
 import ResultCard from "../features/results/ResultCard";
 import Button from "../components/Button";
-import { createSpecialtyConfig, isMedicalSpecialty, TRIAGE_CONFIGS } from "../types/triage";
+import {
+  createSpecialtyConfig,
+  isMedicalSpecialty,
+  TRIAGE_CONFIGS,
+  type BasicCareLevel,
+} from "../features/results/result.config";
 import { useAssessment } from "../lib/AssessmentContext";
-import type { CareLevel } from "../types/triage";
+import type { CareLevel } from "../../../shared/result.types";
+import { CARE_LEVELS, MEDICAL_SPECIALTIES } from "../../../shared/result.types";
 import { DURATIONS, getMeasurementConfig } from "../features/symptoms/symptoms.constants";
 import type { Symptom } from "../types/assessment";
 
@@ -19,9 +25,9 @@ export default function ResultPage() {
 
   const isMultipleDays = (duration: string) => ["days", "week", "weeks"].includes(duration);
 
-  const getSymptomCareLevel = (symptom: Symptom): CareLevel => {
+  const getSymptomCareLevel = (symptom: Symptom): BasicCareLevel => {
     const config = getMeasurementConfig(symptom.region, symptom.side);
-    const value = symptom.painLevel ?? 0;
+    const value = symptom.measurementValue ?? 0;
 
     if (config.type === "temperature") {
       if (symptom.duration && value >= 40 && isMultipleDays(symptom.duration)) return "emergency";
@@ -34,13 +40,13 @@ export default function ResultPage() {
     return "selfcare";
   };
 
-  const getHighestCareLevel = (levels: CareLevel[]): CareLevel => {
+  const getHighestCareLevel = (levels: BasicCareLevel[]): BasicCareLevel => {
     if (levels.includes("emergency")) return "emergency";
     if (levels.includes("doctor")) return "doctor";
     return "selfcare";
   };
 
-  const calculateCareLevel = (): CareLevel => {
+  const calculateCareLevel = (): BasicCareLevel => {
     if (isEmergency) return "emergency";
     if (symptomDetails.length === 0) return "selfcare";
 
@@ -49,7 +55,11 @@ export default function ResultPage() {
 
   const careLevel = calculateCareLevel();
   const specialtyParam = searchParams.get("specialty");
-  const recommendedSpecialty = isMedicalSpecialty(specialtyParam) ? specialtyParam : null;
+  const resultRecommendedSpecialty = assessmentResult?.recommendedSpecialty ?? null;
+  const resultSpecialty = isMedicalSpecialty(resultRecommendedSpecialty)
+    ? resultRecommendedSpecialty
+    : null;
+  const recommendedSpecialty = isMedicalSpecialty(specialtyParam) ? specialtyParam : resultSpecialty;
   const config = recommendedSpecialty ? createSpecialtyConfig(recommendedSpecialty) : TRIAGE_CONFIGS[careLevel];
 
   const callAction =
@@ -70,7 +80,7 @@ export default function ResultPage() {
 
   const getMeasurementSummary = (symptom: Symptom) => {
     const config = getMeasurementConfig(symptom.region, symptom.side);
-    const value = symptom.painLevel ?? 0;
+    const value = symptom.measurementValue ?? 0;
 
     if (config.type === "temperature") {
       return `${config.title} ${value.toFixed(1)} ${config.unit}`;
@@ -96,44 +106,15 @@ export default function ResultPage() {
           }
         | undefined;
 
-      const validCareLevels = ["emergency", "doctor", "specialist", "selfcare"];
-
-      const validMedicalSpecialties = [
-        "home_care",
-        "emergency_medicine",
-        "general_practice",
-        "internal_medicine",
-        "cardiology",
-        "neurology",
-        "orthopedics",
-        "gastroenterology",
-        "pulmonology",
-        "dermatology",
-        "urology",
-        "gynecology",
-        "psychiatry",
-        "pediatrics",
-        "dentistry",
-        "ophthalmology",
-        "otolaryngology",
-      ];
-
-      const fallbackRecommendedSpecialty =
-        careLevel === "emergency"
-          ? "emergency_medicine"
-          : careLevel === "selfcare"
-            ? "home_care"
-            : "general_practice";
-
-      const safeCareLevel = validCareLevels.includes(result?.careLevel ?? "")
+      const safeCareLevel = CARE_LEVELS.includes((result?.careLevel ?? "") as CareLevel)
         ? result?.careLevel
         : careLevel;
 
-      const safeRecommendedSpecialty = validMedicalSpecialties.includes(
-        result?.recommendedSpecialty ?? "",
+      const safeRecommendedSpecialty = MEDICAL_SPECIALTIES.includes(
+        (result?.recommendedSpecialty ?? "") as (typeof MEDICAL_SPECIALTIES)[number],
       )
         ? result?.recommendedSpecialty
-        : recommendedSpecialty ?? fallbackRecommendedSpecialty;
+        : recommendedSpecialty ?? undefined;
 
       const fallbackReasons =
         result?.reasons?.length
@@ -192,7 +173,7 @@ export default function ResultPage() {
         },
         triage: {
           careLevel: safeCareLevel,
-          recommendedSpecialty: safeRecommendedSpecialty,
+          ...(safeRecommendedSpecialty ? { recommendedSpecialty: safeRecommendedSpecialty } : {}),
           reasons: fallbackReasons,
         },
         ...(patientData ? { patientData } : {}),
@@ -201,7 +182,8 @@ export default function ResultPage() {
               symptoms: symptomDetails.slice(0, 3).map((symptom) => ({
                 region: symptom.region,
                 ...(symptom.side ? { side: symptom.side } : {}),
-                ...(symptom.painLevel !== undefined ? { painLevel: symptom.painLevel } : {}),
+                measurementType: symptom.measurementType,
+                ...(symptom.measurementValue !== undefined ? { measurementValue: symptom.measurementValue } : {}),
                 ...(symptom.duration ? { duration: symptom.duration } : {}),
               })),
             }

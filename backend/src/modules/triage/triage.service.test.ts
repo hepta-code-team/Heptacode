@@ -53,7 +53,7 @@ describe('evaluateTriage', () => {
     })
 
     const result = await evaluateTriage(undefined, [
-      { region: 'Kopf', painLevel: 7, duration: 'days' },
+      { region: 'Kopf', measurementType: 'pain', measurementValue: 7, duration: 'days' },
     ])
 
     expect(result).toEqual({
@@ -68,7 +68,7 @@ describe('evaluateTriage', () => {
     requestStructuredAiResponseMock.mockRejectedValueOnce(new AiResponseError('timeout'))
 
     const result = await evaluateTriage(undefined, [
-      { region: 'Brust', painLevel: 8, duration: 'today' },
+      { region: 'Brust', measurementType: 'pain', measurementValue: 8, duration: 'today' },
     ])
 
     expect(result).toMatchObject({
@@ -82,7 +82,7 @@ describe('evaluateTriage', () => {
     requestStructuredAiResponseMock.mockRejectedValueOnce(new AiResponseError('timeout'))
 
     const result = await evaluateTriage(undefined, [
-      { region: 'Bauch', painLevel: 5, duration: 'days' },
+      { region: 'Bauch', measurementType: 'pain', measurementValue: 5, duration: 'days' },
     ])
 
     expect(result).toMatchObject({
@@ -134,7 +134,7 @@ describe('evaluateTriage', () => {
     extractSymptomsMock.mockResolvedValueOnce({
       text: 'Ich habe seit Tagen Husten.',
       inputType: 'speech',
-      symptoms: [{ region: 'Brust', painLevel: 4, duration: 'days' }],
+      symptoms: [{ region: 'Brust', measurementType: 'pain', measurementValue: 4, duration: 'days' }],
     })
     requestStructuredAiResponseMock.mockResolvedValueOnce({
       careLevel: 'doctor',
