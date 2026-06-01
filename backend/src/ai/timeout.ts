@@ -1,7 +1,7 @@
 import OpenAI, { APIConnectionError, APIConnectionTimeoutError, APIError } from 'openai'
 
 // TA 1.8: KI-Requests duerfen nicht unbegrenzt haengen.
-export const AI_REQUEST_TIMEOUT_MS = 30000
+export const AI_REQUEST_TIMEOUT_MS = 8000
 
 // Ohne Retries greift der definierte Fallback schnell und vorhersehbar.
 export const AI_REQUEST_OPTIONS = {
@@ -21,6 +21,18 @@ export class AiResponseError extends Error {
 export function isAiRequestError(error: unknown): boolean {
   return (
     error instanceof AiResponseError ||
+    error instanceof OpenAI.APIError ||
+    error instanceof APIError ||
+    error instanceof APIConnectionError ||
+    error instanceof APIConnectionTimeoutError
+  )
+}
+
+// Diese Fehler bedeuten, dass das angefragte Modell bzw. der AI-Dienst nicht
+// erreichbar ist oder nicht rechtzeitig antwortet. In diesen Faellen wird das
+// kleinere Fallback-Modell versucht.
+export function isAiAvailabilityError(error: unknown): boolean {
+  return (
     error instanceof OpenAI.APIError ||
     error instanceof APIError ||
     error instanceof APIConnectionError ||

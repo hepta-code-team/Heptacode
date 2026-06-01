@@ -1,8 +1,8 @@
 import { zodResponseFormat } from 'openai/helpers/zod'
 import type { ChatCompletionMessageParam } from 'openai/resources/chat/completions'
 import type { z } from 'zod'
-import { aiClient, aiModel } from './client.js'
-import { AI_REQUEST_OPTIONS, AiResponseError } from './timeout.js'
+import { aiClient, aiModel, fallbackModel } from './client.js'
+import { AI_REQUEST_OPTIONS, AiResponseError, isAiAvailabilityError } from './timeout.js'
 
 type StructuredAiRequest<TSchema extends z.ZodTypeAny> = {
   messages: ChatCompletionMessageParam[]
@@ -11,17 +11,19 @@ type StructuredAiRequest<TSchema extends z.ZodTypeAny> = {
   temperature?: number
 }
 
-// Funktion um strukturierte Antworten von der KI zu erhalten, basierend auf einem bereitgestellten Zod-Schema.
-export async function requestStructuredAiResponse<TSchema extends z.ZodTypeAny>({
-  messages,
-  schema,
-  schemaName,
-  temperature = 0.2,
-}: StructuredAiRequest<TSchema>): Promise<z.infer<TSchema>> {
+async function requestWithModel<TSchema extends z.ZodTypeAny>(
+  model: string,
+  {
+    messages,
+    schema,
+    schemaName,
+    temperature,
+  }: Required<StructuredAiRequest<TSchema>>,
+): Promise<z.infer<TSchema>> {
   try {
     const completion = await aiClient.beta.chat.completions.parse(
       {
-        model: aiModel,
+        model,
         messages,
         response_format: zodResponseFormat(schema, schemaName),
         temperature,
@@ -37,9 +39,13 @@ export async function requestStructuredAiResponse<TSchema extends z.ZodTypeAny>(
 
     return parsed
   } catch (parseError) {
+    if (isAiAvailabilityError(parseError)) {
+      throw parseError
+    }
+
     const completion = await aiClient.chat.completions.create(
       {
-        model: aiModel,
+        model,
         messages,
         response_format: { type: 'json_object' },
         temperature,
@@ -68,5 +74,30 @@ export async function requestStructuredAiResponse<TSchema extends z.ZodTypeAny>(
     }
 
     return validated.data
+  }
+}
+
+// Funktion um strukturierte Antworten von der KI zu erhalten, basierend auf einem bereitgestellten Zod-Schema.
+export async function requestStructuredAiResponse<TSchema extends z.ZodTypeAny>({
+  messages,
+  schema,
+  schemaName,
+  temperature = 0.2,
+}: StructuredAiRequest<TSchema>): Promise<z.infer<TSchema>> {
+  const request = {
+    messages,
+    schema,
+    schemaName,
+    temperature,
+  }
+
+  try {
+    return await requestWithModel(aiModel, request)
+  } catch (error) {
+    if (fallbackModel === aiModel || !isAiAvailabilityError(error)) {
+      throw error
+    }
+
+    return requestWithModel(fallbackModel, request)
   }
 }
