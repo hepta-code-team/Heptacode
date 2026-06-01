@@ -855,7 +855,7 @@ export default function SymptomSelectionPage() {
           setSymptomTextError(null);
         }}
         title="Beschreiben Sie Ihre Symptome"
-        subtitle={`Bitte beschreiben Sie Ihre Symptome in 1-2 Sätzen. Nennen Sie dabei Symptom, Stärke und Dauer.`}
+        subtitle="Bitte beschreiben Sie Ihre Symptome in 1-2 Sätzen. Nennen Sie dabei Symptom, Stärke und Dauer."
         showCloseButton
       >
         <textarea
@@ -886,7 +886,7 @@ export default function SymptomSelectionPage() {
         )}
 
         <div className="flex justify-between items-center mt-6">
-          <div className="flex flex-col items-center gap-2">
+          <div className="flex w-16 flex-col items-center gap-2">
             <button
               type="button"
               onClick={handleToggleSymptomRecording}
@@ -904,10 +904,10 @@ export default function SymptomSelectionPage() {
               )}
             </button>
             <span
-              className="font-['DM_Sans:Medium',sans-serif] text-xs font-medium text-app-text-primary"
+              className="min-h-4 w-48 text-center font-['DM_Sans:Medium',sans-serif] text-xs font-medium text-app-text-primary"
               style={{ fontVariationSettings: "'opsz' 14" }}
             >
-              {isRecordingSymptoms ? `Aufnahme läuft · ${formattedRecordingElapsed} / ${formattedMaxRecordingDuration}` : "Diktieren"}
+              {isRecordingSymptoms ? `${formattedRecordingElapsed} / ${formattedMaxRecordingDuration}` : "Diktieren"}
             </span>
           </div>
 
