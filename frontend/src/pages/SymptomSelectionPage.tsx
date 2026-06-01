@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { KeyboardEvent } from "react";
+import type { ClipboardEvent, FormEvent, KeyboardEvent } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import { Brain, Check, Mic, MicOff, Sparkles, X } from "lucide-react";
 import PageShell from "../components/PageShell";
@@ -21,7 +21,8 @@ import type { TriageSymptom } from "../../../shared/symptom.types";
 
 
 const MAX_RECORDING_DURATION_MS = 120_000;
-const MAX_SYMPTOM_TEXT_WORDS = 400;
+const MAX_RECORDING_DURATION_SECONDS = MAX_RECORDING_DURATION_MS / 1000;
+const MAX_SYMPTOM_TEXT_WORDS = 300;
 const SYMPTOM_TEXT_WORD_LIMIT_ERROR = `Bitte beschreiben Sie Ihre Symptome mit maximal ${MAX_SYMPTOM_TEXT_WORDS} Wörtern.`;
 
 type BrowserSpeechRecognitionAlternative = {
@@ -91,21 +92,76 @@ function getWordCount(text: string) {
   return getWords(text).length;
 }
 
-function limitTextToMaxWords(text: string) {
+function formatRecordingDuration(totalSeconds: number) {
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+
+  return `${minutes}:${seconds.toString().padStart(2, "0")}`;
+}
+
+function getMaxSymptomWordEnd(text: string) {
   const wordMatches = Array.from(text.matchAll(/\S+/g));
 
-  if (wordMatches.length <= MAX_SYMPTOM_TEXT_WORDS) {
-    return text;
+  if (wordMatches.length < MAX_SYMPTOM_TEXT_WORDS) {
+    return null;
   }
 
   const lastAllowedWord = wordMatches[MAX_SYMPTOM_TEXT_WORDS - 1];
-  const lastAllowedWordEnd = (lastAllowedWord.index ?? 0) + lastAllowedWord[0].length;
 
-  return text.slice(0, lastAllowedWordEnd);
+  return (lastAllowedWord.index ?? 0) + lastAllowedWord[0].length;
+}
+
+function limitTextToMaxWords(text: string) {
+  const maxSymptomWordEnd = getMaxSymptomWordEnd(text);
+
+  if (maxSymptomWordEnd === null) {
+    return text;
+  }
+
+  return text.slice(0, maxSymptomWordEnd);
 }
 
 function hasTooManySymptomTextWords(text: string) {
   return getWordCount(text) > MAX_SYMPTOM_TEXT_WORDS;
+}
+
+function hasTextAfterMaxSymptomWord(text: string) {
+  const maxSymptomWordEnd = getMaxSymptomWordEnd(text);
+
+  return maxSymptomWordEnd !== null && text.length > maxSymptomWordEnd;
+}
+
+function exceedsSymptomTextLimit(text: string) {
+  return hasTooManySymptomTextWords(text) || hasTextAfterMaxSymptomWord(text);
+}
+
+function insertTextAtSelection(text: string, insertedText: string, selectionStart: number, selectionEnd: number) {
+  return `${text.slice(0, selectionStart)}${insertedText}${text.slice(selectionEnd)}`;
+}
+
+function getTextAreaInputData(event: FormEvent<HTMLTextAreaElement>) {
+  const nativeEvent = event.nativeEvent as InputEvent;
+
+  return nativeEvent.data ?? "";
+}
+
+function isTextRemoval(event: FormEvent<HTMLTextAreaElement>) {
+  const nativeEvent = event.nativeEvent as InputEvent;
+
+  return nativeEvent.inputType.startsWith("delete");
+}
+
+function getTextWithPendingTextAreaInput(event: FormEvent<HTMLTextAreaElement>, inputText: string) {
+  const { selectionEnd, selectionStart, value } = event.currentTarget;
+
+  return insertTextAtSelection(value, inputText, selectionStart, selectionEnd);
+}
+
+function getTextWithPendingTextAreaPaste(event: ClipboardEvent<HTMLTextAreaElement>) {
+  const { selectionEnd, selectionStart, value } = event.currentTarget;
+  const pastedText = event.clipboardData.getData("text");
+
+  return insertTextAtSelection(value, pastedText, selectionStart, selectionEnd);
 }
 
 function getSymptomKey(symptom: SelectedSymptom) {
@@ -284,20 +340,23 @@ export default function SymptomSelectionPage() {
   const [symptomText, setSymptomText] = useState("");
   const [isExtractingSymptoms, setIsExtractingSymptoms] = useState(false);
   const [isRecordingSymptoms, setIsRecordingSymptoms] = useState(false);
+  const [recordingElapsedSeconds, setRecordingElapsedSeconds] = useState(0);
   const [symptomTextError, setSymptomTextError] = useState<string | null>(null);
   const symptomOptionsRef = useRef<HTMLDivElement | null>(null);
   const speechRecognitionRef = useRef<BrowserSpeechRecognition | null>(null);
   const recordingTimeoutRef = useRef<number | null>(null);
+  const recordingTimerIntervalRef = useRef<number | null>(null);
   const recordedTextRef = useRef("");
 
   const selectedCategoryLabel = selectedCategory ? BODY_AREA_LABELS[selectedCategory] : "";
   const filteredRegions = useMemo(() => getBodyRegionsForCategory(selectedCategory), [selectedCategory]);
   const shouldShowInlineOptions = selectedCategory !== "torso";
   const symptomTextWordCount = useMemo(() => getWordCount(symptomText), [symptomText]);
+  const formattedRecordingElapsed = formatRecordingDuration(recordingElapsedSeconds);
+  const formattedMaxRecordingDuration = formatRecordingDuration(MAX_RECORDING_DURATION_SECONDS);
 
   const handleSymptomTextChange = (text: string) => {
-    if (hasTooManySymptomTextWords(text)) {
-      setSymptomText(limitTextToMaxWords(text));
+    if (exceedsSymptomTextLimit(text)) {
       setSymptomTextError(SYMPTOM_TEXT_WORD_LIMIT_ERROR);
       return;
     }
@@ -309,6 +368,35 @@ export default function SymptomSelectionPage() {
     }
   };
 
+  const handleSymptomTextBeforeInput = (event: FormEvent<HTMLTextAreaElement>) => {
+    if (isTextRemoval(event)) {
+      return;
+    }
+
+    const inputText = getTextAreaInputData(event);
+
+    if (!inputText) {
+      return;
+    }
+
+    const nextText = getTextWithPendingTextAreaInput(event, inputText);
+
+    if (exceedsSymptomTextLimit(nextText)) {
+      event.preventDefault();
+      setSymptomTextError(SYMPTOM_TEXT_WORD_LIMIT_ERROR);
+    }
+  };
+
+  const handleSymptomTextPaste = (event: ClipboardEvent<HTMLTextAreaElement>) => {
+    const nextText = getTextWithPendingTextAreaPaste(event);
+
+    if (exceedsSymptomTextLimit(nextText)) {
+      event.preventDefault();
+      setSymptomText(limitTextToMaxWords(nextText));
+      setSymptomTextError(SYMPTOM_TEXT_WORD_LIMIT_ERROR);
+    }
+  };
+
   const clearRecordingTimeout = () => {
     if (recordingTimeoutRef.current !== null) {
       window.clearTimeout(recordingTimeoutRef.current);
@@ -316,8 +404,21 @@ export default function SymptomSelectionPage() {
     }
   };
 
+  const clearRecordingTimerInterval = () => {
+    if (recordingTimerIntervalRef.current !== null) {
+      window.clearInterval(recordingTimerIntervalRef.current);
+      recordingTimerIntervalRef.current = null;
+    }
+  };
+
+  const resetRecordingTimer = () => {
+    clearRecordingTimerInterval();
+    setRecordingElapsedSeconds(0);
+  };
+
   const stopSymptomRecording = () => {
     clearRecordingTimeout();
+    clearRecordingTimerInterval();
 
     if (speechRecognitionRef.current) {
       speechRecognitionRef.current.stop();
@@ -325,6 +426,13 @@ export default function SymptomSelectionPage() {
     }
 
     setIsRecordingSymptoms(false);
+  };
+
+  const startRecordingTimer = () => {
+    resetRecordingTimer();
+    recordingTimerIntervalRef.current = window.setInterval(() => {
+      setRecordingElapsedSeconds((elapsedSeconds) => Math.min(elapsedSeconds + 1, MAX_RECORDING_DURATION_SECONDS));
+    }, 1000);
   };
 
   const appendTranscript = (baseText: string, transcript: string) => {
@@ -366,6 +474,7 @@ export default function SymptomSelectionPage() {
 
     recognition.onstart = () => {
       setIsRecordingSymptoms(true);
+      startRecordingTimer();
       setSymptomTextError(null);
     };
 
@@ -399,6 +508,7 @@ export default function SymptomSelectionPage() {
 
     recognition.onerror = (event) => {
       clearRecordingTimeout();
+      clearRecordingTimerInterval();
       setIsRecordingSymptoms(false);
       speechRecognitionRef.current = null;
 
@@ -414,6 +524,7 @@ export default function SymptomSelectionPage() {
 
     recognition.onend = () => {
       clearRecordingTimeout();
+      clearRecordingTimerInterval();
       setIsRecordingSymptoms(false);
       speechRecognitionRef.current = null;
     };
@@ -427,6 +538,7 @@ export default function SymptomSelectionPage() {
       recognition.start();
     } catch (error) {
       clearRecordingTimeout();
+      resetRecordingTimer();
       speechRecognitionRef.current = null;
       setIsRecordingSymptoms(false);
       setSymptomTextError(error instanceof Error ? error.message : "Die Spracheingabe konnte nicht gestartet werden.");
@@ -436,6 +548,7 @@ export default function SymptomSelectionPage() {
   useEffect(() => {
     return () => {
       clearRecordingTimeout();
+      clearRecordingTimerInterval();
       speechRecognitionRef.current?.abort();
     };
   }, []);
@@ -495,7 +608,7 @@ export default function SymptomSelectionPage() {
       return;
     }
 
-    if (hasTooManySymptomTextWords(trimmedSymptomText)) {
+    if (exceedsSymptomTextLimit(trimmedSymptomText)) {
       setSymptomText(limitTextToMaxWords(trimmedSymptomText));
       setSymptomTextError(SYMPTOM_TEXT_WORD_LIMIT_ERROR);
       return;
@@ -743,10 +856,13 @@ export default function SymptomSelectionPage() {
         }}
         title="Beschreiben Sie Ihre Symptome"
         subtitle={`Bitte beschreiben Sie Ihre Symptome in 1-2 Sätzen. Nennen Sie dabei Symptom, Stärke und Dauer.`}
+        showCloseButton
       >
         <textarea
           value={symptomText}
+          onBeforeInput={handleSymptomTextBeforeInput}
           onChange={(event) => handleSymptomTextChange(event.target.value)}
+          onPaste={handleSymptomTextPaste}
           placeholder="z.B. Ich habe seit 3 Tagen starke Kopfschmerzen (7/10) und leichte Übelkeit."
           className="w-full h-40 bg-[#eff2f6] rounded-[16px] p-4 resize-none border-none outline-none focus:ring-2 focus:ring-[#486284] font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-body text-base"
           style={{ fontVariationSettings: "'opsz' 14" }}
@@ -791,7 +907,7 @@ export default function SymptomSelectionPage() {
               className="font-['DM_Sans:Medium',sans-serif] text-xs font-medium text-app-text-primary"
               style={{ fontVariationSettings: "'opsz' 14" }}
             >
-              {isRecordingSymptoms ? "Aufnahme läuft · max. 2 Min." : "Diktieren"}
+              {isRecordingSymptoms ? `Aufnahme läuft · ${formattedRecordingElapsed} / ${formattedMaxRecordingDuration}` : "Diktieren"}
             </span>
           </div>
 
