@@ -2,6 +2,7 @@ import { requestStructuredAiResponse } from '../../ai/llmAdapter.js'
 import { isAiRequestError } from '../../ai/timeout.js'
 import type { SymptomExtractionResponse } from './symptomExtraction.types.js'
 import type { SymptomInputType } from '../../../../shared/symptomExtraction.types.js'
+import type { TriageSymptom, TriageSymptomDuration } from '../../../../shared/symptom.types.js'
 import {
   symptomExtractionAiResultSchema,
   symptomInputValidationAiResultSchema,
@@ -27,6 +28,101 @@ function splitWords(text: string): string[] {
   return normalizeText(text)
     .split(/[^a-z0-9]+/)
     .filter((part) => part.length > 0)
+}
+
+function inferExplicitScaleValue(text: string): number | null {
+  const normalizedText = normalizeText(text)
+  const scaleMatch = normalizedText.match(/\b(10|[1-9])\s*(?:\/|von)\s*10\b/)
+  const labeledMatch = normalizedText.match(/\b(?:schmerz(?:staerke)?|staerke|intensitaet)\s*(?:ist|von|:)?\s*(10|[1-9])\b/)
+  const rawValue = scaleMatch?.[1] ?? labeledMatch?.[1]
+
+  return rawValue ? Number(rawValue) : null
+}
+
+function inferPainLevel(text: string): number | null {
+  const explicitScaleValue = inferExplicitScaleValue(text)
+
+  if (explicitScaleValue !== null) {
+    return explicitScaleValue
+  }
+
+  const normalizedText = normalizeText(text)
+
+  if (/\b(?:stark|starke|starken|starker|heftig|heftige|heftigen|schlimm|schlimme|schlimmen)\b/.test(normalizedText)) {
+    return 8
+  }
+
+  if (/\b(?:leicht|leichte|leichten|leichter|mild|milde|milden)\b/.test(normalizedText)) {
+    return 3
+  }
+
+  return 5
+}
+
+function inferDuration(text: string): TriageSymptomDuration | null {
+  const normalizedText = normalizeText(text)
+
+  if (
+    /\b(?:seit|ueber)\s+(?:mehreren|einigen|vielen|mehrere|einige|viele|paar)\s+wochen\b/.test(normalizedText)
+    || /\bmehr\s+als\s+(?:2|zwei)\s+wochen\b/.test(normalizedText)
+    || /\b(?:wochenlang|seit\s+wochen|ueber\s+wochen)\b/.test(normalizedText)
+    || /\bseit\s+(?:1[4-9]|[2-9][0-9])\s+tagen\b/.test(normalizedText)
+  ) {
+    return 'weeks'
+  }
+
+  if (
+    /\bseit\s+(?:einer|1)\s+woche\b/.test(normalizedText)
+    || /\bseit\s+(?:7|8|9|10|11|12|13)\s+tagen\b/.test(normalizedText)
+  ) {
+    return 'week'
+  }
+
+  if (
+    /\bseit\s+(?:mehreren|einigen|paar|wenigen|mehrere|einige|wenige|2|3|4|5|6|zwei|drei|vier|fuenf|sechs)\s+tagen\b/.test(normalizedText)
+    || /\b(?:ein\s+paar|mehrere|einige|wenige)\s+tage\b/.test(normalizedText)
+    || /\b(?:seit\s+gestern|gestern)\b/.test(normalizedText)
+  ) {
+    return 'days'
+  }
+
+  if (/\b(?:seit\s+heute|heute|seit\s+1\s+tag|seit\s+einem\s+tag)\b/.test(normalizedText)) {
+    return 'today'
+  }
+
+  return null
+}
+
+function isPainLikeSymptom(symptom: TriageSymptom): boolean {
+  if (symptom.measurementType === 'pain') {
+    return true
+  }
+
+  if (symptom.measurementType || symptom.region === 'Allgemein' || symptom.region === 'Psychische Probleme') {
+    return false
+  }
+
+  return true
+}
+
+function normalizeExtractedSymptoms(text: string, symptoms: TriageSymptom[]): TriageSymptom[] {
+  const inferredDuration = inferDuration(text)
+  const inferredPainLevel = inferPainLevel(text)
+
+  return symptoms.map((symptom) => {
+    const normalizedSymptom: TriageSymptom = { ...symptom }
+
+    if (inferredDuration) {
+      normalizedSymptom.duration = inferredDuration
+    }
+
+    if (isPainLikeSymptom(normalizedSymptom) && inferredPainLevel !== null && normalizedSymptom.measurementValue === undefined) {
+      normalizedSymptom.measurementType = 'pain'
+      normalizedSymptom.measurementValue = inferredPainLevel
+    }
+
+    return normalizedSymptom
+  })
 }
 
 // Offensichtlicher Unsinn wird ohne KI-Aufruf abgefangen, um Kosten und Latenz zu sparen.
@@ -152,6 +248,6 @@ export async function extractSymptoms(
   return {
     text,
     inputType,
-    symptoms: result.symptoms,
+    symptoms: normalizeExtractedSymptoms(text, result.symptoms),
   }
 }
