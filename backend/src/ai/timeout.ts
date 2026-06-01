@@ -1,7 +1,7 @@
 import OpenAI, { APIConnectionError, APIConnectionTimeoutError, APIError } from 'openai'
 
 // TA 1.8: KI-Requests duerfen nicht unbegrenzt haengen.
-export const AI_REQUEST_TIMEOUT_MS = 8000
+export const AI_REQUEST_TIMEOUT_MS = 17000
 
 // Ohne Retries greift der definierte Fallback schnell und vorhersehbar.
 export const AI_REQUEST_OPTIONS = {

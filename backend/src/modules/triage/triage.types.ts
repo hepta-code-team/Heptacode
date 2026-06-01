@@ -46,6 +46,7 @@ export interface TriageResponse {
   reasons: string[]
   reviewSummary?: ReviewSummary
   aiUnavailable?: boolean
+  aiModel?: string
 }
 
 export const reviewSummarySchema = z.object({

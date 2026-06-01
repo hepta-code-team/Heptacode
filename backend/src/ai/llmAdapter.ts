@@ -11,6 +11,11 @@ type StructuredAiRequest<TSchema extends z.ZodTypeAny> = {
   temperature?: number
 }
 
+type StructuredAiResponse<TSchema extends z.ZodTypeAny> = {
+  data: z.infer<TSchema>
+  model: string
+}
+
 async function requestWithModel<TSchema extends z.ZodTypeAny>(
   model: string,
   {
@@ -84,6 +89,22 @@ export async function requestStructuredAiResponse<TSchema extends z.ZodTypeAny>(
   schemaName,
   temperature = 0.2,
 }: StructuredAiRequest<TSchema>): Promise<z.infer<TSchema>> {
+  const response = await requestStructuredAiResponseWithModel({
+    messages,
+    schema,
+    schemaName,
+    temperature,
+  })
+
+  return response.data
+}
+
+export async function requestStructuredAiResponseWithModel<TSchema extends z.ZodTypeAny>({
+  messages,
+  schema,
+  schemaName,
+  temperature = 0.2,
+}: StructuredAiRequest<TSchema>): Promise<StructuredAiResponse<TSchema>> {
   const request = {
     messages,
     schema,
@@ -92,12 +113,18 @@ export async function requestStructuredAiResponse<TSchema extends z.ZodTypeAny>(
   }
 
   try {
-    return await requestWithModel(aiModel, request)
+    return {
+      data: await requestWithModel(aiModel, request),
+      model: aiModel,
+    }
   } catch (error) {
     if (fallbackModel === aiModel || !isAiAvailabilityError(error)) {
       throw error
     }
 
-    return requestWithModel(fallbackModel, request)
+    return {
+      data: await requestWithModel(fallbackModel, request),
+      model: fallbackModel,
+    }
   }
 }
