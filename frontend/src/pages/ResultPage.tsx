@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import { PhoneCall } from "lucide-react";
 import PageShell from "../components/PageShell";
@@ -10,6 +11,7 @@ import { DURATIONS, getMeasurementConfig } from "../features/symptoms/symptoms.c
 import type { Symptom } from "../types/assessment";
 
 const VALID_CARE_LEVELS = ["emergency", "doctor", "specialist", "selfcare"] as const;
+
 const VALID_MEDICAL_SPECIALTIES = [
   "home_care",
   "emergency_medicine",
@@ -30,12 +32,44 @@ const VALID_MEDICAL_SPECIALTIES = [
   "otolaryngology",
 ] as const;
 
+const CARE_LEVEL_LABELS: Record<CareLevel, string> = {
+  emergency: "Notfall – sofort medizinische Hilfe suchen",
+  doctor: "Ärztliche Abklärung empfohlen",
+  specialist: "Fachärztliche Abklärung empfohlen",
+  selfcare: "Selbstbehandlung / Beobachtung",
+};
+
+const MEDICAL_SPECIALTY_LABELS: Record<(typeof VALID_MEDICAL_SPECIALTIES)[number], string> = {
+  home_care: "Häusliche Versorgung",
+  emergency_medicine: "Notfallmedizin",
+  general_practice: "Allgemeinmedizin",
+  internal_medicine: "Innere Medizin",
+  cardiology: "Kardiologie",
+  neurology: "Neurologie",
+  orthopedics: "Orthopädie",
+  gastroenterology: "Gastroenterologie",
+  pulmonology: "Pneumologie",
+  dermatology: "Dermatologie",
+  urology: "Urologie",
+  gynecology: "Gynäkologie",
+  psychiatry: "Psychiatrie",
+  pediatrics: "Kinderheilkunde",
+  dentistry: "Zahnmedizin",
+  ophthalmology: "Augenheilkunde",
+  otolaryngology: "HNO",
+};
+
 function isValidCareLevel(value: string | undefined): value is CareLevel {
   return value !== undefined && VALID_CARE_LEVELS.includes(value as CareLevel);
 }
 
-function isValidMedicalSpecialty(value: string | undefined): value is (typeof VALID_MEDICAL_SPECIALTIES)[number] {
-  return value !== undefined && VALID_MEDICAL_SPECIALTIES.includes(value as (typeof VALID_MEDICAL_SPECIALTIES)[number]);
+function isValidMedicalSpecialty(
+  value: string | undefined,
+): value is (typeof VALID_MEDICAL_SPECIALTIES)[number] {
+  return (
+    value !== undefined &&
+    VALID_MEDICAL_SPECIALTIES.includes(value as (typeof VALID_MEDICAL_SPECIALTIES)[number])
+  );
 }
 
 export default function ResultPage() {
@@ -48,6 +82,7 @@ export default function ResultPage() {
   const careLevel = assessmentResult?.careLevel ?? fallbackCareLevel;
   const specialtyParam = searchParams.get("specialty");
   const backendRecommendedSpecialty = assessmentResult?.recommendedSpecialty ?? null;
+
   const recommendedSpecialty = isMedicalSpecialty(backendRecommendedSpecialty)
     ? backendRecommendedSpecialty
     : isMedicalSpecialty(specialtyParam)
@@ -63,16 +98,19 @@ export default function ResultPage() {
     careLevel === "emergency"
       ? { href: "tel:112", label: "112 anrufen", description: "Notruf" }
       : careLevel === "doctor"
-        ? { href: "tel:116117", label: "116 117 anrufen", description: "Ärztlicher Bereitschaftsdienst" }
+        ? {
+            href: "tel:116117",
+            label: "116 117 anrufen",
+            description: "Ärztlicher Bereitschaftsdienst",
+          }
         : null;
 
-  const explanationReasons =
-    assessmentResult?.reasons?.length
-      ? assessmentResult.reasons
-      : [
-          "Ihre Angaben wurden ausgewertet.",
-          "Bei Verschlechterung oder Unsicherheit sollten Sie medizinische Hilfe suchen.",
-        ];
+  const explanationReasons = assessmentResult?.reasons?.length
+    ? assessmentResult.reasons
+    : [
+        "Ihre Angaben wurden ausgewertet.",
+        "Bei Verschlechterung oder Unsicherheit sollten Sie medizinische Hilfe suchen.",
+      ];
 
   const plainLanguageSummary =
     assessmentResult?.reviewSummary?.plainLanguage?.trim() ||
@@ -136,9 +174,45 @@ export default function ResultPage() {
     ].join("\n");
   };
 
+  const professionalSummarySource = professionalSummary ?? buildProfessionalSummaryFallback();
+
+  const [isEditingSummary, setIsEditingSummary] = useState(false);
+  const [editedPlainSummary, setEditedPlainSummary] = useState(plainLanguageSummary);
+  const [editedProfessionalSummary, setEditedProfessionalSummary] = useState(
+    professionalSummarySource,
+  );
+
+  useEffect(() => {
+    setEditedPlainSummary(plainLanguageSummary);
+    setEditedProfessionalSummary(professionalSummarySource);
+  }, [plainLanguageSummary, professionalSummarySource]);
+
+  const reviewCareLevelLabel = CARE_LEVEL_LABELS[careLevel];
+
+  const reviewSpecialtyLabel =
+    recommendedSpecialty && isValidMedicalSpecialty(recommendedSpecialty)
+      ? MEDICAL_SPECIALTY_LABELS[recommendedSpecialty]
+      : "Keine spezielle Fachrichtung angegeben";
+
+  const reviewSymptomsLabel =
+    symptomDetails.length > 0
+      ? symptomDetails
+          .map((symptom) => {
+            const symptomLabel = symptom.side
+              ? `${symptom.region} (${symptom.side})`
+              : symptom.region;
+
+            return `${symptomLabel}: ${getMeasurementSummary(symptom)}${
+              symptom.duration ? `, ${getDurationLabel(symptom.duration)}` : ""
+            }`;
+          })
+          .join("; ")
+      : "Keine Beschwerden angegeben.";
+
   const handlePdfDownload = async () => {
     try {
       const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:3000";
+
       const fallbackRecommendedSpecialty =
         careLevel === "emergency"
           ? "emergency_medicine"
@@ -150,14 +224,16 @@ export default function ResultPage() {
         ? assessmentResult.careLevel
         : careLevel;
 
-      const safeRecommendedSpecialty = isValidMedicalSpecialty(assessmentResult?.recommendedSpecialty)
+      const safeRecommendedSpecialty = isValidMedicalSpecialty(
+        assessmentResult?.recommendedSpecialty,
+      )
         ? assessmentResult.recommendedSpecialty
         : recommendedSpecialty ?? fallbackRecommendedSpecialty;
 
       const pdfPayload = {
         reviewSummary: {
-          plainLanguage: plainLanguageSummary,
-          professionalSummary: professionalSummary ?? buildProfessionalSummaryFallback(),
+          plainLanguage: editedPlainSummary.trim() || plainLanguageSummary,
+          professionalSummary: editedProfessionalSummary.trim() || professionalSummarySource,
         },
         triage: {
           careLevel: safeCareLevel,
@@ -195,7 +271,7 @@ export default function ResultPage() {
       const link = document.createElement("a");
 
       link.href = url;
-      link.download = "triage-review-summary.pdf";
+      link.download = "medizinische-ersteinschaetzung.pdf";
       document.body.appendChild(link);
       link.click();
       link.remove();
@@ -221,12 +297,14 @@ export default function ResultPage() {
         >
           Ihre Einschätzung
         </p>
+
         <p
           className="font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-body text-sm md:text-base leading-relaxed"
           style={{ fontVariationSettings: "'opsz' 14" }}
         >
-          {plainLanguageSummary}
+          {editedPlainSummary}
         </p>
+
         {assessmentResult?.aiUnavailable && (
           <p
             className="mt-3 font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-body text-xs leading-relaxed"
@@ -260,6 +338,7 @@ export default function ResultPage() {
         >
           Begründung
         </p>
+
         <ul className="space-y-1.5">
           {explanationReasons.map((reason) => (
             <li
@@ -274,34 +353,122 @@ export default function ResultPage() {
       </div>
 
       <div className="bg-white border-2 border-[#486284] rounded-[16px] p-5 md:p-6 mb-4">
-        <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center justify-between mb-4 gap-3">
           <p
             className="font-['DM_Sans:Bold',sans-serif] font-bold text-app-text-primary text-lg"
             style={{ fontVariationSettings: "'opsz' 14" }}
           >
-            Medizinische Zusammenfassung
+            Ihre Angaben
           </p>
-          <button
-            onClick={handlePdfDownload}
-            aria-label="download-summary"
-            className="bg-[#486284] text-app-text-on-primary rounded-[10px] px-4 py-2 hover:bg-[#3a4d68] transition-all flex items-center gap-2"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-              />
-            </svg>
-            <span
-              className="font-['DM_Sans:Bold',sans-serif] font-bold text-sm"
-              style={{ fontVariationSettings: "'opsz' 14" }}
+
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setIsEditingSummary((current) => !current)}
+              className="bg-white border border-[#486284] text-[#486284] rounded-[10px] px-4 py-2 hover:bg-[#eff2f6] transition-all"
             >
-              PDF
-            </span>
-          </button>
+              <span
+                className="font-['DM_Sans:Bold',sans-serif] font-bold text-sm"
+                style={{ fontVariationSettings: "'opsz' 14" }}
+              >
+                {isEditingSummary ? "Fertig" : "Bearbeiten"}
+              </span>
+            </button>
+
+            <button
+              type="button"
+              onClick={handlePdfDownload}
+              aria-label="download-summary"
+              className="bg-[#486284] text-app-text-on-primary rounded-[10px] px-4 py-2 hover:bg-[#3a4d68] transition-all flex items-center gap-2"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                />
+              </svg>
+
+              <span
+                className="font-['DM_Sans:Bold',sans-serif] font-bold text-sm"
+                style={{ fontVariationSettings: "'opsz' 14" }}
+              >
+                PDF
+              </span>
+            </button>
+          </div>
         </div>
+
+        <div className="bg-[#eff2f6] rounded-[12px] p-4 mb-4 space-y-3">
+          <p className="font-['DM_Sans:Bold',sans-serif] font-bold text-app-text-body text-sm">
+            Bitte prüfen Sie die Angaben, bevor Sie das PDF herunterladen.
+          </p>
+
+          <div className="grid gap-3 md:grid-cols-2">
+            <div className="bg-white rounded-[10px] p-3 border border-[#d8e0ea]">
+              <p className="text-xs text-app-text-subtle mb-1">Empfehlung</p>
+              <p className="font-['DM_Sans:Bold',sans-serif] font-bold text-app-text-body text-sm">
+                {reviewCareLevelLabel}
+              </p>
+            </div>
+
+            <div className="bg-white rounded-[10px] p-3 border border-[#d8e0ea]">
+              <p className="text-xs text-app-text-subtle mb-1">Fachrichtung</p>
+              <p className="font-['DM_Sans:Bold',sans-serif] font-bold text-app-text-body text-sm">
+                {reviewSpecialtyLabel}
+              </p>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-[10px] p-3 border border-[#d8e0ea]">
+            <p className="text-xs text-app-text-subtle mb-1">Beschwerden</p>
+            <p className="font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-body text-xs leading-relaxed">
+              {reviewSymptomsLabel}
+            </p>
+          </div>
+
+          <div className="bg-white rounded-[10px] p-3 border border-[#d8e0ea]">
+            <p className="text-xs text-app-text-subtle mb-1">
+              Zusammenfassung für Patient:innen
+            </p>
+            <p className="font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-body text-xs leading-relaxed">
+              {editedPlainSummary}
+            </p>
+          </div>
+        </div>
+
+        {isEditingSummary && (
+          <div className="bg-[#eff2f6] rounded-[12px] p-4 mb-4 space-y-4">
+            <div>
+              <label className="block font-['DM_Sans:Bold',sans-serif] font-bold text-app-text-body text-sm mb-2">
+                Zusammenfassung für Patient:innen
+              </label>
+
+              <textarea
+                value={editedPlainSummary}
+                onChange={(event) => setEditedPlainSummary(event.target.value)}
+                className="w-full min-h-[110px] rounded-[10px] border border-[#d8e0ea] bg-white p-3 text-sm text-app-text-body leading-relaxed focus:outline-none focus:ring-2 focus:ring-[#486284]"
+              />
+            </div>
+
+            <div>
+              <label className="block font-['DM_Sans:Bold',sans-serif] font-bold text-app-text-body text-sm mb-2">
+                Klinische Zusammenfassung
+              </label>
+
+              <textarea
+                value={editedProfessionalSummary}
+                onChange={(event) => setEditedProfessionalSummary(event.target.value)}
+                className="w-full min-h-[180px] rounded-[10px] border border-[#d8e0ea] bg-white p-3 text-sm text-app-text-body leading-relaxed focus:outline-none focus:ring-2 focus:ring-[#486284]"
+              />
+            </div>
+
+            <p className="text-xs text-app-text-subtle">
+              Die PDF wird mit dem aktuell bearbeiteten Text erstellt.
+            </p>
+          </div>
+        )}
 
         <div className="space-y-4">
           {patientData && (
@@ -312,47 +479,57 @@ export default function ResultPage() {
               >
                 Stammdaten
               </p>
+
               <div className="bg-[#eff2f6] rounded-[10px] p-3 space-y-1">
                 <p className="font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-body text-xs">
                   <strong>Geburtsdatum:</strong> {patientData.birthMonth}/{patientData.birthYear}
                 </p>
+
                 <p className="font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-body text-xs">
                   <strong>Größe/Gewicht:</strong> {patientData.height} cm / {patientData.weight} kg
                 </p>
+
                 <p className="font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-body text-xs">
                   <strong>Geschlecht:</strong> {patientData.gender}
                 </p>
+
                 {patientData.isPregnant && (
                   <p className="font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-body text-xs">
                     <strong>Schwanger:</strong> Ja
                   </p>
                 )}
+
                 {patientData.isBreastfeeding && (
                   <p className="font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-body text-xs">
                     <strong>Stillend:</strong> Ja
                   </p>
                 )}
+
                 {patientData.allergies && (
                   <p className="font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-body text-xs">
                     <strong>Allergien:</strong> {patientData.allergies}
                   </p>
                 )}
+
                 {patientData.medications && (
                   <p className="font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-body text-xs">
                     <strong>Medikamente:</strong> {patientData.medications}
                   </p>
                 )}
+
                 {patientData.substanceInfluence && patientData.substanceInfluence !== "Nein" && (
                   <p className="font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-body text-xs">
                     <strong>Einfluss:</strong> {patientData.substanceInfluence}
                   </p>
                 )}
+
                 {patientData.recentAbroad && (
                   <p className="font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-body text-xs">
                     <strong>Ausland letzte 3 Monate:</strong> Ja
                     {patientData.recentAbroadDetails && ` (${patientData.recentAbroadDetails})`}
                   </p>
                 )}
+
                 {patientData.conditions.length > 0 && (
                   <p className="font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-body text-xs">
                     <strong>Vorerkrankungen:</strong> {patientData.conditions.join(", ")}
@@ -372,6 +549,7 @@ export default function ResultPage() {
                   Beschwerden
                 </p>
               </div>
+
               <div className="bg-[#eff2f6] rounded-[10px] p-3">
                 <p className="font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-body text-xs leading-relaxed">
                   Patient klagt über{" "}
@@ -392,7 +570,7 @@ export default function ResultPage() {
             </div>
           )}
 
-          {professionalSummary && (
+          {!isEditingSummary && editedProfessionalSummary.trim() && (
             <div>
               <p
                 className="font-['DM_Sans:Bold',sans-serif] font-bold text-app-text-body text-sm mb-2"
@@ -400,9 +578,10 @@ export default function ResultPage() {
               >
                 Klinische Zusammenfassung
               </p>
+
               <div className="bg-[#eff2f6] rounded-[10px] p-3">
                 <p className="whitespace-pre-line font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-body text-xs leading-relaxed">
-                  {professionalSummary}
+                  {editedProfessionalSummary}
                 </p>
               </div>
             </div>
@@ -425,7 +604,12 @@ export default function ResultPage() {
 
       <div className="bg-[#FEF3C7] border-l-4 border-[#F59E0B] rounded-[16px] p-5 md:p-6 mt-4">
         <div className="flex items-start gap-3">
-          <svg className="w-6 h-6 text-app-text-warning flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg
+            className="w-6 h-6 text-app-text-warning flex-shrink-0 mt-0.5"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
             <path
               strokeLinecap="round"
               strokeLinejoin="round"
@@ -433,6 +617,7 @@ export default function ResultPage() {
               d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
             />
           </svg>
+
           <div>
             <p
               className="font-['DM_Sans:Bold',sans-serif] font-bold text-app-text-warning-strong text-base mb-2"
@@ -440,13 +625,14 @@ export default function ResultPage() {
             >
               Wichtiger Hinweis
             </p>
+
             <p
               className="font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-warning-strong text-sm leading-relaxed"
               style={{ fontVariationSettings: "'opsz' 14" }}
             >
-              Diese Einschätzung ist <strong>keine medizinische Diagnose</strong> und ersetzt nicht den Besuch bei einem Arzt.
-              KI-Systeme können Fehler machen. Bei Unsicherheit oder Verschlechterung Ihres Zustands suchen Sie bitte
-              umgehend medizinische Hilfe.
+              Diese Einschätzung ist <strong>keine medizinische Diagnose</strong> und ersetzt nicht
+              den Besuch bei einem Arzt. KI-Systeme können Fehler machen. Bei Unsicherheit oder
+              Verschlechterung Ihres Zustands suchen Sie bitte umgehend medizinische Hilfe.
             </p>
           </div>
         </div>

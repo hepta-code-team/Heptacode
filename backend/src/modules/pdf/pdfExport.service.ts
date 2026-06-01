@@ -1,5 +1,7 @@
 import PDFDocument from 'pdfkit'
 import { Buffer } from 'node:buffer'
+import { existsSync } from 'node:fs'
+import { join } from 'node:path'
 
 import type { PatientData } from '../../../../shared/patientData.types.js'
 import type { TriageSymptom } from '../../../../shared/symptom.types.js'
@@ -12,6 +14,17 @@ import type {
 
 type PdfDoc = InstanceType<typeof PDFDocument>
 
+const TEAM_LOGO_PATH = join(
+  process.cwd(),
+  'src',
+  'modules',
+  'pdf',
+  'assets',
+  'heptaplus-logo.png',
+)
+
+const PDF_TITLE = 'Ihre medizinische Ersteinschätzung'
+
 const THEME = {
   lime: '#C1FF72',
   darkBlue: '#1B2930',
@@ -19,20 +32,26 @@ const THEME = {
   turquoise: '#249077',
   azure: '#2E6065',
 
-  background: '#1B2930',
-  header: '#1B2930',
-  card: '#264F53',
-  cardAlt: '#26786F',
-  border: '#249077',
-  text: '#FFFFFF',
-  mutedText: '#D7E5E4',
-  subtleText: '#A9C3C0',
+  background: '#F7FAF9',
+  header: '#FFFFFF',
+  card: '#FFFFFF',
+  cardAlt: '#EEF7F4',
+  border: '#D6E7E3',
+  strongBorder: '#249077',
+
+  text: '#1B2930',
+  mutedText: '#52676B',
+  subtleText: '#7A8E91',
   white: '#FFFFFF',
 
+  warning: '#D64545',
+  warningLight: '#FFF1F1',
+  warningBorder: '#F2B8B8',
+
   emergency: '#C1FF72',
-  doctor: '#249077',
-  specialist: '#2A7670',
-  selfcare: '#2E6065',
+  doctor: '#DFF8D2',
+  specialist: '#D9F0EE',
+  selfcare: '#EAF3F2',
 }
 
 const PAGE = {
@@ -71,36 +90,71 @@ function formatCareLevel(careLevel: PdfTriageResult['careLevel']): string {
   }
 }
 
-function getCareLevelColor(careLevel?: PdfTriageResult['careLevel']): string {
-  switch (careLevel) {
-    case 'emergency':
-      return THEME.emergency
-    case 'doctor':
-      return THEME.doctor
-    case 'specialist':
-      return THEME.specialist
-    case 'selfcare':
-      return THEME.selfcare
-    default:
-      return THEME.turquoise
-  }
-}
-
 function symptomLabel(symptom: TriageSymptom): string {
   return symptom.side ? `${symptom.region} (${symptom.side})` : symptom.region
 }
 
-function summarizePatient(data: PatientData): string {
+function normalizeGermanText(value: string): string {
+  return value
+    .replace(/verfuegbar/g, 'verfügbar')
+    .replace(/Verfuegbar/g, 'Verfügbar')
+    .replace(/uebergebenen/g, 'übergebenen')
+    .replace(/Uebergebenen/g, 'Übergebenen')
+    .replace(/fuer/g, 'für')
+    .replace(/Fuer/g, 'Für')
+    .replace(/enthaelt/g, 'enthält')
+    .replace(/Enthaelt/g, 'Enthält')
+    .replace(/Schmerzstaerke/g, 'Schmerzstärke')
+    .replace(/schmerzstaerke/g, 'Schmerzstärke')
+    .replace(/Ausgewaehlte/g, 'Ausgewählte')
+    .replace(/ausgewaehlte/g, 'ausgewählte')
+    .replace(/Begruendung/g, 'Begründung')
+    .replace(/begruendung/g, 'Begründung')
+}
+
+function formatReason(reason: string): string {
+  const cleanedReason = normalizeGermanText(reason)
+    .trim()
+    .replace(/\s+/g, ' ')
+    .replace(/[.;:,\s]+$/g, '')
+
+  return cleanedReason.length > 0 ? `${cleanedReason}.` : ''
+}
+
+function formatReasons(reasons: string[]): string {
+  const cleanedReasons = reasons
+    .map(formatReason)
+    .filter((reason) => reason.length > 0)
+
+  if (cleanedReasons.length === 0) {
+    return '-'
+  }
+
+  return cleanedReasons.join(' ')
+}
+
+function formatValue(value?: string | number | null): string {
+  if (value === undefined || value === null || value === '') {
+    return '-'
+  }
+
+  return String(value)
+}
+
+function summarizePatient(data?: PatientData): string {
+  if (!data) {
+    return 'Keine Stammdaten vorhanden.'
+  }
+
   return [
-    `Geburt: ${data.birthMonth}/${data.birthYear}`,
-    `Größe / Gewicht: ${data.height} / ${data.weight}`,
-    `Geschlecht: ${data.gender}`,
-    `Schwangerschaft / Stillzeit: ${data.isPregnant ? 'Ja' : 'Nein'} / ${
-      data.isBreastfeeding ? 'Ja' : 'Nein'
-    }`,
+    `Geburt: ${formatValue(data.birthMonth)}/${formatValue(data.birthYear)}`,
+    `Größe / Gewicht: ${formatValue(data.height)} cm / ${formatValue(data.weight)} kg`,
+    `Geschlecht: ${formatValue(data.gender)}`,
+    `Schwangerschaft: ${data.isPregnant ? 'Ja' : 'Nein'}`,
+    `Stillzeit: ${data.isBreastfeeding ? 'Ja' : 'Nein'}`,
     `Allergien: ${data.allergies || '-'}`,
     `Medikamente: ${data.medications || '-'}`,
-    `Substanzbeeinflussung: ${data.substanceInfluence || '-'}`,
+    `Substanzbeeinflussung: ${data.substanceInfluence || 'Nein'}`,
     `Reise ins Ausland: ${
       data.recentAbroad ? data.recentAbroadDetails || 'Ja' : 'Nein'
     }`,
@@ -110,76 +164,124 @@ function summarizePatient(data: PatientData): string {
   ].join('\n')
 }
 
-function summarizeSymptoms(symptoms: TriageSymptom[]): string {
-  if (symptoms.length === 0) {
-    return 'Keine Symptome übergeben.'
+function summarizeSymptoms(symptoms?: TriageSymptom[]): string {
+  if (!symptoms || symptoms.length === 0) {
+    return 'Keine Beschwerden vorhanden.'
   }
 
   return symptoms
-    .map((symptom) => {
-      const parts = [
+    .map((symptom, index) => {
+      const details = [
         symptomLabel(symptom),
         symptom.painLevel !== undefined
-          ? `Schmerzstärke ${symptom.painLevel}/10`
+          ? `Schmerzstärke: ${symptom.painLevel}/10`
           : null,
-        formatDuration(symptom.duration),
+        formatDuration(symptom.duration)
+          ? `Dauer: ${formatDuration(symptom.duration)}`
+          : null,
       ].filter((part): part is string => part !== null)
 
-      return parts.join(', ')
+      return `${index + 1}. ${details.join(', ')}`
     })
     .join('\n')
 }
 
-function summarizeTriage(triage: PdfTriageResult): string {
+function mergeSymptomBlocks(summary: string, symptoms?: TriageSymptom[]): string {
+  if (!symptoms || symptoms.length === 0) {
+    return summary
+  }
+
+  const startMatch = summary.match(
+    /(^|\n)\s*(?:(?:Ausgewählte|Ausgewaehlte)\s+Symptome|Detailangaben\s+zu\s+aktiven\s+Symptomen|Beschwerden\s*\/\s*Symptome|Beschwerden)\s*:/i,
+  )
+
+  if (!startMatch || startMatch.index === undefined) {
+    return summary
+  }
+
+  const startIndex = startMatch.index + (startMatch[1]?.length ?? 0)
+  const afterStart = summary.slice(startIndex)
+
+  const endMarkerPatterns = [
+    /\n\s*Begründung der Empfehlung\s*:/i,
+    /\n\s*Begruendung der Empfehlung\s*:/i,
+    /\n\s*Wichtiger Hinweis\s*:/i,
+    /\n\s*Hinweis\s*:/i,
+  ]
+
+  const markerIndexes = endMarkerPatterns
+    .map((pattern) => {
+      const match = afterStart.match(pattern)
+      return match?.index
+    })
+    .filter((index): index is number => index !== undefined)
+
+  const endIndex =
+    markerIndexes.length > 0 ? startIndex + Math.min(...markerIndexes) : summary.length
+
+  const before = summary.slice(0, startIndex).trimEnd()
+  const after = summary.slice(endIndex).trimStart()
+
+  const mergedSymptoms = `Ausgewählte Symptome:\n${summarizeSymptoms(symptoms)}`
+
+  return [before, mergedSymptoms, after]
+    .filter((part) => part.trim().length > 0)
+    .join('\n\n')
+}
+
+function summarizeCareReason(triage?: PdfTriageResult): string {
+  if (!triage) {
+    return 'Begründung der Empfehlung: Keine Begründung vorhanden.'
+  }
+
+  return `Begründung der Empfehlung: ${formatReasons(triage.reasons)}`
+}
+
+function summarizeMedicalOverview(request: PdfExportRequest): string {
+  const rawProfessionalSummary = normalizeGermanText(
+    request.reviewSummary.professionalSummary,
+  ).trim()
+
+  const editedProfessionalSummary = mergeSymptomBlocks(
+    rawProfessionalSummary,
+    request.symptoms,
+  )
+
+  if (editedProfessionalSummary.length > 0) {
+    return [
+      editedProfessionalSummary,
+      '',
+      summarizeCareReason(request.triage),
+    ].join('\n')
+  }
+
   return [
-    `Versorgungsebene: ${formatCareLevel(triage.careLevel)}`,
-    `Empfohlene Fachrichtung: ${triage.recommendedSpecialty}`,
-    triage.reasons.length > 0
-      ? `Begründungen: ${triage.reasons.join('; ')}`
-      : 'Begründungen: -',
+    'Patientendaten:',
+    summarizePatient(request.patientData),
+    '',
+    'Ausgewählte Symptome:',
+    summarizeSymptoms(request.symptoms),
+    '',
+    summarizeCareReason(request.triage),
   ].join('\n')
 }
 
 function buildSections(request: PdfExportRequest): PdfSection[] {
-  const sections: PdfSection[] = [
+  return [
     {
-      title: 'Laienverständliche Zusammenfassung',
+      title: 'Zusammenfassung für Patient:innen',
       content: request.reviewSummary.plainLanguage,
     },
     {
-      title: 'Medizinisch strukturierte Zusammenfassung',
-      content: request.reviewSummary.professionalSummary,
+      title: 'Medizinische Übersicht',
+      content: summarizeMedicalOverview(request),
+    },
+    {
+      title: 'Wichtiger Hinweis',
+      content:
+        'Diese Einschätzung ist keine medizinische Diagnose und ersetzt nicht den Besuch bei einem Arzt. KI-Systeme können Fehler machen. Bei Unsicherheit oder Verschlechterung Ihres Zustands suchen Sie bitte umgehend medizinische Hilfe.',
     },
   ]
-
-  if (request.triage) {
-    sections.push({
-      title: 'Triage-Einstufung',
-      content: summarizeTriage(request.triage),
-    })
-  }
-
-  if (request.patientData) {
-    sections.push({
-      title: 'Patientendaten',
-      content: summarizePatient(request.patientData),
-    })
-  }
-
-  if (request.symptoms && request.symptoms.length > 0) {
-    sections.push({
-      title: 'Beschwerden',
-      content: summarizeSymptoms(request.symptoms),
-    })
-  }
-
-  sections.push({
-    title: 'Wichtiger Hinweis',
-    content:
-      'Diese Ersteinschätzung dient nur zur Orientierung und ersetzt keine ärztliche Diagnose oder Untersuchung. Bei akuten oder schweren Beschwerden sollte medizinische Hilfe in Anspruch genommen werden.',
-  })
-
-  return sections
 }
 
 function formatGeneratedAt(value: string): string {
@@ -220,31 +322,50 @@ function addHeader(
   doc.rect(0, 0, pageWidth, headerHeight).fill(THEME.header)
 
   doc
-    .fillColor(THEME.lime)
+    .moveTo(PAGE.marginX, headerHeight - 1)
+    .lineTo(pageWidth - PAGE.marginX, headerHeight - 1)
+    .strokeColor(THEME.border)
+    .lineWidth(1)
+    .stroke()
+
+  doc
+    .fillColor(THEME.darkBlue)
     .font('Helvetica-Bold')
-    .fontSize(24)
-    .text('Triage Review Summary', PAGE.marginX, 38, {
-      width: 380,
+    .fontSize(21)
+    .text(PDF_TITLE, PAGE.marginX, 34, {
+      width: 370,
     })
 
   doc
     .fillColor(THEME.mutedText)
     .font('Helvetica')
     .fontSize(10)
-    .text(`Erstellt am: ${formatGeneratedAt(generatedAt)}`, PAGE.marginX, 72)
+    .text(`Erstellt am: ${formatGeneratedAt(generatedAt)}`, PAGE.marginX, 68)
 
   if (triage) {
-    const careColor = getCareLevelColor(triage.careLevel)
-
-    doc.roundedRect(PAGE.marginX, 94, 220, 24, 8).fill(careColor)
+    doc
+      .fillColor(THEME.mutedText)
+      .font('Helvetica')
+      .fontSize(9)
+      .text('Empfohlene Versorgungsebene', PAGE.marginX, 92)
 
     doc
       .fillColor(THEME.darkBlue)
       .font('Helvetica-Bold')
-      .fontSize(9.5)
-      .text(formatCareLevel(triage.careLevel), PAGE.marginX + 12, 101, {
-        width: 196,
+      .fontSize(13)
+      .text(formatCareLevel(triage.careLevel), PAGE.marginX, 107)
+  }
+
+  if (existsSync(TEAM_LOGO_PATH)) {
+    try {
+      doc.image(TEAM_LOGO_PATH, pageWidth - PAGE.marginX - 105, 28, {
+        fit: [105, 72],
+        align: 'right',
+        valign: 'center',
       })
+    } catch {
+      // Falls das Logo nicht geladen werden kann, wird es übersprungen.
+    }
   }
 }
 
@@ -263,7 +384,7 @@ function addFooter(doc: PdfDoc, pageNumber: number, totalPages: number): void {
     .fillColor(THEME.subtleText)
     .font('Helvetica')
     .fontSize(8)
-    .text('HeptaPlus – Triage Review Summary', PAGE.marginX, footerY, {
+    .text(`HeptaPlus - ${PDF_TITLE}`, PAGE.marginX, footerY, {
       width: contentWidth / 2,
       align: 'left',
     })
@@ -292,30 +413,38 @@ function addIntroBox(doc: PdfDoc): void {
   const x = PAGE.marginX
   const width = doc.page.width - PAGE.marginX * 2
   const y = doc.y
+  const boxHeight = 48
 
-  doc.roundedRect(x, y, width, 64, 12).fill(THEME.cardAlt)
+  const accentInset = 2
+  const accentWidth = 7
+
+  doc.roundedRect(x, y, width, boxHeight, 12).fill(THEME.cardAlt)
 
   doc
-    .fillColor(THEME.lime)
-    .font('Helvetica-Bold')
-    .fontSize(11)
-    .text('Übersicht', x + 16, y + 14)
+    .roundedRect(
+      x + accentInset,
+      y + accentInset,
+      accentWidth,
+      boxHeight - accentInset * 2,
+      4,
+    )
+    .fill(THEME.lime)
 
   doc
     .fillColor(THEME.text)
     .font('Helvetica')
     .fontSize(9.5)
     .text(
-      'Dieses Dokument fasst die eingegebenen Informationen und die Triage-Einschätzung strukturiert zusammen.',
+      'Dieses Dokument fasst Ihre eingegebenen Gesundheitsangaben und die empfohlene Versorgung strukturiert zusammen.',
       x + 16,
-      y + 34,
+      y + 15,
       {
         width: width - 32,
         lineGap: 3,
       },
     )
 
-  doc.y = y + 80
+  doc.y = y + boxHeight + 16
 }
 
 function addSectionCard(
@@ -323,6 +452,9 @@ function addSectionCard(
   section: PdfSection,
   options?: {
     highlightColor?: string
+    backgroundColor?: string
+    borderColor?: string
+    titleColor?: string
   },
 ): void {
   const x = PAGE.marginX
@@ -330,6 +462,9 @@ function addSectionCard(
   const padding = 16
   const titleHeight = 18
   const contentWidth = width - padding * 2
+
+  const accentInset = 2
+  const accentWidth = 7
 
   doc.font('Helvetica').fontSize(10)
 
@@ -344,19 +479,30 @@ function addSectionCard(
 
   const y = doc.y
   const highlightColor = options?.highlightColor ?? THEME.lime
+  const backgroundColor = options?.backgroundColor ?? THEME.card
+  const borderColor = options?.borderColor ?? THEME.border
+  const titleColor = options?.titleColor ?? THEME.darkBlue
 
-  doc.roundedRect(x, y, width, cardHeight, 12).fill(THEME.card)
+  doc.roundedRect(x, y, width, cardHeight, 12).fill(backgroundColor)
 
-  doc.roundedRect(x, y, 7, cardHeight, 4).fill(highlightColor)
+  doc
+    .roundedRect(
+      x + accentInset,
+      y + accentInset,
+      accentWidth,
+      cardHeight - accentInset * 2,
+      4,
+    )
+    .fill(highlightColor)
 
   doc
     .roundedRect(x, y, width, cardHeight, 12)
-    .strokeColor(THEME.border)
-    .lineWidth(0.8)
+    .strokeColor(borderColor)
+    .lineWidth(0.9)
     .stroke()
 
   doc
-    .fillColor(THEME.lime)
+    .fillColor(titleColor)
     .font('Helvetica-Bold')
     .fontSize(13)
     .text(section.title, x + padding, y + padding, {
@@ -390,14 +536,12 @@ function addPdfContent(
 
   sections.forEach((section) => {
     const isWarning = section.title === 'Wichtiger Hinweis'
-    const isTriage = section.title === 'Triage-Einstufung'
 
     addSectionCard(doc, section, {
-      highlightColor: isWarning
-        ? THEME.turquoise
-        : isTriage
-          ? getCareLevelColor(request.triage?.careLevel)
-          : THEME.lime,
+      highlightColor: isWarning ? THEME.warning : THEME.lime,
+      backgroundColor: isWarning ? THEME.warningLight : THEME.card,
+      borderColor: isWarning ? THEME.warningBorder : THEME.border,
+      titleColor: isWarning ? THEME.warning : THEME.darkBlue,
     })
   })
 }
@@ -423,8 +567,8 @@ export async function createPdfSummary(
     margin: 0,
     bufferPages: true,
     info: {
-      Title: 'Triage Review Summary',
-      Subject: 'Triage Review Summary',
+      Title: PDF_TITLE,
+      Subject: PDF_TITLE,
       Creator: 'HeptaPlus',
       Producer: 'HeptaPlus',
     },
@@ -440,7 +584,7 @@ export async function createPdfSummary(
   const pdfBuffer = await pdfBufferPromise
 
   return {
-    fileName: 'triage-review-summary.pdf',
+    fileName: 'medizinische-ersteinschaetzung.pdf',
     mimeType: 'application/pdf',
     contentBase64: pdfBuffer.toString('base64'),
     generatedAt,
