@@ -34,8 +34,8 @@ export const symptomExtractionInstructions = [
 
 export function createSymptomExtractionPrompt(input: SymptomExtractionPromptInput): string {
   return [
-    'Input-Typ: $(input.inputType)',
-    'Freitext: $(input.text)',
+    `Input-Typ: ${input.inputType}`,
+    `Freitext: ${input.text}`,
   ].join('\n')
 }
 
@@ -49,7 +49,7 @@ export const symptomValidationInstructions = [
 
 export function createSymptomValidationPrompt(input: SymptomExtractionPromptInput): string {
   return [
-    'Input-Typ: $(input.inputType)',
-    'Freitext: $(input.text)',
+    `Input-Typ: ${input.inputType}`,
+    `Freitext: ${input.text}`,
   ].join('\n')
 }
