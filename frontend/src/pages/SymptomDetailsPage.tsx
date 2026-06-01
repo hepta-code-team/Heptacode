@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router";
+import { useLocation, useNavigate } from "react-router";
 import PageShell from "../components/PageShell";
 import SymptomDetailsForm from "../features/symptoms/SymptomDetailsForm";
 import SymptomButtonGrid from "../features/symptoms/SymptomButtonGrid";
@@ -7,11 +7,17 @@ import Modal from "../components/Modal";
 import Button from "../components/Button";
 import { useAssessment } from "../lib/AssessmentContext";
 import { getMeasurementConfig } from "../features/symptoms/symptoms.constants";
-import type { SelectedSymptom, Symptom, SymptomDraft } from "../types/assessment";
+import type { SelectedSymptom, Symptom, SymptomDraft, TriageSymptom } from "../types/assessment";
 import { handleSubmitAssessment } from "../features/symptoms/handleSubmitAssessment";
+
+interface SymptomDetailsRouteState {
+  extractedSymptoms?: TriageSymptom[];
+}
 
 export default function SymptomDetailsPage() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const routeState = location.state as SymptomDetailsRouteState | null;
   const {
     selectedSymptoms,
     symptomDetails: contextDetails,
@@ -47,6 +53,10 @@ export default function SymptomDetailsPage() {
 
   // Initialize local symptomDetails from selectedSymptoms
   const [symptomDetails, setLocalSymptomDetails] = useState<SymptomDraft[]>(() => {
+    if (routeState?.extractedSymptoms && routeState.extractedSymptoms.length > 0) {
+      return routeState.extractedSymptoms.map(normalizeSymptom);
+    }
+
     // If context already has details, use them
     if (contextDetails.length > 0) {
       return contextDetails.map(normalizeSymptom);

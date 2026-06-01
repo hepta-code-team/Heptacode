@@ -7,6 +7,7 @@ import Button from "../components/Button";
 import Modal from "../components/Modal";
 import SymptomButtonGrid from "../features/symptoms/SymptomButtonGrid";
 import { useAssessment } from "../lib/AssessmentContext";
+import { extractSymptomsFromText } from "../lib/symptomExtractionApi";
 import {
   BODY_AREA_LABELS,
   BODY_AREA_REGION_IDS,
@@ -16,6 +17,7 @@ import {
   type BodyAreaCategory,
 } from "../features/symptoms/symptoms.constants";
 import type { SelectedSymptom } from "../../../shared/symptom.types";
+import type { TriageSymptom } from "../../../shared/symptom.types";
 
 const supportingAreas = [
   {
@@ -34,6 +36,26 @@ const supportingAreas = [
 
 function getSymptomKey(symptom: SelectedSymptom) {
   return symptom.side ? `${symptom.region} (${symptom.side})` : symptom.region;
+}
+
+function getUniqueExtractedSymptoms(symptoms: TriageSymptom[]): TriageSymptom[] {
+  const seenSymptomKeys = new Set<string>();
+  const uniqueSymptoms: TriageSymptom[] = [];
+
+  for (const symptom of symptoms) {
+    const symptomKey = getSymptomKey(symptom);
+
+    if (!seenSymptomKeys.has(symptomKey)) {
+      seenSymptomKeys.add(symptomKey);
+      uniqueSymptoms.push(symptom);
+    }
+
+    if (uniqueSymptoms.length >= MAX_SYMPTOMS) {
+      break;
+    }
+  }
+
+  return uniqueSymptoms;
 }
 
 function isBodyAreaCategory(value: string | null): value is BodyAreaCategory {
@@ -177,11 +199,17 @@ export default function SymptomSelectionPage() {
   const initialCategory = isBodyAreaCategory(searchParams.get("category"))
     ? searchParams.get("category") as BodyAreaCategory
     : null;
-  const { selectedSymptoms: contextSymptoms, setSelectedSymptoms: setContextSymptoms } = useAssessment();
+  const {
+    selectedSymptoms: contextSymptoms,
+    setSelectedSymptoms: setContextSymptoms,
+    setSymptomDetails: setContextSymptomDetails,
+  } = useAssessment();
   const [selectedCategory, setSelectedCategory] = useState<BodyAreaCategory | null>(initialCategory);
   const [selectedSymptoms, setSelectedSymptoms] = useState<SelectedSymptom[]>(contextSymptoms);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [symptomText, setSymptomText] = useState("");
+  const [isExtractingSymptoms, setIsExtractingSymptoms] = useState(false);
+  const [symptomTextError, setSymptomTextError] = useState<string | null>(null);
   const symptomOptionsRef = useRef<HTMLDivElement | null>(null);
 
   const selectedCategoryLabel = selectedCategory ? BODY_AREA_LABELS[selectedCategory] : "";
@@ -230,7 +258,49 @@ export default function SymptomSelectionPage() {
 
   const handleContinue = () => {
     setContextSymptoms(selectedSymptoms);
+    setContextSymptomDetails([]);
     navigate("/symptom-details");
+  };
+
+  const handleApplySymptomText = async () => {
+    const trimmedSymptomText = symptomText.trim();
+
+    if (!trimmedSymptomText) {
+      setSymptomTextError("Bitte beschreiben Sie Ihre Symptome kurz.");
+      return;
+    }
+
+    setIsExtractingSymptoms(true);
+    setSymptomTextError(null);
+
+    try {
+      const response = await extractSymptomsFromText(trimmedSymptomText);
+
+      if (response.invalidInput || response.aiUnavailable) {
+        setSymptomTextError(response.message ?? "Die Beschreibung konnte nicht ausgewertet werden.");
+        return;
+      }
+
+      const extractedSymptoms = getUniqueExtractedSymptoms(response.symptoms);
+
+      if (extractedSymptoms.length === 0) {
+        setSymptomTextError("Es wurden keine passenden Beschwerden erkannt. Bitte formulieren Sie die Eingabe konkreter oder wählen Sie manuell aus.");
+        return;
+      }
+
+      const extractedSelection = extractedSymptoms.map(({ region, side }) => ({ region, side }));
+
+      setSelectedSymptoms(extractedSelection);
+      setContextSymptoms(extractedSelection);
+      setContextSymptomDetails([]);
+      setIsModalOpen(false);
+      setSymptomText("");
+      navigate("/symptom-details", { state: { extractedSymptoms } });
+    } catch (error) {
+      setSymptomTextError(error instanceof Error ? error.message : "Die Beschreibung konnte nicht ausgewertet werden.");
+    } finally {
+      setIsExtractingSymptoms(false);
+    }
   };
 
   return (
@@ -437,6 +507,7 @@ export default function SymptomSelectionPage() {
         onClose={() => {
           setIsModalOpen(false);
           setSymptomText("");
+          setSymptomTextError(null);
         }}
         title="Beschreiben Sie Ihre Symptome"
         subtitle="Bitte beschreiben Sie Ihre Symptome in 1-2 Sätzen. Nennen Sie dabei Symptom, Stärke und Dauer."
@@ -449,9 +520,16 @@ export default function SymptomSelectionPage() {
           style={{ fontVariationSettings: "'opsz' 14" }}
         />
 
+        {symptomTextError && (
+          <div className="mt-3 rounded-[14px] border border-red-200 bg-red-50 p-3 text-sm font-medium text-red-700">
+            {symptomTextError}
+          </div>
+        )}
+
         <div className="flex justify-between items-center mt-6">
           <button
             onClick={() => {}}
+            disabled={isExtractingSymptoms}
             className="bg-[#486284] text-app-text-on-primary rounded-full w-16 h-16 hover:bg-[#3a4d68] transition-all shadow-lg flex items-center justify-center"
             aria-label="Symptom diktieren"
           >
@@ -459,11 +537,16 @@ export default function SymptomSelectionPage() {
           </button>
 
           <button
-            onClick={() => setIsModalOpen(false)}
-            className="bg-[#486284] text-app-text-on-primary rounded-full w-16 h-16 hover:bg-[#3a4d68] transition-all shadow-lg flex items-center justify-center"
+            onClick={handleApplySymptomText}
+            disabled={isExtractingSymptoms || symptomText.trim().length === 0}
+            className="bg-[#486284] text-app-text-on-primary rounded-full w-16 h-16 hover:bg-[#3a4d68] transition-all shadow-lg flex items-center justify-center disabled:cursor-not-allowed disabled:opacity-60"
             aria-label="Symptombeschreibung übernehmen"
           >
-            <Check className="size-8" strokeWidth={3} aria-hidden="true" />
+            {isExtractingSymptoms ? (
+              <span className="size-7 animate-spin rounded-full border-4 border-white/35 border-t-white" aria-hidden="true" />
+            ) : (
+              <Check className="size-8" strokeWidth={3} aria-hidden="true" />
+            )}
           </button>
         </div>
       </Modal>
