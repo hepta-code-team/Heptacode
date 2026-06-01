@@ -81,15 +81,6 @@ export const triageSymptomSchema = z.object({
   duration: z.enum(TRIAGE_SYMPTOM_DURATIONS).optional(),
 })
 
-export const triageAiResultSchema = z.object({
-  careLevel: careLevelSchema,
-  recommendedSpecialty: medicalSpecialtySchema.nullish().transform((value) => value ?? undefined),
-  reasons: z
-    .union([z.array(z.string().min(1)).min(1).max(5), z.string().min(1)])
-    .transform((value) => (typeof value === 'string' ? [value] : value)),
-  reviewSummary: reviewSummarySchema.nullish().transform((value) => value ?? undefined),
-})
-
 export const triageRequestSchema = z
   .object({
     patientData: patientDataSchema.optional(),
