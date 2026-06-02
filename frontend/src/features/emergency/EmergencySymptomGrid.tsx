@@ -1,4 +1,4 @@
-import imgConfusion from "../../assets/emergency/confusion.png";
+import imgConfusion from "../../assets/emergency/stroke.png";
 import imgHeadache from "../../assets/emergency/headache.png";
 import imgHeartPain from "../../assets/emergency/heartpain.png";
 import imgIconAtemnot from "../../assets/emergency/shortness-of-breath.png";

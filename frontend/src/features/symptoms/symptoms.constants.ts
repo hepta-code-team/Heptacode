@@ -6,6 +6,7 @@ import overallPainIcon from "../../assets/symptoms/overallpain.png";
 import stomachPainIcon from "../../assets/symptoms/stomachpain.png";
 import type { SymptomMeasurementType } from "../../types/assessment";
 import headAcheIcon from "../../assets/symptoms/headache.png";
+import faceIcon from "../../assets/symptoms/face.png";
 import bleedingIcon from "../../assets/symptoms/bleeding.png";
 import lowerArmIcon from "../../assets/symptoms/lowerArm.png";
 import upperArmIcon from "../../assets/symptoms/upperArm.png";
@@ -36,7 +37,7 @@ export const BODY_REGIONS: BodyRegion[] = [
   {
     id: "gesicht",
     name: "Gesicht",
-    icon: headAcheIcon,
+    icon: faceIcon,
     options: ["Augen", "Ohren", "Nase", "Mund"],
   },
   {
