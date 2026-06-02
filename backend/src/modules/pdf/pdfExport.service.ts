@@ -20,24 +20,22 @@ const TEAM_LOGO_PATH = join(
   'modules',
   'pdf',
   'assets',
-  'heptaplus-logo.png',
+  'HeptaCheck.png',
 )
 
 const PDF_TITLE = 'Ihre medizinische Ersteinschätzung'
 
-const THEME = {
-  lime: '#C1FF72',
-  darkBlue: '#1B2930',
-  cyan: '#2A7670',
-  turquoise: '#249077',
-  azure: '#2E6065',
+const EMERGENCY_INFO_URL =
+  'https://gesund.bund.de/wege-im-gesundheitswesen/erwachsenenleben/alter/notfaelle/notruf-und-notaufnahme'
 
-  background: '#F7FAF9',
+const THEME = {
+  darkBlue: '#1B2930',
+
+  background: '#FFFFFF',
   header: '#FFFFFF',
   card: '#FFFFFF',
-  cardAlt: '#EEF7F4',
-  border: '#D6E7E3',
-  strongBorder: '#249077',
+  cardAlt: '#FFFFFF',
+  border: '#DDE6EA',
 
   text: '#1B2930',
   mutedText: '#52676B',
@@ -48,10 +46,10 @@ const THEME = {
   warningLight: '#FFF1F1',
   warningBorder: '#F2B8B8',
 
-  emergency: '#C1FF72',
-  doctor: '#DFF8D2',
-  specialist: '#D9F0EE',
-  selfcare: '#EAF3F2',
+  emergency: '#F3F6F8',
+  doctor: '#F3F6F8',
+  specialist: '#F3F6F8',
+  selfcare: '#F3F6F8',
 }
 
 const PAGE = {
@@ -155,8 +153,7 @@ function summarizePatient(data?: PatientData): string {
     `Allergien: ${data.allergies || '-'}`,
     `Medikamente: ${data.medications || '-'}`,
     `Substanzbeeinflussung: ${data.substanceInfluence || 'Nein'}`,
-    `Reise ins Ausland: ${
-      data.recentAbroad ? data.recentAbroadDetails || 'Ja' : 'Nein'
+    `Reise ins Ausland: ${data.recentAbroad ? data.recentAbroadDetails || 'Ja' : 'Nein'
     }`,
     data.conditions.length > 0
       ? `Vorerkrankungen: ${data.conditions.join(', ')}`
@@ -217,7 +214,9 @@ function mergeSymptomBlocks(summary: string, symptoms?: TriageSymptom[]): string
     .filter((index): index is number => index !== undefined)
 
   const endIndex =
-    markerIndexes.length > 0 ? startIndex + Math.min(...markerIndexes) : summary.length
+    markerIndexes.length > 0
+      ? startIndex + Math.min(...markerIndexes)
+      : summary.length
 
   const before = summary.slice(0, startIndex).trimEnd()
   const after = summary.slice(endIndex).trimStart()
@@ -234,7 +233,22 @@ function summarizeCareReason(triage?: PdfTriageResult): string {
     return 'Begründung der Empfehlung: Keine Begründung vorhanden.'
   }
 
-  return `Begründung der Empfehlung: ${formatReasons(triage.reasons)}`
+  switch (triage.careLevel) {
+    case 'emergency':
+      return 'Begründung der Empfehlung: \nIhre ausgewählten Symptome deuten auf einen Notfall hin. Weitere Informationen finden Sie unter gesund.bund.de.'
+
+    case 'doctor':
+      return 'Begründung der Empfehlung: \nIhre Angaben sprechen für Beschwerden, die ärztlich abgeklärt werden sollten. Deshalb wird eine hausärztliche Abklärung empfohlen.'
+
+    case 'specialist':
+      return 'Begründung der Empfehlung: \nIhre Angaben sprechen für Beschwerden, die fachärztlich abgeklärt werden sollten. Deshalb wird eine fachärztliche Versorgung empfohlen.'
+
+    case 'selfcare':
+      return 'Begründung der Empfehlung: \nIhre Angaben sprechen derzeit eher für eine Selbstversorgung. Beobachten Sie Ihre Beschwerden weiter. Bei Verschlechterung, starken Beschwerden oder Unsicherheit sollten Sie medizinische Hilfe suchen.'
+
+    default:
+      return `Begründung der Empfehlung: ${formatReasons(triage.reasons)}`
+  }
 }
 
 function summarizeMedicalOverview(request: PdfExportRequest): string {
@@ -268,10 +282,6 @@ function summarizeMedicalOverview(request: PdfExportRequest): string {
 
 function buildSections(request: PdfExportRequest): PdfSection[] {
   return [
-    {
-      title: 'Zusammenfassung für Patient:innen',
-      content: request.reviewSummary.plainLanguage,
-    },
     {
       title: 'Medizinische Übersicht',
       content: summarizeMedicalOverview(request),
@@ -384,7 +394,7 @@ function addFooter(doc: PdfDoc, pageNumber: number, totalPages: number): void {
     .fillColor(THEME.subtleText)
     .font('Helvetica')
     .fontSize(8)
-    .text(`HeptaPlus - ${PDF_TITLE}`, PAGE.marginX, footerY, {
+    .text(`HeptaCheck - ${PDF_TITLE}`, PAGE.marginX, footerY, {
       width: contentWidth / 2,
       align: 'left',
     })
@@ -415,27 +425,20 @@ function addIntroBox(doc: PdfDoc): void {
   const y = doc.y
   const boxHeight = 48
 
-  const accentInset = 2
-  const accentWidth = 7
-
   doc.roundedRect(x, y, width, boxHeight, 12).fill(THEME.cardAlt)
 
   doc
-    .roundedRect(
-      x + accentInset,
-      y + accentInset,
-      accentWidth,
-      boxHeight - accentInset * 2,
-      4,
-    )
-    .fill(THEME.lime)
+    .roundedRect(x, y, width, boxHeight, 12)
+    .strokeColor(THEME.border)
+    .lineWidth(0.9)
+    .stroke()
 
   doc
     .fillColor(THEME.text)
     .font('Helvetica')
     .fontSize(9.5)
     .text(
-      'Dieses Dokument fasst Ihre eingegebenen Gesundheitsangaben und die empfohlene Versorgung strukturiert zusammen.',
+      'Dieses Dokument fasst Ihre eingegebenen Daten und die empfohlene Versorgung zusammen.',
       x + 16,
       y + 15,
       {
@@ -447,11 +450,133 @@ function addIntroBox(doc: PdfDoc): void {
   doc.y = y + boxHeight + 16
 }
 
+function removeMarkdownLinkUrls(value: string): string {
+  return value.replace(/\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g, '$1')
+}
+
+function renderTextWithLinks(
+  doc: PdfDoc,
+  line: string,
+  contentX: number,
+  contentWidth: number,
+  startsNewLine = true,
+): void {
+  const linkPattern =
+    /(unter gesund\.bund\.de)|(gesund\.bund\.de)|\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g
+  const parts: Array<{
+    text: string
+    url?: string
+  }> = []
+
+  let lastIndex = 0
+  let match: RegExpExecArray | null
+
+  while ((match = linkPattern.exec(line)) !== null) {
+    const linkText = match[1] ?? match[2] ?? match[3] ?? ''
+    const linkUrl = match[4] ?? EMERGENCY_INFO_URL
+    const beforeLink = line.slice(lastIndex, match.index)
+
+    if (beforeLink.length > 0) {
+      parts.push({ text: beforeLink })
+    }
+
+    parts.push({
+      text: linkText,
+      url: linkUrl,
+    })
+
+    lastIndex = match.index + match[0].length
+  }
+
+  const remainingText = line.slice(lastIndex)
+
+  if (remainingText.length > 0) {
+    parts.push({ text: remainingText })
+  }
+
+  if (parts.length === 0) {
+    doc
+      .fillColor(THEME.text)
+      .font('Helvetica')
+      .fontSize(10)
+      .text(line, contentX, doc.y, {
+        width: contentWidth,
+        lineGap: 4,
+      })
+    return
+  }
+
+  parts.forEach((part, index) => {
+    const isFirst = index === 0
+    const isLast = index === parts.length - 1
+
+    const startsAtExplicitPosition = startsNewLine && isFirst
+    const xPosition = startsAtExplicitPosition ? contentX : undefined
+    const yPosition = startsAtExplicitPosition ? doc.y : undefined
+    const layoutOptions = startsAtExplicitPosition
+      ? {
+          width: contentWidth,
+          lineGap: 4,
+        }
+      : {}
+
+    if (part.url) {
+      const linkedTextPrefix = 'unter '
+
+      if (part.text.startsWith(linkedTextPrefix)) {
+        doc
+          .fillColor(THEME.text)
+          .font('Helvetica')
+          .fontSize(10)
+          .text(
+            `${linkedTextPrefix.trimEnd()}\u00A0`,
+            xPosition,
+            yPosition,
+            {
+              ...layoutOptions,
+              continued: true,
+            },
+          )
+          .fillColor(THEME.darkBlue)
+          .font('Helvetica-Bold')
+          .text(part.text.slice(linkedTextPrefix.length), {
+            continued: !isLast,
+            link: part.url,
+            underline: true,
+          })
+
+        return
+      }
+
+      doc
+        .fillColor(THEME.darkBlue)
+        .font('Helvetica-Bold')
+        .fontSize(10)
+        .text(part.text, xPosition, yPosition, {
+          ...layoutOptions,
+          continued: !isLast,
+          link: part.url,
+          underline: true,
+        })
+    } else {
+      doc
+        .fillColor(THEME.text)
+        .font('Helvetica')
+        .fontSize(10)
+        .text(part.text, xPosition, yPosition, {
+          ...layoutOptions,
+          continued: !isLast,
+        })
+    }
+  })
+
+  doc.fillColor(THEME.text).font('Helvetica').fontSize(10)
+}
+
 function addSectionCard(
   doc: PdfDoc,
   section: PdfSection,
   options?: {
-    highlightColor?: string
     backgroundColor?: string
     borderColor?: string
     titleColor?: string
@@ -463,37 +588,25 @@ function addSectionCard(
   const titleHeight = 18
   const contentWidth = width - padding * 2
 
-  const accentInset = 2
-  const accentWidth = 7
+  const displayContent = removeMarkdownLinkUrls(section.content)
 
   doc.font('Helvetica').fontSize(10)
 
-  const contentHeight = doc.heightOfString(section.content, {
+  const contentHeight = doc.heightOfString(displayContent, {
     width: contentWidth,
     lineGap: 4,
   })
 
-  const cardHeight = padding + titleHeight + 8 + contentHeight + padding
+  const cardHeight = padding + titleHeight + 8 + contentHeight + padding + 8
 
   ensureSpace(doc, cardHeight + 14)
 
   const y = doc.y
-  const highlightColor = options?.highlightColor ?? THEME.lime
   const backgroundColor = options?.backgroundColor ?? THEME.card
   const borderColor = options?.borderColor ?? THEME.border
   const titleColor = options?.titleColor ?? THEME.darkBlue
 
   doc.roundedRect(x, y, width, cardHeight, 12).fill(backgroundColor)
-
-  doc
-    .roundedRect(
-      x + accentInset,
-      y + accentInset,
-      accentWidth,
-      cardHeight - accentInset * 2,
-      4,
-    )
-    .fill(highlightColor)
 
   doc
     .roundedRect(x, y, width, cardHeight, 12)
@@ -509,14 +622,46 @@ function addSectionCard(
       width: contentWidth,
     })
 
-  doc
-    .fillColor(THEME.text)
-    .font('Helvetica')
-    .fontSize(10)
-    .text(section.content, x + padding, y + padding + titleHeight + 8, {
-      width: contentWidth,
-      lineGap: 4,
-    })
+  doc.fillColor(THEME.text).font('Helvetica').fontSize(10)
+
+  const contentX = x + padding
+  const contentY = y + padding + titleHeight + 8
+
+  doc.y = contentY
+
+  section.content.split('\n').forEach((line) => {
+    if (line.trim().length === 0) {
+      doc.moveDown(1)
+      return
+    }
+
+    const headingMatch = line.trim().match(/^([^:]+:)(\s*)(.*)$/)
+
+    if (headingMatch) {
+      const prefix = headingMatch[1] ?? ''
+      const spacing = headingMatch[2] ?? ''
+      const rest = headingMatch[3] ?? ''
+
+      doc
+        .fillColor(THEME.text)
+        .font('Helvetica-Bold')
+        .fontSize(10)
+        .text(prefix, contentX, doc.y, {
+          width: contentWidth,
+          lineGap: 4,
+          continued: rest.length > 0,
+        })
+
+      if (rest.length > 0) {
+        renderTextWithLinks(doc, `${spacing}${rest}`, contentX, contentWidth, false)
+      }
+
+      doc.fillColor(THEME.text).font('Helvetica').fontSize(10)
+      return
+    }
+
+    renderTextWithLinks(doc, line, contentX, contentWidth)
+  })
 
   doc.y = y + cardHeight + 14
 }
@@ -538,7 +683,6 @@ function addPdfContent(
     const isWarning = section.title === 'Wichtiger Hinweis'
 
     addSectionCard(doc, section, {
-      highlightColor: isWarning ? THEME.warning : THEME.lime,
       backgroundColor: isWarning ? THEME.warningLight : THEME.card,
       borderColor: isWarning ? THEME.warningBorder : THEME.border,
       titleColor: isWarning ? THEME.warning : THEME.darkBlue,
@@ -569,8 +713,8 @@ export async function createPdfSummary(
     info: {
       Title: PDF_TITLE,
       Subject: PDF_TITLE,
-      Creator: 'HeptaPlus',
-      Producer: 'HeptaPlus',
+      Creator: 'HeptaCheck',
+      Producer: 'HeptaCheck',
     },
   })
 

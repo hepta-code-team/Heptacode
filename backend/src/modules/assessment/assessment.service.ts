@@ -109,9 +109,17 @@ function buildFallbackReviewSummary(payload: AssessmentPayload): ReviewSummary {
 }
 
 function sanitizeProfessionalSummary(summary: string): string {
-  return summary
+  const lines = summary
     .split('\n')
     .filter((line) => !line.includes('Keine Angabe'))
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0)
+
+  const filteredLines = lines.filter((line) => {
+    return !/^Zusammenfassung für Patient(?:innen|:innen|innen und Patienten|innen und Patient:innen)/i.test(line)
+  })
+
+  return filteredLines
     .join('\n')
     .replace(/\n{3,}/g, '\n\n')
     .trim()
