@@ -61,10 +61,10 @@ describe('extractSymptoms', () => {
         symptoms: [{ region: 'Kopf', measurementType: 'pain', measurementValue: 6, duration: 'days' }],
       })
 
-    const result = await extractSymptoms('Ich habe seit Tagen Kopfschmerzen.', 'speech')
+    const result = await extractSymptoms('Ich habe seit Tagen Kopfschmerzen 6 von 10.', 'speech')
 
     expect(result).toEqual({
-      text: 'Ich habe seit Tagen Kopfschmerzen.',
+      text: 'Ich habe seit Tagen Kopfschmerzen 6 von 10.',
       inputType: 'speech',
       symptoms: [{ region: 'Kopf', measurementType: 'pain', measurementValue: 6, duration: 'days' }],
     })
@@ -79,6 +79,51 @@ describe('extractSymptoms', () => {
     )
   })
 
+  it('uebernimmt nicht abgedeckte KI-Symptome als Freitext-Symptom', async () => {
+    requestStructuredAiResponseMock
+      .mockResolvedValueOnce({
+        isValidMedicalInput: true,
+        reason: 'Medizinische Beschwerde erkannt.',
+      })
+      .mockResolvedValueOnce({
+        symptoms: [{ region: 'Blutiger Auswurf', measurementType: 'severity' }],
+      })
+
+    const result = await extractSymptoms('Ich habe blutigen Auswurf.')
+
+    expect(result.symptoms).toEqual([{ region: 'Blutiger Auswurf', measurementType: 'severity' }])
+  })
+
+  it('entfernt KI-erfundene Messwerte, wenn im Freitext keine Staerke genannt wurde', async () => {
+    requestStructuredAiResponseMock
+      .mockResolvedValueOnce({
+        isValidMedicalInput: true,
+        reason: 'Medizinische Beschwerde erkannt.',
+      })
+      .mockResolvedValueOnce({
+        symptoms: [{ region: 'Blutiges Erbrechen', measurementType: 'severity', measurementValue: 10 }],
+      })
+
+    const result = await extractSymptoms('Ich habe mich uebergeben und es kam auch Blut mit hoch.')
+
+    expect(result.symptoms).toEqual([{ region: 'Blutiges Erbrechen', measurementType: 'severity' }])
+  })
+
+  it('behaelt Messwerte, wenn im Freitext eine Staerke genannt wurde', async () => {
+    requestStructuredAiResponseMock
+      .mockResolvedValueOnce({
+        isValidMedicalInput: true,
+        reason: 'Medizinische Beschwerde erkannt.',
+      })
+      .mockResolvedValueOnce({
+        symptoms: [{ region: 'Schwindel', measurementType: 'severity', measurementValue: 8 }],
+      })
+
+    const result = await extractSymptoms('Ich habe starken Schwindel.')
+
+    expect(result.symptoms).toEqual([{ region: 'Schwindel', measurementType: 'severity', measurementValue: 8 }])
+  })
+
   it('versucht die Extraktion, wenn nur die Validierungs-KI ausfaellt', async () => {
     requestStructuredAiResponseMock
       .mockRejectedValueOnce(new AiResponseError('validation timeout'))
@@ -91,7 +136,7 @@ describe('extractSymptoms', () => {
     expect(result).toEqual({
       text: 'Ich habe Bauchschmerzen.',
       inputType: 'text',
-      symptoms: [{ region: 'Bauch', measurementType: 'pain', measurementValue: 4 }],
+      symptoms: [{ region: 'Bauch', measurementType: 'pain' }],
     })
     expect(requestStructuredAiResponseMock).toHaveBeenCalledTimes(2)
   })

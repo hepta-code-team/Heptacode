@@ -18,6 +18,7 @@ export default function SymptomDetailsPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const routeState = location.state as SymptomDetailsRouteState | null;
+  const hasRouteExtractedSymptoms = Boolean(routeState?.extractedSymptoms?.length);
   const {
     selectedSymptoms,
     symptomDetails: contextDetails,
@@ -75,10 +76,10 @@ export default function SymptomDetailsPage() {
   const [submitError, setSubmitError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (selectedSymptoms.length === 0) {
+    if (selectedSymptoms.length === 0 && contextDetails.length === 0 && !hasRouteExtractedSymptoms) {
       navigate("/symptom-selection");
     }
-  }, [selectedSymptoms, navigate]);
+  }, [contextDetails.length, hasRouteExtractedSymptoms, selectedSymptoms.length, navigate]);
 
   const updateSymptom = (index: number, field: keyof SymptomDraft, value: SymptomDraft[keyof SymptomDraft]) => {
     const updated = [...symptomDetails];
