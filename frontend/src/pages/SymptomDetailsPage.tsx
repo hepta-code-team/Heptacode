@@ -38,7 +38,11 @@ export default function SymptomDetailsPage() {
     };
   };
 
-  const normalizeSymptom = (symptom: SelectedSymptom | Symptom, index: number): SymptomDraft => {
+  const normalizeSymptom = (
+    symptom: SelectedSymptom | Symptom,
+    index: number,
+    isNameEditable = false,
+  ): SymptomDraft => {
     const inferredMeasurementConfig = getMeasurementConfig(symptom.region, symptom.side);
     const measurementType = "measurementType" in symptom && symptom.measurementType
       ? symptom.measurementType
@@ -53,13 +57,14 @@ export default function SymptomDetailsPage() {
       measurementValue: "measurementValue" in symptom && Number.isFinite(symptom.measurementValue)
         ? symptom.measurementValue
         : measurementConfig.defaultValue,
+      isNameEditable,
     };
   };
 
   // Initialize local symptomDetails from selectedSymptoms
   const [symptomDetails, setLocalSymptomDetails] = useState<SymptomDraft[]>(() => {
     if (routeState?.extractedSymptoms && routeState.extractedSymptoms.length > 0) {
-      return routeState.extractedSymptoms.map(normalizeSymptom);
+      return routeState.extractedSymptoms.map((symptom, index) => normalizeSymptom(symptom, index, true));
     }
 
     // If context already has details, use them
@@ -84,6 +89,12 @@ export default function SymptomDetailsPage() {
   const updateSymptom = (index: number, field: keyof SymptomDraft, value: SymptomDraft[keyof SymptomDraft]) => {
     const updated = [...symptomDetails];
     updated[index] = { ...updated[index], [field]: value };
+    setLocalSymptomDetails(updated);
+  };
+
+  const updateSymptomName = (index: number, name: string) => {
+    const updated = [...symptomDetails];
+    updated[index] = { ...updated[index], region: name, side: undefined };
     setLocalSymptomDetails(updated);
   };
 
@@ -120,7 +131,7 @@ export default function SymptomDetailsPage() {
     .filter((symptom) => symptom.active)
     .every((symptom) => {
       const config = getMeasurementConfigByType(symptom.measurementType);
-      return symptom.measurementValue >= config.min && symptom.measurementValue <= config.max;
+      return symptom.region.trim().length > 0 && symptom.measurementValue >= config.min && symptom.measurementValue <= config.max;
     });
 
   return (
@@ -136,6 +147,7 @@ export default function SymptomDetailsPage() {
               <SymptomDetailsForm
                 symptom={symptom}
                 onUpdate={(field, value) => updateSymptom(index, field, value)}
+                onNameUpdate={(name) => updateSymptomName(index, name)}
                 onRemove={() => toggleSymptomActive(index)}
                 showDurationError={showValidationErrors}
               />
