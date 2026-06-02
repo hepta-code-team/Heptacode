@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { createPdfSummary } from './pdfExport.service.js'
+import { createPdfSummary } from '../../../../src/modules/pdf/pdfExport.service.js'
 
 describe('createPdfSummary', () => {
   it('erstellt eine PDF-Zusammenfassung mit Patientendaten und Symptomen', () => {

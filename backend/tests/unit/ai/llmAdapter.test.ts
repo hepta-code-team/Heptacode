@@ -1,12 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { z } from 'zod'
 
-import { AI_REQUEST_OPTIONS, AiResponseError } from './timeout.js'
+import { AI_REQUEST_OPTIONS, AiResponseError } from '../../../src/ai/timeout.js'
 
 const parseMock = vi.fn()
 const createMock = vi.fn()
 
-vi.mock('./client.js', () => ({
+vi.mock('../../../src/ai/client.js', () => ({
   aiClient: {
     beta: {
       chat: {
@@ -30,7 +30,7 @@ describe('requestStructuredAiResponse', () => {
   })
 
   it('gibt die strukturierte parsed-Antwort zurueck', async () => {
-    const { requestStructuredAiResponse } = await import('./llmAdapter.js')
+    const { requestStructuredAiResponse } = await import('../../../src/ai/llmAdapter.js')
     const schema = z.object({
       result: z.string(),
     })
@@ -65,7 +65,7 @@ describe('requestStructuredAiResponse', () => {
   })
 
   it('nutzt die Standard-Temperatur, wenn keine Temperatur uebergeben wird', async () => {
-    const { requestStructuredAiResponse } = await import('./llmAdapter.js')
+    const { requestStructuredAiResponse } = await import('../../../src/ai/llmAdapter.js')
 
     parseMock.mockResolvedValueOnce({
       choices: [
@@ -92,7 +92,7 @@ describe('requestStructuredAiResponse', () => {
   })
 
   it('wirft AiResponseError, wenn keine parsed-Antwort vorhanden ist', async () => {
-    const { requestStructuredAiResponse } = await import('./llmAdapter.js')
+    const { requestStructuredAiResponse } = await import('../../../src/ai/llmAdapter.js')
 
     parseMock.mockResolvedValueOnce({
       choices: [

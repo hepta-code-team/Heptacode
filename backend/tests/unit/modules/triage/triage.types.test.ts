@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { triageRequestSchema } from './triage.types.js'
+import { triageRequestSchema } from '../../../../src/modules/triage/triage.types.js'
 
 describe('triageRequestSchema', () => {
   it('akzeptiert Freitext ohne ausgewaehlte Symptome', () => {

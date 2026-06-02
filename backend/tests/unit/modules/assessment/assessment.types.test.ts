@@ -4,7 +4,7 @@ import {
   assessmentPayloadSchema,
   assessmentResultSchema,
   symptomSchema,
-} from './assessment.types.js'
+} from '../../../../src/modules/assessment/assessment.types.js'
 
 const validPatientData = {
   birthMonth: '01',

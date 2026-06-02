@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { triageAiResponseSchema } from './validation.js'
+import { triageAiResponseSchema } from '../../../src/shared/validation.js'
 
 describe('triageAiResponseSchema', () => {
   it('akzeptiert gueltige Selfcare-Antworten ohne Fachrichtung', () => {

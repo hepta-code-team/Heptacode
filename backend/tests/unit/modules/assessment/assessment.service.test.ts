@@ -1,10 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { evaluateTriage } from '../triage/triage.service.js'
-import { evaluateAssessmentWithAi } from './assessment.service.js'
-import type { AssessmentPayload } from './assessment.types.js'
+import { evaluateTriage } from '../../../../src/modules/triage/triage.service.js'
+import { evaluateAssessmentWithAi } from '../../../../src/modules/assessment/assessment.service.js'
+import type { AssessmentPayload } from '../../../../src/modules/assessment/assessment.types.js'
 
-vi.mock('../triage/triage.service.js', () => ({
+vi.mock('../../../../src/modules/triage/triage.service.js', () => ({
   evaluateTriage: vi.fn(),
 }))
 

@@ -5,7 +5,7 @@ import {
   AI_REQUEST_TIMEOUT_MS,
   AiResponseError,
   isAiRequestError,
-} from './timeout.js'
+} from '../../../src/ai/timeout.js'
 
 describe('AI timeout configuration', () => {
   it('definiert ein festes Timeout ohne automatische Retries', () => {
