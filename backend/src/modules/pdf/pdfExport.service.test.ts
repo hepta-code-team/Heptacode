@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-
-import { createPdfSummary } from '../modules/pdf/pdfExport.service.js'
+import { createPdfSummary } from './pdfExport.service.js'
 
 describe('createPdfSummary', () => {
   it('erstellt eine PDF-Zusammenfassung mit Patientendaten und Symptomen', () => {
@@ -29,7 +28,7 @@ describe('createPdfSummary', () => {
         cigarettesPerDay: '',
         conditionDetails: {},
       },
-      symptoms: [{ region: 'Kopf', side: 'links', measurementType: 'pain', measurementValue: 6, duration: 'days' }],
+      symptoms: [{ region: 'Kopf', measurementType: 'pain', measurementValue: 6, duration: 'days' }],
     })
 
     const pdfContent = Buffer.from(result.contentBase64, 'base64').toString('utf8')

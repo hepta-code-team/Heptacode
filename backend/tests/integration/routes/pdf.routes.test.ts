@@ -18,7 +18,6 @@ function createPayload(): PdfExportRequest {
     },
     triage: {
       careLevel: 'doctor',
-      recommendedSpecialty: 'cardiology',
       reasons: ['Die Beschwerden sollten aerztlich eingeordnet werden.'],
     },
     patientData: {
@@ -40,7 +39,7 @@ function createPayload(): PdfExportRequest {
       cigarettesPerDay: '',
       conditionDetails: {},
     },
-    symptoms: [{ region: 'Kopf', side: 'links', measurementType: 'pain', measurementValue: 6, duration: 'days' }],
+    symptoms: [{ region: 'Kopf', measurementType: 'pain', measurementValue: 6, duration: 'days' }],
   }
 }
 

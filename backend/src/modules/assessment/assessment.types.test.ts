@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest'
 
 import {
-  assessmentResultSchema,
   assessmentPayloadSchema,
+  assessmentResultSchema,
   symptomSchema,
-} from '../modules/assessment/assessment.types.js'
+} from './assessment.types.js'
 
 const validPatientData = {
   birthMonth: '01',
@@ -84,11 +84,11 @@ describe('assessmentPayloadSchema', () => {
   })
 
   it('lehnt unvollstaendige Patientendaten ab', () => {
+    const incompletePatientData: Partial<typeof validPatientData> = { ...validPatientData }
+    delete incompletePatientData.conditionDetails
+
     const result = assessmentPayloadSchema.safeParse({
-      patientData: {
-        ...validPatientData,
-        isPregnant: 'false',
-      },
+      patientData: incompletePatientData,
       selectedSymptoms: [{ region: 'Kopf' }],
       symptomDetails: [validSymptom],
     })
@@ -104,10 +104,10 @@ describe('assessmentResultSchema', () => {
       reasons: ['Die Beschwerden sollten aerztlich eingeordnet werden.'],
       reviewSummary: {
         plainLanguage: 'Bitte lassen Sie die Beschwerden zeitnah abklaeren.',
-        professionalSummary: 'Stammdaten und Symptome wurden strukturiert zusammengefasst.',
+        professionalSummary: 'Care Level: doctor.',
       },
       summary: 'Bitte lassen Sie die Beschwerden zeitnah abklaeren.',
-      createdAt: '2026-06-01T12:00:00Z',
+      createdAt: '2026-06-01T00:00:00.000Z',
     })
 
     expect(result.success).toBe(true)
@@ -117,7 +117,12 @@ describe('assessmentResultSchema', () => {
     const result = assessmentResultSchema.safeParse({
       careLevel: 'doctor',
       reasons: [],
+      reviewSummary: {
+        plainLanguage: 'Bitte lassen Sie die Beschwerden zeitnah abklaeren.',
+        professionalSummary: 'Care Level: doctor.',
+      },
       summary: 'Bitte lassen Sie die Beschwerden zeitnah abklaeren.',
+      createdAt: '2026-06-01T00:00:00.000Z',
     })
 
     expect(result.success).toBe(false)
@@ -127,7 +132,12 @@ describe('assessmentResultSchema', () => {
     const result = assessmentResultSchema.safeParse({
       careLevel: 'doctor',
       reasons: ['1', '2', '3', '4', '5', '6'],
+      reviewSummary: {
+        plainLanguage: 'Bitte lassen Sie die Beschwerden zeitnah abklaeren.',
+        professionalSummary: 'Care Level: doctor.',
+      },
       summary: 'Bitte lassen Sie die Beschwerden zeitnah abklaeren.',
+      createdAt: '2026-06-01T00:00:00.000Z',
     })
 
     expect(result.success).toBe(false)

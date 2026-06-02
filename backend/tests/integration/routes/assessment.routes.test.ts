@@ -73,7 +73,7 @@ describe('POST /assessments', () => {
         reasons: ['Die Beschwerden sollten aerztlich eingeordnet werden.'],
         reviewSummary: {
           plainLanguage: 'Bitte lassen Sie die Beschwerden zeitnah abklaeren.',
-          professionalSummary: 'Stammdaten und Symptome wurden strukturiert zusammengefasst.',
+          professionalSummary: 'Care Level: doctor.',
         },
       },
       model: 'test-model',
@@ -136,11 +136,9 @@ describe('POST /assessments', () => {
 
     expect(response.statusCode).toBe(200)
     expect(body).toMatchObject({
-      careLevel: 'doctor',
-      summary:
-        'Ihre Angaben wurden strukturiert ausgewertet. Bitte orientieren Sie sich an der empfohlenen Versorgungsebene und suchen Sie bei Verschlechterung medizinische Hilfe.',
       aiUnavailable: true,
     })
+    expect(body.reasons[0]).toContain('KI-Auswertung')
     expect(Date.parse(body.createdAt)).not.toBeNaN()
   })
 })

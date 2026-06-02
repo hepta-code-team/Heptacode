@@ -10,7 +10,7 @@ export const triageInstructions = [
   'Beruecksichtige die uebergebenen Symptome, Messwerte, Dauern und die Stammdaten.',
   'Handle sicherheitsorientiert. Bei klaren Warnzeichen oder hohem Risiko waehle die hoehere Versorgungsebene.',
   'Gib in reasons kurze, konkrete Begruendungen auf Deutsch zurueck.',
-  'Erstelle optional reviewSummary mit plainLanguage und professionalSummary.',
+  'Gib reviewSummary mit plainLanguage und professionalSummary auf Deutsch zurueck.',
   'Erfinde keine zusaetzlichen Symptome oder Stammdaten.',
 ].join('\n')
 

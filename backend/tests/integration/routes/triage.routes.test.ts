@@ -35,8 +35,12 @@ describe('POST /api/v1/triage/evaluate', () => {
     requestStructuredAiResponseWithModelMock.mockResolvedValueOnce({
       data: {
         careLevel: 'specialist',
-        medicalSpecialty: 'cardiology',
+        recommendedSpecialty: 'cardiology',
         reasons: ['Die Beschwerden sollten kardiologisch abgeklaert werden.'],
+        reviewSummary: {
+          plainLanguage: 'Bitte lassen Sie die Beschwerden kardiologisch abklaeren.',
+          professionalSummary: 'Care Level: specialist. Empfohlene Fachrichtung: cardiology.',
+        },
       },
       model: 'test-model',
     })
@@ -45,18 +49,19 @@ describe('POST /api/v1/triage/evaluate', () => {
       method: 'POST',
       url: '/api/v1/triage/evaluate',
       payload: {
-        symptoms: [
-          { region: 'Brust', measurementType: 'pain', measurementValue: 7, duration: 'today' },
-        ],
+        symptoms: [{ region: 'Brust', measurementType: 'pain', measurementValue: 7, duration: 'today' }],
       },
     })
 
     expect(response.statusCode).toBe(200)
     expect(response.json()).toEqual({
       careLevel: 'specialist',
-      medicalSpecialty: 'cardiology',
       recommendedSpecialty: 'cardiology',
       reasons: ['Die Beschwerden sollten kardiologisch abgeklaert werden.'],
+      reviewSummary: {
+        plainLanguage: 'Bitte lassen Sie die Beschwerden kardiologisch abklaeren.',
+        professionalSummary: 'Care Level: specialist. Empfohlene Fachrichtung: cardiology.',
+      },
       aiModel: 'test-model',
     })
     expect(requestStructuredAiResponseWithModelMock).toHaveBeenCalledTimes(1)
@@ -80,8 +85,11 @@ describe('POST /api/v1/triage/evaluate', () => {
     requestStructuredAiResponseWithModelMock.mockResolvedValueOnce({
       data: {
         careLevel: 'doctor',
-        medicalSpecialty: null,
         reasons: ['Die Beschwerden sollten aerztlich abgeklart werden.'],
+        reviewSummary: {
+          plainLanguage: 'Bitte lassen Sie die Beschwerden aerztlich abklaeren.',
+          professionalSummary: 'Care Level: doctor.',
+        },
       },
       model: 'test-model',
     })
@@ -98,9 +106,12 @@ describe('POST /api/v1/triage/evaluate', () => {
     expect(response.statusCode).toBe(200)
     expect(response.json()).toEqual({
       careLevel: 'specialist',
-      medicalSpecialty: null,
       recommendedSpecialty: 'neurology',
       reasons: ['Die Beschwerden sollten aerztlich abgeklart werden.'],
+      reviewSummary: {
+        plainLanguage: 'Bitte lassen Sie die Beschwerden aerztlich abklaeren.',
+        professionalSummary: 'Care Level: doctor.',
+      },
       aiModel: 'test-model',
     })
     expect(requestStructuredAiResponseMock).toHaveBeenCalledTimes(2)
@@ -145,9 +156,7 @@ describe('POST /api/v1/triage/evaluate', () => {
       method: 'POST',
       url: '/api/v1/triage/evaluate',
       payload: {
-        symptoms: [
-          { region: 'Brust', measurementType: 'pain', measurementValue: 9, duration: 'today' },
-        ],
+        symptoms: [{ region: 'Brust', measurementType: 'pain', measurementValue: 9, duration: 'today' }],
       },
     })
 

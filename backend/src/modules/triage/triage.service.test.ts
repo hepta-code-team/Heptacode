@@ -1,15 +1,15 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { AiResponseError } from '../ai/timeout.js'
-import { requestStructuredAiResponseWithModel } from '../ai/llmAdapter.js'
-import { extractSymptoms } from '../modules/symptom-extraction/symptomExtraction.service.js'
-import { evaluateTriage } from '../modules/triage/triage.service.js'
+import { AiResponseError } from '../../ai/timeout.js'
+import { requestStructuredAiResponseWithModel } from '../../ai/llmAdapter.js'
+import { extractSymptoms } from '../symptom-extraction/symptomExtraction.service.js'
+import { evaluateTriage } from './triage.service.js'
 
-vi.mock('../ai/llmAdapter.js', () => ({
+vi.mock('../../ai/llmAdapter.js', () => ({
   requestStructuredAiResponseWithModel: vi.fn(),
 }))
 
-vi.mock('../modules/symptom-extraction/symptomExtraction.service.js', () => ({
+vi.mock('../symptom-extraction/symptomExtraction.service.js', () => ({
   extractSymptoms: vi.fn(),
 }))
 
@@ -47,8 +47,12 @@ describe('evaluateTriage', () => {
     requestStructuredAiResponseWithModelMock.mockResolvedValueOnce({
       data: {
         careLevel: 'specialist',
-        medicalSpecialty: 'neurology',
+        recommendedSpecialty: 'neurology',
         reasons: ['Die Beschwerden sollten neurologisch abgeklaert werden.'],
+        reviewSummary: {
+          plainLanguage: 'Bitte lassen Sie die Beschwerden neurologisch abklaeren.',
+          professionalSummary: 'Care Level: specialist. Empfohlene Fachrichtung: neurology.',
+        },
       },
       model: 'test-model',
     })
@@ -59,9 +63,12 @@ describe('evaluateTriage', () => {
 
     expect(result).toEqual({
       careLevel: 'specialist',
-      medicalSpecialty: 'neurology',
       recommendedSpecialty: 'neurology',
       reasons: ['Die Beschwerden sollten neurologisch abgeklaert werden.'],
+      reviewSummary: {
+        plainLanguage: 'Bitte lassen Sie die Beschwerden neurologisch abklaeren.',
+        professionalSummary: 'Care Level: specialist. Empfohlene Fachrichtung: neurology.',
+      },
       aiModel: 'test-model',
     })
     expect(requestStructuredAiResponseWithModelMock).toHaveBeenCalledTimes(1)
@@ -142,13 +149,16 @@ describe('evaluateTriage', () => {
     extractSymptomsMock.mockResolvedValueOnce({
       text: 'Ich habe seit Tagen Husten.',
       inputType: 'speech',
-      symptoms: [{ region: 'Brust', measurementType: 'pain', measurementValue: 4, duration: 'days' }],
+      symptoms: [{ region: 'Allgemein', measurementType: 'pain', measurementValue: 4, duration: 'days' }],
     })
     requestStructuredAiResponseWithModelMock.mockResolvedValueOnce({
       data: {
         careLevel: 'doctor',
-        medicalSpecialty: null,
         reasons: ['Die Beschwerden sollten aerztlich abgeklart werden.'],
+        reviewSummary: {
+          plainLanguage: 'Bitte lassen Sie die Beschwerden aerztlich abklaeren.',
+          professionalSummary: 'Care Level: doctor.',
+        },
       },
       model: 'test-model',
     })
@@ -162,10 +172,12 @@ describe('evaluateTriage', () => {
     )
 
     expect(result).toEqual({
-      careLevel: 'specialist',
-      medicalSpecialty: null,
-      recommendedSpecialty: 'cardiology',
+      careLevel: 'doctor',
       reasons: ['Die Beschwerden sollten aerztlich abgeklart werden.'],
+      reviewSummary: {
+        plainLanguage: 'Bitte lassen Sie die Beschwerden aerztlich abklaeren.',
+        professionalSummary: 'Care Level: doctor.',
+      },
       aiModel: 'test-model',
     })
     expect(extractSymptomsMock).toHaveBeenCalledWith('Ich habe seit Tagen Husten.', 'speech')

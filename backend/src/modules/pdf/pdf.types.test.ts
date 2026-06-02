@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { pdfExportRequestSchema } from '../modules/pdf/pdf.types.js'
+import { pdfExportRequestSchema } from './pdf.types.js'
 
 describe('pdfExportRequestSchema', () => {
   it('akzeptiert gueltige PDF-Exportdaten', () => {
@@ -31,9 +31,6 @@ describe('pdfExportRequestSchema', () => {
       symptoms: [{ region: 'Kopf', measurementType: 'pain', measurementValue: 5, duration: 'days' }],
     })
 
-    if (!result.success) {
-      console.log(JSON.stringify(result.error.format(), null, 2))
-    }
     expect(result.success).toBe(true)
   })
 

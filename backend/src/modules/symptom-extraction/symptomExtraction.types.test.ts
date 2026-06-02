@@ -4,7 +4,7 @@ import {
   symptomExtractionAiResultSchema,
   symptomExtractionRequestSchema,
   symptomInputValidationAiResultSchema,
-} from '../modules/symptom-extraction/symptomExtraction.types.js'
+} from './symptomExtraction.types.js'
 
 describe('symptomExtractionRequestSchema', () => {
   it('akzeptiert symptomText als Eingabe', () => {
@@ -36,7 +36,7 @@ describe('symptomExtractionAiResultSchema', () => {
     const result = symptomExtractionAiResultSchema.safeParse({
       symptoms: [
         { region: 'Kopf', measurementType: 'pain', measurementValue: 6, duration: 'days' },
-        { region: 'Brust', side: 'Linksseitig' },
+        { region: 'Brust' },
       ],
     })
 
@@ -56,12 +56,12 @@ describe('symptomExtractionAiResultSchema', () => {
     expect(result.success).toBe(false)
   })
 
-  it('akzeptiert numerische Schmerzwerte auch ausserhalb der Skala', () => {
+  it('lehnt unbekannte Regionen ab', () => {
     const result = symptomExtractionAiResultSchema.safeParse({
-      symptoms: [{ region: 'Kopf', measurementType: 'pain', measurementValue: 11 }],
+      symptoms: [{ region: 'Unbekannt' }],
     })
 
-    expect(result.success).toBe(true)
+    expect(result.success).toBe(false)
   })
 })
 
