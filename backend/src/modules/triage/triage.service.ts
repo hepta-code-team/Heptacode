@@ -100,7 +100,6 @@ function formatSymptoms(symptoms: TriageSymptom[]): string {
     })
     .join('\n')
 }
-
 // Funktion um das empfohlene Versorgungsangebot auf die grobe Ebene abzubilden
 function toCareLevel(recommendedSpecialty: MedicalSpecialty): CareLevel {
   if (recommendedSpecialty === 'emergency_medicine') {
@@ -246,11 +245,11 @@ function buildRecommendedSpecialties(result: TriageResponse): RecommendedSpecial
 }
 
 function attachPresentationFields(result: TriageResponse): TriageResponse {
+  const recommendedSpecialties = buildRecommendedSpecialties(result)
+
   return {
     ...result,
-    ...(buildRecommendedSpecialties(result)
-      ? { recommendedSpecialties: buildRecommendedSpecialties(result) }
-      : {}),
+    ...(recommendedSpecialties ? { recommendedSpecialties } : {}),
   }
 }
 
@@ -275,11 +274,13 @@ async function requestTriageFromAi(
       },
     ],
     schema: triageAiResultSchema,
-    schemaName: 'triage_result',
+    schemaName: 'triage_ai_response',
     temperature: 0,
   })
 
-  return attachPresentationFields(applySpecialistEscalation(normalizeTriageResult(parsed, symptoms), symptoms))
+  return attachPresentationFields(
+    applySpecialistEscalation(normalizeTriageResult(parsed, symptoms), symptoms),
+  )
 }
 
 // Fallback fuer strukturierte Symptome: Ohne KI wird anhand der staerksten Schmerzangabe entschieden.

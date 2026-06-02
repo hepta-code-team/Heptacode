@@ -21,6 +21,11 @@ export interface ReviewSummary {
   professionalSummary: string
 }
 
+export const reviewSummarySchema = z.object({
+  plainLanguage: z.string().min(1),
+  professionalSummary: z.string().min(1),
+})
+
 export const careLevelSchema = z.enum(CARE_LEVELS)
 
 // Medizinische Versorgungsangebote
@@ -101,12 +106,6 @@ export const triageSymptomSchema = z.object({
   duration: z.enum(['today', 'days', 'week', 'weeks']).optional(),
 })
 
-// Schema für Review Summary
-export const reviewSummarySchema = z.object({
-  plainLanguage: z.string().min(1),
-  professionalSummary: z.string().min(1),
-})
-
 // Schema für die Antwort der KI
 export const triageAiResultSchema = z.object({
   careLevel: careLevelSchema,
@@ -116,6 +115,8 @@ export const triageAiResultSchema = z.object({
     .transform((value) => (typeof value === 'string' ? [value] : value)),
   reviewSummary: reviewSummarySchema.nullish().transform((value) => value ?? undefined),
 })
+
+export type TriageAiResponse = z.infer<typeof triageAiResultSchema>
 
 // Schema für die Anfrage
 export const triageRequestSchema = z
