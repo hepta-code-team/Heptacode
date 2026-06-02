@@ -214,7 +214,7 @@ export default function SymptomSelectionPage() {
 
   const selectedCategoryLabel = selectedCategory ? BODY_AREA_LABELS[selectedCategory] : "";
   const filteredRegions = useMemo(() => getBodyRegionsForCategory(selectedCategory), [selectedCategory]);
-  const shouldShowInlineOptions = selectedCategory !== "torso";
+  const shouldShowInlineOptions = false;
 
   const handleCategorySelect = (category: BodyAreaCategory) => {
     if (selectedCategory === category) {
