@@ -7,6 +7,8 @@ interface AssessmentContextType {
   setPatientData: (data: PatientData) => void;
   selectedSymptoms: SelectedSymptom[];
   setSelectedSymptoms: (symptoms: SelectedSymptom[]) => void;
+  symptomText: string;
+  setSymptomText: (text: string) => void;
   symptomDetails: Symptom[];
   setSymptomDetails: (details: Symptom[]) => void;
   assessmentResult: AssessmentResult | null;
@@ -20,6 +22,7 @@ const AssessmentContext = createContext<AssessmentContextType | undefined>(undef
 export function AssessmentProvider({ children }: { children: ReactNode }) {
   const [patientData, setPatientData] = useState<PatientData | null>(null);
   const [selectedSymptoms, setSelectedSymptoms] = useState<SelectedSymptom[]>([]);
+  const [symptomText, setSymptomText] = useState("");
   const [symptomDetails, setSymptomDetails] = useState<Symptom[]>([]);
   const [assessmentResult, setAssessmentResult] = useState<AssessmentResult | null>(null);
 
@@ -47,6 +50,7 @@ export function AssessmentProvider({ children }: { children: ReactNode }) {
   const resetAssessment = () => {
     setPatientData(null);
     setSelectedSymptoms([]);
+    setSymptomText("");
     setSymptomDetails([]);
     setAssessmentResult(null);
   };
@@ -58,6 +62,8 @@ export function AssessmentProvider({ children }: { children: ReactNode }) {
         setPatientData,
         selectedSymptoms,
         setSelectedSymptoms,
+        symptomText,
+        setSymptomText,
         symptomDetails,
         setSymptomDetails,
         assessmentResult,
