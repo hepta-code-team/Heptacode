@@ -66,6 +66,7 @@ describe('POST /api/v1/symptoms/extraction', () => {
       expect.objectContaining({
         schemaName: 'symptom_input_validation_result',
         temperature: 0,
+        modelStrategy: 'fallback-only',
       }),
     )
     expect(requestStructuredAiResponseMock).toHaveBeenNthCalledWith(
@@ -73,6 +74,7 @@ describe('POST /api/v1/symptoms/extraction', () => {
       expect.objectContaining({
         schemaName: 'symptom_extraction_result',
         temperature: 0,
+        modelStrategy: 'fallback-only',
       }),
     )
   })

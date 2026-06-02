@@ -150,6 +150,7 @@ export async function evaluateAssessmentWithAi(
     reviewSummary,
     summary: reviewSummary.plainLanguage,
     ...(triageResult.aiUnavailable ? { aiUnavailable: true } : {}),
+    ...(triageResult.aiModel ? { aiModel: triageResult.aiModel } : {}),
     createdAt: new Date().toISOString(),
   }
 }

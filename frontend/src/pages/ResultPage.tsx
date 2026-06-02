@@ -446,6 +446,12 @@ export default function ResultPage() {
               Diese Einschätzung ist <strong>keine medizinische Diagnose</strong> und ersetzt nicht den Besuch bei einem Arzt.
               KI-Systeme können Fehler machen. Bei Unsicherheit oder Verschlechterung Ihres Zustands suchen Sie bitte
               umgehend medizinische Hilfe.
+              {assessmentResult?.aiModel && (
+                <>
+                  {" "}
+                  Die Triage wurde mit dem KI-Modell <strong>{assessmentResult.aiModel}</strong> durchgeführt.
+                </>
+              )}
             </p>
           </div>
         </div>

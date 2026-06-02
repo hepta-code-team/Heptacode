@@ -44,6 +44,7 @@ export interface AssessmentResult {
   reasons: string[];
   summary?: string;
   createdAt?: string;
+  aiModel?: string;
 }
 
 export interface Assessment {

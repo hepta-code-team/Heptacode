@@ -1,6 +1,6 @@
 import PainScaleSelector from "./PainScaleSelector";
 import DurationSelector from "./DurationSelector";
-import { getMeasurementConfig } from "./symptoms.constants";
+import { getMeasurementConfigByType } from "./symptoms.constants";
 import type { SymptomDraft } from "../../types/assessment";
 
 interface SymptomDetailsFormProps {
@@ -16,7 +16,7 @@ export default function SymptomDetailsForm({
   onRemove,
   showDurationError = false,
 }: SymptomDetailsFormProps) {
-  const measurementConfig = getMeasurementConfig(symptom.region, symptom.side);
+  const measurementConfig = getMeasurementConfigByType(symptom.measurementType);
 
   return (
     <div className="bg-[#eff2f6] rounded-[16px] p-5 relative">

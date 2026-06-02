@@ -1,15 +1,17 @@
 import type { FastifyInstance } from 'fastify'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { requestStructuredAiResponse } from '../../../src/ai/llmAdapter.js'
+import { requestStructuredAiResponse, requestStructuredAiResponseWithModel } from '../../../src/ai/llmAdapter.js'
 import { AiResponseError } from '../../../src/ai/timeout.js'
 import { buildApp } from '../../../src/app.js'
 
 vi.mock('../../../src/ai/llmAdapter.js', () => ({
   requestStructuredAiResponse: vi.fn(),
+  requestStructuredAiResponseWithModel: vi.fn(),
 }))
 
 const requestStructuredAiResponseMock = vi.mocked(requestStructuredAiResponse)
+const requestStructuredAiResponseWithModelMock = vi.mocked(requestStructuredAiResponseWithModel)
 
 async function createApp(): Promise<FastifyInstance> {
   const app = await buildApp()
@@ -30,14 +32,17 @@ describe('POST /api/v1/triage/evaluate', () => {
   })
 
   it('bewertet strukturierte Symptome ueber die Triage-Pipeline', async () => {
-    requestStructuredAiResponseMock.mockResolvedValueOnce({
-      careLevel: 'specialist',
-      recommendedSpecialty: 'cardiology',
-      reasons: ['Die Beschwerden sollten kardiologisch abgeklaert werden.'],
-      reviewSummary: {
-        plainLanguage: 'Bitte lassen Sie die Beschwerden kardiologisch abklaeren.',
-        professionalSummary: 'Care Level: specialist. Empfohlene Fachrichtung: cardiology.',
+    requestStructuredAiResponseWithModelMock.mockResolvedValueOnce({
+      data: {
+        careLevel: 'specialist',
+        recommendedSpecialty: 'cardiology',
+        reasons: ['Die Beschwerden sollten kardiologisch abgeklaert werden.'],
+        reviewSummary: {
+          plainLanguage: 'Bitte lassen Sie die Beschwerden kardiologisch abklaeren.',
+          professionalSummary: 'Care Level: specialist. Empfohlene Fachrichtung: cardiology.',
+        },
       },
+      model: 'test-model',
     })
 
     const response = await app.inject({
@@ -57,9 +62,10 @@ describe('POST /api/v1/triage/evaluate', () => {
         plainLanguage: 'Bitte lassen Sie die Beschwerden kardiologisch abklaeren.',
         professionalSummary: 'Care Level: specialist. Empfohlene Fachrichtung: cardiology.',
       },
+      aiModel: 'test-model',
     })
-    expect(requestStructuredAiResponseMock).toHaveBeenCalledTimes(1)
-    expect(requestStructuredAiResponseMock).toHaveBeenCalledWith(
+    expect(requestStructuredAiResponseWithModelMock).toHaveBeenCalledTimes(1)
+    expect(requestStructuredAiResponseWithModelMock).toHaveBeenCalledWith(
       expect.objectContaining({
         schemaName: 'triage_result',
         temperature: 0,
@@ -74,16 +80,19 @@ describe('POST /api/v1/triage/evaluate', () => {
         reason: 'Medizinische Beschwerde erkannt.',
       })
       .mockResolvedValueOnce({
-        symptoms: [{ region: 'Allgemein', measurementType: 'pain', measurementValue: 4, duration: 'today' }],
+        symptoms: [{ region: 'Kopf', measurementType: 'pain', measurementValue: 6, duration: 'days' }],
       })
-      .mockResolvedValueOnce({
+    requestStructuredAiResponseWithModelMock.mockResolvedValueOnce({
+      data: {
         careLevel: 'doctor',
         reasons: ['Die Beschwerden sollten aerztlich abgeklart werden.'],
         reviewSummary: {
           plainLanguage: 'Bitte lassen Sie die Beschwerden aerztlich abklaeren.',
           professionalSummary: 'Care Level: doctor.',
         },
-      })
+      },
+      model: 'test-model',
+    })
 
     const response = await app.inject({
       method: 'POST',
@@ -96,14 +105,17 @@ describe('POST /api/v1/triage/evaluate', () => {
 
     expect(response.statusCode).toBe(200)
     expect(response.json()).toEqual({
-      careLevel: 'doctor',
+      careLevel: 'specialist',
+      recommendedSpecialty: 'neurology',
       reasons: ['Die Beschwerden sollten aerztlich abgeklart werden.'],
       reviewSummary: {
         plainLanguage: 'Bitte lassen Sie die Beschwerden aerztlich abklaeren.',
         professionalSummary: 'Care Level: doctor.',
       },
+      aiModel: 'test-model',
     })
-    expect(requestStructuredAiResponseMock).toHaveBeenCalledTimes(3)
+    expect(requestStructuredAiResponseMock).toHaveBeenCalledTimes(2)
+    expect(requestStructuredAiResponseWithModelMock).toHaveBeenCalledTimes(1)
   })
 
   it('liefert den Notfallmodus ohne KI-Aufruf direkt zurueck', async () => {
@@ -121,6 +133,7 @@ describe('POST /api/v1/triage/evaluate', () => {
       reasons: ['Notfallmodus ueber die Startseite ausgewaehlt.'],
     })
     expect(requestStructuredAiResponseMock).not.toHaveBeenCalled()
+    expect(requestStructuredAiResponseWithModelMock).not.toHaveBeenCalled()
   })
 
   it('antwortet mit 400 bei ungueltigem Request-Body', async () => {
@@ -137,7 +150,7 @@ describe('POST /api/v1/triage/evaluate', () => {
   })
 
   it('nutzt den kontrollierten Fallback, wenn die Triage-KI nicht antwortet', async () => {
-    requestStructuredAiResponseMock.mockRejectedValueOnce(new AiResponseError('timeout'))
+    requestStructuredAiResponseWithModelMock.mockRejectedValueOnce(new AiResponseError('timeout'))
 
     const response = await app.inject({
       method: 'POST',

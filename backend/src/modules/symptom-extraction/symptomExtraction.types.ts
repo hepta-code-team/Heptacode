@@ -6,7 +6,12 @@ import {
   TRIAGE_SYMPTOM_DURATIONS,
   type TriageSymptom,
 } from '../../../../shared/symptom.types.js'
-import { getOptionsForRegion, SYMPTOM_REGION_NAMES } from '../../../../shared/symptomTaxonomy.js'
+import {
+  getOptionsForRegion,
+  SYMPTOM_REGION_NAMES,
+  SYMPTOM_REGIONS,
+  type SymptomRegionName,
+} from '../../../../shared/symptomTaxonomy.js'
 
 export type { SymptomExtractionAiResult, TriageSymptom }
 
@@ -29,20 +34,167 @@ export interface SymptomExtractionResponse {
   message?: string
 }
 
+function normalizeLabel(value: string): string {
+  return value
+    .toLowerCase()
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/ß/g, 'ss')
+    .replace(/[^a-z0-9]+/g, '')
+}
+
+function emptyStringOrNullToUndefined(value: unknown): unknown {
+  return value === null || value === '' ? undefined : value
+}
+
+function normalizeMeasurementValue(value: unknown): unknown {
+  if (value === null || value === undefined || value === '') {
+    return undefined
+  }
+
+  if (typeof value === 'number') {
+    return value
+  }
+
+  if (typeof value !== 'string') {
+    return value
+  }
+
+  const numericMatch = value.replace(',', '.').match(/\d+(?:\.\d+)?/)
+
+  if (numericMatch) {
+    return Number(numericMatch[0])
+  }
+
+  const normalizedValue = normalizeLabel(value)
+
+  if (/(leicht|bisschen|wenig|mild)/.test(normalizedValue)) {
+    return 3
+  }
+
+  if (/(mittel|maessig|massig|moderat)/.test(normalizedValue)) {
+    return 5
+  }
+
+  if (/(stark|heftig|schlimm|intensiv)/.test(normalizedValue)) {
+    return 8
+  }
+
+  return value
+}
+
+function normalizeDuration(value: unknown): unknown {
+  if (value === null || value === undefined || value === '') {
+    return undefined
+  }
+
+  if (typeof value !== 'string') {
+    return value
+  }
+
+  const normalizedValue = normalizeLabel(value)
+
+  if (normalizedValue.includes('heute')) {
+    return 'today'
+  }
+
+  if (normalizedValue.includes('wochen') || normalizedValue.includes('mehrals2wochen')) {
+    return 'weeks'
+  }
+
+  if (normalizedValue.includes('woche')) {
+    return 'week'
+  }
+
+  if (normalizedValue.includes('tag') || normalizedValue.includes('tage')) {
+    return 'days'
+  }
+
+  return value
+}
+
+const regionByNormalizedLabel = new Map(
+  SYMPTOM_REGION_NAMES.map((region) => [normalizeLabel(region), region] as const),
+)
+
+const optionByNormalizedLabel = new Map(
+  SYMPTOM_REGIONS.flatMap((region) =>
+    region.options.map((option) => [
+      normalizeLabel(option),
+      {
+        region: region.name,
+        option,
+      },
+    ] as const),
+  ),
+)
+
+function normalizeRegion(value: string): SymptomRegionName | undefined {
+  return regionByNormalizedLabel.get(normalizeLabel(value))
+}
+
+function normalizeOption(value: string): { region: SymptomRegionName; option: string } | undefined {
+  const normalizedValue = normalizeLabel(value)
+  const exactMatch = optionByNormalizedLabel.get(normalizedValue)
+
+  if (exactMatch) {
+    return exactMatch
+  }
+
+  return [...optionByNormalizedLabel.entries()].find(
+    ([normalizedOption]) =>
+      normalizedValue.includes(normalizedOption) || normalizedOption.includes(normalizedValue),
+  )?.[1]
+}
+
 export const extractedSymptomSchema = z
   .object({
-    region: z.enum(SYMPTOM_REGION_NAMES),
-    side: z.string().min(1).optional(),
-    measurementType: z.enum(SYMPTOM_MEASUREMENT_TYPES).optional(),
-    measurementValue: z.number().optional(),
-    duration: z.enum(TRIAGE_SYMPTOM_DURATIONS).optional(),
+    region: z.string().min(1),
+    side: z.preprocess(emptyStringOrNullToUndefined, z.string().min(1).optional()),
+    measurementType: z
+      .preprocess(emptyStringOrNullToUndefined, z.enum(SYMPTOM_MEASUREMENT_TYPES).optional())
+      .catch(undefined),
+    measurementValue: z
+      .preprocess(normalizeMeasurementValue, z.number().optional())
+      .catch(undefined),
+    duration: z
+      .preprocess(normalizeDuration, z.enum(TRIAGE_SYMPTOM_DURATIONS).optional())
+      .catch(undefined),
+  })
+  .transform((value) => {
+    const normalizedRegion = normalizeRegion(value.region)
+    const regionAsOption = normalizeOption(value.region)
+    const normalizedSide = value.side ? normalizeOption(value.side) : undefined
+    const region = normalizedRegion ?? regionAsOption?.region ?? value.region
+    const side =
+      normalizedSide && normalizedSide.region === region
+        ? normalizedSide.option
+        : regionAsOption && regionAsOption.region === region
+          ? regionAsOption.option
+          : value.side
+
+    return {
+      ...value,
+      region,
+      ...(side ? { side } : {}),
+    }
   })
   .superRefine((value, context) => {
+    if (!SYMPTOM_REGION_NAMES.includes(value.region as SymptomRegionName)) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['region'],
+        message: `region must be one of: ${SYMPTOM_REGION_NAMES.join(', ')}`,
+      })
+
+      return
+    }
+
     if (!value.side) {
       return
     }
 
-    const allowedOptions = getOptionsForRegion(value.region)
+    const allowedOptions = getOptionsForRegion(value.region as SymptomRegionName)
     if (!allowedOptions.includes(value.side)) {
       context.addIssue({
         code: z.ZodIssueCode.custom,
