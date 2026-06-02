@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { ClipboardEvent, FormEvent, KeyboardEvent } from "react";
 import { useNavigate, useSearchParams } from "react-router";
-import { Brain, Check, Mic, MicOff, Sparkles, X } from "lucide-react";
+import { Brain, Check, Mic, MicOff, Sparkles, Trash2, X } from "lucide-react";
 import PageShell from "../components/PageShell";
 import Button from "../components/Button";
 import Modal from "../components/Modal";
@@ -22,8 +22,8 @@ import type { TriageSymptom } from "../../../shared/symptom.types";
 
 const MAX_RECORDING_DURATION_MS = 120_000;
 const MAX_RECORDING_DURATION_SECONDS = MAX_RECORDING_DURATION_MS / 1000;
-const MAX_SYMPTOM_TEXT_WORDS = 300;
-const SYMPTOM_TEXT_WORD_LIMIT_ERROR = `Bitte beschreiben Sie Ihre Symptome mit maximal ${MAX_SYMPTOM_TEXT_WORDS} Wörtern.`;
+const MAX_SYMPTOM_TEXT_CHARACTERS = 500;
+const SYMPTOM_TEXT_CHARACTER_LIMIT_ERROR = `Bitte beschreiben Sie Ihre Symptome mit maximal ${MAX_SYMPTOM_TEXT_CHARACTERS} Zeichen.`;
 
 type BrowserSpeechRecognitionAlternative = {
   transcript: string;
@@ -84,12 +84,8 @@ const supportingAreas = [
 ];
 
 
-function getWords(text: string) {
-  return text.trim().match(/\S+/g) ?? [];
-}
-
-function getWordCount(text: string) {
-  return getWords(text).length;
+function getCharacterCount(text: string) {
+  return text.length;
 }
 
 function formatRecordingDuration(totalSeconds: number) {
@@ -99,40 +95,12 @@ function formatRecordingDuration(totalSeconds: number) {
   return `${minutes}:${seconds.toString().padStart(2, "0")}`;
 }
 
-function getMaxSymptomWordEnd(text: string) {
-  const wordMatches = Array.from(text.matchAll(/\S+/g));
-
-  if (wordMatches.length < MAX_SYMPTOM_TEXT_WORDS) {
-    return null;
-  }
-
-  const lastAllowedWord = wordMatches[MAX_SYMPTOM_TEXT_WORDS - 1];
-
-  return (lastAllowedWord.index ?? 0) + lastAllowedWord[0].length;
-}
-
-function limitTextToMaxWords(text: string) {
-  const maxSymptomWordEnd = getMaxSymptomWordEnd(text);
-
-  if (maxSymptomWordEnd === null) {
-    return text;
-  }
-
-  return text.slice(0, maxSymptomWordEnd);
-}
-
-function hasTooManySymptomTextWords(text: string) {
-  return getWordCount(text) > MAX_SYMPTOM_TEXT_WORDS;
-}
-
-function hasTextAfterMaxSymptomWord(text: string) {
-  const maxSymptomWordEnd = getMaxSymptomWordEnd(text);
-
-  return maxSymptomWordEnd !== null && text.length > maxSymptomWordEnd;
+function limitTextToMaxCharacters(text: string) {
+  return text.slice(0, MAX_SYMPTOM_TEXT_CHARACTERS);
 }
 
 function exceedsSymptomTextLimit(text: string) {
-  return hasTooManySymptomTextWords(text) || hasTextAfterMaxSymptomWord(text);
+  return getCharacterCount(text) > MAX_SYMPTOM_TEXT_CHARACTERS;
 }
 
 function insertTextAtSelection(text: string, insertedText: string, selectionStart: number, selectionEnd: number) {
@@ -332,12 +300,13 @@ export default function SymptomSelectionPage() {
   const {
     selectedSymptoms: contextSymptoms,
     setSelectedSymptoms: setContextSymptoms,
+    symptomText,
+    setSymptomText,
     setSymptomDetails: setContextSymptomDetails,
   } = useAssessment();
   const [selectedCategory, setSelectedCategory] = useState<BodyAreaCategory | null>(initialCategory);
   const [selectedSymptoms, setSelectedSymptoms] = useState<SelectedSymptom[]>(contextSymptoms);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [symptomText, setSymptomText] = useState("");
   const [isExtractingSymptoms, setIsExtractingSymptoms] = useState(false);
   const [isRecordingSymptoms, setIsRecordingSymptoms] = useState(false);
   const [recordingElapsedSeconds, setRecordingElapsedSeconds] = useState(0);
@@ -351,19 +320,19 @@ export default function SymptomSelectionPage() {
   const selectedCategoryLabel = selectedCategory ? BODY_AREA_LABELS[selectedCategory] : "";
   const filteredRegions = useMemo(() => getBodyRegionsForCategory(selectedCategory), [selectedCategory]);
   const shouldShowInlineOptions = selectedCategory !== "torso";
-  const symptomTextWordCount = useMemo(() => getWordCount(symptomText), [symptomText]);
+  const symptomTextCharacterCount = useMemo(() => getCharacterCount(symptomText), [symptomText]);
   const formattedRecordingElapsed = formatRecordingDuration(recordingElapsedSeconds);
   const formattedMaxRecordingDuration = formatRecordingDuration(MAX_RECORDING_DURATION_SECONDS);
 
   const handleSymptomTextChange = (text: string) => {
     if (exceedsSymptomTextLimit(text)) {
-      setSymptomTextError(SYMPTOM_TEXT_WORD_LIMIT_ERROR);
+      setSymptomTextError(SYMPTOM_TEXT_CHARACTER_LIMIT_ERROR);
       return;
     }
 
     setSymptomText(text);
 
-    if (symptomTextError === SYMPTOM_TEXT_WORD_LIMIT_ERROR) {
+    if (symptomTextError === SYMPTOM_TEXT_CHARACTER_LIMIT_ERROR) {
       setSymptomTextError(null);
     }
   };
@@ -383,7 +352,7 @@ export default function SymptomSelectionPage() {
 
     if (exceedsSymptomTextLimit(nextText)) {
       event.preventDefault();
-      setSymptomTextError(SYMPTOM_TEXT_WORD_LIMIT_ERROR);
+      setSymptomTextError(SYMPTOM_TEXT_CHARACTER_LIMIT_ERROR);
     }
   };
 
@@ -392,8 +361,8 @@ export default function SymptomSelectionPage() {
 
     if (exceedsSymptomTextLimit(nextText)) {
       event.preventDefault();
-      setSymptomText(limitTextToMaxWords(nextText));
-      setSymptomTextError(SYMPTOM_TEXT_WORD_LIMIT_ERROR);
+      setSymptomText(limitTextToMaxCharacters(nextText));
+      setSymptomTextError(SYMPTOM_TEXT_CHARACTER_LIMIT_ERROR);
     }
   };
 
@@ -440,12 +409,12 @@ export default function SymptomSelectionPage() {
     const normalizedTranscript = transcript.trim();
 
     if (!normalizedTranscript) {
-      return limitTextToMaxWords(normalizedBaseText);
+      return limitTextToMaxCharacters(normalizedBaseText);
     }
 
     const combinedTranscript = normalizedBaseText ? `${normalizedBaseText} ${normalizedTranscript}` : normalizedTranscript;
 
-    return limitTextToMaxWords(combinedTranscript);
+    return limitTextToMaxCharacters(combinedTranscript);
   };
 
   const handleToggleSymptomRecording = () => {
@@ -454,8 +423,8 @@ export default function SymptomSelectionPage() {
       return;
     }
 
-    if (symptomTextWordCount >= MAX_SYMPTOM_TEXT_WORDS) {
-      setSymptomTextError(SYMPTOM_TEXT_WORD_LIMIT_ERROR);
+    if (symptomTextCharacterCount >= MAX_SYMPTOM_TEXT_CHARACTERS) {
+      setSymptomTextError(SYMPTOM_TEXT_CHARACTER_LIMIT_ERROR);
       return;
     }
 
@@ -500,8 +469,8 @@ export default function SymptomSelectionPage() {
       const nextSymptomText = appendTranscript(recordedTextRef.current, interimTranscript);
       setSymptomText(nextSymptomText);
 
-      if (getWordCount(nextSymptomText) >= MAX_SYMPTOM_TEXT_WORDS && (finalTranscript || interimTranscript)) {
-        setSymptomTextError(SYMPTOM_TEXT_WORD_LIMIT_ERROR);
+      if (getCharacterCount(nextSymptomText) >= MAX_SYMPTOM_TEXT_CHARACTERS && (finalTranscript || interimTranscript)) {
+        setSymptomTextError(SYMPTOM_TEXT_CHARACTER_LIMIT_ERROR);
         stopSymptomRecording();
       }
     };
@@ -599,6 +568,13 @@ export default function SymptomSelectionPage() {
     navigate("/symptom-details");
   };
 
+  const handleClearSymptomText = () => {
+    stopSymptomRecording();
+    recordedTextRef.current = "";
+    setSymptomText("");
+    setSymptomTextError(null);
+  };
+
   const handleApplySymptomText = async () => {
     stopSymptomRecording();
     const trimmedSymptomText = symptomText.trim();
@@ -609,8 +585,8 @@ export default function SymptomSelectionPage() {
     }
 
     if (exceedsSymptomTextLimit(trimmedSymptomText)) {
-      setSymptomText(limitTextToMaxWords(trimmedSymptomText));
-      setSymptomTextError(SYMPTOM_TEXT_WORD_LIMIT_ERROR);
+      setSymptomText(limitTextToMaxCharacters(trimmedSymptomText));
+      setSymptomTextError(SYMPTOM_TEXT_CHARACTER_LIMIT_ERROR);
       return;
     }
 
@@ -638,7 +614,6 @@ export default function SymptomSelectionPage() {
       setContextSymptoms(extractedSelection);
       setContextSymptomDetails([]);
       setIsModalOpen(false);
-      setSymptomText("");
       navigate("/symptom-details", { state: { extractedSymptoms } });
     } catch (error) {
       setSymptomTextError(error instanceof Error ? error.message : "Die Beschreibung konnte nicht ausgewertet werden.");
@@ -851,7 +826,6 @@ export default function SymptomSelectionPage() {
         onClose={() => {
           stopSymptomRecording();
           setIsModalOpen(false);
-          setSymptomText("");
           setSymptomTextError(null);
         }}
         title="Beschreiben Sie Ihre Symptome"
@@ -863,6 +837,7 @@ export default function SymptomSelectionPage() {
           onBeforeInput={handleSymptomTextBeforeInput}
           onChange={(event) => handleSymptomTextChange(event.target.value)}
           onPaste={handleSymptomTextPaste}
+          maxLength={MAX_SYMPTOM_TEXT_CHARACTERS}
           placeholder="z.B. Ich habe seit 3 Tagen starke Kopfschmerzen (7/10) und leichte Übelkeit."
           className="w-full h-40 bg-[#eff2f6] rounded-[16px] p-4 resize-none border-none outline-none focus:ring-2 focus:ring-[#486284] font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-body text-base"
           style={{ fontVariationSettings: "'opsz' 14" }}
@@ -871,11 +846,11 @@ export default function SymptomSelectionPage() {
         <div className="mt-2 flex justify-end">
           <span
             className={`font-['DM_Sans:Medium',sans-serif] text-xs font-medium ${
-              symptomTextWordCount >= MAX_SYMPTOM_TEXT_WORDS ? "text-red-700" : "text-app-text-muted"
+              symptomTextCharacterCount >= MAX_SYMPTOM_TEXT_CHARACTERS ? "text-red-700" : "text-app-text-muted"
             }`}
             style={{ fontVariationSettings: "'opsz' 14" }}
           >
-            {symptomTextWordCount}/{MAX_SYMPTOM_TEXT_WORDS} Wörter
+            {symptomTextCharacterCount}/{MAX_SYMPTOM_TEXT_CHARACTERS} Zeichen
           </span>
         </div>
 
@@ -885,8 +860,27 @@ export default function SymptomSelectionPage() {
           </div>
         )}
 
-        <div className="flex justify-between items-start mt-6">
-          <div className="relative flex h-16 w-16 items-center justify-center">
+        <div className="mt-6 grid grid-cols-3 items-start">
+          <div className="relative flex h-16 w-16 items-center justify-center justify-self-start">
+            <button
+              type="button"
+              onClick={handleClearSymptomText}
+              disabled={isExtractingSymptoms || symptomText.length === 0}
+              className="flex h-16 w-16 items-center justify-center rounded-full bg-red-600 text-white shadow-lg transition-all hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60"
+              aria-label="Freitext löschen"
+              title="Freitext löschen"
+            >
+              <Trash2 className="size-8" aria-hidden="true" />
+            </button>
+            <span
+              className="absolute left-1/2 top-[calc(100%+0.5rem)] min-h-4 w-24 -translate-x-1/2 text-center font-['DM_Sans:Medium',sans-serif] text-xs font-medium text-app-text-primary"
+              style={{ fontVariationSettings: "'opsz' 14" }}
+            >
+              Löschen
+            </span>
+          </div>
+
+          <div className="relative flex h-16 w-16 items-center justify-center justify-self-center">
             <button
               type="button"
               onClick={handleToggleSymptomRecording}
@@ -911,18 +905,27 @@ export default function SymptomSelectionPage() {
             </span>
           </div>
 
-          <button
-            onClick={handleApplySymptomText}
-            disabled={isExtractingSymptoms || symptomText.trim().length === 0}
-            className="bg-[#486284] text-app-text-on-primary rounded-full w-16 h-16 hover:bg-[#3a4d68] transition-all shadow-lg flex items-center justify-center disabled:cursor-not-allowed disabled:opacity-60"
-            aria-label="Symptombeschreibung übernehmen"
-          >
-            {isExtractingSymptoms ? (
-              <span className="size-7 animate-spin rounded-full border-4 border-white/35 border-t-white" aria-hidden="true" />
-            ) : (
-              <Check className="size-8" strokeWidth={3} aria-hidden="true" />
-            )}
-          </button>
+          <div className="relative flex h-16 w-16 items-center justify-center justify-self-end">
+            <button
+              type="button"
+              onClick={handleApplySymptomText}
+              disabled={isExtractingSymptoms || symptomText.trim().length === 0}
+              className="flex h-16 w-16 items-center justify-center rounded-full bg-[#486284] text-app-text-on-primary shadow-lg transition-all hover:bg-[#3a4d68] disabled:cursor-not-allowed disabled:opacity-60"
+              aria-label="Symptombeschreibung übernehmen"
+            >
+              {isExtractingSymptoms ? (
+                <span className="size-7 animate-spin rounded-full border-4 border-white/35 border-t-white" aria-hidden="true" />
+              ) : (
+                <Check className="size-8" strokeWidth={3} aria-hidden="true" />
+              )}
+            </button>
+            <span
+              className="absolute left-1/2 top-[calc(100%+0.5rem)] min-h-4 w-24 -translate-x-1/2 text-center font-['DM_Sans:Medium',sans-serif] text-xs font-medium text-app-text-primary"
+              style={{ fontVariationSettings: "'opsz' 14" }}
+            >
+              Bestätigen
+            </span>
+          </div>
         </div>
       </Modal>
     </PageShell>
