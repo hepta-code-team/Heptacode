@@ -1,16 +1,28 @@
 import type { PatientData } from "../../../shared/patientData.types";
+import type {
+  CareLevel,
+  MedicalSpecialty,
+  RecommendedSpecialty,
+} from "../../../shared/result.types";
+import type {
+  SelectedSymptom,
+  SymptomMeasurementType,
+  TriageSymptom,
+  TriageSymptomDuration,
+} from "../../../shared/symptom.types";
+
 export type { PatientData } from "../../../shared/patientData.types";
-
-import type { TriageSymptom } from "../../../shared/symptom.types";
-import type { MedicalSpecialty, RecommendedSpecialty } from "./triage";
-
-export type SymptomMeasurementType =
-  | "pain"
-  | "temperature"
-  | "feeling"
-  | "severity";
-
-export type CareLevel = "emergency" | "doctor" | "specialist" | "selfcare";
+export type {
+  CareLevel,
+  MedicalSpecialty,
+  RecommendedSpecialty,
+} from "../../../shared/result.types";
+export type {
+  SelectedSymptom,
+  SymptomMeasurementType,
+  TriageSymptom,
+  TriageSymptomDuration,
+} from "../../../shared/symptom.types";
 
 export interface ReviewSummary {
   plainLanguage: string;
@@ -19,23 +31,22 @@ export interface ReviewSummary {
 
 export type EditableReviewSummary = ReviewSummary;
 
-export interface SymptomDetailPayload {
+export interface SymptomDraft extends TriageSymptom {
   id: string;
-  region: string;
-  side?: string;
+  active: boolean;
   measurementType: SymptomMeasurementType;
   measurementValue: number;
-  duration: string;
-  active: boolean;
 }
 
-export type SelectedSymptom = TriageSymptom;
-
-export interface Symptom extends TriageSymptom {
+export interface SymptomDetailPayload extends TriageSymptom {
   id: string;
   active: boolean;
   measurementType: SymptomMeasurementType;
+  measurementValue: number;
+  duration: TriageSymptomDuration;
 }
+
+export type Symptom = SymptomDetailPayload;
 
 export interface AssessmentPayload {
   patientData: PatientData;
@@ -52,10 +63,11 @@ export interface AssessmentResult {
   summary?: string;
   aiUnavailable?: boolean;
   createdAt?: string;
+  aiModel?: string;
 }
 
 export interface Assessment {
   patientData?: PatientData;
   selectedSymptoms: SelectedSymptom[];
-  symptomDetails: Symptom[];
+  symptomDetails: SymptomDetailPayload[];
 }

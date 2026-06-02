@@ -1,9 +1,20 @@
-// Typ für das ausgewählte Symptom
-export interface TriageSymptom {
-    region: string
-    side?: string
-    painLevel?: number
-    duration?: TriageSymptomDuration
+export const TRIAGE_SYMPTOM_DURATIONS = ['today', 'days', 'week', 'weeks'] as const
+
+export type TriageSymptomDuration = (typeof TRIAGE_SYMPTOM_DURATIONS)[number]
+
+export const SYMPTOM_MEASUREMENT_TYPES = ['pain', 'temperature', 'feeling', 'severity'] as const
+
+export type SymptomMeasurementType = (typeof SYMPTOM_MEASUREMENT_TYPES)[number]
+
+// Initial user selection: body region plus optional detailed localisation.
+export interface SelectedSymptom {
+  region: string
+  side?: string
 }
 
-export type TriageSymptomDuration = 'today' | 'days' | 'week' | 'weeks'
+// Expanded symptom data used for triage.
+export interface TriageSymptom extends SelectedSymptom {
+  measurementType?: SymptomMeasurementType
+  measurementValue?: number
+  duration?: TriageSymptomDuration
+}

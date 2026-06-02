@@ -1,11 +1,14 @@
 import { requestStructuredAiResponse } from '../../ai/llmAdapter.js'
 import { isAiRequestError } from '../../ai/timeout.js'
 import type { SymptomExtractionResponse } from './symptomExtraction.types.js'
+import type { SymptomInputType } from '../../../../shared/symptomExtraction.types.js'
 import {
   symptomExtractionAiResultSchema,
   symptomInputValidationAiResultSchema,
 } from './symptomExtraction.types.js'
 import {
+  createSymptomExtractionPrompt,
+  createSymptomValidationPrompt,
   symptomExtractionInstructions,
   symptomValidationInstructions,
 } from '../prompt/symptomExtraction.prompt.js'
@@ -58,41 +61,43 @@ function detectHeuristicInvalidInput(text: string): string | null {
   return null
 }
 
-async function requestInputValidationFromAi(text: string, inputType: 'text' | 'speech') {
+async function requestInputValidationFromAi(text: string, inputType: SymptomInputType) {
   // Die KI prüft hier nur, ob der Inhalt überhaupt medizinisch sinnvoll ist.
   return requestStructuredAiResponse({
     messages: [
       { role: 'system', content: symptomValidationInstructions },
       {
         role: 'user',
-        content: `Input-Typ: ${inputType}\nFreitext: ${text}`,
+        content: createSymptomValidationPrompt({ text, inputType }),
       },
     ],
     schema: symptomInputValidationAiResultSchema,
     schemaName: 'symptom_input_validation_result',
     temperature: 0,
+    modelStrategy: 'fallback-only',
   })
 }
 
-async function requestSymptomsFromAi(text: string, inputType: 'text' | 'speech') {
+async function requestSymptomsFromAi(text: string, inputType: SymptomInputType) {
   // Das model ist auf unsere feste Symptomtaxonomie beschränkt, so dass das Frontend die Ergebnis direkt verarbeiten kann.
   return requestStructuredAiResponse({
     messages: [
-      { role: 'system', content: symptomExtractionInstructions },
+      { role: 'system', content: symptomExtractionInstructions},
       {
         role: 'user',
-        content: `Input-Typ: ${inputType}\nFreitext: ${text}`,
+        content: createSymptomExtractionPrompt({ text, inputType }),
       },
     ],
     schema: symptomExtractionAiResultSchema,
     schemaName: 'symptom_extraction_result',
     temperature: 0,
+    modelStrategy: 'fallback-only',
   })
 }
 
 export async function extractSymptoms(
   text: string,
-  inputType: 'text' | 'speech' = 'text',
+  inputType: SymptomInputType = 'text',
 ): Promise<SymptomExtractionResponse> {
   const heuristicInvalidReason = detectHeuristicInvalidInput(text)
 

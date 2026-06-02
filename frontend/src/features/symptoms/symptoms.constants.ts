@@ -124,6 +124,7 @@ export const PRE_EXISTING_CONDITIONS = [
   "Nierenerkrankungen",
   "Lebererkrankungen",
   "Epilepsie",
+  "Psychische Erkrankung",
   "Sonstige",
 ];
 
@@ -196,4 +197,8 @@ export function getMeasurementConfig(region: string, option?: string): Measureme
   }
 
   return MEASUREMENT_CONFIGS.pain;
+}
+
+export function getMeasurementConfigByType(type: SymptomMeasurementType): MeasurementConfig {
+  return MEASUREMENT_CONFIGS[type];
 }

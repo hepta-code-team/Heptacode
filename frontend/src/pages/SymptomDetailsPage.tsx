@@ -1,28 +1,31 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router";
+import { useLocation, useNavigate } from "react-router";
 import PageShell from "../components/PageShell";
 import SymptomDetailsForm from "../features/symptoms/SymptomDetailsForm";
 import SymptomButtonGrid from "../features/symptoms/SymptomButtonGrid";
 import Modal from "../components/Modal";
 import Button from "../components/Button";
 import { useAssessment } from "../lib/AssessmentContext";
-import { getMeasurementConfig, MAX_SYMPTOMS } from "../features/symptoms/symptoms.constants";
-import type { SymptomMeasurementType } from "../types/assessment";
-import type { TriageSymptom } from "../../../shared/symptom.types";
+import {
+  getMeasurementConfig,
+  getMeasurementConfigByType,
+  MAX_SYMPTOMS,
+} from "../features/symptoms/symptoms.constants";
+import type { SelectedSymptom, Symptom, SymptomDraft, TriageSymptom } from "../types/assessment";
 import { handleSubmitAssessment } from "../features/symptoms/handleSubmitAssessment";
 
-type SymptomDraft = TriageSymptom & {
-  id: string;
-  active: boolean;
-  measurementType: SymptomMeasurementType;
-};
+interface SymptomDetailsRouteState {
+  extractedSymptoms?: TriageSymptom[];
+}
 
 export default function SymptomDetailsPage() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const routeState = location.state as SymptomDetailsRouteState | null;
   const {
     selectedSymptoms,
     symptomDetails: contextDetails,
-    setSymptomDetails: setContextDetails,
+    setSymptomDetails,
     submitAssessment,
   } = useAssessment();
 
@@ -34,22 +37,8 @@ export default function SymptomDetailsPage() {
       region,
       side,
       measurementType: measurementConfig.type,
-      painLevel: measurementConfig.defaultValue,
+      measurementValue: measurementConfig.defaultValue,
       active: true,
-    };
-  };
-
-  const normalizeSymptom = (symptom: TriageSymptom, index: number): SymptomDraft => {
-    const measurementConfig = getMeasurementConfig(symptom.region, symptom.side);
-
-    return {
-      ...symptom,
-      id: `symptom-${Date.now()}-${index}`,
-      active: true,
-      measurementType: measurementConfig.type,
-      painLevel: Number.isFinite(symptom.painLevel)
-        ? symptom.painLevel
-        : measurementConfig.defaultValue,
     };
   };
 
@@ -58,36 +47,55 @@ export default function SymptomDetailsPage() {
     region: "",
     side: undefined,
     measurementType: "pain",
-    painLevel: 0,
+    measurementValue: 5,
     active: false,
   });
 
+  const normalizeSymptom = (symptom: SelectedSymptom | Symptom | TriageSymptom, index: number): SymptomDraft => {
+    const inferredMeasurementConfig = getMeasurementConfig(symptom.region, symptom.side);
+    const measurementType = "measurementType" in symptom && symptom.measurementType
+      ? symptom.measurementType
+      : inferredMeasurementConfig.type;
+    const measurementConfig = getMeasurementConfigByType(measurementType);
+
+    return {
+      ...symptom,
+      id: "id" in symptom ? symptom.id : `symptom-${Date.now()}-${index}`,
+      active: "active" in symptom ? symptom.active : true,
+      measurementType,
+      measurementValue: "measurementValue" in symptom && typeof symptom.measurementValue === "number"
+        ? symptom.measurementValue
+        : measurementConfig.defaultValue,
+    };
+  };
+
   const buildInitialSymptomDetails = (): SymptomDraft[] => {
-    const activeSymptoms = contextDetails.length > 0
-      ? contextDetails.map(normalizeSymptom)
-      : selectedSymptoms.map((s, idx) => normalizeSymptom(s, idx));
+    const activeSymptoms =
+      routeState?.extractedSymptoms && routeState.extractedSymptoms.length > 0
+        ? routeState.extractedSymptoms.map(normalizeSymptom)
+        : contextDetails.length > 0
+          ? contextDetails.map(normalizeSymptom)
+          : selectedSymptoms.map((symptom, index) => normalizeSymptom(symptom, index));
 
     const placeholders = Array.from(
       { length: Math.max(0, MAX_SYMPTOMS - activeSymptoms.length) },
       (_, index) => createEmptySymptom(index),
     );
 
-    return [...activeSymptoms, ...placeholders];
+    return [...activeSymptoms.slice(0, MAX_SYMPTOMS), ...placeholders];
   };
 
-  // Initialize local symptomDetails from selectedSymptoms or stored context
   const [symptomDetails, setLocalSymptomDetails] = useState<SymptomDraft[]>(buildInitialSymptomDetails);
-
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [showValidationErrors, setShowValidationErrors] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (selectedSymptoms.length === 0) {
+    if (selectedSymptoms.length === 0 && !(routeState?.extractedSymptoms?.length)) {
       navigate("/symptom-selection");
     }
-  }, [selectedSymptoms, navigate]);
+  }, [selectedSymptoms, routeState?.extractedSymptoms, navigate]);
 
   const updateSymptom = (index: number, field: keyof SymptomDraft, value: SymptomDraft[keyof SymptomDraft]) => {
     const updated = [...symptomDetails];
@@ -102,7 +110,7 @@ export default function SymptomDetailsPage() {
   };
 
   const handleAddSymptom = (regionName: string, side?: string) => {
-    const inactiveIndex = symptomDetails.findIndex((s) => !s.active);
+    const inactiveIndex = symptomDetails.findIndex((symptom) => !symptom.active);
 
     if (inactiveIndex !== -1) {
       const updated = [...symptomDetails];
@@ -114,19 +122,7 @@ export default function SymptomDetailsPage() {
   };
 
   const handleContinue = () => {
-    const activeSymptoms = symptomDetails.filter((symptom) => symptom.active);
-
-    setContextDetails(
-      activeSymptoms.map((symptom) => ({
-        id: symptom.id,
-        region: symptom.region,
-        side: symptom.side,
-        painLevel: symptom.painLevel,
-        duration: symptom.duration,
-        active: symptom.active,
-        measurementType: symptom.measurementType,
-      })),
-    );
+    setSymptomDetails(symptomDetails.filter((symptom) => symptom.active) as Symptom[]);
 
     void handleSubmitAssessment({
       symptomDetails,
@@ -141,8 +137,8 @@ export default function SymptomDetailsPage() {
   const canContinue = symptomDetails
     .filter((symptom) => symptom.active)
     .every((symptom) => {
-      const config = getMeasurementConfig(symptom.region, symptom.side);
-      return (symptom.painLevel ?? 0) >= config.min && (symptom.painLevel ?? 0) <= config.max;
+      const config = getMeasurementConfigByType(symptom.measurementType);
+      return symptom.measurementValue >= config.min && symptom.measurementValue <= config.max;
     });
 
   return (
@@ -197,21 +193,9 @@ export default function SymptomDetailsPage() {
       <Modal
         isOpen={isAddModalOpen}
         onClose={() => setIsAddModalOpen(false)}
-        title="Symptom hinzufügen"
-        subtitle="Wählen Sie eine Körperregion aus"
+        title="Beschwerde hinzufügen"
       >
         <SymptomButtonGrid onRegionSelect={handleAddSymptom} />
-
-        <div className="flex justify-end mt-6">
-          <Button variant="secondary" onClick={() => setIsAddModalOpen(false)}>
-            <p
-              className="font-['DM_Sans:Bold',sans-serif] font-bold text-base"
-              style={{ fontVariationSettings: "'opsz' 14" }}
-            >
-              Abbrechen
-            </p>
-          </Button>
-        </div>
       </Modal>
     </PageShell>
   );

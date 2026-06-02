@@ -1,14 +1,7 @@
 import PainScaleSelector from "./PainScaleSelector";
 import DurationSelector from "./DurationSelector";
-import { getMeasurementConfig } from "./symptoms.constants";
-import type { SymptomMeasurementType } from "../../types/assessment";
-import type { TriageSymptom } from "../../../../shared/symptom.types";
-
-type SymptomDraft = TriageSymptom & {
-  id: string;
-  active: boolean;
-  measurementType: SymptomMeasurementType;
-};
+import { getMeasurementConfigByType } from "./symptoms.constants";
+import type { SymptomDraft } from "../../types/assessment";
 
 interface SymptomDetailsFormProps {
   symptom: SymptomDraft;
@@ -23,7 +16,7 @@ export default function SymptomDetailsForm({
   onRemove,
   showDurationError = false,
 }: SymptomDetailsFormProps) {
-  const measurementConfig = getMeasurementConfig(symptom.region, symptom.side);
+  const measurementConfig = getMeasurementConfigByType(symptom.measurementType);
 
   return (
     <div className="bg-[#eff2f6] rounded-[16px] p-5 relative">
@@ -46,8 +39,8 @@ export default function SymptomDetailsForm({
 
       <PainScaleSelector
         config={measurementConfig}
-        value={symptom.painLevel ?? measurementConfig.defaultValue}
-        onValueChange={(value) => onUpdate("painLevel", value)}
+        value={symptom.measurementValue}
+        onValueChange={(value) => onUpdate("measurementValue", value)}
       />
 
       <DurationSelector

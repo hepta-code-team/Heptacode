@@ -21,6 +21,10 @@ function hasText(value: string | undefined): value is string {
 }
 
 function buildPatientDataLines(patientData: AssessmentPayload['patientData']): string[] {
+  const conditionDetails = Object.entries(patientData.conditionDetails)
+    .filter(([, detail]) => hasText(detail))
+    .map(([condition, detail]) => `${condition}: ${detail.trim()}`)
+
   return [
     `Geburtsmonat: ${patientData.birthMonth}`,
     `Geburtsjahr: ${patientData.birthYear}`,
@@ -39,6 +43,16 @@ function buildPatientDataLines(patientData: AssessmentPayload['patientData']): s
       : null,
     patientData.conditions.length > 0
       ? `Vorerkrankungen: ${patientData.conditions.join(', ')}`
+      : null,
+    patientData.isSmoker ? 'Raucher: Ja' : 'Raucher: Nein',
+    patientData.isSmoker && hasText(patientData.smokingSinceYears)
+      ? `Rauchdauer: ${patientData.smokingSinceYears.trim()} Jahre`
+      : null,
+    patientData.isSmoker && hasText(patientData.cigarettesPerDay)
+      ? `Zigaretten pro Tag: ${patientData.cigarettesPerDay.trim()}`
+      : null,
+    conditionDetails.length > 0
+      ? `Details zu Vorerkrankungen: ${conditionDetails.join('; ')}`
       : null,
   ].filter((line): line is string => line !== null)
 }
@@ -80,14 +94,9 @@ function toTriageSymptoms(symptoms: Symptom[]): TriageSymptom[] {
   return symptoms.map((symptom) => ({
     region: symptom.region,
     ...(symptom.side ? { side: symptom.side } : {}),
-    painLevel: symptom.measurementValue,
-    duration:
-      symptom.duration === 'today' ||
-      symptom.duration === 'days' ||
-      symptom.duration === 'week' ||
-      symptom.duration === 'weeks'
-        ? symptom.duration
-        : undefined,
+    measurementType: symptom.measurementType,
+    measurementValue: symptom.measurementValue,
+    duration: symptom.duration,
   }))
 }
 
@@ -152,6 +161,7 @@ export async function evaluateAssessmentWithAi(
       : {}),
     summary: reviewSummary.plainLanguage,
     ...(triageResult.aiUnavailable ? { aiUnavailable: true } : {}),
+    ...(triageResult.aiModel ? { aiModel: triageResult.aiModel } : {}),
     createdAt: new Date().toISOString(),
   }
 }

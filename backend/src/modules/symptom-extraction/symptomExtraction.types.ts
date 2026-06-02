@@ -1,47 +1,214 @@
 import { z } from 'zod'
+import type { SymptomExtractionAiResult, SymptomInputType } from '../../../../shared/symptomExtraction.types.js'
+import { SYMPTOM_INPUT_TYPES } from '../../../../shared/symptomExtraction.types.js'
+import {
+  SYMPTOM_MEASUREMENT_TYPES,
+  TRIAGE_SYMPTOM_DURATIONS,
+  type TriageSymptom,
+} from '../../../../shared/symptom.types.js'
+import {
+  getOptionsForRegion,
+  SYMPTOM_REGION_NAMES,
+  SYMPTOM_REGIONS,
+  type SymptomRegionName,
+} from '../../../../shared/symptomTaxonomy.js'
 
-// Typ für das ausgewählte Symptom
-export interface SelectedSymptom {
-  region: string
-  side?: string
-  painLevel?: number
-  duration?: 'today' | 'days' | 'week' | 'weeks'
-}
+export type { SymptomExtractionAiResult, TriageSymptom }
 
 // Typ für die Anfrage
 export interface SymptomExtractionRequest {
   symptomText?: string
   text: string
   input?: string
-  inputType?: 'text' | 'speech'
+  inputType?: SymptomInputType
 }
 
 // Typ für die Antwort
 export interface SymptomExtractionResponse {
   text: string
-  inputType: 'text' | 'speech'
-  symptoms: SelectedSymptom[]
+  inputType: SymptomInputType
+  symptoms: TriageSymptom[]
   invalidInput?: boolean
   // TA 1.8: true bedeutet, dass keine KI-Antwort rechtzeitig oder strukturiert verfuegbar war.
   aiUnavailable?: boolean
   message?: string
 }
 
-// Schema für das ausgewählte Symptom
-export const selectedSymptomSchema = z.object({
-  region: z.string().min(1),
-  side: z.string().min(1).optional(),
-  // Passt zur aktuellen Frontend-Schmerzskala, die ganze Zahlen von 1 bis 10 verwendet.
-  painLevel: z.number().int().min(1).max(10).optional(),
-  duration: z.enum(['today', 'days', 'week', 'weeks']).optional(),
-})
+function normalizeLabel(value: string): string {
+  return value
+    .toLowerCase()
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/ß/g, 'ss')
+    .replace(/[^a-z0-9]+/g, '')
+}
 
-// Strict AI output contract: Das Model darf nur bis zu drei frontend-kompatible Symptome zurückgeben.
+function emptyStringOrNullToUndefined(value: unknown): unknown {
+  return value === null || value === '' ? undefined : value
+}
+
+function normalizeMeasurementValue(value: unknown): unknown {
+  if (value === null || value === undefined || value === '') {
+    return undefined
+  }
+
+  if (typeof value === 'number') {
+    return value
+  }
+
+  if (typeof value !== 'string') {
+    return value
+  }
+
+  const numericMatch = value.replace(',', '.').match(/\d+(?:\.\d+)?/)
+
+  if (numericMatch) {
+    return Number(numericMatch[0])
+  }
+
+  const normalizedValue = normalizeLabel(value)
+
+  if (/(leicht|bisschen|wenig|mild)/.test(normalizedValue)) {
+    return 3
+  }
+
+  if (/(mittel|maessig|massig|moderat)/.test(normalizedValue)) {
+    return 5
+  }
+
+  if (/(stark|heftig|schlimm|intensiv)/.test(normalizedValue)) {
+    return 8
+  }
+
+  return value
+}
+
+function normalizeDuration(value: unknown): unknown {
+  if (value === null || value === undefined || value === '') {
+    return undefined
+  }
+
+  if (typeof value !== 'string') {
+    return value
+  }
+
+  const normalizedValue = normalizeLabel(value)
+
+  if (normalizedValue.includes('heute')) {
+    return 'today'
+  }
+
+  if (normalizedValue.includes('wochen') || normalizedValue.includes('mehrals2wochen')) {
+    return 'weeks'
+  }
+
+  if (normalizedValue.includes('woche')) {
+    return 'week'
+  }
+
+  if (normalizedValue.includes('tag') || normalizedValue.includes('tage')) {
+    return 'days'
+  }
+
+  return value
+}
+
+const regionByNormalizedLabel = new Map(
+  SYMPTOM_REGION_NAMES.map((region) => [normalizeLabel(region), region] as const),
+)
+
+const optionByNormalizedLabel = new Map(
+  SYMPTOM_REGIONS.flatMap((region) =>
+    region.options.map((option) => [
+      normalizeLabel(option),
+      {
+        region: region.name,
+        option,
+      },
+    ] as const),
+  ),
+)
+
+function normalizeRegion(value: string): SymptomRegionName | undefined {
+  return regionByNormalizedLabel.get(normalizeLabel(value))
+}
+
+function normalizeOption(value: string): { region: SymptomRegionName; option: string } | undefined {
+  const normalizedValue = normalizeLabel(value)
+  const exactMatch = optionByNormalizedLabel.get(normalizedValue)
+
+  if (exactMatch) {
+    return exactMatch
+  }
+
+  return [...optionByNormalizedLabel.entries()].find(
+    ([normalizedOption]) =>
+      normalizedValue.includes(normalizedOption) || normalizedOption.includes(normalizedValue),
+  )?.[1]
+}
+
+export const extractedSymptomSchema = z
+  .object({
+    region: z.string().min(1),
+    side: z.preprocess(emptyStringOrNullToUndefined, z.string().min(1).optional()),
+    measurementType: z
+      .preprocess(emptyStringOrNullToUndefined, z.enum(SYMPTOM_MEASUREMENT_TYPES).optional())
+      .catch(undefined),
+    measurementValue: z
+      .preprocess(normalizeMeasurementValue, z.number().optional())
+      .catch(undefined),
+    duration: z
+      .preprocess(normalizeDuration, z.enum(TRIAGE_SYMPTOM_DURATIONS).optional())
+      .catch(undefined),
+  })
+  .transform((value) => {
+    const normalizedRegion = normalizeRegion(value.region)
+    const regionAsOption = normalizeOption(value.region)
+    const normalizedSide = value.side ? normalizeOption(value.side) : undefined
+    const region = normalizedRegion ?? regionAsOption?.region ?? value.region
+    const side =
+      normalizedSide && normalizedSide.region === region
+        ? normalizedSide.option
+        : regionAsOption && regionAsOption.region === region
+          ? regionAsOption.option
+          : value.side
+
+    return {
+      ...value,
+      region,
+      ...(side ? { side } : {}),
+    }
+  })
+  .superRefine((value, context) => {
+    if (!SYMPTOM_REGION_NAMES.includes(value.region as SymptomRegionName)) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['region'],
+        message: `region must be one of: ${SYMPTOM_REGION_NAMES.join(', ')}`,
+      })
+
+      return
+    }
+
+    if (!value.side) {
+      return
+    }
+
+    const allowedOptions = getOptionsForRegion(value.region as SymptomRegionName)
+    if (!allowedOptions.includes(value.side)) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['side'],
+        message: `side must be one of the options for region "${value.region}"`,
+      })
+    }
+  })
+
+
 export const symptomExtractionAiResultSchema = z.object({
-  symptoms: z.array(selectedSymptomSchema).max(3),
+  symptoms: z.array(extractedSymptomSchema).max(3),
 })
 
-// Strict AI output contract: Das Model bewertet, ob überhaupt medizinisch sinnvoller Freitext vorliegt.
 export const symptomInputValidationAiResultSchema = z.object({
   isValidMedicalInput: z.boolean(),
   reason: z.string().min(1),
@@ -53,7 +220,7 @@ export const symptomExtractionRequestSchema = z
     symptomText: z.string().trim().min(1).optional(),
     text: z.string().trim().min(1).optional(),
     input: z.string().trim().min(1).optional(),
-    inputType: z.enum(['text', 'speech']).optional(),
+    inputType: z.enum(SYMPTOM_INPUT_TYPES).optional(),
   })
   .refine((value) => Boolean(value.symptomText ?? value.text ?? value.input), {
     message: 'symptomText is required',

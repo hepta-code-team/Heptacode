@@ -1,27 +1,40 @@
 import { zodResponseFormat } from 'openai/helpers/zod'
 import type { ChatCompletionMessageParam } from 'openai/resources/chat/completions'
 import type { z } from 'zod'
-import { aiClient, aiModel } from './client.js'
-import { AI_REQUEST_OPTIONS, AiResponseError } from './timeout.js'
+import { aiClient, aiModel, fallbackModel } from './client.js'
+import { AI_REQUEST_OPTIONS, AiResponseError, isAiAvailabilityError, isAiRequestError } from './timeout.js'
 
 type StructuredAiRequest<TSchema extends z.ZodTypeAny> = {
   messages: ChatCompletionMessageParam[]
   schema: TSchema
   schemaName: string
   temperature?: number
+  modelStrategy?: 'primary-with-fallback' | 'fallback-only'
 }
 
-// Funktion um strukturierte Antworten von der KI zu erhalten, basierend auf einem bereitgestellten Zod-Schema.
-export async function requestStructuredAiResponse<TSchema extends z.ZodTypeAny>({
-  messages,
-  schema,
-  schemaName,
-  temperature = 0.2,
-}: StructuredAiRequest<TSchema>): Promise<z.infer<TSchema>> {
+type StructuredAiResponse<TSchema extends z.ZodTypeAny> = {
+  data: z.infer<TSchema>
+  model: string
+}
+
+type ModelRequest<TSchema extends z.ZodTypeAny> = Required<Omit<
+  StructuredAiRequest<TSchema>,
+  'modelStrategy'
+>>
+
+async function requestWithModel<TSchema extends z.ZodTypeAny>(
+  model: string,
+  {
+    messages,
+    schema,
+    schemaName,
+    temperature,
+  }: ModelRequest<TSchema>,
+): Promise<z.infer<TSchema>> {
   try {
     const completion = await aiClient.beta.chat.completions.parse(
       {
-        model: aiModel,
+        model,
         messages,
         response_format: zodResponseFormat(schema, schemaName),
         temperature,
@@ -37,9 +50,13 @@ export async function requestStructuredAiResponse<TSchema extends z.ZodTypeAny>(
 
     return parsed
   } catch (parseError) {
+    if (isAiAvailabilityError(parseError)) {
+      throw parseError
+    }
+
     const completion = await aiClient.chat.completions.create(
       {
-        model: aiModel,
+        model,
         messages,
         response_format: { type: 'json_object' },
         temperature,
@@ -50,7 +67,7 @@ export async function requestStructuredAiResponse<TSchema extends z.ZodTypeAny>(
     const content = completion.choices[0]?.message?.content
 
     if (!content) {
-      throw parseError
+      throw new AiResponseError(`AI returned no JSON content for ${schemaName}`)
     }
 
     let parsedJson: unknown
@@ -58,15 +75,70 @@ export async function requestStructuredAiResponse<TSchema extends z.ZodTypeAny>(
     try {
       parsedJson = JSON.parse(content)
     } catch {
-      throw parseError
+      throw new AiResponseError(`AI returned invalid JSON for ${schemaName}`)
     }
 
     const validated = schema.safeParse(parsedJson)
 
     if (!validated.success) {
-      throw parseError
+      throw new AiResponseError(`AI returned JSON that does not match ${schemaName}`)
     }
 
     return validated.data
+  }
+}
+
+// Funktion um strukturierte Antworten von der KI zu erhalten, basierend auf einem bereitgestellten Zod-Schema.
+export async function requestStructuredAiResponse<TSchema extends z.ZodTypeAny>({
+  messages,
+  schema,
+  schemaName,
+  temperature = 0.2,
+}: StructuredAiRequest<TSchema>): Promise<z.infer<TSchema>> {
+  const response = await requestStructuredAiResponseWithModel({
+    messages,
+    schema,
+    schemaName,
+    temperature,
+  })
+
+  return response.data
+}
+
+export async function requestStructuredAiResponseWithModel<TSchema extends z.ZodTypeAny>({
+  messages,
+  schema,
+  schemaName,
+  temperature = 0.2,
+  modelStrategy = 'primary-with-fallback',
+}: StructuredAiRequest<TSchema>): Promise<StructuredAiResponse<TSchema>> {
+  const request = {
+    messages,
+    schema,
+    schemaName,
+    temperature,
+  }
+
+  if (modelStrategy === 'fallback-only') {
+    return {
+      data: await requestWithModel(fallbackModel, request),
+      model: fallbackModel,
+    }
+  }
+
+  try {
+    return {
+      data: await requestWithModel(aiModel, request),
+      model: aiModel,
+    }
+  } catch (error) {
+    if (fallbackModel === aiModel || !isAiRequestError(error)) {
+      throw error
+    }
+
+    return {
+      data: await requestWithModel(fallbackModel, request),
+      model: fallbackModel,
+    }
   }
 }

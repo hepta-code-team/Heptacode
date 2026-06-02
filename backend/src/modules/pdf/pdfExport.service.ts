@@ -144,6 +144,10 @@ function summarizePatient(data?: PatientData): string {
     return 'Keine Stammdaten vorhanden.'
   }
 
+  const conditionDetails = Object.entries(data.conditionDetails)
+    .filter(([, detail]) => detail.trim().length > 0)
+    .map(([condition, detail]) => `${condition}: ${detail.trim()}`)
+
   return [
     `Geburt: ${formatValue(data.birthMonth)}/${formatValue(data.birthYear)}`,
     `Größe / Gewicht: ${formatValue(data.height)} cm / ${formatValue(data.weight)} kg`,
@@ -158,7 +162,11 @@ function summarizePatient(data?: PatientData): string {
     data.conditions.length > 0
       ? `Vorerkrankungen: ${data.conditions.join(', ')}`
       : 'Vorerkrankungen: -',
-  ].join('\n')
+    `Raucher: ${data.isSmoker ? 'Ja' : 'Nein'}`,
+    data.isSmoker ? `Rauchdauer: ${data.smokingSinceYears || '—'}` : null,
+    data.isSmoker ? `Zigaretten pro Tag: ${data.cigarettesPerDay || '—'}` : null,
+    conditionDetails.length > 0 ? `Details zu Vorerkrankungen: ${conditionDetails.join('; ')}` : null,
+  ].filter((line): line is string => line !== null).join('\n')
 }
 
 function summarizeSymptoms(symptoms?: TriageSymptom[]): string {
@@ -170,8 +178,8 @@ function summarizeSymptoms(symptoms?: TriageSymptom[]): string {
     .map((symptom, index) => {
       const details = [
         symptomLabel(symptom),
-        symptom.painLevel !== undefined
-          ? `Schmerzstärke: ${symptom.painLevel}/10`
+        symptom.measurementValue !== undefined
+          ? `${symptom.measurementType === 'temperature' ? 'Temperatur' : 'Messwert'} ${symptom.measurementValue}${symptom.measurementType === 'temperature' ? '°C' : '/10'}`
           : null,
         formatDuration(symptom.duration)
           ? `Dauer: ${formatDuration(symptom.duration)}`

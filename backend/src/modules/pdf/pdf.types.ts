@@ -1,17 +1,10 @@
 import { z } from 'zod'
-import {
-  patientDataSchema,
-  triageSymptomSchema,
-  reviewSummarySchema,
-  medicalSpecialtySchema,
-} from '../triage/triage.types.js'
+import { CARE_LEVELS } from '../../../../shared/result.types.js'
+import type { CareLevel, MedicalSpecialty } from '../../../../shared/result.types.js'
 import type { PatientData } from '../../../../shared/patientData.types.js'
 import type { TriageSymptom } from '../../../../shared/symptom.types.js'
-import type {
-  CareLevel,
-  MedicalSpecialty,
-  ReviewSummary,
-} from '../triage/triage.types.js'
+import { patientDataSchema, triageSymptomSchema, reviewSummarySchema, medicalSpecialtySchema } from '../triage/triage.types.js'
+import type { ReviewSummary } from '../triage/triage.types.js'
 
 export interface PdfSection {
   title: string
@@ -22,7 +15,7 @@ export type PdfReviewSummary = ReviewSummary
 
 export interface PdfTriageResult {
   careLevel: CareLevel
-  recommendedSpecialty: MedicalSpecialty
+  recommendedSpecialty?: MedicalSpecialty
   reasons: string[]
 }
 
@@ -42,8 +35,8 @@ export interface PdfExportResult {
 }
 
 export const pdfTriageResultSchema = z.object({
-  careLevel: z.enum(['emergency', 'doctor', 'specialist', 'selfcare']),
-  recommendedSpecialty: medicalSpecialtySchema,
+  careLevel: z.enum(CARE_LEVELS),
+  recommendedSpecialty: medicalSpecialtySchema.optional(),
   reasons: z.array(z.string().min(1)).max(5),
 })
 
