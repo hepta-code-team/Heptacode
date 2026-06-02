@@ -885,8 +885,8 @@ export default function SymptomSelectionPage() {
           </div>
         )}
 
-        <div className="flex justify-between items-center mt-6">
-          <div className="flex w-16 flex-col items-center gap-2">
+        <div className="flex justify-between items-start mt-6">
+          <div className="relative flex h-16 w-16 items-center justify-center">
             <button
               type="button"
               onClick={handleToggleSymptomRecording}
@@ -904,7 +904,7 @@ export default function SymptomSelectionPage() {
               )}
             </button>
             <span
-              className="min-h-4 w-48 text-center font-['DM_Sans:Medium',sans-serif] text-xs font-medium text-app-text-primary"
+              className="absolute left-1/2 top-[calc(100%+0.5rem)] min-h-4 w-48 -translate-x-1/2 text-center font-['DM_Sans:Medium',sans-serif] text-xs font-medium text-app-text-primary"
               style={{ fontVariationSettings: "'opsz' 14" }}
             >
               {isRecordingSymptoms ? `${formattedRecordingElapsed} / ${formattedMaxRecordingDuration}` : "Diktieren"}
