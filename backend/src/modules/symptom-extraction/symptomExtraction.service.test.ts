@@ -94,6 +94,38 @@ describe('extractSymptoms', () => {
     expect(result.symptoms).toEqual([{ region: 'Blutiger Auswurf', measurementType: 'severity' }])
   })
 
+  it('laesst Verletzungsereignisse als Freitext-Symptom durch die Extraktion laufen', async () => {
+    requestStructuredAiResponseMock
+      .mockResolvedValueOnce({
+        isValidMedicalInput: true,
+        reason: 'Medizinischer Verletzungskontext erkannt.',
+      })
+      .mockResolvedValueOnce({
+        symptoms: [{ region: 'Nageltrittverletzung', measurementType: 'severity' }],
+      })
+
+    const result = await extractSymptoms('Ich bin in einen Nagel getreten.')
+
+    expect(result.symptoms).toEqual([{ region: 'Nageltrittverletzung', measurementType: 'severity' }])
+    expect(requestStructuredAiResponseMock).toHaveBeenCalledTimes(2)
+  })
+
+  it('laesst Koerperteilverlust als Freitext-Symptom durch die Extraktion laufen', async () => {
+    requestStructuredAiResponseMock
+      .mockResolvedValueOnce({
+        isValidMedicalInput: true,
+        reason: 'Medizinischer Verletzungskontext erkannt.',
+      })
+      .mockResolvedValueOnce({
+        symptoms: [{ region: 'Amputierter Arm', measurementType: 'severity' }],
+      })
+
+    const result = await extractSymptoms('Ich habe meinen Arm verloren.')
+
+    expect(result.symptoms).toEqual([{ region: 'Amputierter Arm', measurementType: 'severity' }])
+    expect(requestStructuredAiResponseMock).toHaveBeenCalledTimes(2)
+  })
+
   it('entfernt KI-erfundene Messwerte, wenn im Freitext keine Staerke genannt wurde', async () => {
     requestStructuredAiResponseMock
       .mockResolvedValueOnce({
