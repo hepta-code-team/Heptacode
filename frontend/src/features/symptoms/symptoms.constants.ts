@@ -271,3 +271,7 @@ export function getMeasurementConfig(region: string, option?: string): Measureme
 
   return MEASUREMENT_CONFIGS.pain;
 }
+
+export function getMeasurementConfigByType(type: SymptomMeasurementType): MeasurementConfig {
+  return MEASUREMENT_CONFIGS[type];
+}

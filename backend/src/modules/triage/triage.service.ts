@@ -1,4 +1,4 @@
-import { requestStructuredAiResponse } from '../../ai/llmAdapter.js'
+import { requestStructuredAiResponseWithModel } from '../../ai/llmAdapter.js'
 import { isAiRequestError } from '../../ai/timeout.js'
 import { extractSymptoms } from '../symptom-extraction/symptomExtraction.service.js'
 import type {
@@ -223,7 +223,7 @@ async function requestTriageFromAi(
   patientData: PatientData | undefined,
   symptoms: TriageSymptom[],
 ): Promise<TriageResponse> {
-  const parsed = await requestStructuredAiResponse({
+  const { data: parsed, model } = await requestStructuredAiResponseWithModel({
     messages: [
       { role: 'system', content: triageInstructions },
       {
@@ -239,7 +239,10 @@ async function requestTriageFromAi(
     temperature: 0,
   })
 
-  return applySpecialistEscalation(normalizeTriageResult(parsed, symptoms), symptoms)
+  return {
+    ...applySpecialistEscalation(normalizeTriageResult(parsed, symptoms), symptoms),
+    aiModel: model,
+  }
 }
 
 function createFallbackTriage(symptoms: TriageSymptom[]): TriageResponse {

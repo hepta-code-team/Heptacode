@@ -6,7 +6,7 @@ import SymptomButtonGrid from "../features/symptoms/SymptomButtonGrid";
 import Modal from "../components/Modal";
 import Button from "../components/Button";
 import { useAssessment } from "../lib/AssessmentContext";
-import { getMeasurementConfig } from "../features/symptoms/symptoms.constants";
+import { getMeasurementConfig, getMeasurementConfigByType } from "../features/symptoms/symptoms.constants";
 import type { SelectedSymptom, Symptom, SymptomDraft, TriageSymptom } from "../types/assessment";
 import { handleSubmitAssessment } from "../features/symptoms/handleSubmitAssessment";
 
@@ -38,13 +38,17 @@ export default function SymptomDetailsPage() {
   };
 
   const normalizeSymptom = (symptom: SelectedSymptom | Symptom, index: number): SymptomDraft => {
-    const measurementConfig = getMeasurementConfig(symptom.region, symptom.side);
+    const inferredMeasurementConfig = getMeasurementConfig(symptom.region, symptom.side);
+    const measurementType = "measurementType" in symptom && symptom.measurementType
+      ? symptom.measurementType
+      : inferredMeasurementConfig.type;
+    const measurementConfig = getMeasurementConfigByType(measurementType);
 
     return {
       ...symptom,
       id: `symptom-${Date.now()}-${index}`,
       active: true,
-      measurementType: measurementConfig.type,
+      measurementType,
       measurementValue: "measurementValue" in symptom && Number.isFinite(symptom.measurementValue)
         ? symptom.measurementValue
         : measurementConfig.defaultValue,
@@ -114,7 +118,7 @@ export default function SymptomDetailsPage() {
   const canContinue = symptomDetails
     .filter((symptom) => symptom.active)
     .every((symptom) => {
-      const config = getMeasurementConfig(symptom.region, symptom.side);
+      const config = getMeasurementConfigByType(symptom.measurementType);
       return symptom.measurementValue >= config.min && symptom.measurementValue <= config.max;
     });
 

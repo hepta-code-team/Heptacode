@@ -34,6 +34,7 @@ export const assessmentResultSchema = z.object({
   reviewSummary: reviewSummarySchema,
   summary: z.string().min(1),
   aiUnavailable: z.boolean().optional(),
+  aiModel: z.string().min(1).optional(),
   createdAt: z.string().min(1),
 })
 

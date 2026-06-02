@@ -13,3 +13,4 @@ export const aiClient = new OpenAI({
 })
 
 export const aiModel = env.aiModel
+export const fallbackModel = env.fallbackModel
