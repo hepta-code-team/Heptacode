@@ -43,6 +43,12 @@ describe('extractSymptoms', () => {
       message: 'Der Text beschreibt keine gesundheitlichen Beschwerden.',
     })
     expect(requestStructuredAiResponseMock).toHaveBeenCalledTimes(1)
+    expect(requestStructuredAiResponseMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        schemaName: 'symptom_input_validation_result',
+        modelStrategy: 'fallback-only',
+      }),
+    )
   })
 
   it('extrahiert Symptome nach erfolgreicher Validierung', async () => {
@@ -63,6 +69,14 @@ describe('extractSymptoms', () => {
       symptoms: [{ region: 'Kopf', measurementType: 'pain', measurementValue: 6, duration: 'days' }],
     })
     expect(requestStructuredAiResponseMock).toHaveBeenCalledTimes(2)
+    expect(requestStructuredAiResponseMock).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({ modelStrategy: 'fallback-only' }),
+    )
+    expect(requestStructuredAiResponseMock).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({ modelStrategy: 'fallback-only' }),
+    )
   })
 
   it('versucht die Extraktion, wenn nur die Validierungs-KI ausfaellt', async () => {

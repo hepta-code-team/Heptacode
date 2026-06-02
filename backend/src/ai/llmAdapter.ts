@@ -9,12 +9,18 @@ type StructuredAiRequest<TSchema extends z.ZodTypeAny> = {
   schema: TSchema
   schemaName: string
   temperature?: number
+  modelStrategy?: 'primary-with-fallback' | 'fallback-only'
 }
 
 type StructuredAiResponse<TSchema extends z.ZodTypeAny> = {
   data: z.infer<TSchema>
   model: string
 }
+
+type ModelRequest<TSchema extends z.ZodTypeAny> = Required<Omit<
+  StructuredAiRequest<TSchema>,
+  'modelStrategy'
+>>
 
 async function requestWithModel<TSchema extends z.ZodTypeAny>(
   model: string,
@@ -23,7 +29,7 @@ async function requestWithModel<TSchema extends z.ZodTypeAny>(
     schema,
     schemaName,
     temperature,
-  }: Required<StructuredAiRequest<TSchema>>,
+  }: ModelRequest<TSchema>,
 ): Promise<z.infer<TSchema>> {
   try {
     const completion = await aiClient.beta.chat.completions.parse(
@@ -104,12 +110,20 @@ export async function requestStructuredAiResponseWithModel<TSchema extends z.Zod
   schema,
   schemaName,
   temperature = 0.2,
+  modelStrategy = 'primary-with-fallback',
 }: StructuredAiRequest<TSchema>): Promise<StructuredAiResponse<TSchema>> {
   const request = {
     messages,
     schema,
     schemaName,
     temperature,
+  }
+
+  if (modelStrategy === 'fallback-only') {
+    return {
+      data: await requestWithModel(fallbackModel, request),
+      model: fallbackModel,
+    }
   }
 
   try {

@@ -1,16 +1,16 @@
 import type { FastifyInstance } from 'fastify'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { requestStructuredAiResponse } from '../../../src/ai/llmAdapter.js'
+import { requestStructuredAiResponseWithModel } from '../../../src/ai/llmAdapter.js'
 import { AiResponseError } from '../../../src/ai/timeout.js'
 import { buildApp } from '../../../src/app.js'
 import type { AssessmentPayload } from '../../../src/modules/assessment/assessment.types.js'
 
 vi.mock('../../../src/ai/llmAdapter.js', () => ({
-  requestStructuredAiResponse: vi.fn(),
+  requestStructuredAiResponseWithModel: vi.fn(),
 }))
 
-const requestStructuredAiResponseMock = vi.mocked(requestStructuredAiResponse)
+const requestStructuredAiResponseWithModelMock = vi.mocked(requestStructuredAiResponseWithModel)
 
 async function createApp(): Promise<FastifyInstance> {
   const app = await buildApp()
@@ -67,13 +67,16 @@ describe('POST /assessments', () => {
   })
 
   it('bewertet ein gueltiges Assessment ueber die HTTP-Route', async () => {
-    requestStructuredAiResponseMock.mockResolvedValueOnce({
-      careLevel: 'doctor',
-      reasons: ['Die Beschwerden sollten aerztlich eingeordnet werden.'],
-      reviewSummary: {
-        plainLanguage: 'Bitte lassen Sie die Beschwerden zeitnah abklaeren.',
-        professionalSummary: 'Stammdaten und Symptome wurden strukturiert zusammengefasst.',
+    requestStructuredAiResponseWithModelMock.mockResolvedValueOnce({
+      data: {
+        careLevel: 'doctor',
+        reasons: ['Die Beschwerden sollten aerztlich eingeordnet werden.'],
+        reviewSummary: {
+          plainLanguage: 'Bitte lassen Sie die Beschwerden zeitnah abklaeren.',
+          professionalSummary: 'Stammdaten und Symptome wurden strukturiert zusammengefasst.',
+        },
       },
+      model: 'test-model',
     })
 
     const response = await app.inject({
@@ -92,8 +95,8 @@ describe('POST /assessments', () => {
       summary: 'Bitte lassen Sie die Beschwerden zeitnah abklaeren.',
     })
     expect(Date.parse(body.createdAt)).not.toBeNaN()
-    expect(requestStructuredAiResponseMock).toHaveBeenCalledTimes(1)
-    expect(requestStructuredAiResponseMock).toHaveBeenCalledWith(
+    expect(requestStructuredAiResponseWithModelMock).toHaveBeenCalledTimes(1)
+    expect(requestStructuredAiResponseWithModelMock).toHaveBeenCalledWith(
       expect.objectContaining({
         schemaName: 'triage_result',
         temperature: 0,
@@ -117,11 +120,11 @@ describe('POST /assessments', () => {
     expect(response.json()).toMatchObject({
       message: 'Validation failed',
     })
-    expect(requestStructuredAiResponseMock).not.toHaveBeenCalled()
+    expect(requestStructuredAiResponseWithModelMock).not.toHaveBeenCalled()
   })
 
   it('liefert den kontrollierten Assessment-Fallback bei KI-Ausfall', async () => {
-    requestStructuredAiResponseMock.mockRejectedValueOnce(new AiResponseError('timeout'))
+    requestStructuredAiResponseWithModelMock.mockRejectedValueOnce(new AiResponseError('timeout'))
 
     const response = await app.inject({
       method: 'POST',

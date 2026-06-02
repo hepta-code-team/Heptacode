@@ -1,15 +1,15 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { requestStructuredAiResponse } from '../ai/llmAdapter.js'
+import { requestStructuredAiResponseWithModel } from '../ai/llmAdapter.js'
 import { AiResponseError } from '../ai/timeout.js'
 import { evaluateAssessmentWithAi } from '../modules/assessment/assessment.service.js'
 import type { AssessmentPayload } from '../modules/assessment/assessment.types.js'
 
 vi.mock('../ai/llmAdapter.js', () => ({
-  requestStructuredAiResponse: vi.fn(),
+  requestStructuredAiResponseWithModel: vi.fn(),
 }))
 
-const requestStructuredAiResponseMock = vi.mocked(requestStructuredAiResponse)
+const requestStructuredAiResponseWithModelMock = vi.mocked(requestStructuredAiResponseWithModel)
 
 function createPayload(): AssessmentPayload {
   return {
@@ -53,10 +53,13 @@ describe('evaluateAssessmentWithAi', () => {
   })
 
   it('gibt ein gueltiges KI-Ergebnis mit createdAt zurueck', async () => {
-    requestStructuredAiResponseMock.mockResolvedValueOnce({
-      careLevel: 'doctor',
-      reasons: ['Die Beschwerden sollten aerztlich eingeordnet werden.'],
-      summary: 'Bitte lassen Sie die Beschwerden zeitnah abklaeren.',
+    requestStructuredAiResponseWithModelMock.mockResolvedValueOnce({
+      data: {
+        careLevel: 'doctor',
+        reasons: ['Die Beschwerden sollten aerztlich eingeordnet werden.'],
+        summary: 'Bitte lassen Sie die Beschwerden zeitnah abklaeren.',
+      },
+      model: 'test-model',
     })
 
     const result = await evaluateAssessmentWithAi(createPayload())
@@ -69,8 +72,8 @@ describe('evaluateAssessmentWithAi', () => {
         'Ihre Angaben wurden strukturiert ausgewertet. Bitte orientieren Sie sich an der empfohlenen Versorgungsebene und suchen Sie bei Verschlechterung medizinische Hilfe.',
     })
     expect(Date.parse(result.createdAt)).not.toBeNaN()
-    expect(requestStructuredAiResponseMock).toHaveBeenCalledTimes(1)
-    expect(requestStructuredAiResponseMock).toHaveBeenCalledWith(
+    expect(requestStructuredAiResponseWithModelMock).toHaveBeenCalledTimes(1)
+    expect(requestStructuredAiResponseWithModelMock).toHaveBeenCalledWith(
       expect.objectContaining({
         schemaName: 'triage_result',
         temperature: 0,
@@ -79,15 +82,18 @@ describe('evaluateAssessmentWithAi', () => {
   })
 
   it('uebergibt formatierte Patientendaten und Symptomdetails an die KI', async () => {
-    requestStructuredAiResponseMock.mockResolvedValueOnce({
-      careLevel: 'doctor',
-      reasons: ['Die Beschwerden sollten aerztlich eingeordnet werden.'],
-      summary: 'Bitte lassen Sie die Beschwerden zeitnah abklaeren.',
+    requestStructuredAiResponseWithModelMock.mockResolvedValueOnce({
+      data: {
+        careLevel: 'doctor',
+        reasons: ['Die Beschwerden sollten aerztlich eingeordnet werden.'],
+        summary: 'Bitte lassen Sie die Beschwerden zeitnah abklaeren.',
+      },
+      model: 'test-model',
     })
 
     await evaluateAssessmentWithAi(createPayload())
 
-    const request = requestStructuredAiResponseMock.mock.calls[0]?.[0]
+    const request = requestStructuredAiResponseWithModelMock.mock.calls[0]?.[0]
     const userMessage = request?.messages.find((message) => message.role === 'user')
 
     expect(userMessage?.content).toContain('Geburtsjahr: 1990')
@@ -97,7 +103,7 @@ describe('evaluateAssessmentWithAi', () => {
   })
 
   it('nutzt den Beispiel-Fallback bei bekannten KI-Fehlern', async () => {
-    requestStructuredAiResponseMock.mockRejectedValueOnce(new AiResponseError('timeout'))
+    requestStructuredAiResponseWithModelMock.mockRejectedValueOnce(new AiResponseError('timeout'))
 
     const result = await evaluateAssessmentWithAi(createPayload())
 
@@ -111,7 +117,7 @@ describe('evaluateAssessmentWithAi', () => {
   })
 
   it('reicht unerwartete Fehler weiter', async () => {
-    requestStructuredAiResponseMock.mockRejectedValueOnce(new Error('boom'))
+    requestStructuredAiResponseWithModelMock.mockRejectedValueOnce(new Error('boom'))
 
     await expect(evaluateAssessmentWithAi(createPayload())).rejects.toThrow('boom')
   })

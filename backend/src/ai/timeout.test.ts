@@ -9,9 +9,9 @@ import {
 
 describe('AI timeout configuration', () => {
   it('definiert ein festes Timeout ohne automatische Retries', () => {
-    expect(AI_REQUEST_TIMEOUT_MS).toBe(8000)
+    expect(AI_REQUEST_TIMEOUT_MS).toBe(17000)
     expect(AI_REQUEST_OPTIONS).toEqual({
-      timeout: 8000,
+      timeout: 17000,
       maxRetries: 0,
     })
   })
