@@ -93,6 +93,34 @@ describe('evaluateTriage', () => {
     expect(result.reasons).toHaveLength(2)
   })
 
+  it('eskaliert eine erfolgreiche KI-Triage nicht lokal zu specialist', async () => {
+    requestStructuredAiResponseWithModelMock.mockResolvedValueOnce({
+      data: {
+        careLevel: 'doctor',
+        reasons: ['Die Beschwerden sollten aerztlich abgeklart werden.'],
+        reviewSummary: {
+          plainLanguage: 'Bitte lassen Sie die Beschwerden aerztlich abklaeren.',
+          professionalSummary: 'Care Level: doctor.',
+        },
+      },
+      model: 'test-model',
+    })
+
+    const result = await evaluateTriage(undefined, [
+      { region: 'Bauch', measurementType: 'pain', measurementValue: 7, duration: 'days' },
+    ])
+
+    expect(result).toEqual({
+      careLevel: 'doctor',
+      reasons: ['Die Beschwerden sollten aerztlich abgeklart werden.'],
+      reviewSummary: {
+        plainLanguage: 'Bitte lassen Sie die Beschwerden aerztlich abklaeren.',
+        professionalSummary: 'Care Level: doctor.',
+      },
+      aiModel: 'test-model',
+    })
+  })
+
   it('nutzt den Doctor-Fallback bei mittleren Beschwerden', async () => {
     requestStructuredAiResponseWithModelMock.mockRejectedValueOnce(new AiResponseError('timeout'))
 

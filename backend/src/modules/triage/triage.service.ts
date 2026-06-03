@@ -2,7 +2,6 @@ import { requestStructuredAiResponseWithModel } from '../../ai/llmAdapter.js'
 import { isAiRequestError } from '../../ai/timeout.js'
 import { extractSymptoms } from '../symptom-extraction/symptomExtraction.service.js'
 import type {
-  MedicalSpecialty,
   PatientData,
   TriageResponse,
   TriageSymptom,
@@ -131,94 +130,6 @@ function getComparableMeasurementValue(symptom: TriageSymptom): number {
   return symptom.measurementValue
 }
 
-function inferSpecialistFromSymptoms(symptoms: TriageSymptom[]): MedicalSpecialty | undefined {
-  const primary = symptoms[0]
-
-  if (!primary) {
-    return undefined
-  }
-
-  if (primary.region === 'Psychische Probleme') {
-    return 'psychiatry'
-  }
-
-  if (primary.region === 'Verbrennung') {
-    return 'dermatology'
-  }
-
-  const measurementValue = getComparableMeasurementValue(primary)
-
-  if (primary.region === 'Kopf' && measurementValue >= 5) {
-    return 'neurology'
-  }
-
-  if (primary.region === 'Bauch' && measurementValue >= 5) {
-    return 'gastroenterology'
-  }
-
-  if (primary.region === 'Rücken' || primary.region === 'Arme' || primary.region === 'Beine') {
-    return 'orthopedics'
-  }
-
-  if (primary.region === 'Brust') {
-    if (primary.side === 'Atemabhängig') {
-      return 'pulmonology'
-    }
-
-    return 'cardiology'
-  }
-
-  return undefined
-}
-
-function normalizeTriageResult(
-  result: TriageResponse,
-  symptoms: TriageSymptom[],
-): TriageResponse {
-  if (result.careLevel === 'specialist') {
-    const specialist = result.recommendedSpecialty ?? inferSpecialistFromSymptoms(symptoms) ?? 'internal_medicine'
-
-    return {
-      ...result,
-      recommendedSpecialty: specialist,
-    }
-  }
-
-  return {
-    ...result,
-    recommendedSpecialty: undefined,
-  }
-}
-
-function applySpecialistEscalation(
-  result: TriageResponse,
-  symptoms: TriageSymptom[],
-): TriageResponse {
-  if (result.careLevel !== 'doctor') {
-    return result
-  }
-
-  const inferredSpecialist = inferSpecialistFromSymptoms(symptoms)
-  const primary = symptoms[0]
-
-  if (!inferredSpecialist || !primary) {
-    return result
-  }
-
-  const isPersistent = primary.duration === 'days' || primary.duration === 'week' || primary.duration === 'weeks'
-  const isPronounced = getComparableMeasurementValue(primary) >= 5
-
-  if (!isPersistent && !isPronounced) {
-    return result
-  }
-
-  return {
-    ...result,
-    careLevel: 'specialist',
-    recommendedSpecialty: inferredSpecialist,
-  }
-}
-
 async function requestTriageFromAi(
   patientData: PatientData | undefined,
   symptoms: TriageSymptom[],
@@ -240,7 +151,7 @@ async function requestTriageFromAi(
   })
 
   return {
-    ...applySpecialistEscalation(normalizeTriageResult(parsed, symptoms), symptoms),
+    ...parsed,
     aiModel: model,
   }
 }
