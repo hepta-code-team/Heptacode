@@ -40,8 +40,7 @@ export default function SymptomButtonGrid({
     }
 
     if ("isInlineOption" in region && !("options" in region && region.options?.length)) {
-      onRegionSelect(region.parentName, region.option);
-      setExpandedRegion(null);
+      onRegionSelect(region.parentName, region.option);setExpandedRegion(null);
       return;
     }
 
@@ -125,7 +124,7 @@ export default function SymptomButtonGrid({
             {region.id === "other" && (
               <Mic className="absolute left-8 top-1/2 size-10 -translate-y-1/2 text-app-text-muted" aria-hidden="true" />
             )}
-            <div className="px-20 lg:px-24">
+            <div className="pl-10">
               {"isInlineOption" in region && (
                 <p
                   className="font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-primary text-xs mb-0.5"
