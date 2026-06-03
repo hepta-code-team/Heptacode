@@ -65,50 +65,6 @@ function normalizeMeasurementValue(value: unknown): unknown {
     return Number(numericMatch[0])
   }
 
-  const normalizedValue = normalizeLabel(value)
-
-  if (/(leicht|bisschen|wenig|mild)/.test(normalizedValue)) {
-    return 3
-  }
-
-  if (/(mittel|maessig|massig|moderat)/.test(normalizedValue)) {
-    return 5
-  }
-
-  if (/(stark|heftig|schlimm|intensiv)/.test(normalizedValue)) {
-    return 8
-  }
-
-  return value
-}
-
-function normalizeDuration(value: unknown): unknown {
-  if (value === null || value === undefined || value === '') {
-    return undefined
-  }
-
-  if (typeof value !== 'string') {
-    return value
-  }
-
-  const normalizedValue = normalizeLabel(value)
-
-  if (normalizedValue.includes('heute')) {
-    return 'today'
-  }
-
-  if (normalizedValue.includes('wochen') || normalizedValue.includes('mehrals2wochen')) {
-    return 'weeks'
-  }
-
-  if (normalizedValue.includes('woche')) {
-    return 'week'
-  }
-
-  if (normalizedValue.includes('tag') || normalizedValue.includes('tage')) {
-    return 'days'
-  }
-
   return value
 }
 
@@ -148,7 +104,7 @@ export const extractedSymptomSchema = z
       .preprocess(normalizeMeasurementValue, z.number().optional())
       .catch(undefined),
     duration: z
-      .preprocess(normalizeDuration, z.enum(TRIAGE_SYMPTOM_DURATIONS).optional())
+      .preprocess(emptyStringOrNullToUndefined, z.enum(TRIAGE_SYMPTOM_DURATIONS).optional())
       .catch(undefined),
   })
   .transform((value) => {

@@ -2,7 +2,6 @@ import { requestStructuredAiResponse } from '../../ai/llmAdapter.js'
 import { isAiRequestError } from '../../ai/timeout.js'
 import type { SymptomExtractionResponse } from './symptomExtraction.types.js'
 import type { SymptomInputType } from '../../../../shared/symptomExtraction.types.js'
-import type { SymptomMeasurementType, TriageSymptom } from '../../../../shared/symptom.types.js'
 import {
   symptomExtractionAiResultSchema,
   symptomInputValidationAiResultSchema,
@@ -28,32 +27,6 @@ function splitWords(text: string): string[] {
   return normalizeText(text)
     .split(/[^a-z0-9]+/)
     .filter((part) => part.length > 0)
-}
-
-const MEASUREMENT_CUE_PATTERNS: Record<SymptomMeasurementType, RegExp> = {
-  pain: /\b([1-9]|10)\s*(?:\/\s*10|von\s*10)|\b(leicht|mittel|maessig|massig|moderat|stark|heftig|schlimm|intensiv|unertraeglich)\w*\b/,
-  severity: /\b([1-9]|10)\s*(?:\/\s*10|von\s*10)|\b(leicht|mittel|maessig|massig|moderat|stark|heftig|schlimm|intensiv|unertraeglich)\w*\b/,
-  feeling: /\b([1-9]|10)\s*(?:\/\s*10|von\s*10)|\b(leicht|mittel|maessig|massig|moderat|stark|heftig|schlimm|intensiv|unertraeglich)\w*\b/,
-  temperature: /\b(?:3[5-9]|4[0-3])(?:[,.]\d)?\s*(?:grad|c|°c)?\b|\bfieber\b/,
-}
-
-function hasMeasurementCue(text: string, measurementType?: SymptomMeasurementType): boolean {
-  if (!measurementType) {
-    return false
-  }
-
-  return MEASUREMENT_CUE_PATTERNS[measurementType].test(normalizeText(text))
-}
-
-function sanitizeExtractedSymptoms(text: string, symptoms: TriageSymptom[]): TriageSymptom[] {
-  return symptoms.map((symptom) => {
-    if (symptom.measurementValue === undefined || hasMeasurementCue(text, symptom.measurementType)) {
-      return symptom
-    }
-
-    const { measurementValue, ...symptomWithoutInferredValue } = symptom
-    return symptomWithoutInferredValue
-  })
 }
 
 // Offensichtlicher Unsinn wird ohne KI-Aufruf abgefangen, um Kosten und Latenz zu sparen.
@@ -181,6 +154,6 @@ export async function extractSymptoms(
   return {
     text,
     inputType,
-    symptoms: sanitizeExtractedSymptoms(text, result.symptoms),
+    symptoms: result.symptoms,
   }
 }

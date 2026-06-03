@@ -69,7 +69,7 @@ export default function SymptomDetailsPage() {
 
     // If context already has details, use them
     if (contextDetails.length > 0) {
-      return contextDetails.map(normalizeSymptom);
+      return contextDetails.map((symptom, index) => normalizeSymptom(symptom, index));
     }
 
     return selectedSymptoms.map((s, idx) => createSymptomDetails(s.region, s.side, idx));

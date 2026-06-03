@@ -126,7 +126,7 @@ describe('extractSymptoms', () => {
     expect(requestStructuredAiResponseMock).toHaveBeenCalledTimes(2)
   })
 
-  it('entfernt KI-erfundene Messwerte, wenn im Freitext keine Staerke genannt wurde', async () => {
+  it('uebernimmt Messwerte aus der KI-Extraktion ohne lokale Nachfilterung', async () => {
     requestStructuredAiResponseMock
       .mockResolvedValueOnce({
         isValidMedicalInput: true,
@@ -138,22 +138,7 @@ describe('extractSymptoms', () => {
 
     const result = await extractSymptoms('Ich habe mich uebergeben und es kam auch Blut mit hoch.')
 
-    expect(result.symptoms).toEqual([{ region: 'Blutiges Erbrechen', measurementType: 'severity' }])
-  })
-
-  it('behaelt Messwerte, wenn im Freitext eine Staerke genannt wurde', async () => {
-    requestStructuredAiResponseMock
-      .mockResolvedValueOnce({
-        isValidMedicalInput: true,
-        reason: 'Medizinische Beschwerde erkannt.',
-      })
-      .mockResolvedValueOnce({
-        symptoms: [{ region: 'Schwindel', measurementType: 'severity', measurementValue: 8 }],
-      })
-
-    const result = await extractSymptoms('Ich habe starken Schwindel.')
-
-    expect(result.symptoms).toEqual([{ region: 'Schwindel', measurementType: 'severity', measurementValue: 8 }])
+    expect(result.symptoms).toEqual([{ region: 'Blutiges Erbrechen', measurementType: 'severity', measurementValue: 10 }])
   })
 
   it('versucht die Extraktion, wenn nur die Validierungs-KI ausfaellt', async () => {
@@ -168,7 +153,7 @@ describe('extractSymptoms', () => {
     expect(result).toEqual({
       text: 'Ich habe Bauchschmerzen.',
       inputType: 'text',
-      symptoms: [{ region: 'Bauch', measurementType: 'pain' }],
+      symptoms: [{ region: 'Bauch', measurementType: 'pain', measurementValue: 4 }],
     })
     expect(requestStructuredAiResponseMock).toHaveBeenCalledTimes(2)
   })

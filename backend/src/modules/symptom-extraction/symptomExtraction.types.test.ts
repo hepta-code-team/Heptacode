@@ -91,6 +91,29 @@ describe('symptomExtractionAiResultSchema', () => {
       region: 'Juckender Ausschlag am Fuss',
     })
   })
+
+  it('leitet Messwerte nicht lokal aus Intensitaetswoertern ab', () => {
+    const result = symptomExtractionAiResultSchema.safeParse({
+      symptoms: [{ region: 'Kopf', measurementType: 'pain', measurementValue: 'stark' }],
+    })
+
+    expect(result.success).toBe(true)
+    expect(result.data?.symptoms[0]).toEqual({
+      region: 'Kopf',
+      measurementType: 'pain',
+    })
+  })
+
+  it('leitet Dauer nicht lokal aus Freitext ab', () => {
+    const result = symptomExtractionAiResultSchema.safeParse({
+      symptoms: [{ region: 'Kopf', duration: 'seit heute' }],
+    })
+
+    expect(result.success).toBe(true)
+    expect(result.data?.symptoms[0]).toEqual({
+      region: 'Kopf',
+    })
+  })
 })
 
 describe('symptomInputValidationAiResultSchema', () => {
