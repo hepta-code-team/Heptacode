@@ -1,4 +1,10 @@
 // Patient Data
+export interface PatientDataDuration {
+    months: string
+    years: string
+    sinceBirth?: boolean
+}
+
 export interface PatientData {
     birthMonth: string
     birthYear: string
@@ -17,4 +23,7 @@ export interface PatientData {
     smokingSinceYears: string
     cigarettesPerDay: string
     conditionDetails: Record<string, string>
+    allergyDuration?: PatientDataDuration
+    medicationDuration?: PatientDataDuration
+    conditionDurations?: Record<string, PatientDataDuration>
 }

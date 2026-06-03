@@ -53,6 +53,9 @@ const createInitialPatientData = (patientData?: Partial<PatientData>): PatientDa
   smokingSinceYears: "",
   cigarettesPerDay: "",
   conditionDetails: {},
+  allergyDuration: { months: "", years: "" },
+  medicationDuration: { months: "", years: "" },
+  conditionDurations: {},
   ...patientData,
 });
 

@@ -31,6 +31,22 @@ import type { PatientData } from "../../../shared/patientData.types";
 type MedicalSection = "allergies" | "medications" | "substance" | "abroad";
 type SmokingStatus = "Nein" | "Gelegentlich" | "Ja";
 
+type DurationValue = {
+  months: string;
+  years: string;
+  sinceBirth?: boolean;
+};
+
+const CONDITION_DETAIL_SEPARATOR = " | ";
+
+const CONDITIONS_WITH_SINCE_BIRTH = new Set([
+  "Herzerkrankungen",
+  "Nierenerkrankungen",
+  "Lebererkrankungen",
+  "Epilepsie",
+  "Sonstige",
+]);
+
 const conditionIcons = {
   Diabetes: Droplets,
   Bluthochdruck: Activity,
@@ -96,8 +112,117 @@ const createInitialPatientData = (patientData?: Partial<PatientData>): PatientDa
   smokingSinceYears: "",
   cigarettesPerDay: "",
   conditionDetails: {},
+  allergyDuration: { months: "", years: "" },
+  medicationDuration: { months: "", years: "" },
+  conditionDurations: {},
   ...patientData,
 });
+
+const emptyDuration = (): DurationValue => ({
+  months: "",
+  years: "",
+  sinceBirth: false,
+});
+
+function normalizePositiveInteger(value: string) {
+  if (value === "") return "";
+
+  const numberValue = Number(value);
+  if (!Number.isFinite(numberValue)) return "";
+
+  return String(Math.max(Math.floor(numberValue), 0));
+}
+
+function getNextNumberValue(value: string, step: number) {
+  return String(Math.max(Number(value || 0) + step, 0));
+}
+
+function formatDuration(duration: DurationValue, allowSinceBirth = false) {
+  if (allowSinceBirth && duration.sinceBirth) {
+    return "seit Geburt";
+  }
+
+  const months = duration.months.trim();
+  const years = duration.years.trim();
+  const parts = [];
+
+  if (months) {
+    parts.push(`${months} ${months === "1" ? "Monat" : "Monate"}`);
+  }
+
+  if (years) {
+    parts.push(`${years} ${years === "1" ? "Jahr" : "Jahre"}`);
+  }
+
+  return parts.length > 0 ? `seit ${parts.join(", ")}` : "";
+}
+
+function parseDurationText(value: string): DurationValue {
+  const lowerValue = value.toLowerCase();
+  const monthMatch = value.match(/(\d+)\s*Monat/i);
+  const yearMatch = value.match(/(\d+)\s*Jahr/i);
+
+  return {
+    months: monthMatch?.[1] ?? "",
+    years: yearMatch?.[1] ?? "",
+    sinceBirth: lowerValue.includes("seit geburt"),
+  };
+}
+
+function parseTimedText(value: string) {
+  const match = value.match(/\s*\((?:Einnahme\s+)?seit\s+(.+?)\)$/i);
+
+  if (!match) {
+    return {
+      text: value,
+      duration: emptyDuration(),
+    };
+  }
+
+  return {
+    text: value.slice(0, match.index).trim(),
+    duration: parseDurationText(`seit ${match[1]}`),
+  };
+}
+
+function buildTimedText(text: string, duration: DurationValue, prefix: "seit" | "Einnahme seit") {
+  const trimmedText = text.trim();
+  const durationText = formatDuration(duration);
+
+  if (!trimmedText) {
+    return "";
+  }
+
+  if (!durationText) {
+    return trimmedText;
+  }
+
+  return prefix === "Einnahme seit"
+    ? `${trimmedText} (Einnahme ${durationText})`
+    : `${trimmedText} (${durationText})`;
+}
+
+function parseConditionValue(value: string) {
+  const parts = value
+    .split(CONDITION_DETAIL_SEPARATOR)
+    .map((part) => part.trim())
+    .filter(Boolean);
+  const durationPart = parts.find((part) => part.toLowerCase().startsWith("seit "));
+  const detail = parts.filter((part) => part !== durationPart).join(CONDITION_DETAIL_SEPARATOR);
+
+  return {
+    detail,
+    duration: durationPart ? parseDurationText(durationPart) : emptyDuration(),
+  };
+}
+
+function buildConditionValue(detail: string, duration: DurationValue, allowSinceBirth: boolean) {
+  const safeDuration = allowSinceBirth ? duration : { ...duration, sinceBirth: false };
+
+  return [detail.trim(), formatDuration(safeDuration, allowSinceBirth)]
+    .filter(Boolean)
+    .join(CONDITION_DETAIL_SEPARATOR);
+}
 
 function MedicalAccordionPanel({
   title,
@@ -190,11 +315,131 @@ function OptionButton({
   );
 }
 
+function NumberStepper({
+  id,
+  label,
+  value,
+  onChange,
+  decreaseLabel,
+  increaseLabel,
+}: {
+  id: string;
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  decreaseLabel: string;
+  increaseLabel: string;
+}) {
+  return (
+    <div>
+      <Label htmlFor={id} className="mb-1 block text-xs font-bold text-app-text-body">
+        {label}
+      </Label>
+      <div className="flex h-9 overflow-hidden rounded-[10px] bg-white">
+        <button
+          type="button"
+          onClick={() => onChange(getNextNumberValue(value, -1))}
+          className="w-10 border-r border-[#eff2f6] text-base font-bold text-app-text-primary hover:bg-[#dde3ea]"
+          aria-label={decreaseLabel}
+        >
+          -
+        </button>
+        <input
+          id={id}
+          type="number"
+          min="0"
+          step="1"
+          value={value}
+          onChange={(event) => onChange(normalizePositiveInteger(event.target.value))}
+          placeholder="0"
+          className="min-w-0 flex-1 bg-white px-3 text-center text-sm font-semibold outline-none"
+        />
+        <button
+          type="button"
+          onClick={() => onChange(getNextNumberValue(value, 1))}
+          className="w-10 border-l border-[#eff2f6] text-base font-bold text-app-text-primary hover:bg-[#dde3ea]"
+          aria-label={increaseLabel}
+        >
+          +
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function DurationInputGroup({
+  idPrefix,
+  duration,
+  onChange,
+  allowSinceBirth = false,
+}: {
+  idPrefix: string;
+  duration: DurationValue;
+  onChange: (duration: DurationValue) => void;
+  allowSinceBirth?: boolean;
+}) {
+  const safeDuration = allowSinceBirth ? duration : { ...duration, sinceBirth: false };
+
+  return (
+    <div className="grid grid-cols-1 gap-2">
+      {allowSinceBirth && (
+        <OptionButton
+          label="Seit Geburt"
+          selected={Boolean(safeDuration.sinceBirth)}
+          onClick={() =>
+            onChange({
+              months: "",
+              years: "",
+              sinceBirth: !safeDuration.sinceBirth,
+            })
+          }
+        />
+      )}
+
+      {!safeDuration.sinceBirth && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+          <NumberStepper
+            id={`${idPrefix}Months`}
+            label="Monate"
+            value={safeDuration.months}
+            onChange={(months) => onChange({ ...safeDuration, months, sinceBirth: false })}
+            decreaseLabel="Monate verringern"
+            increaseLabel="Monate erhöhen"
+          />
+          <NumberStepper
+            id={`${idPrefix}Years`}
+            label="Jahre"
+            value={safeDuration.years}
+            onChange={(years) => onChange({ ...safeDuration, years, sinceBirth: false })}
+            decreaseLabel="Jahre verringern"
+            increaseLabel="Jahre erhöhen"
+          />
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function MedicalDataPage() {
   const navigate = useNavigate();
   const { patientData, setPatientData } = useAssessment();
   const conditionsGridRef = useRef<HTMLDivElement | null>(null);
-  const [formData, setFormData] = useState<PatientData>(() => createInitialPatientData(patientData ?? undefined));
+
+  const parsedInitialAllergies = parseTimedText(patientData?.allergies ?? "");
+  const parsedInitialMedications = parseTimedText(patientData?.medications ?? "");
+  const initialAllergyDuration = patientData?.allergyDuration ?? parsedInitialAllergies.duration;
+  const initialMedicationDuration = patientData?.medicationDuration ?? parsedInitialMedications.duration;
+
+  const [formData, setFormData] = useState<PatientData>(() => ({
+    ...createInitialPatientData(patientData ?? undefined),
+    allergies: parsedInitialAllergies.text,
+    medications: parsedInitialMedications.text,
+    allergyDuration: initialAllergyDuration,
+    medicationDuration: initialMedicationDuration,
+    conditionDurations: patientData?.conditionDurations ?? {},
+  }));
+  const [allergyDuration, setAllergyDuration] = useState<DurationValue>(initialAllergyDuration);
+  const [medicationDuration, setMedicationDuration] = useState<DurationValue>(initialMedicationDuration);
   const [smokingStatus, setSmokingStatus] = useState<SmokingStatus>(() => (patientData?.isSmoker ? "Ja" : "Nein"));
   const [expandedMedicalSections, setExpandedMedicalSections] = useState<Record<MedicalSection, boolean>>({
     allergies: false,
@@ -221,51 +466,84 @@ export default function MedicalDataPage() {
     }));
   };
 
-  const toggleConditionDropdown = (condition: string) => {
-    setExpandedConditionDetails((sections) => ({
-      ...sections,
-      [condition]: !sections[condition],
-    }));
-  };
-
-  const selectConditionDetail = (condition: string, value: string) => {
+  const selectCondition = (condition: string) => {
     setFormData((prev) => ({
       ...prev,
       conditions: prev.conditions.includes(condition) ? prev.conditions : [...prev.conditions, condition],
-      conditionDetails: {
-        ...(prev.conditionDetails ?? {}),
-        [condition]: value,
-      },
     }));
+  };
+
+  const removeCondition = (condition: string) => {
+    setFormData((prev) => {
+      const nextConditionDetails = { ...(prev.conditionDetails ?? {}) };
+      const nextConditionDurations = { ...(prev.conditionDurations ?? {}) };
+      delete nextConditionDetails[condition];
+      delete nextConditionDurations[condition];
+
+      return {
+        ...prev,
+        conditions: prev.conditions.filter((item) => item !== condition),
+        conditionDetails: nextConditionDetails,
+        conditionDurations: nextConditionDurations,
+      };
+    });
+
     setExpandedConditionDetails((sections) => ({
       ...sections,
       [condition]: false,
     }));
   };
 
-  const updateOtherCondition = (value: string) => {
-    const trimmedValue = value.trim();
+  const openConditionDetails = (condition: string, isSelected: boolean) => {
+    if (!isSelected) {
+      selectCondition(condition);
+      setExpandedConditionDetails((sections) => ({
+        ...sections,
+        [condition]: true,
+      }));
+      return;
+    }
+
+    setExpandedConditionDetails((sections) => ({
+      ...sections,
+      [condition]: !sections[condition],
+    }));
+  };
+
+  const updateConditionValue = (condition: string, nextDetail?: string, nextDuration?: DurationValue) => {
+    const allowSinceBirth = CONDITIONS_WITH_SINCE_BIRTH.has(condition);
 
     setFormData((prev) => {
-      const nextConditions = trimmedValue
-        ? prev.conditions.includes("Sonstige")
-          ? prev.conditions
-          : [...prev.conditions, "Sonstige"]
-        : prev.conditions.filter((condition) => condition !== "Sonstige");
+      const parsed = parseConditionValue(prev.conditionDetails?.[condition] ?? "");
+      const detail = nextDetail ?? parsed.detail;
+      const duration = nextDuration ?? prev.conditionDurations?.[condition] ?? parsed.duration;
+      const nextValue = buildConditionValue(detail, duration, allowSinceBirth);
+      const safeDuration = allowSinceBirth ? duration : { ...duration, sinceBirth: false };
 
       return {
         ...prev,
-        conditions: nextConditions,
+        conditions: prev.conditions.includes(condition) ? prev.conditions : [...prev.conditions, condition],
         conditionDetails: {
           ...(prev.conditionDetails ?? {}),
-          Sonstige: value,
+          [condition]: nextValue,
+        },
+        conditionDurations: {
+          ...(prev.conditionDurations ?? {}),
+          [condition]: safeDuration,
         },
       };
     });
   };
 
   const handleContinue = () => {
-    setPatientData(formData);
+    setPatientData({
+      ...formData,
+      allergies: buildTimedText(formData.allergies, allergyDuration, "seit"),
+      medications: buildTimedText(formData.medications, medicationDuration, "Einnahme seit"),
+      allergyDuration,
+      medicationDuration,
+      conditionDurations: formData.conditionDurations ?? {},
+    });
     navigate("/symptom-selection");
   };
 
@@ -298,9 +576,7 @@ export default function MedicalDataPage() {
                   type="button"
                   onClick={() => setFormData({ ...formData, [key]: !formData[key] })}
                   className={`w-full p-3 rounded-[12px] text-left transition-all flex items-center gap-3 ${
-                    isSelected
-                      ? "bg-[#486284] text-white"
-                      : "bg-white text-app-text-body hover:bg-[#dde3ea]"
+                    isSelected ? "bg-[#486284] text-white" : "bg-white text-app-text-body hover:bg-[#dde3ea]"
                   }`}
                 >
                   <Icon
@@ -328,11 +604,14 @@ export default function MedicalDataPage() {
             icon={CircleAlert}
             isOpen={expandedMedicalSections.allergies}
             onToggle={() => toggleMedicalSection("allergies")}
-            summary={formData.allergies ? "Angaben hinterlegt" : "Optional ergänzen"}
+            summary={
+              formData.allergies
+                ? formatDuration(allergyDuration)
+                  ? `Angaben hinterlegt, ${formatDuration(allergyDuration)}`
+                  : "Angaben hinterlegt"
+                : "Optional ergänzen"
+            }
           >
-            <Label htmlFor="allergies" className="sr-only">
-              Allergien / Unverträglichkeiten
-            </Label>
             <textarea
               id="allergies"
               value={formData.allergies}
@@ -340,6 +619,10 @@ export default function MedicalDataPage() {
               placeholder="z.B. Penicillin, Nüsse, Latex"
               className="w-full min-h-[82px] resize-none rounded-[10px] bg-white p-3 text-sm outline-none focus:ring-2 focus:ring-[#486284]/30"
             />
+            <div className="mt-3">
+              <p className="mb-2 text-xs font-bold text-app-text-primary">Seit wann?</p>
+              <DurationInputGroup idPrefix="allergyDuration" duration={allergyDuration} onChange={setAllergyDuration} />
+            </div>
           </MedicalAccordionPanel>
 
           <MedicalAccordionPanel
@@ -347,11 +630,14 @@ export default function MedicalDataPage() {
             icon={Pill}
             isOpen={expandedMedicalSections.medications}
             onToggle={() => toggleMedicalSection("medications")}
-            summary={formData.medications ? "Angaben hinterlegt" : "Optional ergänzen"}
+            summary={
+              formData.medications
+                ? formatDuration(medicationDuration)
+                  ? `Angaben hinterlegt, ${formatDuration(medicationDuration)}`
+                  : "Angaben hinterlegt"
+                : "Optional ergänzen"
+            }
           >
-            <Label htmlFor="medications" className="sr-only">
-              Aktuelle Medikamente
-            </Label>
             <textarea
               id="medications"
               value={formData.medications}
@@ -359,6 +645,14 @@ export default function MedicalDataPage() {
               placeholder="z.B. Blutdruckmittel, Schmerzmittel, Pille"
               className="w-full min-h-[82px] resize-none rounded-[10px] bg-white p-3 text-sm outline-none focus:ring-2 focus:ring-[#486284]/30"
             />
+            <div className="mt-3">
+              <p className="mb-2 text-xs font-bold text-app-text-primary">Einnahme seit wann?</p>
+              <DurationInputGroup
+                idPrefix="medicationDuration"
+                duration={medicationDuration}
+                onChange={setMedicationDuration}
+              />
+            </div>
           </MedicalAccordionPanel>
 
           <MedicalAccordionPanel
@@ -369,18 +663,14 @@ export default function MedicalDataPage() {
             summary={formData.substanceInfluence === "Nein" ? "Nein ausgewählt" : formData.substanceInfluence}
           >
             <div className="grid grid-cols-2 gap-2">
-              {["Nein", "Alkohol", "Drogen", "Medikamente"].map((option) => {
-                const isSelected = formData.substanceInfluence === option;
-
-                return (
-                  <OptionButton
-                    key={option}
-                    label={option}
-                    selected={isSelected}
-                    onClick={() => setFormData({ ...formData, substanceInfluence: option })}
-                  />
-                );
-              })}
+              {["Nein", "Alkohol", "Drogen", "Medikamente"].map((option) => (
+                <OptionButton
+                  key={option}
+                  label={option}
+                  selected={formData.substanceInfluence === option}
+                  onClick={() => setFormData({ ...formData, substanceInfluence: option })}
+                />
+              ))}
             </div>
           </MedicalAccordionPanel>
 
@@ -395,24 +685,20 @@ export default function MedicalDataPage() {
               {[
                 { label: "Nein", value: false },
                 { label: "Ja", value: true },
-              ].map((option) => {
-                const isSelected = formData.recentAbroad === option.value;
-
-                return (
-                  <OptionButton
-                    key={option.label}
-                    label={option.label}
-                    selected={isSelected}
-                    onClick={() =>
-                      setFormData({
-                        ...formData,
-                        recentAbroad: option.value,
-                        recentAbroadDetails: option.value ? formData.recentAbroadDetails : "",
-                      })
-                    }
-                  />
-                );
-              })}
+              ].map((option) => (
+                <OptionButton
+                  key={option.label}
+                  label={option.label}
+                  selected={formData.recentAbroad === option.value}
+                  onClick={() =>
+                    setFormData({
+                      ...formData,
+                      recentAbroad: option.value,
+                      recentAbroadDetails: option.value ? formData.recentAbroadDetails : "",
+                    })
+                  }
+                />
+              ))}
             </div>
             {formData.recentAbroad && (
               <Input
@@ -466,92 +752,23 @@ export default function MedicalDataPage() {
 
         {smokingStatus !== "Nein" && (
           <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2">
-            <div>
-              <Label htmlFor="smokingSinceYears" className="mb-1 block text-xs font-bold text-app-text-body">
-                Seit wann? (Jahre)
-              </Label>
-              <div className="flex h-9 overflow-hidden rounded-[10px] bg-white">
-                <button
-                  type="button"
-                  onClick={() =>
-                    setFormData({
-                      ...formData,
-                      smokingSinceYears: String(Math.max(Number(formData.smokingSinceYears || 0) - 1, 0)),
-                    })
-                  }
-                  className="w-10 border-r border-[#eff2f6] text-base font-bold text-app-text-primary hover:bg-[#dde3ea]"
-                  aria-label="Rauchdauer verringern"
-                >
-                  -
-                </button>
-                <input
-                  id="smokingSinceYears"
-                  type="number"
-                  min="0"
-                  step="1"
-                  value={formData.smokingSinceYears ?? ""}
-                  onChange={(event) => setFormData({ ...formData, smokingSinceYears: event.target.value })}
-                  placeholder="0"
-                  className="min-w-0 flex-1 bg-white px-3 text-center text-sm font-semibold outline-none"
-                />
-                <button
-                  type="button"
-                  onClick={() =>
-                    setFormData({
-                      ...formData,
-                      smokingSinceYears: String(Number(formData.smokingSinceYears || 0) + 1),
-                    })
-                  }
-                  className="w-10 border-l border-[#eff2f6] text-base font-bold text-app-text-primary hover:bg-[#dde3ea]"
-                  aria-label="Rauchdauer erhöhen"
-                >
-                  +
-                </button>
-              </div>
-            </div>
-            <div>
-              <Label htmlFor="cigarettesPerDay" className="mb-1 block text-xs font-bold text-app-text-body">
-                Menge pro Tag
-              </Label>
-              <div className="flex h-9 overflow-hidden rounded-[10px] bg-white">
-                <button
-                  type="button"
-                  onClick={() =>
-                    setFormData({
-                      ...formData,
-                      cigarettesPerDay: String(Math.max(Number(formData.cigarettesPerDay || 0) - 1, 0)),
-                    })
-                  }
-                  className="w-10 border-r border-[#eff2f6] text-base font-bold text-app-text-primary hover:bg-[#dde3ea]"
-                  aria-label="Zigaretten pro Tag verringern"
-                >
-                  -
-                </button>
-                <input
-                  id="cigarettesPerDay"
-                  type="number"
-                  min="0"
-                  step="1"
-                  value={formData.cigarettesPerDay ?? ""}
-                  onChange={(event) => setFormData({ ...formData, cigarettesPerDay: event.target.value })}
-                  placeholder="0"
-                  className="min-w-0 flex-1 bg-white px-3 text-center text-sm font-semibold outline-none"
-                />
-                <button
-                  type="button"
-                  onClick={() =>
-                    setFormData({
-                      ...formData,
-                      cigarettesPerDay: String(Number(formData.cigarettesPerDay || 0) + 1),
-                    })
-                  }
-                  className="w-10 border-l border-[#eff2f6] text-base font-bold text-app-text-primary hover:bg-[#dde3ea]"
-                  aria-label="Zigaretten pro Tag erhöhen"
-                >
-                  +
-                </button>
-              </div>
-            </div>
+            <NumberStepper
+              id="smokingSinceYears"
+              label="Seit wann? (Jahre)"
+              value={formData.smokingSinceYears ?? ""}
+              onChange={(value) => setFormData({ ...formData, smokingSinceYears: value })}
+              decreaseLabel="Rauchdauer verringern"
+              increaseLabel="Rauchdauer erhöhen"
+            />
+
+            <NumberStepper
+              id="cigarettesPerDay"
+              label="Menge pro Tag"
+              value={formData.cigarettesPerDay ?? ""}
+              onChange={(value) => setFormData({ ...formData, cigarettesPerDay: value })}
+              decreaseLabel="Zigaretten pro Tag verringern"
+              increaseLabel="Zigaretten pro Tag erhöhen"
+            />
           </div>
         )}
       </div>
@@ -564,96 +781,122 @@ export default function MedicalDataPage() {
           Vorerkrankungen
         </p>
 
-        <div ref={conditionsGridRef} className="grid grid-cols-2 md:grid-cols-3 gap-2">
+        <div ref={conditionsGridRef} className="grid grid-cols-1 items-start md:grid-cols-2 xl:grid-cols-3 gap-2">
           {PRE_EXISTING_CONDITIONS.map((condition) => {
             const Icon = conditionIcons[condition as keyof typeof conditionIcons] ?? CircleHelp;
             const isSelected = formData.conditions.includes(condition);
-            const otherValue = formData.conditionDetails?.Sonstige ?? "";
-            const config = CONDITION_DETAIL_CONFIGS[condition];
-            const detail = formData.conditionDetails?.[condition] ?? "";
             const isOpen = expandedConditionDetails[condition] ?? false;
+            const config = CONDITION_DETAIL_CONFIGS[condition];
+            const allowSinceBirth = CONDITIONS_WITH_SINCE_BIRTH.has(condition);
+            const parsedConditionText = parseConditionValue(formData.conditionDetails?.[condition] ?? "");
+            const parsedCondition = {
+              ...parsedConditionText,
+              duration: formData.conditionDurations?.[condition] ?? parsedConditionText.duration,
+            };
+            const displayDetail = [
+              parsedCondition.detail,
+              formatDuration(parsedCondition.duration, allowSinceBirth),
+            ].filter(Boolean).join(", ");
 
-            if (condition === "Sonstige") {
-              return (
-                <div
-                  key={condition}
-                  className={`bg-[#eff2f6] rounded-[10px] p-3 min-h-[82px] flex flex-col justify-center gap-2 transition-all ${
-                    otherValue.trim() ? "ring-2 ring-[#486284]" : ""
-                  }`}
+            return (
+              <div
+                key={condition}
+                className={`self-start rounded-[12px] bg-[#eff2f6] p-3 transition-all ${
+                  isSelected ? "ring-2 ring-[#486284]" : ""
+                }`}
+              >
+                <button
+                  type="button"
+                  onClick={() => openConditionDetails(condition, isSelected)}
+                  className="w-full flex items-center gap-3 text-left"
+                  aria-expanded={isOpen}
                 >
-                  <div className="flex items-center gap-2">
+                  <span className="flex size-10 flex-shrink-0 items-center justify-center rounded-full bg-white">
                     <Icon
-                      className={`size-5 ${otherValue.trim() ? "text-app-text-primary" : "text-app-text-muted"}`}
+                      className={`size-5 ${isSelected ? "text-app-text-primary" : "text-app-text-muted"}`}
                       strokeWidth={2.2}
                       aria-hidden="true"
                     />
-                    <Label
-                      htmlFor="otherCondition"
-                      className="font-['DM_Sans:Bold',sans-serif] font-bold text-app-text-body text-xs leading-tight"
+                  </span>
+
+                  <span className="min-w-0 flex-1">
+                    <span
+                      className="block font-['DM_Sans:Bold',sans-serif] font-bold text-app-text-body text-xs leading-tight"
                       style={{ fontVariationSettings: "'opsz' 14" }}
                     >
-                      Sonstige
-                    </Label>
-                  </div>
-                  <Input
-                    id="otherCondition"
-                    value={otherValue}
-                    onChange={(event) => updateOtherCondition(event.target.value)}
-                    placeholder="Freitext"
-                    className="h-9 border-none bg-white text-xs"
-                  />
-                </div>
-              );
-            }
+                      {condition}
+                    </span>
+                    <span className="block max-w-full truncate text-xs font-medium text-app-text-primary">
+                      {displayDetail || (isSelected ? "Ausgewählt" : "Optional")}
+                    </span>
+                  </span>
 
-            return (
-              <div key={condition} className="relative">
-                <button
-                  type="button"
-                  onClick={() => toggleConditionDropdown(condition)}
-                  className={`bg-[#eff2f6] rounded-[10px] p-3 min-h-[82px] w-full flex flex-col items-center justify-center gap-2 text-center transition-all ${
-                    isSelected ? "ring-2 ring-[#486284]" : "hover:bg-[#dde3ea]"
-                  }`}
-                  aria-expanded={isOpen}
-                >
                   <ChevronDown
-                    className={`absolute right-3 top-3 size-4 text-app-text-primary/60 transition-transform ${
+                    className={`size-4 flex-shrink-0 text-app-text-primary/60 transition-transform ${
                       isOpen ? "rotate-180" : ""
                     }`}
                     aria-hidden="true"
                   />
-                  <Icon
-                    className={`size-6 ${isSelected ? "text-app-text-primary" : "text-app-text-muted"}`}
-                    strokeWidth={2.2}
-                    aria-hidden="true"
-                  />
-                  <p
-                    className="font-['DM_Sans:Bold',sans-serif] font-bold text-app-text-body text-xs leading-tight"
-                    style={{ fontVariationSettings: "'opsz' 14" }}
-                  >
-                    {condition}
-                  </p>
-                  {detail && (
-                    <p className="max-w-full truncate text-xs font-medium text-app-text-primary">
-                      {detail}
-                    </p>
-                  )}
                 </button>
 
-                {isOpen && config && (
-                  <div className="absolute z-10 top-full left-0 right-0 mt-1 bg-white border-2 border-[#486284] rounded-[12px] shadow-lg overflow-hidden">
-                    {config.options.map((option) => (
-                      <button
-                        key={option}
-                        type="button"
-                        onClick={() => selectConditionDetail(condition, option)}
-                        className="w-full p-3 text-left hover:bg-[#eff2f6] transition-all border-b border-gray-200 last:border-b-0"
-                      >
-                        <span className="font-['DM_Sans:Medium',sans-serif] font-medium text-sm text-app-text-body">
-                          {option}
-                        </span>
-                      </button>
-                    ))}
+                {isSelected && isOpen && (
+                  <div className="mt-3 rounded-[10px] bg-white p-3">
+                    {condition === "Sonstige" ? (
+                      <div>
+                        <Label htmlFor="otherCondition" className="mb-1 block text-xs font-bold text-app-text-primary">
+                          Welche Vorerkrankung?
+                        </Label>
+                        <Input
+                          id="otherCondition"
+                          value={parsedCondition.detail}
+                          onChange={(event) => updateConditionValue(condition, event.target.value)}
+                          placeholder="Freitext"
+                          className="h-9 border-none bg-[#eff2f6] text-xs"
+                        />
+                      </div>
+                    ) : (
+                      config && (
+                        <div>
+                          <p className="mb-2 text-xs font-bold text-app-text-primary">{config.label}</p>
+                          <div className="grid grid-cols-1 gap-1">
+                            {config.options.map((option) => (
+                              <button
+                                key={option}
+                                type="button"
+                                onClick={() => updateConditionValue(condition, option)}
+                                className={`w-full rounded-[8px] p-2 text-left transition-all ${
+                                  parsedCondition.detail === option
+                                    ? "bg-[#486284] text-white"
+                                    : "bg-[#eff2f6] text-app-text-body hover:bg-[#dde3ea]"
+                                }`}
+                              >
+                                <span className="font-['DM_Sans:Medium',sans-serif] font-medium text-sm">
+                                  {option}
+                                </span>
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )
+                    )}
+
+                    <div className="mt-3">
+                      <p className="mb-2 text-xs font-bold text-app-text-primary">Seit wann?</p>
+                      <DurationInputGroup
+                        idPrefix={`condition-${condition}`}
+                        duration={parsedCondition.duration}
+                        allowSinceBirth={allowSinceBirth}
+                        onChange={(duration) => updateConditionValue(condition, undefined, duration)}
+                      />
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => removeCondition(condition)}
+                      className="mt-3 w-full rounded-[10px] border border-[#d7dee7] bg-white p-2 text-sm font-bold text-app-text-primary hover:bg-[#eff2f6]"
+                    >
+                      Auswahl entfernen
+                    </button>
                   </div>
                 )}
               </div>

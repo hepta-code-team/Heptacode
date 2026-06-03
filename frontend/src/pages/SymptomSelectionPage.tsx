@@ -69,129 +69,180 @@ function AnatomyFigure({
   selectedCategory: BodyAreaCategory | null;
   onSelect: (category: BodyAreaCategory) => void;
 }) {
-  const partFill = (category: BodyAreaCategory) => selectedCategory === category ? "#486284" : "#ffffff";
-  const partStroke = (category: BodyAreaCategory) => selectedCategory === category ? "#486284" : "#d7dee7";
-  const labelFill = (category: BodyAreaCategory) => selectedCategory === category ? "#ffffff" : "#486284";
+  const activeFill = "rgba(96, 165, 250, 0.42)";
+  const activeStroke = "#4f93bd";
+  const outline = "#486284";
 
-  const activate = (category: BodyAreaCategory) => (event: KeyboardEvent<SVGGElement>) => {
-    if (event.key === "Enter" || event.key === " ") {
-      event.preventDefault();
-      onSelect(category);
-    }
-  };
+  const partFill = (category: BodyAreaCategory) =>
+    selectedCategory === category ? activeFill : "#ffffff";
 
-  const interactiveClass = "cursor-pointer outline-none transition-opacity hover:opacity-90 focus-visible:opacity-90";
+  const partStroke = (category: BodyAreaCategory) =>
+    selectedCategory === category ? activeStroke : outline;
+
+  const labelFill = () => outline;
+
+  const activate =
+    (category: BodyAreaCategory) => (event: KeyboardEvent<SVGGElement>) => {
+      if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        onSelect(category);
+      }
+    };
+
+  const interactiveClass =
+    "cursor-pointer outline-none transition-all hover:opacity-90 focus-visible:opacity-90";
+
+  const torsoPath =
+    "M124 140 C142 128 156 126 170 126 C184 126 198 128 216 140 C232 156 238 184 232 222 L220 308 C216 335 196 356 170 361 C144 356 124 335 120 308 L108 222 C102 184 108 156 124 140 Z";
 
   return (
     <svg
-      viewBox="0 0 220 350"
-      className="mx-auto h-[330px] w-[210px] md:h-[390px] md:w-[245px]"
+      viewBox="0 0 340 620"
+      className="mx-auto h-[270px] w-[160px] md:h-[325px] md:w-[190px]"
       role="img"
-      aria-label="Klickbare Körperauswahl"
+      aria-label="Klickbare anatomische Körperauswahl, Vorderansicht"
     >
       <defs>
-        <filter id="body-shadow" x="-20%" y="-20%" width="140%" height="140%">
-          <feDropShadow dx="0" dy="4" stdDeviation="4" floodColor="#486284" floodOpacity="0.12" />
+        <filter id="body-shadow" x="-25%" y="-20%" width="150%" height="140%">
+          <feDropShadow dx="0" dy="8" stdDeviation="7" floodColor="#23345b" floodOpacity="0.12" />
         </filter>
       </defs>
 
-      <g
-        role="button"
-        tabIndex={0}
-        aria-label="Arme auswählen"
-        aria-pressed={selectedCategory === "arms"}
-        onClick={() => onSelect("arms")}
-        onKeyDown={activate("arms")}
-        className={interactiveClass}
-      >
-        <path
-          d="M55 103 C47 109 43 119 42 132 L37 203 C36 218 43 228 54 228 C65 228 70 219 70 205 L75 135 C76 121 81 109 90 102 L90 93 Z"
-          fill={partFill("arms")}
-          stroke={partStroke("arms")}
-          strokeWidth="4"
-          filter="url(#body-shadow)"
-        />
-        <path
-          d="M165 103 C173 109 177 119 178 132 L183 203 C184 218 177 228 166 228 C155 228 150 219 150 205 L145 135 C144 121 139 109 130 102 L130 93 Z"
-          fill={partFill("arms")}
-          stroke={partStroke("arms")}
-          strokeWidth="4"
-          filter="url(#body-shadow)"
-        />
-        <text x="54" y="168" textAnchor="middle" fill={labelFill("arms")} fontSize="13" fontWeight="700" transform="rotate(-86 54 168)">Arm</text>
-        <text x="166" y="168" textAnchor="middle" fill={labelFill("arms")} fontSize="13" fontWeight="700" transform="rotate(86 166 168)">Arm</text>
-      </g>
+      <g filter="url(#body-shadow)">
+        <g
+          role="button"
+          tabIndex={0}
+          aria-label="Beine auswählen"
+          aria-pressed={selectedCategory === "legs"}
+          onClick={() => onSelect("legs")}
+          onKeyDown={activate("legs")}
+          className={interactiveClass}
+        >
+          <path
+            d="M130 352 C141 358 158 362 170 361 L162 470 C160 509 154 562 142 603 C134 613 113 617 101 609 C108 594 120 579 120 556 C122 522 116 496 116 470 L111 409 C109 384 116 361 130 352 Z"
+            fill={partFill("legs")}
+            stroke={partStroke("legs")}
+            strokeWidth="4"
+            strokeLinejoin="round"
+          />
+          <path
+            d="M210 352 C199 358 182 362 170 361 L178 470 C180 509 186 562 198 603 C206 613 227 617 239 609 C232 594 220 579 220 556 C218 522 224 496 224 470 L229 409 C231 384 224 361 210 352 Z"
+            fill={partFill("legs")}
+            stroke={partStroke("legs")}
+            strokeWidth="4"
+            strokeLinejoin="round"
+          />
 
-      <g
-        role="button"
-        tabIndex={0}
-        aria-label="Beine auswählen"
-        aria-pressed={selectedCategory === "legs"}
-        onClick={() => onSelect("legs")}
-        onKeyDown={activate("legs")}
-        className={interactiveClass}
-      >
-        <path
-          d="M66 217 H104 L101 318 C101 333 92 343 80 343 C68 343 61 333 62 318 Z"
-          fill={partFill("legs")}
-          stroke={partStroke("legs")}
-          strokeWidth="4"
-          filter="url(#body-shadow)"
-        />
-        <path
-          d="M116 217 H154 L158 318 C159 333 152 343 140 343 C128 343 119 333 119 318 Z"
-          fill={partFill("legs")}
-          stroke={partStroke("legs")}
-          strokeWidth="4"
-          filter="url(#body-shadow)"
-        />
-        <text x="82" y="282" textAnchor="middle" fill={labelFill("legs")} fontSize="13" fontWeight="700" transform="rotate(-90 82 282)">Bein</text>
-        <text x="138" y="282" textAnchor="middle" fill={labelFill("legs")} fontSize="13" fontWeight="700" transform="rotate(90 138 282)">Bein</text>
-      </g>
+          <text x="136" y="475" textAnchor="middle" fill={labelFill()} fontSize="15" fontWeight="700" transform="rotate(-87 136 475)">
+            Bein
+          </text>
+          <text x="204" y="475" textAnchor="middle" fill={labelFill()} fontSize="15" fontWeight="700" transform="rotate(87 204 475)">
+            Bein
+          </text>
+        </g>
 
-      <g
-        role="button"
-        tabIndex={0}
-        aria-label="Torso auswählen"
-        aria-pressed={selectedCategory === "torso"}
-        onClick={() => onSelect("torso")}
-        onKeyDown={activate("torso")}
-        className={interactiveClass}
-      >
-        <path
-          d="M75 89 C82 83 94 80 110 80 C126 80 138 83 145 89 C151 95 154 104 154 116 L154 208 C154 215 151 219 144 219 L76 219 C69 219 66 215 66 208 L66 116 C66 104 69 95 75 89 Z"
-          fill={partFill("torso")}
-          stroke={partStroke("torso")}
-          strokeWidth="4"
-          filter="url(#body-shadow)"
-        />
-        <path d="M86 91 C97 96 123 96 134 91" fill="none" stroke="#d7dee7" strokeWidth="4" strokeLinecap="round" />
-        <text x="110" y="151" textAnchor="middle" fill={labelFill("torso")} fontSize="15" fontWeight="700">Torso</text>
-      </g>
+        <g
+          role="button"
+          tabIndex={0}
+          aria-label="Arme auswählen"
+          aria-pressed={selectedCategory === "arms"}
+          onClick={() => onSelect("arms")}
+          onKeyDown={activate("arms")}
+          className={interactiveClass}
+        >
+          <path
+            d="M119 146 C98 154 87 177 84 209 C82 238 77 267 71 291 C66 311 67 328 77 339 C84 347 94 345 98 333 C102 314 104 290 108 266 L114 222 C117 194 118 172 120 160 C121 153 121 149 119 146 Z"
+            fill={partFill("arms")}
+            stroke={partStroke("arms")}
+            strokeWidth="4"
+            strokeLinejoin="round"
+          />
+          <path
+            d="M79 335 C69 340 65 353 67 367 C69 381 79 389 90 386 C100 383 104 371 101 359 C98 346 91 337 79 335 Z"
+            fill={partFill("arms")}
+            stroke={partStroke("arms")}
+            strokeWidth="4"
+            strokeLinejoin="round"
+          />
 
-      <path d="M96 74 C99 84 121 84 124 74 L124 91 C118 96 102 96 96 91 Z" fill="#dfe5ec" />
+          <path
+            d="M221 146 C242 154 253 177 256 209 C258 238 263 267 269 291 C274 311 273 328 263 339 C256 347 246 345 242 333 C238 314 236 290 232 266 L226 222 C223 194 222 172 220 160 C219 153 219 149 221 146 Z"
+            fill={partFill("arms")}
+            stroke={partStroke("arms")}
+            strokeWidth="4"
+            strokeLinejoin="round"
+          />
+          <path
+            d="M261 335 C271 340 275 353 273 367 C271 381 261 389 250 386 C240 383 236 371 239 359 C242 346 249 337 261 335 Z"
+            fill={partFill("arms")}
+            stroke={partStroke("arms")}
+            strokeWidth="4"
+            strokeLinejoin="round"
+          />
 
-      <g
-        role="button"
-        tabIndex={0}
-        aria-label="Kopf auswählen"
-        aria-pressed={selectedCategory === "head"}
-        onClick={() => onSelect("head")}
-        onKeyDown={activate("head")}
-        className={interactiveClass}
-      >
-        <path
-          d="M80 42 C80 20 94 7 110 7 C126 7 140 20 140 42 C140 64 127 78 110 78 C93 78 80 64 80 42 Z"
-          fill={partFill("head")}
-          stroke={partStroke("head")}
-          strokeWidth="4"
-          filter="url(#body-shadow)"
-        />
-        <text x="110" y="34" textAnchor="middle" fill={labelFill("head")} fontSize="13" fontWeight="700">Kopf</text>
+          <text x="96" y="240" textAnchor="middle" fill={labelFill()} fontSize="15" fontWeight="700" transform="rotate(-80 96 240)">
+            Arm
+          </text>
+          <text x="244" y="240" textAnchor="middle" fill={labelFill()} fontSize="15" fontWeight="700" transform="rotate(80 244 240)">
+            Arm
+          </text>
+        </g>
+
+        <g
+          role="button"
+          tabIndex={0}
+          aria-label="Torso auswählen"
+          aria-pressed={selectedCategory === "torso"}
+          onClick={() => onSelect("torso")}
+          onKeyDown={activate("torso")}
+          className={interactiveClass}
+        >
+          {selectedCategory === "torso" && <path d={torsoPath} fill="#ffffff" stroke="none" />}
+          <path
+            d={torsoPath}
+            fill={partFill("torso")}
+            stroke={partStroke("torso")}
+            strokeWidth="4"
+            strokeLinejoin="round"
+          />
+
+          <text x="170" y="236" textAnchor="middle" fill={labelFill()} fontSize="18" fontWeight="700">
+            Torso
+          </text>
+        </g>
+
+        <g
+          role="button"
+          tabIndex={0}
+          aria-label="Kopf auswählen"
+          aria-pressed={selectedCategory === "head"}
+          onClick={() => onSelect("head")}
+          onKeyDown={activate("head")}
+          className={interactiveClass}
+        >
+          <path
+            d="M152 101 C159 111 181 111 188 101 L189 130 C181 138 159 138 151 130 Z"
+            fill={partFill("head")}
+            stroke={partStroke("head")}
+            strokeWidth="4"
+            strokeLinejoin="round"
+          />
+          <path
+            d="M136 51 C136 20 151 8 170 8 C189 8 204 20 204 51 C204 84 192 108 170 108 C148 108 136 84 136 51 Z"
+            fill={partFill("head")}
+            stroke={partStroke("head")}
+            strokeWidth="4"
+            strokeLinejoin="round"
+          />
+          <text x="170" y="65" textAnchor="middle" fill={labelFill()} fontSize="16" fontWeight="700">
+            Kopf
+          </text>
+        </g>
       </g>
     </svg>
   );
 }
+
 
 export default function SymptomSelectionPage() {
   const navigate = useNavigate();
