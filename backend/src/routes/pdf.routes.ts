@@ -7,7 +7,7 @@ export const pdfRoutes: FastifyPluginAsync = async (app) => {
   app.post('/api/v1/pdf/export', async (request, reply) => {
     const body = pdfExportRequestSchema.parse(request.body)
 
-    const pdf = createPdfSummary(body)
+    const pdf = await createPdfSummary(body)
 
     return reply
       .header('Content-Type', pdf.mimeType)

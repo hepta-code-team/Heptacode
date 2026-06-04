@@ -7,6 +7,7 @@ import {
 import type {
   CareLevel,
   MedicalSpecialty,
+  RecommendedSpecialty,
 } from '../../../../shared/result.types.js'
 import { SYMPTOM_INPUT_TYPES } from '../../../../shared/symptomExtraction.types.js'
 import type { SymptomInputType } from '../../../../shared/symptomExtraction.types.js'
@@ -20,6 +21,7 @@ export type { PatientData } from '../../../../shared/patientData.types.js'
 export type {
   CareLevel,
   MedicalSpecialty,
+  RecommendedSpecialty,
 } from '../../../../shared/result.types.js'
 export type { TriageSymptom } from '../../../../shared/symptom.types.js'
 
@@ -43,6 +45,7 @@ export interface TriageRequest {
 export interface TriageResponse {
   careLevel: CareLevel
   recommendedSpecialty?: MedicalSpecialty
+  recommendedSpecialties?: RecommendedSpecialty[]
   reasons: string[]
   reviewSummary?: ReviewSummary
   aiUnavailable?: boolean
