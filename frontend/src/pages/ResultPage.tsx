@@ -1,5 +1,6 @@
+import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router";
-import { PhoneCall } from "lucide-react";
+import { Edit3, PhoneCall } from "lucide-react";
 import PageShell from "../components/PageShell";
 import ResultCard from "../features/results/ResultCard";
 import Button from "../components/Button";
@@ -61,10 +62,98 @@ function fallbackSpecialtyForCareLevel(careLevel: CareLevel): MedicalSpecialty {
   return "general_practice";
 }
 
+interface MedicalSummarySections {
+  patientData: string;
+  complaints: string;
+}
+
+const EMPTY_MEDICAL_SUMMARY_SECTIONS: MedicalSummarySections = {
+  patientData: "",
+  complaints: "",
+};
+
+function trimSectionLines(lines: string[]) {
+  return lines.join("\n").trim();
+}
+
+function isEmptyPatientDataPlaceholder(line: string) {
+  return line.trim().toLowerCase() === "keine stammdaten vorhanden.";
+}
+
+function parseMedicalSummarySections(summary: string): MedicalSummarySections {
+  const sections: MedicalSummarySections = { ...EMPTY_MEDICAL_SUMMARY_SECTIONS };
+  const patientDataLines: string[] = [];
+  const complaintLines: string[] = [];
+  let activeSection: keyof MedicalSummarySections | null = null;
+
+  summary.split("\n").forEach((line) => {
+    const normalizedLine = line.trim().toLowerCase();
+
+    if (normalizedLine === "patientendaten:") {
+      activeSection = "patientData";
+      return;
+    }
+
+    if (normalizedLine === "beschwerden:") {
+      activeSection = "complaints";
+      return;
+    }
+
+    if (normalizedLine === "stammdaten:") {
+      if (patientDataLines.length === 1 && isEmptyPatientDataPlaceholder(patientDataLines[0])) {
+        patientDataLines.length = 0;
+      }
+
+      activeSection = "patientData";
+      return;
+    }
+
+    if (
+      normalizedLine === "ausgewählte symptome:" ||
+      normalizedLine === "ausgewaehlte symptome:" ||
+      normalizedLine === "detailangaben zu aktiven symptomen:"
+    ) {
+      activeSection = "complaints";
+      complaintLines.push(line);
+      return;
+    }
+
+    if (activeSection === "patientData") {
+      patientDataLines.push(line);
+      return;
+    }
+
+    if (activeSection === "complaints") {
+      complaintLines.push(line);
+    }
+  });
+
+  sections.patientData = trimSectionLines(patientDataLines);
+  sections.complaints = trimSectionLines(complaintLines);
+
+  if (!sections.patientData && !sections.complaints && summary.trim()) {
+    sections.complaints = summary.trim();
+  }
+
+  return sections;
+}
+
+function formatMedicalSummarySections(sections: MedicalSummarySections) {
+  const patientData = sections.patientData.trim() || "Keine Stammdaten vorhanden.";
+  const complaints = sections.complaints.trim() || "Keine Beschwerden vorhanden.";
+
+  return `Patientendaten:\n${patientData}\n\nBeschwerden:\n${complaints}`;
+}
+
 export default function ResultPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { patientData, symptomDetails, assessmentResult, resetAssessment } = useAssessment();
+  const { patientData, symptomDetails, assessmentResult, setAssessmentResult, resetAssessment } = useAssessment();
+  const [isEditingSummary, setIsEditingSummary] = useState(false);
+  const [editableProfessionalSummary, setEditableProfessionalSummary] = useState("");
+  const [professionalSummaryDraft, setProfessionalSummaryDraft] = useState<MedicalSummarySections>(
+    EMPTY_MEDICAL_SUMMARY_SECTIONS,
+  );
 
   const isEmergency = searchParams.get("emergency") === "true";
   const fallbackCareLevel: CareLevel = isEmergency ? "emergency" : "selfcare";
@@ -150,9 +239,49 @@ export default function ResultPage() {
     ].join("\n");
   };
 
+  const professionalSummary =
+    assessmentResult?.reviewSummary?.professionalSummary?.trim() || buildProfessionalSummaryFallback();
+
+  useEffect(() => {
+    setEditableProfessionalSummary(professionalSummary);
+    setProfessionalSummaryDraft(parseMedicalSummarySections(professionalSummary));
+  }, [professionalSummary]);
+
+  const displayedProfessionalSummary = editableProfessionalSummary.trim()
+    ? editableProfessionalSummary
+    : professionalSummary;
+
   const handleReset = () => {
     resetAssessment();
     navigate("/");
+  };
+
+  const handleStartSummaryEdit = () => {
+    setProfessionalSummaryDraft(parseMedicalSummarySections(displayedProfessionalSummary));
+    setIsEditingSummary(true);
+  };
+
+  const handleCancelSummaryEdit = () => {
+    setProfessionalSummaryDraft(parseMedicalSummarySections(displayedProfessionalSummary));
+    setIsEditingSummary(false);
+  };
+
+  const handleSaveSummaryEdit = () => {
+    const nextProfessionalSummary = formatMedicalSummarySections(professionalSummaryDraft);
+
+    setEditableProfessionalSummary(nextProfessionalSummary);
+
+    if (assessmentResult) {
+      setAssessmentResult({
+        ...assessmentResult,
+        reviewSummary: {
+          ...assessmentResult.reviewSummary,
+          professionalSummary: nextProfessionalSummary,
+        },
+      });
+    }
+
+    setIsEditingSummary(false);
   };
 
   const handlePdfDownload = async () => {
@@ -168,8 +297,7 @@ export default function ResultPage() {
       const pdfPayload = {
         reviewSummary: {
           plainLanguage: plainLanguageSummary,
-          professionalSummary:
-            assessmentResult?.reviewSummary?.professionalSummary?.trim() || buildProfessionalSummaryFallback(),
+          professionalSummary: editableProfessionalSummary.trim() || professionalSummary,
         },
         triage: {
           careLevel: safeCareLevel,
@@ -269,18 +397,29 @@ export default function ResultPage() {
       </div>
 
       <div className="bg-white border-2 border-[#486284] rounded-[16px] p-5 md:p-6 mb-4">
-        <div className="flex items-center justify-between mb-4 gap-3">
+        <div className="flex flex-col gap-3 mb-4 sm:flex-row sm:items-center sm:justify-between">
           <p className="font-['DM_Sans:Bold',sans-serif] font-bold text-app-text-primary text-lg">
             Ihre Angaben
           </p>
-          <button
-            type="button"
-            onClick={handlePdfDownload}
-            aria-label="download-summary"
-            className="bg-[#486284] text-app-text-on-primary rounded-[10px] px-4 py-2 hover:bg-[#3a4d68] transition-all"
-          >
-            PDF
-          </button>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={handleStartSummaryEdit}
+              aria-label="medical-summary-bearbeiten"
+              className="inline-flex items-center justify-center gap-2 rounded-[10px] border border-[#486284] px-4 py-2 text-sm font-bold text-[#486284] transition-all hover:bg-[#eff2f6]"
+            >
+              <Edit3 className="size-4" aria-hidden="true" />
+              Bearbeiten
+            </button>
+            <button
+              type="button"
+              onClick={handlePdfDownload}
+              aria-label="download-summary"
+              className="bg-[#486284] text-app-text-on-primary rounded-[10px] px-4 py-2 hover:bg-[#3a4d68] transition-all"
+            >
+              PDF
+            </button>
+          </div>
         </div>
 
         <div className="bg-[#eff2f6] rounded-[12px] p-4 mb-4 space-y-3">
@@ -317,6 +456,74 @@ export default function ResultPage() {
                 : "Keine Beschwerden angegeben."}
             </p>
           </div>
+        </div>
+
+        <div className="bg-white rounded-[12px] p-4 border border-[#d8e0ea] mb-4">
+          <div className="flex items-center justify-between gap-3 mb-3">
+            <p className="font-['DM_Sans:Bold',sans-serif] font-bold text-app-text-primary text-base">
+              Medical Summary
+            </p>
+            {isEditingSummary && (
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={handleCancelSummaryEdit}
+                  className="rounded-[10px] border border-[#d8e0ea] px-3 py-1.5 text-sm font-bold text-app-text-body transition-all hover:bg-[#eff2f6]"
+                >
+                  Abbrechen
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSaveSummaryEdit}
+                  className="rounded-[10px] bg-[#486284] px-3 py-1.5 text-sm font-bold text-app-text-on-primary transition-all hover:bg-[#3a4d68]"
+                >
+                  Speichern
+                </button>
+              </div>
+            )}
+          </div>
+
+          {isEditingSummary ? (
+            <div className="space-y-4">
+              <div>
+                <p className="mb-2 font-['DM_Sans:Bold',sans-serif] text-sm font-bold text-app-text-body">
+                  Patientendaten:
+                </p>
+                <textarea
+                  value={professionalSummaryDraft.patientData}
+                  onChange={(event) =>
+                    setProfessionalSummaryDraft((currentDraft) => ({
+                      ...currentDraft,
+                      patientData: event.target.value,
+                    }))
+                  }
+                  aria-label="Patientendaten bearbeiten"
+                  className="min-h-[96px] w-full resize-y rounded-[10px] border border-[#d8e0ea] bg-white p-3 font-['DM_Sans:Medium',sans-serif] text-sm leading-relaxed text-app-text-body outline-none transition-all focus:border-[#486284] focus:ring-2 focus:ring-[#486284]/20"
+                />
+              </div>
+
+              <div>
+                <p className="mb-2 font-['DM_Sans:Bold',sans-serif] text-sm font-bold text-app-text-body">
+                  Beschwerden:
+                </p>
+                <textarea
+                  value={professionalSummaryDraft.complaints}
+                  onChange={(event) =>
+                    setProfessionalSummaryDraft((currentDraft) => ({
+                      ...currentDraft,
+                      complaints: event.target.value,
+                    }))
+                  }
+                  aria-label="Beschwerden bearbeiten"
+                  className="min-h-[96px] w-full resize-y rounded-[10px] border border-[#d8e0ea] bg-white p-3 font-['DM_Sans:Medium',sans-serif] text-sm leading-relaxed text-app-text-body outline-none transition-all focus:border-[#486284] focus:ring-2 focus:ring-[#486284]/20"
+                />
+              </div>
+            </div>
+          ) : (
+            <p className="whitespace-pre-line font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-body text-sm leading-relaxed">
+              {displayedProfessionalSummary}
+            </p>
+          )}
         </div>
 
         <div className="pt-3 border-t border-gray-200">

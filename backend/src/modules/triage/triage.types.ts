@@ -7,6 +7,7 @@ import {
 import type {
   CareLevel,
   MedicalSpecialty,
+  RecommendedSpecialty,
 } from '../../../../shared/result.types.js'
 import { SYMPTOM_INPUT_TYPES } from '../../../../shared/symptomExtraction.types.js'
 import type { SymptomInputType } from '../../../../shared/symptomExtraction.types.js'
@@ -33,15 +34,6 @@ export const careLevelSchema = z.enum(CARE_LEVELS)
 
 export const medicalSpecialtySchema = z.enum(MEDICAL_SPECIALTIES)
 
-export const recommendedSpecialtyItemSchema = z.object({
-  specialty: medicalSpecialtySchema,
-  label: z.string().min(1),
-  reason: z.string().min(1),
-  priority: z.number().int().min(1),
-})
-
-export type RecommendedSpecialtyItem = z.infer<typeof recommendedSpecialtyItemSchema>
-
 export interface TriageRequest {
   patientData?: PatientData
   symptoms?: TriageSymptom[]
@@ -52,10 +44,10 @@ export interface TriageRequest {
 
 export interface TriageResponse {
   careLevel: CareLevel
-  recommendedSpecialty: MedicalSpecialty
+  recommendedSpecialty?: MedicalSpecialty
+  recommendedSpecialties?: RecommendedSpecialty[]
   reasons: string[]
   reviewSummary?: ReviewSummary
-  recommendedSpecialties?: RecommendedSpecialtyItem[]
   aiUnavailable?: boolean
   aiModel?: string
 }
@@ -92,17 +84,6 @@ export const triageSymptomSchema = z.object({
   measurementValue: z.number().optional(),
   duration: z.enum(TRIAGE_SYMPTOM_DURATIONS).optional(),
 })
-
-export const triageAiResultSchema = z.object({
-  careLevel: careLevelSchema,
-  recommendedSpecialty: medicalSpecialtySchema,
-  reasons: z
-    .union([z.array(z.string().min(1)).min(1).max(5), z.string().min(1)])
-    .transform((value) => (typeof value === 'string' ? [value] : value)),
-  reviewSummary: reviewSummarySchema.nullish().transform((value) => value ?? undefined),
-})
-
-export type TriageAiResponse = z.infer<typeof triageAiResultSchema>
 
 export const triageRequestSchema = z
   .object({

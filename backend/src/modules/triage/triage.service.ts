@@ -1,17 +1,16 @@
 import { requestStructuredAiResponseWithModel } from '../../ai/llmAdapter.js'
 import { isAiRequestError } from '../../ai/timeout.js'
-import { triageAiResponseSchema } from '../../shared/validation.js'
-import { createTriagePrompt, triageInstructions } from '../prompt/triage.prompt.js'
 import { extractSymptoms } from '../symptom-extraction/symptomExtraction.service.js'
-import type { SymptomInputType } from '../../../../shared/symptomExtraction.types.js'
 import type {
-  CareLevel,
   MedicalSpecialty,
   PatientData,
-  RecommendedSpecialtyItem,
   TriageResponse,
   TriageSymptom,
 } from './triage.types.js'
+import { triageAiResponseSchema } from '../../shared/validation.js'
+import type { TriageAiResponse } from '../../shared/validation.js'
+import type { SymptomInputType } from '../../../../shared/symptomExtraction.types.js'
+import { triageInstructions, createTriagePrompt } from '../prompt/triage.prompt.js'
 
 function createBadRequestError(message: string): Error & { statusCode: number } {
   const error = new Error(message) as Error & { statusCode: number }
@@ -33,21 +32,21 @@ const MEASUREMENT_LABELS: Record<NonNullable<TriageSymptom['measurementType']>, 
   severity: 'Schweregrad',
 }
 
-const SPECIALTY_LABELS: Record<MedicalSpecialty, string> = {
-  home_care: 'Häusliche Versorgung',
+const MEDICAL_SPECIALTY_LABELS: Record<MedicalSpecialty, string> = {
+  home_care: 'Haeusliche Versorgung',
   emergency_medicine: 'Notfallmedizin',
-  general_practice: 'Hausarzt',
+  general_practice: 'Allgemeinmedizin',
   internal_medicine: 'Innere Medizin',
   cardiology: 'Kardiologie',
   neurology: 'Neurologie',
-  orthopedics: 'Orthopädie',
+  orthopedics: 'Orthopaedie',
   gastroenterology: 'Gastroenterologie',
   pulmonology: 'Pneumologie',
   dermatology: 'Dermatologie',
   urology: 'Urologie',
-  gynecology: 'Gynäkologie',
+  gynecology: 'Gynaekologie',
   psychiatry: 'Psychiatrie',
-  pediatrics: 'Pädiatrie',
+  pediatrics: 'Kinderheilkunde',
   dentistry: 'Zahnmedizin',
   ophthalmology: 'Augenheilkunde',
   otolaryngology: 'HNO',
@@ -132,21 +131,22 @@ function formatSymptoms(symptoms: TriageSymptom[]): string {
     })
     .join('\n')
 }
-
-function toCareLevel(recommendedSpecialty: MedicalSpecialty): CareLevel {
-  if (recommendedSpecialty === 'emergency_medicine') {
-    return 'emergency'
+function attachPresentationFields(result: TriageResponse): TriageResponse {
+  if (result.reviewSummary) {
+    return result
   }
 
-  if (recommendedSpecialty === 'home_care') {
-    return 'selfcare'
-  }
+  const text = result.reasons.length > 0
+    ? result.reasons.join(' ')
+    : `Die Einschätzung ergab das Pflegelevel ${result.careLevel}.`
 
-  if (recommendedSpecialty === 'general_practice') {
-    return 'doctor'
+  return {
+    ...result,
+    reviewSummary: {
+      plainLanguage: text,
+      professionalSummary: text,
+    },
   }
-
-  return 'specialist'
 }
 
 function getComparableMeasurementValue(symptom: TriageSymptom): number {
@@ -209,39 +209,36 @@ function inferSpecialistFromSymptoms(symptoms: TriageSymptom[]): MedicalSpecialt
   return undefined
 }
 
+function fallbackSpecialtyForCareLevel(careLevel: TriageResponse['careLevel']): MedicalSpecialty {
+  switch (careLevel) {
+    case 'emergency':
+      return 'emergency_medicine'
+    case 'selfcare':
+      return 'home_care'
+    case 'specialist':
+      return 'internal_medicine'
+    case 'doctor':
+    default:
+      return 'general_practice'
+  }
+}
+
 function normalizeTriageResult(
-  result: Omit<TriageResponse, 'recommendedSpecialty'> & {
-    recommendedSpecialty?: MedicalSpecialty
-  },
+  result: TriageAiResponse,
   symptoms: TriageSymptom[],
 ): TriageResponse {
-  if (result.careLevel === 'emergency') {
+  if (result.careLevel === 'specialist') {
+    const specialist = result.recommendedSpecialty ?? inferSpecialistFromSymptoms(symptoms) ?? 'internal_medicine'
+
     return {
       ...result,
-      recommendedSpecialty: 'emergency_medicine',
+      recommendedSpecialty: specialist,
     }
   }
-
-  if (result.careLevel === 'selfcare') {
-    return {
-      ...result,
-      recommendedSpecialty: 'home_care',
-    }
-  }
-
-  if (result.careLevel === 'doctor') {
-    return {
-      ...result,
-      recommendedSpecialty: 'general_practice',
-    }
-  }
-
-  const specialist = result.recommendedSpecialty ?? inferSpecialistFromSymptoms(symptoms) ?? 'internal_medicine'
 
   return {
     ...result,
-    recommendedSpecialty:
-      toCareLevel(specialist) === 'specialist' ? specialist : 'internal_medicine',
+    recommendedSpecialty: fallbackSpecialtyForCareLevel(result.careLevel),
   }
 }
 
@@ -274,29 +271,24 @@ function applySpecialistEscalation(
   }
 }
 
-function buildRecommendedSpecialties(result: TriageResponse): RecommendedSpecialtyItem[] | undefined {
-  if (toCareLevel(result.recommendedSpecialty) !== 'specialist') {
-    return undefined
+function attachRecommendedSpecialties(result: TriageResponse): TriageResponse {
+  if (result.careLevel !== 'specialist') {
+    return result
   }
 
-  return [
-    {
-      specialty: result.recommendedSpecialty,
-      label: SPECIALTY_LABELS[result.recommendedSpecialty],
-      reason:
-        result.reasons[0] ??
-        `Aufgrund Ihrer Angaben ist eine fachärztliche Abklärung in ${SPECIALTY_LABELS[result.recommendedSpecialty]} sinnvoll.`,
-      priority: 1,
-    },
-  ]
-}
-
-function attachPresentationFields(result: TriageResponse): TriageResponse {
-  const recommendedSpecialties = buildRecommendedSpecialties(result)
+  const specialty = (result.recommendedSpecialty ?? 'internal_medicine') as MedicalSpecialty
+  const label = MEDICAL_SPECIALTY_LABELS[specialty] ?? 'Fachärztliche Versorgung'
 
   return {
     ...result,
-    ...(recommendedSpecialties ? { recommendedSpecialties } : {}),
+    recommendedSpecialties: [
+      {
+        specialty,
+        label,
+        reason: result.reasons[0] ?? 'Fachärztliche Abklärung empfohlen.',
+        priority: 1,
+      },
+    ],
   }
 }
 
@@ -310,9 +302,9 @@ async function requestTriageFromAi(
       {
         role: 'user',
         content: createTriagePrompt({
-          patientDataText: formatPatientData(patientData),
-          symptomsText: formatSymptoms(symptoms),
-        }),
+        patientDataText: formatPatientData(patientData),
+        symptomsText: formatSymptoms(symptoms),
+      }),
       },
     ],
     schema: triageAiResponseSchema,
@@ -320,10 +312,12 @@ async function requestTriageFromAi(
     temperature: 0,
   })
 
-  return attachPresentationFields({
-    ...applySpecialistEscalation(normalizeTriageResult(parsed, symptoms), symptoms),
+  return {
+    ...attachRecommendedSpecialties(
+      applySpecialistEscalation(normalizeTriageResult(parsed, symptoms), symptoms),
+    ),
     aiModel: model,
-  })
+  }
 }
 
 function createFallbackTriage(symptoms: TriageSymptom[]): TriageResponse {
@@ -436,7 +430,7 @@ export async function evaluateTriage(
   inputType: SymptomInputType = 'text',
 ): Promise<TriageResponse> {
   if (emergencyFromLanding) {
-    return {
+    const result: TriageResponse = {
       careLevel: 'emergency',
       recommendedSpecialty: 'emergency_medicine',
       reasons: ['Notfallmodus ueber die Startseite ausgewaehlt.'],
@@ -447,6 +441,8 @@ export async function evaluateTriage(
           'Notfallmodus ueber die Startseite ausgewaehlt. Care Level: Notfallversorgung.',
       },
     }
+
+    return attachPresentationFields(result)
   }
 
   if (text) {

@@ -58,21 +58,6 @@ const PAGE = {
   bottom: 54,
 }
 
-const DURATION_LABELS: Record<string, string> = {
-  today: 'Seit heute',
-  days: 'Seit ein paar Tagen',
-  week: 'Seit einer Woche',
-  weeks: 'Seit mehr als 2 Wochen',
-}
-
-function formatDuration(duration?: string): string | null {
-  if (!duration) {
-    return null
-  }
-
-  return DURATION_LABELS[duration] ?? duration
-}
-
 function formatCareLevel(careLevel: PdfTriageResult['careLevel']): string {
   switch (careLevel) {
     case 'emergency':
@@ -92,8 +77,29 @@ function symptomLabel(symptom: TriageSymptom): string {
   return symptom.side ? `${symptom.region} (${symptom.side})` : symptom.region
 }
 
+function formatGender(value: string): string {
+  switch (value.toLowerCase()) {
+    case 'female':
+    case 'weiblich':
+      return 'Weiblich'
+    case 'male':
+    case 'männlich':
+    case 'maennlich':
+      return 'Männlich'
+    case 'diverse':
+    case 'divers':
+      return 'Divers'
+    default:
+      return formatValue(value)
+  }
+}
+
 function normalizeGermanText(value: string): string {
   return value
+    .replace(/Groesse/g, 'Größe')
+    .replace(/groesse/g, 'Größe')
+    .replace(/Grosse/g, 'Größe')
+    .replace(/grosse/g, 'Größe')
     .replace(/verfuegbar/g, 'verfügbar')
     .replace(/Verfuegbar/g, 'Verfügbar')
     .replace(/uebergebenen/g, 'übergebenen')
@@ -108,6 +114,8 @@ function normalizeGermanText(value: string): string {
     .replace(/ausgewaehlte/g, 'ausgewählte')
     .replace(/Begruendung/g, 'Begründung')
     .replace(/begruendung/g, 'Begründung')
+    .replace(/Schilddruesenunterfunktion/g, 'Schilddrüsenunterfunktion')
+    .replace(/schilddruesenunterfunktion/g, 'Schilddrüsenunterfunktion')
 }
 
 function formatReason(reason: string): string {
@@ -139,20 +147,39 @@ function formatValue(value?: string | number | null): string {
   return String(value)
 }
 
+function formatConditionDetail(condition: string, detail: string): string {
+  const cleanCondition = normalizeGermanText(condition).trim()
+  const cleanDetail = normalizeGermanText(detail).trim()
+
+  if (cleanDetail.length === 0) {
+    return ''
+  }
+
+  if (/^(sonstige|sonstiges|other)$/i.test(cleanCondition)) {
+    return cleanDetail.replace(/^(sonstige|sonstiges|other)\s*:\s*/i, '')
+  }
+
+  return cleanDetail.toLowerCase().startsWith(`${cleanCondition.toLowerCase()}:`)
+    ? cleanDetail
+    : `${cleanCondition}: ${cleanDetail}`
+}
+
 function summarizePatient(data?: PatientData): string {
   if (!data) {
     return 'Keine Stammdaten vorhanden.'
   }
 
   const conditionDetails = Object.entries(data.conditionDetails)
-    .filter(([, detail]) => detail.trim().length > 0)
-    .map(([condition, detail]) => `${condition}: ${detail.trim()}`)
+    .filter(([, detail]) => detail?.trim().length > 0)
+    .map(([condition, detail]) => formatConditionDetail(condition, detail))
+    .filter((detail) => detail.length > 0)
 
   return [
-    `Geburt: ${formatValue(data.birthMonth)}/${formatValue(data.birthYear)}`,
-    `Größe / Gewicht: ${formatValue(data.height)} cm / ${formatValue(data.weight)} kg`,
-    `Geschlecht: ${formatValue(data.gender)}`,
-    `Schwangerschaft: ${data.isPregnant ? 'Ja' : 'Nein'}`,
+    `Geburtsdatum: ${formatValue(data.birthMonth)}/${formatValue(data.birthYear)}`,
+    `Größe: ${formatValue(data.height)} cm`,
+    `Gewicht: ${formatValue(data.weight)} kg`,
+    `Geschlecht: ${formatGender(data.gender)}`,
+    `Schwanger: ${data.isPregnant ? 'Ja' : 'Nein'}`,
     `Stillzeit: ${data.isBreastfeeding ? 'Ja' : 'Nein'}`,
     `Allergien: ${data.allergies || '-'}`,
     `Medikamente: ${data.medications || '-'}`,
@@ -161,12 +188,43 @@ function summarizePatient(data?: PatientData): string {
     }`,
     data.conditions.length > 0
       ? `Vorerkrankungen: ${data.conditions.join(', ')}`
-      : 'Vorerkrankungen: -',
+      : 'Vorerkrankungen: —',
     `Raucher: ${data.isSmoker ? 'Ja' : 'Nein'}`,
     data.isSmoker ? `Rauchdauer: ${data.smokingSinceYears || '—'}` : null,
     data.isSmoker ? `Zigaretten pro Tag: ${data.cigarettesPerDay || '—'}` : null,
     conditionDetails.length > 0 ? `Details zu Vorerkrankungen: ${conditionDetails.join('; ')}` : null,
   ].filter((line): line is string => line !== null).join('\n')
+}
+
+function formatDuration(duration?: TriageSymptom['duration']): string | null {
+  switch (duration) {
+    case 'today':
+      return 'Seit heute'
+    case 'days':
+      return 'Seit ein paar Tagen'
+    case 'week':
+      return 'Seit einer Woche'
+    case 'weeks':
+      return 'Seit mehreren Wochen'
+    default:
+      return null
+  }
+}
+
+function formatMeasurement(symptom: TriageSymptom): string | null {
+  if (symptom.measurementValue === undefined) {
+    return null
+  }
+
+  if (symptom.measurementType === 'temperature') {
+    return `Temperatur: ${symptom.measurementValue}°C`
+  }
+
+  if (symptom.measurementType === 'feeling') {
+    return `Beschwerdegefühl: ${symptom.measurementValue}/10`
+  }
+
+  return `Schmerzstärke: ${symptom.measurementValue}/10`
 }
 
 function summarizeSymptoms(symptoms?: TriageSymptom[]): string {
@@ -176,64 +234,168 @@ function summarizeSymptoms(symptoms?: TriageSymptom[]): string {
 
   return symptoms
     .map((symptom, index) => {
-      const details = [
-        symptomLabel(symptom),
-        symptom.measurementValue !== undefined
-          ? `${symptom.measurementType === 'temperature' ? 'Temperatur' : 'Messwert'} ${symptom.measurementValue}${symptom.measurementType === 'temperature' ? '°C' : '/10'}`
-          : null,
-        formatDuration(symptom.duration)
-          ? `Dauer: ${formatDuration(symptom.duration)}`
-          : null,
+      const detailLines = [
+        `${index + 1}. ${symptomLabel(symptom)}`,
+        formatMeasurement(symptom),
+        formatDuration(symptom.duration) ? `Dauer: ${formatDuration(symptom.duration)}` : null,
       ].filter((part): part is string => part !== null)
 
-      return `${index + 1}. ${details.join(', ')}`
+      return detailLines.join('\n')
     })
-    .join('\n')
+    .join('\n\n')
 }
 
-function mergeSymptomBlocks(summary: string, symptoms?: TriageSymptom[]): string {
-  if (!symptoms || symptoms.length === 0) {
-    return summary
+function removeSelectedSymptomBlock(lines: string[]): string[] {
+  const cleanedLines: string[] = []
+  let skipSelectedSymptoms = false
+
+  lines.forEach((line) => {
+    const normalizedLine = line.trim().toLowerCase()
+
+    if (normalizedLine === 'ausgewählte symptome:' || normalizedLine === 'ausgewaehlte symptome:') {
+      skipSelectedSymptoms = true
+      return
+    }
+
+    if (normalizedLine === 'detailangaben zu aktiven symptomen:') {
+      skipSelectedSymptoms = false
+      return
+    }
+
+    if (skipSelectedSymptoms) {
+      return
+    }
+
+    cleanedLines.push(line)
+  })
+
+  return cleanedLines
+}
+
+function normalizePatientSummaryLines(lines: string[]): string[] {
+  const normalizedLines: string[] = []
+  let birthMonth: string | null = null
+  let birthYear: string | null = null
+
+  lines.forEach((line) => {
+    const trimmedLine = normalizeGermanText(line.trim())
+    const birthMonthMatch = trimmedLine.match(/^Geburtsmonat:\s*(.+)$/i)
+    const birthYearMatch = trimmedLine.match(/^Geburtsjahr:\s*(.+)$/i)
+
+    if (trimmedLine.length === 0 || /^Stammdaten:\s*$/i.test(trimmedLine)) {
+      return
+    }
+
+    if (/^Keine Stammdaten vorhanden\.$/i.test(trimmedLine) && lines.length > 1) {
+      return
+    }
+
+    if (birthMonthMatch) {
+      birthMonth = birthMonthMatch[1]?.trim() ?? null
+      return
+    }
+
+    if (birthYearMatch) {
+      birthYear = birthYearMatch[1]?.trim() ?? null
+      return
+    }
+
+    normalizedLines.push(
+      trimmedLine
+        .replace(/^Details zu Vorerkrankungen:\s*Sonstige(?:s)?\s*:\s*/i, 'Details zu Vorerkrankungen: ')
+        .replace(/^Details zur Vorerkrankung:\s*Sonstige(?:s)?\s*:\s*/i, 'Details zu Vorerkrankungen: '),
+    )
+  })
+
+  if (birthMonth || birthYear) {
+    normalizedLines.unshift(`Geburtsdatum: ${formatValue(birthMonth)}/${formatValue(birthYear)}`)
   }
 
-  const startMatch = summary.match(
-    /(^|\n)\s*(?:(?:Ausgewählte|Ausgewaehlte)\s+Symptome|Detailangaben\s+zu\s+aktiven\s+Symptomen|Beschwerden\s*\/\s*Symptome|Beschwerden)\s*:/i,
-  )
+  return normalizedLines
+}
 
-  if (!startMatch || startMatch.index === undefined) {
-    return summary
-  }
+function normalizeComplaintSummaryLines(lines: string[]): string[] {
+  return removeSelectedSymptomBlock(lines)
+    .map((line) => normalizeGermanText(line.trim()))
+    .filter((line) => line.length > 0)
+    .flatMap((line) => {
+      const detailMatch = line.match(/^(\d+\.\s*[^,]+),\s*(.+)$/)
 
-  const startIndex = startMatch.index + (startMatch[1]?.length ?? 0)
-  const afterStart = summary.slice(startIndex)
+      if (!detailMatch) {
+        return [line]
+      }
 
-  const endMarkerPatterns = [
-    /\n\s*Begründung der Empfehlung\s*:/i,
-    /\n\s*Begruendung der Empfehlung\s*:/i,
-    /\n\s*Wichtiger Hinweis\s*:/i,
-    /\n\s*Hinweis\s*:/i,
-  ]
-
-  const markerIndexes = endMarkerPatterns
-    .map((pattern) => {
-      const match = afterStart.match(pattern)
-      return match?.index
+      return [
+        detailMatch[1]?.trim() ?? line,
+        ...(detailMatch[2] ?? '')
+          .split(/\s*,\s*/)
+          .map((part) => part.trim())
+          .filter((part) => part.length > 0),
+      ]
     })
-    .filter((index): index is number => index !== undefined)
+}
 
-  const endIndex =
-    markerIndexes.length > 0
-      ? startIndex + Math.min(...markerIndexes)
-      : summary.length
+function hasMedicalSummaryStructure(summary: string): boolean {
+  return /(^|\n)\s*(Patientendaten|Stammdaten|Beschwerden|Ausgewählte Symptome|Ausgewaehlte Symptome|Detailangaben zu aktiven Symptomen)\s*:/i.test(summary)
+}
 
-  const before = summary.slice(0, startIndex).trimEnd()
-  const after = summary.slice(endIndex).trimStart()
+function cleanStructuredProfessionalSummary(summary: string): string {
+  const patientLines: string[] = []
+  const complaintLines: string[] = []
+  let activeSection: 'patientData' | 'complaints' | null = null
+  let skipSelectedSymptoms = false
 
-  const mergedSymptoms = `Ausgewählte Symptome:\n${summarizeSymptoms(symptoms)}`
+  normalizeGermanText(summary)
+    .split('\n')
+    .forEach((line) => {
+      const normalizedLine = line.trim().toLowerCase()
 
-  return [before, mergedSymptoms, after]
-    .filter((part) => part.trim().length > 0)
-    .join('\n\n')
+      if (normalizedLine === 'patientendaten:' || normalizedLine === 'stammdaten:') {
+        activeSection = 'patientData'
+        return
+      }
+
+      if (normalizedLine === 'beschwerden:') {
+        activeSection = 'complaints'
+        return
+      }
+
+      if (normalizedLine === 'ausgewählte symptome:' || normalizedLine === 'ausgewaehlte symptome:') {
+        activeSection = 'complaints'
+        skipSelectedSymptoms = true
+        return
+      }
+
+      if (normalizedLine === 'detailangaben zu aktiven symptomen:') {
+        activeSection = 'complaints'
+        skipSelectedSymptoms = false
+        return
+      }
+
+      if (activeSection === 'patientData') {
+        patientLines.push(line)
+        return
+      }
+
+      if (activeSection === 'complaints') {
+        if (skipSelectedSymptoms) {
+          return
+        }
+
+        complaintLines.push(line)
+      }
+    })
+
+  const normalizedPatientLines = normalizePatientSummaryLines(patientLines)
+  const normalizedComplaintLines = normalizeComplaintSummaryLines(complaintLines)
+
+  return [
+    'Patientendaten:',
+    normalizedPatientLines.length > 0 ? normalizedPatientLines.join('\n') : 'Keine Stammdaten vorhanden.',
+    '',
+    'Beschwerden:',
+    normalizedComplaintLines.length > 0 ? normalizedComplaintLines.join('\n') : 'Keine Beschwerden vorhanden.',
+  ].join('\n')
 }
 
 function summarizeCareReason(triage?: PdfTriageResult): string {
@@ -264,14 +426,9 @@ function summarizeMedicalOverview(request: PdfExportRequest): string {
     request.reviewSummary.professionalSummary,
   ).trim()
 
-  const editedProfessionalSummary = mergeSymptomBlocks(
-    rawProfessionalSummary,
-    request.symptoms,
-  )
-
-  if (editedProfessionalSummary.length > 0) {
+  if (rawProfessionalSummary.length > 0 && hasMedicalSummaryStructure(rawProfessionalSummary)) {
     return [
-      editedProfessionalSummary,
+      cleanStructuredProfessionalSummary(rawProfessionalSummary),
       '',
       summarizeCareReason(request.triage),
     ].join('\n')
@@ -281,7 +438,7 @@ function summarizeMedicalOverview(request: PdfExportRequest): string {
     'Patientendaten:',
     summarizePatient(request.patientData),
     '',
-    'Ausgewählte Symptome:',
+    'Beschwerden:',
     summarizeSymptoms(request.symptoms),
     '',
     summarizeCareReason(request.triage),
