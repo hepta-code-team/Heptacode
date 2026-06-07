@@ -1,7 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { z } from 'zod'
 
-import { AI_REQUEST_OPTIONS, AiResponseError } from './timeout.js'
+import {
+  AI_REQUEST_OPTIONS,
+  AI_REQUEST_TIMEOUT_MS,
+  AiResponseError,
+  createAiRequestOptions,
+} from './timeout.js'
 
 const parseMock = vi.fn()
 const createMock = vi.fn()
@@ -117,7 +122,7 @@ describe('requestStructuredAiResponse', () => {
       expect.objectContaining({
         model: 'fallback-test-model',
       }),
-      AI_REQUEST_OPTIONS,
+      createAiRequestOptions(AI_REQUEST_TIMEOUT_MS.fallback),
     )
   })
 
@@ -152,7 +157,7 @@ describe('requestStructuredAiResponse', () => {
     expect(parseMock).toHaveBeenNthCalledWith(
       2,
       expect.objectContaining({ model: 'fallback-test-model' }),
-      AI_REQUEST_OPTIONS,
+      createAiRequestOptions(AI_REQUEST_TIMEOUT_MS.fallback),
     )
   })
 

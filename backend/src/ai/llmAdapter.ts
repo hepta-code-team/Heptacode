@@ -2,7 +2,13 @@ import { zodResponseFormat } from 'openai/helpers/zod'
 import type { ChatCompletionMessageParam } from 'openai/resources/chat/completions'
 import type { z } from 'zod'
 import { aiClient, aiModel, fallbackModel } from './client.js'
-import { AI_REQUEST_OPTIONS, AiResponseError, isAiAvailabilityError, isAiRequestError } from './timeout.js'
+import {
+  AI_REQUEST_TIMEOUT_MS,
+  AiResponseError,
+  createAiRequestOptions,
+  isAiAvailabilityError,
+  isAiRequestError,
+} from './timeout.js'
 
 type StructuredAiRequest<TSchema extends z.ZodTypeAny> = {
   messages: ChatCompletionMessageParam[]
@@ -30,6 +36,7 @@ async function requestWithModel<TSchema extends z.ZodTypeAny>(
     schemaName,
     temperature,
   }: ModelRequest<TSchema>,
+  timeoutMs: number,
 ): Promise<z.infer<TSchema>> {
   try {
     const completion = await aiClient.beta.chat.completions.parse(
@@ -39,7 +46,7 @@ async function requestWithModel<TSchema extends z.ZodTypeAny>(
         response_format: zodResponseFormat(schema, schemaName),
         temperature,
       },
-      AI_REQUEST_OPTIONS,
+      createAiRequestOptions(timeoutMs),
     )
 
     const parsed = completion.choices[0]?.message.parsed
@@ -57,11 +64,17 @@ async function requestWithModel<TSchema extends z.ZodTypeAny>(
     const completion = await aiClient.chat.completions.create(
       {
         model,
-        messages,
+        messages: [
+          ...messages,
+          {
+            role: 'system',
+            content: 'Antworte ausschliesslich mit validem JSON.',
+          },
+        ],
         response_format: { type: 'json_object' },
         temperature,
       },
-      AI_REQUEST_OPTIONS,
+      createAiRequestOptions(timeoutMs),
     )
 
     const content = completion.choices[0]?.message?.content
@@ -121,14 +134,14 @@ export async function requestStructuredAiResponseWithModel<TSchema extends z.Zod
 
   if (modelStrategy === 'fallback-only') {
     return {
-      data: await requestWithModel(fallbackModel, request),
+      data: await requestWithModel(fallbackModel, request, AI_REQUEST_TIMEOUT_MS.fallback),
       model: fallbackModel,
     }
   }
 
   try {
     return {
-      data: await requestWithModel(aiModel, request),
+      data: await requestWithModel(aiModel, request, AI_REQUEST_TIMEOUT_MS.primary),
       model: aiModel,
     }
   } catch (error) {
@@ -137,7 +150,7 @@ export async function requestStructuredAiResponseWithModel<TSchema extends z.Zod
     }
 
     return {
-      data: await requestWithModel(fallbackModel, request),
+      data: await requestWithModel(fallbackModel, request, AI_REQUEST_TIMEOUT_MS.fallback),
       model: fallbackModel,
     }
   }
