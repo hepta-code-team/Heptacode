@@ -88,6 +88,51 @@ describe('symptomExtractionAiResultSchema', () => {
     })
   })
 
+  it('entfernt Dauer und Staerke aus Zusatzdetails', () => {
+    const result = symptomExtractionAiResultSchema.safeParse({
+      symptoms: [
+        {
+          region: 'Bauch',
+          details: 'Mittelstarke Bauchschmerzen seit ein paar Tagen',
+          measurementType: 'pain',
+          measurementValue: 5,
+          duration: 'days',
+        },
+      ],
+    })
+
+    expect(result.success).toBe(true)
+    expect(result.data?.symptoms[0]).toEqual({
+      region: 'Bauch',
+      measurementType: 'pain',
+      measurementValue: 5,
+      duration: 'days',
+    })
+  })
+
+  it('behaelt echte Zusatzdetails trotz genannter Staerke und Dauer', () => {
+    const result = symptomExtractionAiResultSchema.safeParse({
+      symptoms: [
+        {
+          region: 'Verbrennung',
+          details: 'Mittelstark, seit heute, kochendes Wasser ueber Arm geschuettet',
+          measurementType: 'pain',
+          measurementValue: 5,
+          duration: 'today',
+        },
+      ],
+    })
+
+    expect(result.success).toBe(true)
+    expect(result.data?.symptoms[0]).toEqual({
+      region: 'Verbrennung',
+      details: 'kochendes Wasser ueber Arm geschuettet',
+      measurementType: 'pain',
+      measurementValue: 5,
+      duration: 'today',
+    })
+  })
+
   it('normalisiert faelschliche Temperaturmessung bei Verbrennung auf Schmerzskala', () => {
     const result = symptomExtractionAiResultSchema.safeParse({
       symptoms: [

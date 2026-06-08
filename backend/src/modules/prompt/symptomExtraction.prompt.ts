@@ -17,6 +17,8 @@ export const symptomExtractionInstructions = [
   'Gib relevante Zusatzinformationen in details zurueck, wenn sie fuer Anzeige oder Triage wichtig sind: Ursache, Mechanismus, betroffene Stelle, Tiefe, Fremdkoerper steckt noch oder steckt nicht mehr, Blutung, offene Wunde, Ausdehnung, Temperatur/Hitzequelle, Zeitpunkt oder Negationen.',
   'details muss kurz und sachlich sein. Bewahre explizite Negationen, zum Beispiel "Nagel steckt nicht im Fuss".',
   'Wenn ein Problem auf eine vorhandene Region gemappt wird, darf details trotzdem die konkrete Freitextinformation enthalten.',
+  'Schreibe in details keine Dauer und keine Beschwerde- oder Schmerzstaerke, weil duration, measurementType und measurementValue dafuer eigene Felder sind.',
+  'Wenn ein Text nur Symptom, Dauer und Staerke enthaelt, lasse details weg. Beispiel: "Ich habe mittelstarke Bauchschmerzen schon seit ein paar Tagen" -> region "Bauch", measurementType "pain", measurementValue 5, duration "days", keine details.',
   'Erkenne selbstständig, ob pro Beschwerde eine Schmerzintensität genannt wird. Wenn ja, gib measurementType als pain und measurementValue mit einer ganzen Zahl von 1 bis 10 zurück.',
   'Wenn im Text Fieber oder eine gemessene Koerpertemperatur genannt wird, gib measurementType als temperature und measurementValue als Temperaturwert zurück.',
   'Nutze measurementType temperature nur fuer Fieber oder gemessene Koerpertemperatur. Heisse Ursachen wie kochendes Wasser, heisser Tee, Dampf, Feuer oder Verbrennungen sind keine Temperaturmessung; nutze dafuer pain oder severity.',
