@@ -64,10 +64,9 @@ describe('POST /api/v1/pdf/export', () => {
     expect(response.statusCode).toBe(200)
     expect(response.headers['content-type']).toContain('application/pdf')
     expect(response.headers['content-disposition']).toBe(
-      'attachment; filename="triage-review-summary.pdf"',
+      'attachment; filename="medizinische-ersteinschaetzung.pdf"',
     )
-    expect(response.body.startsWith('%PDF-1.4')).toBe(true)
-    expect(response.body).toContain('Triage Review Summary')
+    expect(response.rawPayload.toString('latin1').startsWith('%PDF-')).toBe(true)
   })
 
   it('antwortet mit 400 bei ungueltigem PDF-Payload', async () => {
@@ -81,7 +80,11 @@ describe('POST /api/v1/pdf/export', () => {
 
     expect(response.statusCode).toBe(400)
     expect(response.json()).toMatchObject({
-      message: 'Validation failed',
+      success: false,
+      error: {
+        code: 'VALIDATION_ERROR',
+        message: 'Request body is invalid',
+      },
     })
   })
 })

@@ -117,10 +117,34 @@ function buildFallbackReviewSummary(payload: AssessmentPayload): ReviewSummary {
   }
 }
 
+function fallbackSpecialtyForCareLevel(
+  careLevel: AssessmentResult['careLevel'],
+): AssessmentResult['recommendedSpecialty'] {
+  switch (careLevel) {
+    case 'emergency':
+      return 'emergency_medicine'
+    case 'selfcare':
+      return 'home_care'
+    case 'specialist':
+      return 'internal_medicine'
+    case 'doctor':
+    default:
+      return 'general_practice'
+  }
+}
+
 function sanitizeProfessionalSummary(summary: string): string {
-  return summary
+  const lines = summary
     .split('\n')
     .filter((line) => !line.includes('Keine Angabe'))
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0)
+
+  const filteredLines = lines.filter((line) => {
+    return !/^Zusammenfassung für Patient(?:innen|:innen|innen und Patienten|innen und Patient:innen)/i.test(line)
+  })
+
+  return filteredLines
     .join('\n')
     .replace(/\n{3,}/g, '\n\n')
     .trim()
@@ -139,15 +163,20 @@ export async function evaluateAssessmentWithAi(
     ...rawReviewSummary,
     professionalSummary: sanitizeProfessionalSummary(rawReviewSummary.professionalSummary),
   }
+  const recommendedSpecialty =
+    triageResult.recommendedSpecialty ?? fallbackSpecialtyForCareLevel(triageResult.careLevel)
 
   return {
     careLevel: triageResult.careLevel,
-    recommendedSpecialty: triageResult.recommendedSpecialty,
+    recommendedSpecialty,
     reasons:
       triageResult.reasons.length > 0
         ? triageResult.reasons
         : ['Die Angaben wurden ausgewertet. Bei Verschlechterung bitte erneut medizinisch vorstellen.'],
     reviewSummary,
+    ...(triageResult.recommendedSpecialties
+      ? { recommendedSpecialties: triageResult.recommendedSpecialties }
+      : {}),
     summary: reviewSummary.plainLanguage,
     ...(triageResult.aiUnavailable ? { aiUnavailable: true } : {}),
     ...(triageResult.aiModel ? { aiModel: triageResult.aiModel } : {}),
