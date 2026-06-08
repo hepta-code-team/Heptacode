@@ -79,6 +79,32 @@ describe('POST /api/v1/symptoms/extraction', () => {
     )
   })
 
+  it('gibt nicht abgedeckte Verletzungsereignisse als Freitext-Symptom fuer die Detailseite zurueck', async () => {
+    requestStructuredAiResponseMock
+      .mockResolvedValueOnce({
+        isValidMedicalInput: true,
+        reason: 'Medizinischer Verletzungskontext erkannt.',
+      })
+      .mockResolvedValueOnce({
+        symptoms: [{ region: 'In Nagel getreten', measurementType: 'severity' }],
+      })
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/v1/symptoms/extraction',
+      payload: {
+        text: 'Ich bin in einen Nagel getreten.',
+      },
+    })
+
+    expect(response.statusCode).toBe(200)
+    expect(response.json()).toEqual({
+      text: 'Ich bin in einen Nagel getreten.',
+      inputType: 'text',
+      symptoms: [{ region: 'In Nagel getreten', measurementType: 'severity' }],
+    })
+  })
+
   it('akzeptiert input als kompatibles Eingabefeld', async () => {
     requestStructuredAiResponseMock
       .mockResolvedValueOnce({
@@ -101,7 +127,7 @@ describe('POST /api/v1/symptoms/extraction', () => {
     expect(response.json()).toEqual({
       text: 'Seit heute Bauchschmerzen.',
       inputType: 'text',
-      symptoms: [{ region: 'Bauch', measurementType: 'pain', duration: 'today' }],
+      symptoms: [{ region: 'Bauch', measurementType: 'pain', measurementValue: 5, duration: 'today' }],
     })
   })
 

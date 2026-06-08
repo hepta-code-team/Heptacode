@@ -101,12 +101,12 @@ describe('extractSymptoms', () => {
         reason: 'Medizinischer Verletzungskontext erkannt.',
       })
       .mockResolvedValueOnce({
-        symptoms: [{ region: 'Nageltrittverletzung', measurementType: 'severity' }],
+        symptoms: [{ region: 'In Nagel getreten', measurementType: 'severity' }],
       })
 
     const result = await extractSymptoms('Ich bin in einen Nagel getreten.')
 
-    expect(result.symptoms).toEqual([{ region: 'Nageltrittverletzung', measurementType: 'severity' }])
+    expect(result.symptoms).toEqual([{ region: 'In Nagel getreten', measurementType: 'severity' }])
     expect(requestStructuredAiResponseMock).toHaveBeenCalledTimes(2)
   })
 
