@@ -28,6 +28,54 @@ type ModelRequest<TSchema extends z.ZodTypeAny> = Required<Omit<
   'modelStrategy'
 >>
 
+function getErrorStatus(error: unknown): number | undefined {
+  if (typeof error === 'object' && error !== null && 'status' in error) {
+    const status = (error as { status?: unknown }).status
+    return typeof status === 'number' ? status : undefined
+  }
+
+  return undefined
+}
+
+function getErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error)
+}
+
+async function runLoggedAiCall<T>(
+  meta: {
+    model: string
+    schemaName: string
+    mode: 'structured' | 'json'
+    timeoutMs: number
+  },
+  run: () => Promise<T>,
+): Promise<T> {
+  const startedAt = Date.now()
+
+  console.info('AI request started', meta)
+
+  try {
+    const result = await run()
+
+    console.info('AI request succeeded', {
+      ...meta,
+      durationMs: Date.now() - startedAt,
+    })
+
+    return result
+  } catch (error) {
+    console.warn('AI request failed', {
+      ...meta,
+      durationMs: Date.now() - startedAt,
+      errorName: error instanceof Error ? error.name : typeof error,
+      errorMessage: getErrorMessage(error),
+      status: getErrorStatus(error),
+    })
+
+    throw error
+  }
+}
+
 async function requestWithModel<TSchema extends z.ZodTypeAny>(
   model: string,
   {
@@ -39,14 +87,23 @@ async function requestWithModel<TSchema extends z.ZodTypeAny>(
   timeoutMs: number,
 ): Promise<z.infer<TSchema>> {
   try {
-    const completion = await aiClient.beta.chat.completions.parse(
+    const completion = await runLoggedAiCall(
       {
         model,
-        messages,
-        response_format: zodResponseFormat(schema, schemaName),
-        temperature,
+        schemaName,
+        mode: 'structured',
+        timeoutMs,
       },
-      createAiRequestOptions(timeoutMs),
+      () =>
+        aiClient.beta.chat.completions.parse(
+          {
+            model,
+            messages,
+            response_format: zodResponseFormat(schema, schemaName),
+            temperature,
+          },
+          createAiRequestOptions(timeoutMs),
+        ),
     )
 
     const parsed = completion.choices[0]?.message.parsed
@@ -61,20 +118,29 @@ async function requestWithModel<TSchema extends z.ZodTypeAny>(
       throw parseError
     }
 
-    const completion = await aiClient.chat.completions.create(
+    const completion = await runLoggedAiCall(
       {
         model,
-        messages: [
-          ...messages,
-          {
-            role: 'system',
-            content: 'Antworte ausschliesslich mit validem JSON.',
-          },
-        ],
-        response_format: { type: 'json_object' },
-        temperature,
+        schemaName,
+        mode: 'json',
+        timeoutMs,
       },
-      createAiRequestOptions(timeoutMs),
+      () =>
+        aiClient.chat.completions.create(
+          {
+            model,
+            messages: [
+              ...messages,
+              {
+                role: 'system',
+                content: 'Antworte ausschliesslich mit validem JSON.',
+              },
+            ],
+            response_format: { type: 'json_object' },
+            temperature,
+          },
+          createAiRequestOptions(timeoutMs),
+        ),
     )
 
     const content = completion.choices[0]?.message?.content
@@ -107,12 +173,14 @@ export async function requestStructuredAiResponse<TSchema extends z.ZodTypeAny>(
   schema,
   schemaName,
   temperature = 0.2,
+  modelStrategy,
 }: StructuredAiRequest<TSchema>): Promise<z.infer<TSchema>> {
   const response = await requestStructuredAiResponseWithModel({
     messages,
     schema,
     schemaName,
     temperature,
+    modelStrategy,
   })
 
   return response.data
