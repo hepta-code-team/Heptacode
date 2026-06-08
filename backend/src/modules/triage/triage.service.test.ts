@@ -58,7 +58,13 @@ describe('evaluateTriage', () => {
     })
 
     const result = await evaluateTriage(undefined, [
-      { region: 'Kopf', measurementType: 'pain', measurementValue: 7, duration: 'days' },
+      {
+        region: 'Verbrennung',
+        details: 'Kochendes Wasser ueber Arm geschuettet',
+        measurementType: 'severity',
+        measurementValue: 7,
+        duration: 'today',
+      },
     ])
 
     expect(result).toEqual({
@@ -75,6 +81,16 @@ describe('evaluateTriage', () => {
     expect(requestStructuredAiResponseWithModelMock).toHaveBeenCalledWith(
       expect.objectContaining({
         schemaName: 'triage_result',
+      }),
+    )
+    expect(requestStructuredAiResponseWithModelMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        messages: expect.arrayContaining([
+          expect.objectContaining({
+            role: 'user',
+            content: expect.stringContaining('Details: Kochendes Wasser ueber Arm geschuettet'),
+          }),
+        ]),
       }),
     )
   })

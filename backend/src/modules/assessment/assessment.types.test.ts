@@ -30,6 +30,7 @@ const validSymptom = {
   id: 'symptom-1',
   region: 'Kopf',
   side: 'links',
+  details: 'Seit dem Aufwachen schlimmer',
   measurementType: 'pain',
   measurementValue: 6,
   duration: 'days',

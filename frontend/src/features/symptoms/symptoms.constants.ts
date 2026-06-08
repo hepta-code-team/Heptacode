@@ -256,8 +256,8 @@ const MEASUREMENT_CONFIGS: Record<SymptomMeasurementType, MeasurementConfig> = {
   },
 };
 
-export function getMeasurementConfig(region: string): MeasurementConfig {
-    if (region === "Fieber") {
+export function getMeasurementConfig(region: string, side?: string): MeasurementConfig {
+    if (region === "Fieber" || (region === "Allgemein" && side === "Fieber")) {
         return MEASUREMENT_CONFIGS.temperature;
     }
 

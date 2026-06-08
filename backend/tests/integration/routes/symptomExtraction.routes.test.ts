@@ -86,22 +86,36 @@ describe('POST /api/v1/symptoms/extraction', () => {
         reason: 'Medizinischer Verletzungskontext erkannt.',
       })
       .mockResolvedValueOnce({
-        symptoms: [{ region: 'In Nagel getreten', measurementType: 'severity' }],
+        symptoms: [
+          {
+            region: 'In Nagel getreten',
+            side: 'Fuß',
+            details: 'Nagel steckt tief im Fuß',
+            measurementType: 'severity',
+          },
+        ],
       })
 
     const response = await app.inject({
       method: 'POST',
       url: '/api/v1/symptoms/extraction',
       payload: {
-        text: 'Ich bin in einen Nagel getreten.',
+        text: 'Der Nagel steckt tief in meinem Fuß.',
       },
     })
 
     expect(response.statusCode).toBe(200)
     expect(response.json()).toEqual({
-      text: 'Ich bin in einen Nagel getreten.',
+      text: 'Der Nagel steckt tief in meinem Fuß.',
       inputType: 'text',
-      symptoms: [{ region: 'In Nagel getreten', measurementType: 'severity' }],
+      symptoms: [
+        {
+          region: 'In Nagel getreten',
+          side: 'Fuß',
+          details: 'Nagel steckt tief im Fuß',
+          measurementType: 'severity',
+        },
+      ],
     })
   })
 

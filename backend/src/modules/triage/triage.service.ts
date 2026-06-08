@@ -101,6 +101,7 @@ function formatSymptoms(symptoms: TriageSymptom[]): string {
     .map((symptom, index) => {
       const parts = [
         symptom.side ? `${symptom.region} (${symptom.side})` : symptom.region,
+        hasText(symptom.details) ? `Details: ${symptom.details.trim()}` : null,
         formatMeasurement(symptom),
         symptom.duration ? DURATION_LABELS[symptom.duration] : null,
       ].filter((part): part is string => part !== null)

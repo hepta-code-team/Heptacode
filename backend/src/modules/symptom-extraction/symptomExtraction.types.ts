@@ -93,10 +93,19 @@ function normalizeOption(value: string): { region: SymptomRegionName; option: st
   return optionByNormalizedLabel.get(normalizedValue)
 }
 
+function isFeverSymptom(region: string, side?: string): boolean {
+  return normalizeLabel(region) === 'fieber' || (
+    normalizeLabel(region) === 'allgemein' &&
+    side !== undefined &&
+    normalizeLabel(side) === 'fieber'
+  )
+}
+
 export const extractedSymptomSchema = z
   .object({
     region: z.string().min(1),
     side: z.preprocess(emptyStringOrNullToUndefined, z.string().min(1).optional()),
+    details: z.preprocess(emptyStringOrNullToUndefined, z.string().min(1).optional()),
     measurementType: z
       .preprocess(emptyStringOrNullToUndefined, z.enum(SYMPTOM_MEASUREMENT_TYPES).optional())
       .catch(undefined),
@@ -118,11 +127,19 @@ export const extractedSymptomSchema = z
         : regionAsOption && regionAsOption.region === region
           ? regionAsOption.option
           : value.side
+    const hasInvalidTemperatureMeasurement = value.measurementType === 'temperature' && !isFeverSymptom(region, side)
+    const measurementType = hasInvalidTemperatureMeasurement ? 'pain' : value.measurementType
+    const measurementValue = hasInvalidTemperatureMeasurement ? undefined : value.measurementValue
+    const symptom = { ...value }
+    delete symptom.measurementType
+    delete symptom.measurementValue
 
     return {
-      ...value,
+      ...symptom,
       region,
       ...(side ? { side } : {}),
+      ...(measurementType ? { measurementType } : {}),
+      ...(measurementValue !== undefined ? { measurementValue } : {}),
     }
   })
 

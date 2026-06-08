@@ -69,6 +69,66 @@ describe('symptomExtractionAiResultSchema', () => {
     })
   })
 
+  it('akzeptiert relevante Zusatzdetails zu extrahierten Symptomen', () => {
+    const result = symptomExtractionAiResultSchema.safeParse({
+      symptoms: [
+        {
+          region: 'Verbrennung',
+          details: 'Kochendes Wasser ueber Arm geschuettet',
+          measurementType: 'severity',
+        },
+      ],
+    })
+
+    expect(result.success).toBe(true)
+    expect(result.data?.symptoms[0]).toMatchObject({
+      region: 'Verbrennung',
+      details: 'Kochendes Wasser ueber Arm geschuettet',
+      measurementType: 'severity',
+    })
+  })
+
+  it('normalisiert faelschliche Temperaturmessung bei Verbrennung auf Schmerzskala', () => {
+    const result = symptomExtractionAiResultSchema.safeParse({
+      symptoms: [
+        {
+          region: 'Verbrennung',
+          details: 'Kochendes Wasser ueber Arm geschuettet',
+          measurementType: 'temperature',
+          measurementValue: 100,
+        },
+      ],
+    })
+
+    expect(result.success).toBe(true)
+    expect(result.data?.symptoms[0]).toEqual({
+      region: 'Verbrennung',
+      details: 'Kochendes Wasser ueber Arm geschuettet',
+      measurementType: 'pain',
+    })
+  })
+
+  it('behaelt Temperaturmessung bei Fieber', () => {
+    const result = symptomExtractionAiResultSchema.safeParse({
+      symptoms: [
+        {
+          region: 'Allgemein',
+          side: 'Fieber',
+          measurementType: 'temperature',
+          measurementValue: 39.2,
+        },
+      ],
+    })
+
+    expect(result.success).toBe(true)
+    expect(result.data?.symptoms[0]).toEqual({
+      region: 'Allgemein',
+      side: 'Fieber',
+      measurementType: 'temperature',
+      measurementValue: 39.2,
+    })
+  })
+
   it('akzeptiert unbekannte Unteroptionen fuer bekannte Regionen', () => {
     const result = symptomExtractionAiResultSchema.safeParse({
       symptoms: [{ region: 'Allgemein', side: 'Husten' }],

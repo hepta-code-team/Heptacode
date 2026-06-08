@@ -52,6 +52,7 @@ export async function handleSubmitAssessment({
     id: symptom.id,
     region: symptom.region.trim(),
     side: symptom.side,
+    ...(symptom.details?.trim() ? { details: symptom.details.trim() } : {}),
     measurementType: symptom.measurementType,
     measurementValue: symptom.measurementValue,
     duration: symptom.duration,

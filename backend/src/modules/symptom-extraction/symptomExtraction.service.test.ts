@@ -94,6 +94,62 @@ describe('extractSymptoms', () => {
     expect(result.symptoms).toEqual([{ region: 'Blutiger Auswurf', measurementType: 'severity' }])
   })
 
+  it('uebernimmt relevante Zusatzdetails auch bei Mapping auf vorhandene Symptome', async () => {
+    requestStructuredAiResponseMock
+      .mockResolvedValueOnce({
+        isValidMedicalInput: true,
+        reason: 'Medizinische Beschwerde erkannt.',
+      })
+      .mockResolvedValueOnce({
+        symptoms: [
+          {
+            region: 'Verbrennung',
+            details: 'Kochendes Wasser ueber Arm geschuettet',
+            measurementType: 'severity',
+          },
+        ],
+      })
+
+    const result = await extractSymptoms('Ich habe kochendes Wasser über meinen Arm geschüttet.')
+
+    expect(result.symptoms).toEqual([
+      {
+        region: 'Verbrennung',
+        details: 'Kochendes Wasser ueber Arm geschuettet',
+        measurementType: 'severity',
+      },
+    ])
+  })
+
+  it('bewahrt Negationen in Zusatzdetails fuer die Triage', async () => {
+    requestStructuredAiResponseMock
+      .mockResolvedValueOnce({
+        isValidMedicalInput: true,
+        reason: 'Medizinischer Verletzungskontext erkannt.',
+      })
+      .mockResolvedValueOnce({
+        symptoms: [
+          {
+            region: 'In Nagel getreten',
+            side: 'Fuß',
+            details: 'Nagel steckt nicht im Fuß',
+            measurementType: 'severity',
+          },
+        ],
+      })
+
+    const result = await extractSymptoms('Der Nagel steckt aber nicht in meinem Fuß.')
+
+    expect(result.symptoms).toEqual([
+      {
+        region: 'In Nagel getreten',
+        side: 'Fuß',
+        details: 'Nagel steckt nicht im Fuß',
+        measurementType: 'severity',
+      },
+    ])
+  })
+
   it('laesst Verletzungsereignisse als Freitext-Symptom durch die Extraktion laufen', async () => {
     requestStructuredAiResponseMock
       .mockResolvedValueOnce({
