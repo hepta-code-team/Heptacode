@@ -35,6 +35,15 @@ export default function WizardNavigation() {
     "/symptom-details": hasCompleteSymptomDetails(symptomDetails),
     "/result": true,
   };
+  const hasCompletedAssessment = Boolean(assessmentResult) && !isEvaluating;
+  const completedThroughPath = hasCompletedAssessment || isEmergencyResult
+    ? "/result"
+    : isEvaluating || evaluationProgress > 0
+      ? "/symptom-details"
+      : undefined;
+  const completedThroughIndex = completedThroughPath
+    ? pages.findIndex((page) => page.path === completedThroughPath)
+    : -1;
 
   return (
       <div className="fixed bottom-6 left-1/2 z-20 hidden min-w-[60vw] -translate-x-1/2 rounded-2xl border
@@ -43,33 +52,35 @@ export default function WizardNavigation() {
         <div className="grid gap-2" style={{ gridTemplateColumns: `repeat(${pages.length}, minmax(0, 1fr))` }}>
           {pages.map((page, index) => {
             const isActive = index === currentIndex;
-            const hasCompletedAssessment = Boolean(assessmentResult) && !isEvaluating;
-            const isComplete = hasCompletedAssessment
-              ? !isActive
+            const isComplete = completedThroughIndex >= 0
+              ? index <= completedThroughIndex && !isActive
               : currentIndex >= 0 && index < currentIndex && (!isEmergencyResult || index === 0);
             const isValid = validSteps[page.path];
-            const hasValidationError = isComplete && !isValid;
+            const isBypassedEmergencyStep = isEmergencyResult && page.path !== "/" && page.path !== "/result";
+            const isVisuallyComplete = isComplete && !isBypassedEmergencyStep && isValid;
+            const hasValidationError = isComplete && !isValid && !isBypassedEmergencyStep;
             const isSymptomDetailsStep = page.path === "/symptom-details";
             const isEvaluationStep = page.path === "/result";
-            const canNavigateToStep =
-              (!isSymptomDetailsStep || hasRequiredSymptoms(selectedSymptoms)) &&
-              (!isEvaluationStep || hasCompletedAssessment);
+            const canNavigateToStep = isEmergencyResult
+              ? page.path === "/"
+              : (!isSymptomDetailsStep || hasRequiredSymptoms(selectedSymptoms)) &&
+                (!isEvaluationStep || hasCompletedAssessment);
             const showsEvaluationProgress =
               isEvaluationStep && !isEmergencyResult && evaluationProgress > 0 && (isEvaluating || isActive);
             const hasFinishedEvaluation = hasCompletedAssessment || isEmergencyResult;
             const showsLabel = isEvaluationStep
               ? isActive && hasFinishedEvaluation
-              : isActive || isComplete;
+              : isActive || (isComplete && !isBypassedEmergencyStep);
             const labelColor = hasValidationError
               ? "text-red-500"
-              : isComplete
+              : isVisuallyComplete
                 ? "text-[#A3E64D]"
                 : isActive
                   ? "text-app-text-primary"
                   : "text-transparent";
             const barColor = hasValidationError
               ? "bg-red-500"
-              : isComplete
+              : isVisuallyComplete
                 ? "bg-[#A3E64D]"
                 : isActive
                   ? "bg-[#486284]"
@@ -101,7 +112,7 @@ export default function WizardNavigation() {
               >
                 {hasValidationError ? (
                   <X className="size-4" strokeWidth={3} aria-hidden="true" />
-                ) : isComplete && isValid ? (
+                ) : isVisuallyComplete ? (
                   <Check className="size-4" strokeWidth={3} aria-hidden="true" />
                 ) : (
                   page.name

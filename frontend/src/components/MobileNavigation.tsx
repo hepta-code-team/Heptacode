@@ -16,13 +16,16 @@ export default function MobileNavigation() {
   const { assessmentResult, selectedSymptoms } = useAssessment();
   const activePath = location.pathname === "/body-area" ? "/symptom-selection" : location.pathname;
   const currentIndex = pages.findIndex((p) => p.path === activePath);
+  const isEmergencyResult =
+    activePath === "/result" && new URLSearchParams(location.search).get("emergency") === "true";
 
   const canNavigateTo = (path: string | undefined) =>
     path !== "/symptom-details" || selectedSymptoms.length > 0;
-  const previousPage = pages[currentIndex - 1];
-  const nextPage = pages[currentIndex + 1];
-  const canGoBack = currentIndex > 0 && canNavigateTo(previousPage?.path);
+  const previousPage = isEmergencyResult ? pages[0] : pages[currentIndex - 1];
+  const nextPage = isEmergencyResult ? undefined : pages[currentIndex + 1];
+  const canGoBack = isEmergencyResult || (currentIndex > 0 && canNavigateTo(previousPage?.path));
   const canGoForward =
+    !isEmergencyResult &&
     currentIndex < pages.length - 1 &&
     canNavigateTo(nextPage?.path) &&
     (nextPage?.path !== "/result" || Boolean(assessmentResult));
@@ -31,7 +34,7 @@ export default function MobileNavigation() {
     <div className="sticky left-0 right-0 top-0 z-10 bg-white px-4 py-3 md:hidden">
       <div className="flex items-center justify-between">
         <button
-          onClick={() => canGoBack && navigate(previousPage.path)}
+          onClick={() => canGoBack && previousPage && navigate(previousPage.path)}
           disabled={!canGoBack}
           className={`p-2 ${
             canGoBack
@@ -68,7 +71,7 @@ export default function MobileNavigation() {
         </div>
 
         <button
-          onClick={() => canGoForward && navigate(nextPage.path)}
+          onClick={() => canGoForward && nextPage && navigate(nextPage.path)}
           disabled={!canGoForward}
           className={`p-2 ${
             canGoForward
