@@ -7,7 +7,6 @@ import type {
   TriageSymptom,
 } from './triage.types.js'
 import { triageAiResponseSchema } from '../../shared/validation.js'
-import type { TriageAiResponse } from '../../shared/validation.js'
 import type { SymptomInputType } from '../../../../shared/symptomExtraction.types.js'
 import { triageInstructions, createTriagePrompt } from '../prompt/triage.prompt.js'
 
@@ -29,26 +28,6 @@ const MEASUREMENT_LABELS: Record<NonNullable<TriageSymptom['measurementType']>, 
   temperature: 'Temperatur',
   feeling: 'Beschwerdegefuehl',
   severity: 'Schweregrad',
-}
-
-const MEDICAL_SPECIALTY_LABELS: Record<MedicalSpecialty, string> = {
-  home_care: 'Haeusliche Versorgung',
-  emergency_medicine: 'Notfallmedizin',
-  general_practice: 'Allgemeinmedizin',
-  internal_medicine: 'Innere Medizin',
-  cardiology: 'Kardiologie',
-  neurology: 'Neurologie',
-  orthopedics: 'Orthopaedie',
-  gastroenterology: 'Gastroenterologie',
-  pulmonology: 'Pneumologie',
-  dermatology: 'Dermatologie',
-  urology: 'Urologie',
-  gynecology: 'Gynaekologie',
-  psychiatry: 'Psychiatrie',
-  pediatrics: 'Kinderheilkunde',
-  dentistry: 'Zahnmedizin',
-  ophthalmology: 'Augenheilkunde',
-  otolaryngology: 'HNO',
 }
 
 function hasText(value: string | undefined): value is string {

@@ -43,8 +43,17 @@ export default function SymptomDetailsPage() {
     };
   };
 
+  const createEmptySymptom = (index: number): SymptomDraft => ({
+    id: `symptom-placeholder-${Date.now()}-${index}`,
+    region: "",
+    side: undefined,
+    measurementType: "pain",
+    measurementValue: 5,
+    active: false,
+  });
+
   const normalizeSymptom = (
-    symptom: SelectedSymptom | Symptom,
+    symptom: SelectedSymptom | Symptom | TriageSymptom,
     index: number,
     isNameEditable = false,
   ): SymptomDraft => {
@@ -66,16 +75,18 @@ export default function SymptomDetailsPage() {
     };
   };
 
-  // Initialize local symptomDetails from selectedSymptoms
-  const [symptomDetails, setLocalSymptomDetails] = useState<SymptomDraft[]>(() => {
-    if (routeState?.extractedSymptoms && routeState.extractedSymptoms.length > 0) {
-      return routeState.extractedSymptoms.map((symptom, index) => normalizeSymptom(symptom, index, true));
-    }
+  const buildInitialSymptomDetails = (): SymptomDraft[] => {
+    const activeSymptoms =
+      routeState?.extractedSymptoms && routeState.extractedSymptoms.length > 0
+        ? routeState.extractedSymptoms.map((symptom, index) => normalizeSymptom(symptom, index, true))
+        : contextDetails.length > 0
+          ? contextDetails.map((symptom, index) => normalizeSymptom(symptom, index))
+          : selectedSymptoms.map((symptom, index) => normalizeSymptom(symptom, index));
 
-    // If context already has details, use them
-    if (contextDetails.length > 0) {
-      return contextDetails.map((symptom, index) => normalizeSymptom(symptom, index));
-    }
+    const placeholders = Array.from(
+      { length: Math.max(0, MAX_SYMPTOMS - activeSymptoms.length) },
+      (_, index) => createEmptySymptom(index),
+    );
 
     return [...activeSymptoms.slice(0, MAX_SYMPTOMS), ...placeholders];
   };
