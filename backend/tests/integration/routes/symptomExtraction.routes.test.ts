@@ -101,7 +101,7 @@ describe('POST /api/v1/symptoms/extraction', () => {
     expect(response.json()).toEqual({
       text: 'Seit heute Bauchschmerzen.',
       inputType: 'text',
-      symptoms: [{ region: 'Bauch', measurementType: 'pain', measurementValue: 5, duration: 'today' }],
+      symptoms: [{ region: 'Bauch', measurementType: 'pain', duration: 'today' }],
     })
   })
 

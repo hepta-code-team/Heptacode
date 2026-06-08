@@ -23,6 +23,7 @@ export default function SymptomDetailsPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const routeState = location.state as SymptomDetailsRouteState | null;
+  const hasRouteExtractedSymptoms = Boolean(routeState?.extractedSymptoms?.length);
   const {
     selectedSymptoms,
     symptomDetails: contextDetails,
@@ -52,7 +53,11 @@ export default function SymptomDetailsPage() {
     active: false,
   });
 
-  const normalizeSymptom = (symptom: SelectedSymptom | Symptom | TriageSymptom, index: number): SymptomDraft => {
+  const normalizeSymptom = (
+    symptom: SelectedSymptom | Symptom | TriageSymptom,
+    index: number,
+    isNameEditable = false,
+  ): SymptomDraft => {
     const inferredMeasurementConfig = getMeasurementConfig(symptom.region, symptom.side);
     const measurementType = "measurementType" in symptom && symptom.measurementType
       ? symptom.measurementType
@@ -67,15 +72,16 @@ export default function SymptomDetailsPage() {
       measurementValue: "measurementValue" in symptom && typeof symptom.measurementValue === "number"
         ? symptom.measurementValue
         : measurementConfig.defaultValue,
+      isNameEditable,
     };
   };
 
   const buildInitialSymptomDetails = (): SymptomDraft[] => {
     const activeSymptoms =
       routeState?.extractedSymptoms && routeState.extractedSymptoms.length > 0
-        ? routeState.extractedSymptoms.map(normalizeSymptom)
+        ? routeState.extractedSymptoms.map((symptom, index) => normalizeSymptom(symptom, index, true))
         : contextDetails.length > 0
-          ? contextDetails.map(normalizeSymptom)
+          ? contextDetails.map((symptom, index) => normalizeSymptom(symptom, index))
           : selectedSymptoms.map((symptom, index) => normalizeSymptom(symptom, index));
 
     const placeholders = Array.from(
@@ -93,14 +99,20 @@ export default function SymptomDetailsPage() {
   const [submitError, setSubmitError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (selectedSymptoms.length === 0 && !(routeState?.extractedSymptoms?.length)) {
+    if (selectedSymptoms.length === 0 && contextDetails.length === 0 && !hasRouteExtractedSymptoms) {
       navigate("/symptom-selection");
     }
-  }, [selectedSymptoms, routeState?.extractedSymptoms, navigate]);
+  }, [contextDetails.length, hasRouteExtractedSymptoms, selectedSymptoms.length, navigate]);
 
   const updateSymptom = (index: number, field: keyof SymptomDraft, value: SymptomDraft[keyof SymptomDraft]) => {
     const updated = [...symptomDetails];
     updated[index] = { ...updated[index], [field]: value };
+    setLocalSymptomDetails(updated);
+  };
+
+  const updateSymptomName = (index: number, name: string) => {
+    const updated = [...symptomDetails];
+    updated[index] = { ...updated[index], region: name, side: undefined };
     setLocalSymptomDetails(updated);
   };
 
@@ -139,7 +151,7 @@ export default function SymptomDetailsPage() {
     .filter((symptom) => symptom.active)
     .every((symptom) => {
       const config = getMeasurementConfigByType(symptom.measurementType);
-      return symptom.measurementValue >= config.min && symptom.measurementValue <= config.max;
+      return symptom.region.trim().length > 0 && symptom.measurementValue >= config.min && symptom.measurementValue <= config.max;
     });
 
   return (
@@ -155,6 +167,7 @@ export default function SymptomDetailsPage() {
               <SymptomDetailsForm
                 symptom={symptom}
                 onUpdate={(field, value) => updateSymptom(index, field, value)}
+                onNameUpdate={(name) => updateSymptomName(index, name)}
                 onRemove={() => toggleSymptomActive(index)}
                 showDurationError={showValidationErrors}
               />
