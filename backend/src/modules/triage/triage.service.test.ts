@@ -65,14 +65,6 @@ describe('evaluateTriage', () => {
       careLevel: 'specialist',
       recommendedSpecialty: 'neurology',
       reasons: ['Die Beschwerden sollten neurologisch abgeklaert werden.'],
-      recommendedSpecialties: [
-        {
-          specialty: 'neurology',
-          label: 'Neurologie',
-          reason: 'Die Beschwerden sollten neurologisch abgeklaert werden.',
-          priority: 1,
-        },
-      ],
       reviewSummary: {
         plainLanguage: 'Bitte lassen Sie die Beschwerden neurologisch abklaeren.',
         professionalSummary: 'Care Level: specialist. Empfohlene Fachrichtung: neurology.',
@@ -99,6 +91,34 @@ describe('evaluateTriage', () => {
       aiUnavailable: true,
     })
     expect(result.reasons).toHaveLength(2)
+  })
+
+  it('eskaliert eine erfolgreiche KI-Triage nicht lokal zu specialist', async () => {
+    requestStructuredAiResponseWithModelMock.mockResolvedValueOnce({
+      data: {
+        careLevel: 'doctor',
+        reasons: ['Die Beschwerden sollten aerztlich abgeklart werden.'],
+        reviewSummary: {
+          plainLanguage: 'Bitte lassen Sie die Beschwerden aerztlich abklaeren.',
+          professionalSummary: 'Care Level: doctor.',
+        },
+      },
+      model: 'test-model',
+    })
+
+    const result = await evaluateTriage(undefined, [
+      { region: 'Bauch', measurementType: 'pain', measurementValue: 7, duration: 'days' },
+    ])
+
+    expect(result).toEqual({
+      careLevel: 'doctor',
+      reasons: ['Die Beschwerden sollten aerztlich abgeklart werden.'],
+      reviewSummary: {
+        plainLanguage: 'Bitte lassen Sie die Beschwerden aerztlich abklaeren.',
+        professionalSummary: 'Care Level: doctor.',
+      },
+      aiModel: 'test-model',
+    })
   })
 
   it('nutzt den Doctor-Fallback bei mittleren Beschwerden', async () => {
@@ -181,7 +201,6 @@ describe('evaluateTriage', () => {
 
     expect(result).toEqual({
       careLevel: 'doctor',
-      recommendedSpecialty: 'general_practice',
       reasons: ['Die Beschwerden sollten aerztlich abgeklart werden.'],
       reviewSummary: {
         plainLanguage: 'Bitte lassen Sie die Beschwerden aerztlich abklaeren.',

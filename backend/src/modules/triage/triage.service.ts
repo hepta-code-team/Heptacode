@@ -2,13 +2,11 @@ import { requestStructuredAiResponseWithModel } from '../../ai/llmAdapter.js'
 import { isAiRequestError } from '../../ai/timeout.js'
 import { extractSymptoms } from '../symptom-extraction/symptomExtraction.service.js'
 import type {
-  MedicalSpecialty,
   PatientData,
   TriageResponse,
   TriageSymptom,
 } from './triage.types.js'
 import { triageAiResponseSchema } from '../../shared/validation.js'
-import type { TriageAiResponse } from '../../shared/validation.js'
 import type { SymptomInputType } from '../../../../shared/symptomExtraction.types.js'
 import { triageInstructions, createTriagePrompt } from '../prompt/triage.prompt.js'
 
@@ -30,26 +28,6 @@ const MEASUREMENT_LABELS: Record<NonNullable<TriageSymptom['measurementType']>, 
   temperature: 'Temperatur',
   feeling: 'Beschwerdegefuehl',
   severity: 'Schweregrad',
-}
-
-const MEDICAL_SPECIALTY_LABELS: Record<MedicalSpecialty, string> = {
-  home_care: 'Haeusliche Versorgung',
-  emergency_medicine: 'Notfallmedizin',
-  general_practice: 'Allgemeinmedizin',
-  internal_medicine: 'Innere Medizin',
-  cardiology: 'Kardiologie',
-  neurology: 'Neurologie',
-  orthopedics: 'Orthopaedie',
-  gastroenterology: 'Gastroenterologie',
-  pulmonology: 'Pneumologie',
-  dermatology: 'Dermatologie',
-  urology: 'Urologie',
-  gynecology: 'Gynaekologie',
-  psychiatry: 'Psychiatrie',
-  pediatrics: 'Kinderheilkunde',
-  dentistry: 'Zahnmedizin',
-  ophthalmology: 'Augenheilkunde',
-  otolaryngology: 'HNO',
 }
 
 function hasText(value: string | undefined): value is string {
@@ -169,129 +147,6 @@ function getComparableMeasurementValue(symptom: TriageSymptom): number {
   return symptom.measurementValue
 }
 
-function inferSpecialistFromSymptoms(symptoms: TriageSymptom[]): MedicalSpecialty | undefined {
-  const primary = symptoms[0]
-
-  if (!primary) {
-    return undefined
-  }
-
-  if (primary.region === 'Psychische Probleme') {
-    return 'psychiatry'
-  }
-
-  if (primary.region === 'Verbrennung') {
-    return 'dermatology'
-  }
-
-  const measurementValue = getComparableMeasurementValue(primary)
-
-  if (primary.region === 'Kopf' && measurementValue >= 5) {
-    return 'neurology'
-  }
-
-  if (primary.region === 'Bauch' && measurementValue >= 5) {
-    return 'gastroenterology'
-  }
-
-  if (primary.region === 'Rücken' || primary.region === 'Arme' || primary.region === 'Beine') {
-    return 'orthopedics'
-  }
-
-  if (primary.region === 'Brust') {
-    if (primary.side === 'Atemabhängig') {
-      return 'pulmonology'
-    }
-
-    return 'cardiology'
-  }
-
-  return undefined
-}
-
-function fallbackSpecialtyForCareLevel(careLevel: TriageResponse['careLevel']): MedicalSpecialty {
-  switch (careLevel) {
-    case 'emergency':
-      return 'emergency_medicine'
-    case 'selfcare':
-      return 'home_care'
-    case 'specialist':
-      return 'internal_medicine'
-    case 'doctor':
-    default:
-      return 'general_practice'
-  }
-}
-
-function normalizeTriageResult(
-  result: TriageAiResponse,
-  symptoms: TriageSymptom[],
-): TriageResponse {
-  if (result.careLevel === 'specialist') {
-    const specialist = result.recommendedSpecialty ?? inferSpecialistFromSymptoms(symptoms) ?? 'internal_medicine'
-
-    return {
-      ...result,
-      recommendedSpecialty: specialist,
-    }
-  }
-
-  return {
-    ...result,
-    recommendedSpecialty: fallbackSpecialtyForCareLevel(result.careLevel),
-  }
-}
-
-function applySpecialistEscalation(
-  result: TriageResponse,
-  symptoms: TriageSymptom[],
-): TriageResponse {
-  if (result.careLevel !== 'doctor') {
-    return result
-  }
-
-  const inferredSpecialist = inferSpecialistFromSymptoms(symptoms)
-  const primary = symptoms[0]
-
-  if (!inferredSpecialist || !primary) {
-    return result
-  }
-
-  const isPersistent = primary.duration === 'days' || primary.duration === 'week' || primary.duration === 'weeks'
-  const isPronounced = getComparableMeasurementValue(primary) >= 5
-
-  if (!isPersistent && !isPronounced) {
-    return result
-  }
-
-  return {
-    ...result,
-    careLevel: 'specialist',
-    recommendedSpecialty: inferredSpecialist,
-  }
-}
-
-function attachRecommendedSpecialties(result: TriageResponse): TriageResponse {
-  if (result.careLevel !== 'specialist') {
-    return result
-  }
-
-  const specialty = (result.recommendedSpecialty ?? 'internal_medicine') as MedicalSpecialty
-  const label = MEDICAL_SPECIALTY_LABELS[specialty] ?? 'Fachärztliche Versorgung'
-
-  return {
-    ...result,
-    recommendedSpecialties: [
-      {
-        specialty,
-        label,
-        reason: result.reasons[0] ?? 'Fachärztliche Abklärung empfohlen.',
-        priority: 1,
-      },
-    ],
-  }
-}
-
 async function requestTriageFromAi(
   patientData: PatientData | undefined,
   symptoms: TriageSymptom[],
@@ -313,9 +168,7 @@ async function requestTriageFromAi(
   })
 
   return {
-    ...attachRecommendedSpecialties(
-      applySpecialistEscalation(normalizeTriageResult(parsed, symptoms), symptoms),
-    ),
+    ...parsed,
     aiModel: model,
   }
 }

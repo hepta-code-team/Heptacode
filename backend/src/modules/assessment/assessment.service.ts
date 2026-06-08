@@ -117,6 +117,22 @@ function buildFallbackReviewSummary(payload: AssessmentPayload): ReviewSummary {
   }
 }
 
+function fallbackSpecialtyForCareLevel(
+  careLevel: AssessmentResult['careLevel'],
+): AssessmentResult['recommendedSpecialty'] {
+  switch (careLevel) {
+    case 'emergency':
+      return 'emergency_medicine'
+    case 'selfcare':
+      return 'home_care'
+    case 'specialist':
+      return 'internal_medicine'
+    case 'doctor':
+    default:
+      return 'general_practice'
+  }
+}
+
 function sanitizeProfessionalSummary(summary: string): string {
   const lines = summary
     .split('\n')
@@ -147,10 +163,12 @@ export async function evaluateAssessmentWithAi(
     ...rawReviewSummary,
     professionalSummary: sanitizeProfessionalSummary(rawReviewSummary.professionalSummary),
   }
+  const recommendedSpecialty =
+    triageResult.recommendedSpecialty ?? fallbackSpecialtyForCareLevel(triageResult.careLevel)
 
   return {
     careLevel: triageResult.careLevel,
-    recommendedSpecialty: triageResult.recommendedSpecialty,
+    recommendedSpecialty,
     reasons:
       triageResult.reasons.length > 0
         ? triageResult.reasons

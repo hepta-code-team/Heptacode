@@ -35,7 +35,7 @@ function detectHeuristicInvalidInput(text: string): string | null {
   const words = splitWords(text)
   const lettersOnlyText = normalizeText(text).replace(/[^a-z]/g, '')
   const uniqueLetters = new Set(lettersOnlyText.split(''))
-  const hasMedicalCue = /(schmerz|weh|fieber|uebel|übel|atem|husten|kopf|bauch|brust|ruecken|rücken|angst|schwindel|krank)/i.test(text)
+  const hasMedicalCue = /(schmerz|weh|fieber|uebel|übel|atem|husten|kopf|bauch|brust|ruecken|rücken|angst|schwindel|krank|verletz|wunde|blut|nagel|getreten|stich|schnitt|biss|bruch|gebroch|verloren|abgetrennt|amput|fremdkoerper|fremdkörper|verschluckt|vergift)/i.test(text)
 
   if (trimmedText.length < 6) {
     return 'Bitte beschreiben Sie Ihre Beschwerden etwas genauer.'
@@ -79,7 +79,7 @@ async function requestInputValidationFromAi(text: string, inputType: SymptomInpu
 }
 
 async function requestSymptomsFromAi(text: string, inputType: SymptomInputType) {
-  // Das model ist auf unsere feste Symptomtaxonomie beschränkt, so dass das Frontend die Ergebnis direkt verarbeiten kann.
+  // Bekannte Symptome werden normalisiert; unbekannte medizinische Beschwerden bleiben als Freitext-Symptom erhalten.
   return requestStructuredAiResponse({
     messages: [
       { role: 'system', content: symptomExtractionInstructions},

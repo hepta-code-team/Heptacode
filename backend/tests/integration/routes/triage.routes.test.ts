@@ -113,8 +113,7 @@ describe('POST /api/v1/triage/evaluate', () => {
 
     expect(response.statusCode).toBe(200)
     expect(response.json()).toEqual({
-      careLevel: 'specialist',
-      recommendedSpecialty: 'neurology',
+      careLevel: 'doctor',
       reasons: ['Die Beschwerden sollten aerztlich abgeklart werden.'],
       recommendedSpecialties: [
         {

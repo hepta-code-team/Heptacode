@@ -61,10 +61,10 @@ describe('extractSymptoms', () => {
         symptoms: [{ region: 'Kopf', measurementType: 'pain', measurementValue: 6, duration: 'days' }],
       })
 
-    const result = await extractSymptoms('Ich habe seit Tagen Kopfschmerzen.', 'speech')
+    const result = await extractSymptoms('Ich habe seit Tagen Kopfschmerzen 6 von 10.', 'speech')
 
     expect(result).toEqual({
-      text: 'Ich habe seit Tagen Kopfschmerzen.',
+      text: 'Ich habe seit Tagen Kopfschmerzen 6 von 10.',
       inputType: 'speech',
       symptoms: [{ region: 'Kopf', measurementType: 'pain', measurementValue: 6, duration: 'days' }],
     })
@@ -77,6 +77,68 @@ describe('extractSymptoms', () => {
       2,
       expect.objectContaining({ modelStrategy: 'fallback-only' }),
     )
+  })
+
+  it('uebernimmt nicht abgedeckte KI-Symptome als Freitext-Symptom', async () => {
+    requestStructuredAiResponseMock
+      .mockResolvedValueOnce({
+        isValidMedicalInput: true,
+        reason: 'Medizinische Beschwerde erkannt.',
+      })
+      .mockResolvedValueOnce({
+        symptoms: [{ region: 'Blutiger Auswurf', measurementType: 'severity' }],
+      })
+
+    const result = await extractSymptoms('Ich habe blutigen Auswurf.')
+
+    expect(result.symptoms).toEqual([{ region: 'Blutiger Auswurf', measurementType: 'severity' }])
+  })
+
+  it('laesst Verletzungsereignisse als Freitext-Symptom durch die Extraktion laufen', async () => {
+    requestStructuredAiResponseMock
+      .mockResolvedValueOnce({
+        isValidMedicalInput: true,
+        reason: 'Medizinischer Verletzungskontext erkannt.',
+      })
+      .mockResolvedValueOnce({
+        symptoms: [{ region: 'Nageltrittverletzung', measurementType: 'severity' }],
+      })
+
+    const result = await extractSymptoms('Ich bin in einen Nagel getreten.')
+
+    expect(result.symptoms).toEqual([{ region: 'Nageltrittverletzung', measurementType: 'severity' }])
+    expect(requestStructuredAiResponseMock).toHaveBeenCalledTimes(2)
+  })
+
+  it('laesst Koerperteilverlust als Freitext-Symptom durch die Extraktion laufen', async () => {
+    requestStructuredAiResponseMock
+      .mockResolvedValueOnce({
+        isValidMedicalInput: true,
+        reason: 'Medizinischer Verletzungskontext erkannt.',
+      })
+      .mockResolvedValueOnce({
+        symptoms: [{ region: 'Amputierter Arm', measurementType: 'severity' }],
+      })
+
+    const result = await extractSymptoms('Ich habe meinen Arm verloren.')
+
+    expect(result.symptoms).toEqual([{ region: 'Amputierter Arm', measurementType: 'severity' }])
+    expect(requestStructuredAiResponseMock).toHaveBeenCalledTimes(2)
+  })
+
+  it('uebernimmt Messwerte aus der KI-Extraktion ohne lokale Nachfilterung', async () => {
+    requestStructuredAiResponseMock
+      .mockResolvedValueOnce({
+        isValidMedicalInput: true,
+        reason: 'Medizinische Beschwerde erkannt.',
+      })
+      .mockResolvedValueOnce({
+        symptoms: [{ region: 'Blutiges Erbrechen', measurementType: 'severity', measurementValue: 10 }],
+      })
+
+    const result = await extractSymptoms('Ich habe mich uebergeben und es kam auch Blut mit hoch.')
+
+    expect(result.symptoms).toEqual([{ region: 'Blutiges Erbrechen', measurementType: 'severity', measurementValue: 10 }])
   })
 
   it('versucht die Extraktion, wenn nur die Validierungs-KI ausfaellt', async () => {

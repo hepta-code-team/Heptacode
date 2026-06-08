@@ -34,6 +34,13 @@ export const careLevelSchema = z.enum(CARE_LEVELS)
 
 export const medicalSpecialtySchema = z.enum(MEDICAL_SPECIALTIES)
 
+export const recommendedSpecialtyItemSchema = z.object({
+  specialty: medicalSpecialtySchema,
+  label: z.string().min(1),
+  reason: z.string().min(1),
+  priority: z.number(),
+})
+
 export interface TriageRequest {
   patientData?: PatientData
   symptoms?: TriageSymptom[]

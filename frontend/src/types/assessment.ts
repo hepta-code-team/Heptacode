@@ -24,6 +24,7 @@ export interface SymptomDraft extends TriageSymptom {
   active: boolean;
   measurementType: SymptomMeasurementType;
   measurementValue: number;
+  isNameEditable?: boolean;
 }
 
 export interface SymptomDetailPayload extends TriageSymptom {
