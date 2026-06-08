@@ -10,6 +10,26 @@ vi.mock('../../ai/llmAdapter.js', () => ({
 
 const requestStructuredAiResponseMock = vi.mocked(requestStructuredAiResponse)
 
+const malePatientData = {
+  birthMonth: '05',
+  birthYear: '1988',
+  height: '175',
+  weight: '78',
+  gender: 'Maennlich',
+  isPregnant: false,
+  isBreastfeeding: false,
+  allergies: '',
+  medications: '',
+  substanceInfluence: 'Nein',
+  recentAbroad: false,
+  recentAbroadDetails: '',
+  conditions: [],
+  isSmoker: false,
+  smokingSinceYears: '',
+  cigarettesPerDay: '',
+  conditionDetails: {},
+}
+
 describe('extractSymptoms', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -23,6 +43,23 @@ describe('extractSymptoms', () => {
       inputType: 'text',
       symptoms: [],
       invalidInput: true,
+    })
+    expect(requestStructuredAiResponseMock).not.toHaveBeenCalled()
+  })
+
+  it('faengt widerspruechliche Schwangerschaftsangaben vor der KI-Auswertung ab', async () => {
+    const result = await extractSymptoms(
+      'Ich waere schwanger und habe Wehen.',
+      'text',
+      malePatientData,
+    )
+
+    expect(result).toMatchObject({
+      text: 'Ich waere schwanger und habe Wehen.',
+      inputType: 'text',
+      symptoms: [],
+      invalidInput: true,
+      message: expect.stringContaining('passen logisch nicht zusammen'),
     })
     expect(requestStructuredAiResponseMock).not.toHaveBeenCalled()
   })

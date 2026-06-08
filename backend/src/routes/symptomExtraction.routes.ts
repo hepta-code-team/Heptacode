@@ -8,6 +8,7 @@ export const symptomExtractionRoutes: FastifyPluginAsync = async (app) => {
     const result = await extractSymptoms(
       body.symptomText ?? body.text ?? body.input ?? '',
       body.inputType,
+      body.patientData,
     )
 
     return reply.send(result)

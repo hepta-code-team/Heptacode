@@ -11,6 +11,8 @@ import {
   SYMPTOM_REGIONS,
   type SymptomRegionName,
 } from '../../../../shared/symptomTaxonomy.js'
+import { patientDataSchema } from '../triage/triage.types.js'
+import type { PatientData } from '../../../../shared/patientData.types.js'
 
 export type { SymptomExtractionAiResult, TriageSymptom }
 
@@ -20,6 +22,7 @@ export interface SymptomExtractionRequest {
   text: string
   input?: string
   inputType?: SymptomInputType
+  patientData?: PatientData
 }
 
 // Typ für die Antwort
@@ -208,6 +211,7 @@ export const symptomExtractionRequestSchema = z
     text: z.string().trim().min(1).optional(),
     input: z.string().trim().min(1).optional(),
     inputType: z.enum(SYMPTOM_INPUT_TYPES).optional(),
+    patientData: patientDataSchema.optional(),
   })
   .refine((value) => Boolean(value.symptomText ?? value.text ?? value.input), {
     message: 'symptomText is required',

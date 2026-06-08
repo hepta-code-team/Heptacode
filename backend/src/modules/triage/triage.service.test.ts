@@ -16,6 +16,26 @@ vi.mock('../symptom-extraction/symptomExtraction.service.js', () => ({
 const requestStructuredAiResponseWithModelMock = vi.mocked(requestStructuredAiResponseWithModel)
 const extractSymptomsMock = vi.mocked(extractSymptoms)
 
+const malePatientData = {
+  birthMonth: '05',
+  birthYear: '1988',
+  height: '175',
+  weight: '78',
+  gender: 'Maennlich',
+  isPregnant: false,
+  isBreastfeeding: false,
+  allergies: '',
+  medications: '',
+  substanceInfluence: 'Nein',
+  recentAbroad: false,
+  recentAbroadDetails: '',
+  conditions: [],
+  isSmoker: false,
+  smokingSinceYears: '',
+  cigarettesPerDay: '',
+  conditionDetails: {},
+}
+
 describe('evaluateTriage', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -165,6 +185,42 @@ describe('evaluateTriage', () => {
       message: 'Bitte beschreiben Sie konkrete Beschwerden.',
       statusCode: 400,
     })
+  })
+
+  it('bricht bei maennlichem Geschlecht und Schwangerschaftsangaben im Freitext ab', async () => {
+    await expect(
+      evaluateTriage(
+        malePatientData,
+        undefined,
+        false,
+        'Ich waere schwanger und habe Wehen.',
+      ),
+    ).rejects.toMatchObject({
+      message: expect.stringContaining('passen logisch nicht zusammen'),
+      statusCode: 400,
+    })
+
+    expect(extractSymptomsMock).not.toHaveBeenCalled()
+    expect(requestStructuredAiResponseWithModelMock).not.toHaveBeenCalled()
+  })
+
+  it('bricht bei maennlichem Geschlecht und Schwangerschaftsangaben in Symptomen ab', async () => {
+    await expect(
+      evaluateTriage(malePatientData, [
+        {
+          region: 'Bauch',
+          details: 'Schwanger und Wehen seit heute',
+          measurementType: 'pain',
+          measurementValue: 8,
+          duration: 'today',
+        },
+      ]),
+    ).rejects.toMatchObject({
+      message: expect.stringContaining('passen logisch nicht zusammen'),
+      statusCode: 400,
+    })
+
+    expect(requestStructuredAiResponseWithModelMock).not.toHaveBeenCalled()
   })
 
   it('nutzt den Freitext-Fallback, wenn die Symptom-Extraktion nicht verfuegbar ist', async () => {

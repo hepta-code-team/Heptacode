@@ -24,6 +24,33 @@ describe('symptomExtractionRequestSchema', () => {
     expect(result.success).toBe(true)
   })
 
+  it('akzeptiert Patientendaten fuer fruehe Plausibilitaetspruefungen', () => {
+    const result = symptomExtractionRequestSchema.safeParse({
+      symptomText: 'Ich habe Bauchschmerzen.',
+      patientData: {
+        birthMonth: '05',
+        birthYear: '1988',
+        height: '175',
+        weight: '78',
+        gender: 'Maennlich',
+        isPregnant: false,
+        isBreastfeeding: false,
+        allergies: '',
+        medications: '',
+        substanceInfluence: 'Nein',
+        recentAbroad: false,
+        recentAbroadDetails: '',
+        conditions: [],
+        isSmoker: false,
+        smokingSinceYears: '',
+        cigarettesPerDay: '',
+        conditionDetails: {},
+      },
+    })
+
+    expect(result.success).toBe(true)
+  })
+
   it('lehnt Anfragen ohne Freitext ab', () => {
     const result = symptomExtractionRequestSchema.safeParse({})
 

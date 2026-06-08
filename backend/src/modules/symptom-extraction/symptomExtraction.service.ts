@@ -1,6 +1,8 @@
 import { requestStructuredAiResponse } from '../../ai/llmAdapter.js'
 import { isAiRequestError } from '../../ai/timeout.js'
+import { getPatientPlausibilityError } from '../../common/patientPlausibility.js'
 import type { SymptomExtractionResponse } from './symptomExtraction.types.js'
+import type { PatientData } from '../../../../shared/patientData.types.js'
 import type { SymptomInputType } from '../../../../shared/symptomExtraction.types.js'
 import {
   symptomExtractionAiResultSchema,
@@ -98,7 +100,20 @@ async function requestSymptomsFromAi(text: string, inputType: SymptomInputType) 
 export async function extractSymptoms(
   text: string,
   inputType: SymptomInputType = 'text',
+  patientData?: PatientData,
 ): Promise<SymptomExtractionResponse> {
+  const plausibilityError = getPatientPlausibilityError(patientData, text, undefined)
+
+  if (plausibilityError) {
+    return {
+      text,
+      inputType,
+      symptoms: [],
+      invalidInput: true,
+      message: plausibilityError,
+    }
+  }
+
   const heuristicInvalidReason = detectHeuristicInvalidInput(text)
 
   if (heuristicInvalidReason) {

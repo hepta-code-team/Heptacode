@@ -11,6 +11,26 @@ vi.mock('../../../src/ai/llmAdapter.js', () => ({
 
 const requestStructuredAiResponseMock = vi.mocked(requestStructuredAiResponse)
 
+const malePatientData = {
+  birthMonth: '05',
+  birthYear: '1988',
+  height: '175',
+  weight: '78',
+  gender: 'Maennlich',
+  isPregnant: false,
+  isBreastfeeding: false,
+  allergies: '',
+  medications: '',
+  substanceInfluence: 'Nein',
+  recentAbroad: false,
+  recentAbroadDetails: '',
+  conditions: [],
+  isSmoker: false,
+  smokingSinceYears: '',
+  cigarettesPerDay: '',
+  conditionDetails: {},
+}
+
 async function createApp(): Promise<FastifyInstance> {
   const app = await buildApp()
   await app.ready()
@@ -160,6 +180,27 @@ describe('POST /api/v1/symptoms/extraction', () => {
       inputType: 'text',
       symptoms: [],
       invalidInput: true,
+    })
+    expect(requestStructuredAiResponseMock).not.toHaveBeenCalled()
+  })
+
+  it('antwortet beim Freitext-Absenden mit invalidInput bei logisch widerspruechlichen Schwangerschaftsangaben', async () => {
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/v1/symptoms/extraction',
+      payload: {
+        symptomText: 'Ich waere schwanger und habe Wehen.',
+        patientData: malePatientData,
+      },
+    })
+
+    expect(response.statusCode).toBe(200)
+    expect(response.json()).toMatchObject({
+      text: 'Ich waere schwanger und habe Wehen.',
+      inputType: 'text',
+      symptoms: [],
+      invalidInput: true,
+      message: expect.stringContaining('passen logisch nicht zusammen'),
     })
     expect(requestStructuredAiResponseMock).not.toHaveBeenCalled()
   })
