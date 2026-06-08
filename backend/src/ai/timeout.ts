@@ -31,10 +31,12 @@ export function isAiRequestError(error: unknown): boolean {
 // These failures indicate that the requested model or AI service is unavailable,
 // so the smaller fallback model should be attempted.
 export function isAiAvailabilityError(error: unknown): boolean {
-  return (
-    error instanceof OpenAI.APIError ||
-    error instanceof APIError ||
-    error instanceof APIConnectionError ||
-    error instanceof APIConnectionTimeoutError
-  )
+  if (error instanceof APIConnectionError || error instanceof APIConnectionTimeoutError) {
+    return true
+  } 
+
+  if (error instanceof OpenAI.APIError || error instanceof APIError) {
+    return error.status === 429 || (typeof error.status === 'number' && error.status >= 500)
+  }
+  return false
 }
