@@ -103,6 +103,12 @@ function exceedsSymptomTextLimit(text: string) {
   return getCharacterCount(text) > MAX_SYMPTOM_TEXT_CHARACTERS;
 }
 
+/**
+ * Reconstructs textarea content before React receives the changed value.
+ *
+ * This lets beforeInput prevent oversized text instead of briefly accepting it
+ * and then trimming after the DOM has already changed.
+ */
 function insertTextAtSelection(text: string, insertedText: string, selectionStart: number, selectionEnd: number) {
   return `${text.slice(0, selectionStart)}${insertedText}${text.slice(selectionEnd)}`;
 }
@@ -119,12 +125,24 @@ function isTextRemoval(event: FormEvent<HTMLTextAreaElement>) {
   return nativeEvent.inputType.startsWith("delete");
 }
 
+/**
+ * Predicts the next textarea value for a normal typing event.
+ *
+ * The browser exposes inserted text on the native InputEvent while the DOM value
+ * still represents the previous state during beforeInput.
+ */
 function getTextWithPendingTextAreaInput(event: FormEvent<HTMLTextAreaElement>, inputText: string) {
   const { selectionEnd, selectionStart, value } = event.currentTarget;
 
   return insertTextAtSelection(value, inputText, selectionStart, selectionEnd);
 }
 
+/**
+ * Predicts the next textarea value for paste handling.
+ *
+ * Paste needs its own helper because clipboard text is not available through
+ * InputEvent.data in the same reliable way as keyboard input.
+ */
 function getTextWithPendingTextAreaPaste(event: ClipboardEvent<HTMLTextAreaElement>) {
   const { selectionEnd, selectionStart, value } = event.currentTarget;
   const pastedText = event.clipboardData.getData("text");
@@ -136,6 +154,12 @@ function getSymptomKey(symptom: SelectedSymptom) {
   return symptom.side ? `${symptom.region} (${symptom.side})` : symptom.region;
 }
 
+/**
+ * Deduplicates AI-extracted symptoms while preserving their original order.
+ *
+ * The detail page only supports the configured maximum number of symptoms, so
+ * the extraction result is capped before it is written into shared state.
+ */
 function getUniqueExtractedSymptoms(symptoms: TriageSymptom[]): TriageSymptom[] {
   const seenSymptomKeys = new Set<string>();
   const uniqueSymptoms: TriageSymptom[] = [];
@@ -156,10 +180,21 @@ function getUniqueExtractedSymptoms(symptoms: TriageSymptom[]): TriageSymptom[] 
   return uniqueSymptoms;
 }
 
+/**
+ * Validates the category query parameter before it is used as state.
+ *
+ * This protects deep links from rendering an unsupported body-area category.
+ */
 function isBodyAreaCategory(value: string | null): value is BodyAreaCategory {
   return Boolean(value && value in BODY_AREA_REGION_IDS);
 }
 
+/**
+ * Interactive body selector used for coarse symptom localization.
+ *
+ * The SVG uses keyboard handlers and button-like roles so body-region selection
+ * remains available beyond pointer-only interactions.
+ */
 function AnatomyFigure({
   selectedCategory,
   onSelect,
@@ -324,6 +359,12 @@ export default function SymptomSelectionPage() {
   const formattedRecordingElapsed = formatRecordingDuration(recordingElapsedSeconds);
   const formattedMaxRecordingDuration = formatRecordingDuration(MAX_RECORDING_DURATION_SECONDS);
 
+  /**
+   * Updates the free-text symptom description while enforcing the hard limit.
+   *
+   * The limit is checked here as a fallback for browsers or input paths that do
+   * not pass through beforeInput or paste handling.
+   */
   const handleSymptomTextChange = (text: string) => {
     if (exceedsSymptomTextLimit(text)) {
       setSymptomTextError(SYMPTOM_TEXT_CHARACTER_LIMIT_ERROR);
@@ -337,6 +378,12 @@ export default function SymptomSelectionPage() {
     }
   };
 
+  /**
+   * Prevents keyboard input that would exceed the symptom text limit.
+   *
+   * Blocking before the DOM value changes avoids flicker and keeps screen-reader
+   * announcements aligned with the final accepted value.
+   */
   const handleSymptomTextBeforeInput = (event: FormEvent<HTMLTextAreaElement>) => {
     if (isTextRemoval(event)) {
       return;
@@ -356,6 +403,12 @@ export default function SymptomSelectionPage() {
     }
   };
 
+  /**
+   * Handles pasted text by trimming to the maximum supported length.
+   *
+   * Paste can add a large amount of text at once, so it is normalized separately
+   * from single-character keyboard input.
+   */
   const handleSymptomTextPaste = (event: ClipboardEvent<HTMLTextAreaElement>) => {
     const nextText = getTextWithPendingTextAreaPaste(event);
 
@@ -417,6 +470,12 @@ export default function SymptomSelectionPage() {
     return limitTextToMaxCharacters(combinedTranscript);
   };
 
+  /**
+   * Starts or stops browser speech recognition for symptom dictation.
+   *
+   * The implementation keeps final transcript text separate from interim text so
+   * partial recognition updates can be displayed without duplicating words.
+   */
   const handleToggleSymptomRecording = () => {
     if (isRecordingSymptoms) {
       stopSymptomRecording();
@@ -447,6 +506,7 @@ export default function SymptomSelectionPage() {
       setSymptomTextError(null);
     };
 
+    // Keep interim transcripts visible without committing them until the browser marks them final.
     recognition.onresult = (event) => {
       let finalTranscript = "";
       let interimTranscript = "";
@@ -476,6 +536,7 @@ export default function SymptomSelectionPage() {
     };
 
     recognition.onerror = (event) => {
+      // Browser speech errors are user-facing because permissions and service availability vary by device.
       clearRecordingTimeout();
       clearRecordingTimerInterval();
       setIsRecordingSymptoms(false);
@@ -514,6 +575,11 @@ export default function SymptomSelectionPage() {
     }
   };
 
+  /**
+   * Cleans up timers and active speech recognition when the page unmounts.
+   * Browser speech APIs can continue firing callbacks after navigation unless
+   * they are explicitly stopped and dereferenced.
+   */
   useEffect(() => {
     return () => {
       clearRecordingTimeout();
@@ -522,6 +588,11 @@ export default function SymptomSelectionPage() {
     };
   }, []);
 
+  /**
+   * Selects a coarse body area and syncs it into the URL.
+   * Keeping the category in search params makes the screen shareable and lets
+   * browser navigation restore the currently opened body area.
+   */
   const handleCategorySelect = (category: BodyAreaCategory) => {
     if (selectedCategory === category) {
       setSelectedCategory(null);
@@ -532,6 +603,7 @@ export default function SymptomSelectionPage() {
     setSelectedCategory(category);
     setSearchParams({ category });
 
+    // On mobile, move the newly opened options into view after React has rendered them.
     if (window.innerWidth < 768) {
       window.setTimeout(() => {
         symptomOptionsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -539,7 +611,13 @@ export default function SymptomSelectionPage() {
     }
   };
 
+  /**
+   * Adds or removes a specific symptom selection.
+   * Emergency suboptions short-circuit into the emergency result, while normal
+   * symptoms are capped to the maximum count supported by the details step.
+   */
   const handleRegionSelect = (regionName: string, side?: string) => {
+    // Red-flag suboptions bypass the normal selection flow and route straight to emergency.
     if (side && EMERGENCY_SYMPTOM_OPTIONS.includes(side)) {
       navigate("/result?emergency=true");
       return;
@@ -575,6 +653,12 @@ export default function SymptomSelectionPage() {
     setSymptomTextError(null);
   };
 
+  /**
+   * Sends free-text symptoms to the extraction API and opens the details step.
+   *
+   * Invalid or unavailable extraction stays in the modal so users can refine the
+   * same text instead of losing context by navigating away.
+   */
   const handleApplySymptomText = async () => {
     stopSymptomRecording();
     const trimmedSymptomText = symptomText.trim();
@@ -596,6 +680,7 @@ export default function SymptomSelectionPage() {
     try {
       const response = await extractSymptomsFromText(trimmedSymptomText);
 
+      // Keep the user in the modal when extraction fails so they can refine the same input.
       if (response.invalidInput || response.aiUnavailable) {
         setSymptomTextError(response.message ?? "Die Beschreibung konnte nicht ausgewertet werden.");
         return;

@@ -20,6 +20,12 @@ function hasText(value: string | undefined): value is string {
   return Boolean(value && value.trim().length > 0)
 }
 
+/**
+ * Converts optional patient fields into compact prompt lines.
+ *
+ * Empty optional fields are omitted so the AI sees only clinically relevant
+ * context instead of placeholders such as "Keine Angabe".
+ */
 function buildPatientDataLines(patientData: AssessmentPayload['patientData']): string[] {
   const conditionDetails = Object.entries(patientData.conditionDetails)
     .filter(([, detail]) => hasText(detail))
@@ -74,6 +80,12 @@ function formatSelectedSymptoms({ selectedSymptoms }: AssessmentPayload): string
     .join('\n')
 }
 
+/**
+ * Formats detailed symptom inputs for the fallback professional summary.
+ *
+ * This mirrors the wording used in the triage prompt so exported summaries and
+ * AI-facing input stay easy to compare during debugging.
+ */
 function formatSymptomDetails({ symptomDetails }: AssessmentPayload): string {
   return symptomDetails
     .map((symptom: Symptom, index: number) => {
@@ -90,6 +102,12 @@ function formatSymptomDetails({ symptomDetails }: AssessmentPayload): string {
     .join('\n')
 }
 
+/**
+ * Adapts frontend assessment symptoms to the smaller triage contract.
+ *
+ * Optional fields are only included when present because the triage schema uses
+ * missing values to distinguish "unknown" from intentionally selected data.
+ */
 function toTriageSymptoms(symptoms: Symptom[]): TriageSymptom[] {
   return symptoms.map((symptom) => ({
     region: symptom.region,
@@ -100,6 +118,12 @@ function toTriageSymptoms(symptoms: Symptom[]): TriageSymptom[] {
   }))
 }
 
+/**
+ * Builds a deterministic review summary when the triage layer does not return one.
+ *
+ * The structure is intentionally section-based because the result page and PDF
+ * export both parse these headings for editable professional summaries.
+ */
 function buildFallbackReviewSummary(payload: AssessmentPayload): ReviewSummary {
   return {
     plainLanguage:
@@ -117,6 +141,12 @@ function buildFallbackReviewSummary(payload: AssessmentPayload): ReviewSummary {
   }
 }
 
+/**
+ * Supplies a safe display specialty for care levels that do not require one.
+ *
+ * The backend triage result can omit recommendedSpecialty for non-specialist
+ * levels, while the frontend cards still expect a concrete label.
+ */
 function fallbackSpecialtyForCareLevel(
   careLevel: AssessmentResult['careLevel'],
 ): AssessmentResult['recommendedSpecialty'] {
@@ -133,6 +163,12 @@ function fallbackSpecialtyForCareLevel(
   }
 }
 
+/**
+ * Removes patient-facing filler text from the professional summary.
+ *
+ * The generated summary is later reused in the PDF, so this keeps the clinical
+ * section concise and avoids duplicating generic patient explanations.
+ */
 function sanitizeProfessionalSummary(summary: string): string {
   const lines = summary
     .split('\n')
@@ -150,6 +186,12 @@ function sanitizeProfessionalSummary(summary: string): string {
     .trim()
 }
 
+/**
+ * Runs the full assessment flow and returns the stable frontend response shape.
+ *
+ * Triage is the source of truth for care level and specialty, while this layer
+ * fills in presentation fields, timestamps, and review-summary fallbacks.
+ */
 export async function evaluateAssessmentWithAi(
   payload: AssessmentPayload,
 ): Promise<AssessmentResult> {
@@ -158,6 +200,7 @@ export async function evaluateAssessmentWithAi(
     toTriageSymptoms(payload.symptomDetails),
   )
 
+  // Merge triage output with assessment-level fallbacks so the frontend always receives a complete result.
   const rawReviewSummary = triageResult.reviewSummary ?? buildFallbackReviewSummary(payload)
   const reviewSummary = {
     ...rawReviewSummary,

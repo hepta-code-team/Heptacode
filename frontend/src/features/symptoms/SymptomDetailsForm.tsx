@@ -34,7 +34,7 @@ export default function SymptomDetailsForm({
 
   return (
     <div className="bg-[#eff2f6] rounded-[16px] p-5 relative">
-      {/* X Button oben rechts */}
+      {/* Top-right remove button */}
       <button
         onClick={onRemove}
         className="absolute top-4 right-4 text-app-text-primary hover:text-app-text-primary-strong transition-all"

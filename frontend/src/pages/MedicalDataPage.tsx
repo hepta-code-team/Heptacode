@@ -78,6 +78,12 @@ const CONDITION_DETAIL_CONFIGS: Record<string, { label: string; options: string[
   },
 };
 
+/**
+ * Creates the medical-data form state with persisted values applied.
+ *
+ * The defaults keep every optional field controlled from the first render, which
+ * avoids null checks throughout the large medical questionnaire.
+ */
 const createInitialPatientData = (patientData?: Partial<PatientData>): PatientData => ({
   birthMonth: "",
   birthYear: "",
@@ -99,6 +105,12 @@ const createInitialPatientData = (patientData?: Partial<PatientData>): PatientDa
   ...patientData,
 });
 
+/**
+ * Reusable disclosure panel for optional medical sections.
+ *
+ * It keeps the visual summary visible while hiding longer inputs until the user
+ * chooses to provide details.
+ */
 function MedicalAccordionPanel({
   title,
   icon: Icon,
@@ -204,6 +216,12 @@ export default function MedicalDataPage() {
   });
   const [expandedConditionDetails, setExpandedConditionDetails] = useState<Record<string, boolean>>({});
 
+  /**
+   * Closes condition-detail dropdowns when the user clicks outside the grid.
+   *
+   * This keeps multiple inline popovers from staying open while users continue
+   * through the rest of the medical questionnaire.
+   */
   useEffect(() => {
     const handlePointerDown = (event: PointerEvent) => {
       if (conditionsGridRef.current?.contains(event.target as Node)) return;
@@ -228,6 +246,12 @@ export default function MedicalDataPage() {
     }));
   };
 
+  /**
+   * Selects a predefined detail and ensures the parent condition is active.
+   *
+   * Choosing a detail implies the condition itself should be included in the
+   * assessment payload, even if the main condition button was not toggled first.
+   */
   const selectConditionDetail = (condition: string, value: string) => {
     setFormData((prev) => ({
       ...prev,
@@ -243,6 +267,12 @@ export default function MedicalDataPage() {
     }));
   };
 
+  /**
+   * Keeps the custom "Sonstige" condition synchronized with its free-text value.
+   *
+   * Clearing the field removes the synthetic condition so empty custom entries
+   * do not get sent to triage or PDF export.
+   */
   const updateOtherCondition = (value: string) => {
     const trimmedValue = value.trim();
 

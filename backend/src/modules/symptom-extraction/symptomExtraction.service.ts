@@ -29,7 +29,12 @@ function splitWords(text: string): string[] {
     .filter((part) => part.length > 0)
 }
 
-// Offensichtlicher Unsinn wird ohne KI-Aufruf abgefangen, um Kosten und Latenz zu sparen.
+/**
+ * Rejects obvious nonsense before calling the AI.
+ *
+ * The heuristic only catches high-confidence invalid input, because medical
+ * free text can be short or messy and should usually still reach AI validation.
+ */
 function detectHeuristicInvalidInput(text: string): string | null {
   const trimmedText = text.trim()
   const words = splitWords(text)
@@ -61,8 +66,14 @@ function detectHeuristicInvalidInput(text: string): string | null {
   return null
 }
 
+/**
+ * Asks the AI whether the text is medically meaningful.
+ *
+ * This is intentionally separate from extraction so non-medical free text can be
+ * rejected with a clear reason before symptom normalization runs.
+ */
 async function requestInputValidationFromAi(text: string, inputType: SymptomInputType) {
-  // Die KI prüft hier nur, ob der Inhalt überhaupt medizinisch sinnvoll ist.
+  // The AI only checks whether the content is medically meaningful.
   return requestStructuredAiResponse({
     messages: [
       { role: 'system', content: symptomValidationInstructions },
@@ -78,8 +89,14 @@ async function requestInputValidationFromAi(text: string, inputType: SymptomInpu
   })
 }
 
+/**
+ * Extracts up to three normalized symptoms from valid free text.
+ *
+ * The schema accepts known taxonomy entries and free-text medical complaints so
+ * uncommon symptoms are not silently discarded.
+ */
 async function requestSymptomsFromAi(text: string, inputType: SymptomInputType) {
-  // Bekannte Symptome werden normalisiert; unbekannte medizinische Beschwerden bleiben als Freitext-Symptom erhalten.
+  // Known symptoms are normalized; unknown medical complaints remain as free-text symptoms.
   return requestStructuredAiResponse({
     messages: [
       { role: 'system', content: symptomExtractionInstructions},
@@ -95,6 +112,12 @@ async function requestSymptomsFromAi(text: string, inputType: SymptomInputType) 
   })
 }
 
+/**
+ * Converts free text or speech transcription into structured triage symptoms.
+ *
+ * The flow uses cheap local validation first, then AI validation, and finally AI
+ * extraction so invalid input and service outages produce different responses.
+ */
 export async function extractSymptoms(
   text: string,
   inputType: SymptomInputType = 'text',
@@ -116,7 +139,7 @@ export async function extractSymptoms(
   try {
     validationResult = await requestInputValidationFromAi(text, inputType)
   } catch (error) {
-    // TA 1.8: Wenn nur die Validierungs-KI ausfaellt, versuchen wir trotzdem die Extraktion.
+    // If validation fails, still attempt extraction so a transient validation outage does not block the flow.
     if (!isAiRequestError(error)) {
       throw error
     }
@@ -137,7 +160,7 @@ export async function extractSymptoms(
   try {
     result = await requestSymptomsFromAi(text, inputType)
   } catch (error) {
-    // TA 1.8: Wenn die Extraktion ausfaellt, antwortet die API kontrolliert statt mit 500.
+    // Return a controlled fallback response if extraction fails instead of surfacing a 500.
     if (!isAiRequestError(error)) {
       throw error
     }
