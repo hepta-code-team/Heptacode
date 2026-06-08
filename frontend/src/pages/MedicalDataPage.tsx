@@ -228,6 +228,7 @@ function MedicalAccordionPanel({
   title,
   icon: Icon,
   isOpen,
+  isSelected = false,
   onToggle,
   summary,
   children,
@@ -235,12 +236,13 @@ function MedicalAccordionPanel({
   title: string;
   icon: LucideIcon;
   isOpen: boolean;
+  isSelected?: boolean;
   onToggle: () => void;
   summary: string;
   children: ReactNode;
 }) {
   return (
-    <div className="bg-[#eff2f6] rounded-[14px] p-3">
+    <div className={`rounded-[14px] bg-[#eff2f6] p-3 transition-all ${isSelected ? "ring-2 ring-[#486284]" : ""}`}>
       <button
         type="button"
         onClick={onToggle}
@@ -603,6 +605,7 @@ export default function MedicalDataPage() {
             title="Allergien / Unverträglichkeiten"
             icon={CircleAlert}
             isOpen={expandedMedicalSections.allergies}
+            isSelected={formData.allergies.trim().length > 0}
             onToggle={() => toggleMedicalSection("allergies")}
             summary={
               formData.allergies
@@ -629,6 +632,7 @@ export default function MedicalDataPage() {
             title="Aktuelle Medikamente"
             icon={Pill}
             isOpen={expandedMedicalSections.medications}
+            isSelected={formData.medications.trim().length > 0}
             onToggle={() => toggleMedicalSection("medications")}
             summary={
               formData.medications
@@ -659,6 +663,7 @@ export default function MedicalDataPage() {
             title="Einfluss durch Alkohol, Drogen oder Medikamente"
             icon={Wine}
             isOpen={expandedMedicalSections.substance}
+            isSelected={formData.substanceInfluence !== "Nein"}
             onToggle={() => toggleMedicalSection("substance")}
             summary={formData.substanceInfluence === "Nein" ? "Nein ausgewählt" : formData.substanceInfluence}
           >
@@ -678,6 +683,7 @@ export default function MedicalDataPage() {
             title="Auslandsaufenthalt in den letzten 3 Monaten"
             icon={Globe2}
             isOpen={expandedMedicalSections.abroad}
+            isSelected={formData.recentAbroad}
             onToggle={() => toggleMedicalSection("abroad")}
             summary={formData.recentAbroad ? formData.recentAbroadDetails || "Ja ausgewählt" : "Nein ausgewählt"}
           >
@@ -713,7 +719,11 @@ export default function MedicalDataPage() {
         </div>
       </div>
 
-      <div className="mt-4 bg-[#eff2f6] rounded-[14px] p-3">
+      <div
+        className={`mt-4 rounded-[14px] bg-[#eff2f6] p-3 transition-all ${
+          smokingStatus !== "Nein" ? "ring-2 ring-[#486284]" : ""
+        }`}
+      >
         <div className="mb-3 flex items-start gap-3">
           <span className="flex size-9 flex-shrink-0 items-center justify-center rounded-full bg-white text-app-text-primary">
             <Cigarette className="size-5" aria-hidden="true" />
