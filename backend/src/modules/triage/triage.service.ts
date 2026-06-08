@@ -2,7 +2,6 @@ import { requestStructuredAiResponseWithModel } from '../../ai/llmAdapter.js'
 import { isAiRequestError } from '../../ai/timeout.js'
 import { extractSymptoms } from '../symptom-extraction/symptomExtraction.service.js'
 import type {
-  MedicalSpecialty,
   PatientData,
   TriageResponse,
   TriageSymptom,
@@ -110,6 +109,23 @@ function formatSymptoms(symptoms: TriageSymptom[]): string {
     })
     .join('\n')
 }
+function attachPresentationFields(result: TriageResponse): TriageResponse {
+  if (result.reviewSummary) {
+    return result
+  }
+
+  const text = result.reasons.length > 0
+    ? result.reasons.join(' ')
+    : `Die Einschätzung ergab das Pflegelevel ${result.careLevel}.`
+
+  return {
+    ...result,
+    reviewSummary: {
+      plainLanguage: text,
+      professionalSummary: text,
+    },
+  }
+}
 
 function getComparableMeasurementValue(symptom: TriageSymptom): number {
   if (symptom.measurementValue === undefined) {
@@ -129,94 +145,6 @@ function getComparableMeasurementValue(symptom: TriageSymptom): number {
   }
 
   return symptom.measurementValue
-}
-
-function inferSpecialistFromSymptoms(symptoms: TriageSymptom[]): MedicalSpecialty | undefined {
-  const primary = symptoms[0]
-
-  if (!primary) {
-    return undefined
-  }
-
-  if (primary.region === 'Psychische Probleme') {
-    return 'psychiatry'
-  }
-
-  if (primary.region === 'Verbrennung') {
-    return 'dermatology'
-  }
-
-  const measurementValue = getComparableMeasurementValue(primary)
-
-  if (primary.region === 'Kopf' && measurementValue >= 5) {
-    return 'neurology'
-  }
-
-  if (primary.region === 'Bauch' && measurementValue >= 5) {
-    return 'gastroenterology'
-  }
-
-  if (primary.region === 'Rücken' || primary.region === 'Arme' || primary.region === 'Beine') {
-    return 'orthopedics'
-  }
-
-  if (primary.region === 'Brust') {
-    if (primary.side === 'Atemabhängig') {
-      return 'pulmonology'
-    }
-
-    return 'cardiology'
-  }
-
-  return undefined
-}
-
-function normalizeTriageResult(
-  result: TriageResponse,
-  symptoms: TriageSymptom[],
-): TriageResponse {
-  if (result.careLevel === 'specialist') {
-    const specialist = result.recommendedSpecialty ?? inferSpecialistFromSymptoms(symptoms) ?? 'internal_medicine'
-
-    return {
-      ...result,
-      recommendedSpecialty: specialist,
-    }
-  }
-
-  return {
-    ...result,
-    recommendedSpecialty: undefined,
-  }
-}
-
-function applySpecialistEscalation(
-  result: TriageResponse,
-  symptoms: TriageSymptom[],
-): TriageResponse {
-  if (result.careLevel !== 'doctor') {
-    return result
-  }
-
-  const inferredSpecialist = inferSpecialistFromSymptoms(symptoms)
-  const primary = symptoms[0]
-
-  if (!inferredSpecialist || !primary) {
-    return result
-  }
-
-  const isPersistent = primary.duration === 'days' || primary.duration === 'week' || primary.duration === 'weeks'
-  const isPronounced = getComparableMeasurementValue(primary) >= 5
-
-  if (!isPersistent && !isPronounced) {
-    return result
-  }
-
-  return {
-    ...result,
-    careLevel: 'specialist',
-    recommendedSpecialty: inferredSpecialist,
-  }
 }
 
 async function requestTriageFromAi(
@@ -240,7 +168,7 @@ async function requestTriageFromAi(
   })
 
   return {
-    ...applySpecialistEscalation(normalizeTriageResult(parsed, symptoms), symptoms),
+    ...parsed,
     aiModel: model,
   }
 }
@@ -279,6 +207,7 @@ function createFallbackTriage(symptoms: TriageSymptom[]): TriageResponse {
   if (hasEmergencyPattern) {
     return {
       careLevel: 'emergency',
+      recommendedSpecialty: 'emergency_medicine',
       reasons: [
         'Die KI-Auswertung ist aktuell nicht verfuegbar.',
         'Die uebergebenen Beschwerden enthalten ein Warnmuster, das vorsichtshalber als Notfall eingestuft wird.',
@@ -290,6 +219,7 @@ function createFallbackTriage(symptoms: TriageSymptom[]): TriageResponse {
   if (strongestMeasurementValue >= 8) {
     return {
       careLevel: 'emergency',
+      recommendedSpecialty: 'emergency_medicine',
       reasons: [
         'Die KI-Auswertung ist aktuell nicht verfuegbar.',
         'Aufgrund der sehr starken Beschwerden wird sicherheitshalber eine Notfallabklaerung empfohlen.',
@@ -301,6 +231,7 @@ function createFallbackTriage(symptoms: TriageSymptom[]): TriageResponse {
   if (strongestMeasurementValue >= 5 || symptoms.length > 0) {
     return {
       careLevel: 'doctor',
+      recommendedSpecialty: 'general_practice',
       reasons: [
         'Die KI-Auswertung ist aktuell nicht verfuegbar.',
         'Bitte lassen Sie die Beschwerden aerztlich einschaetzen, besonders bei Verschlechterung oder anhaltenden Symptomen.',
@@ -311,6 +242,7 @@ function createFallbackTriage(symptoms: TriageSymptom[]): TriageResponse {
 
   return {
     careLevel: 'selfcare',
+    recommendedSpecialty: 'home_care',
     reasons: ['Die KI-Auswertung ist aktuell nicht verfuegbar. Ohne erkannte Symptome ist keine hoehere Dringlichkeit ableitbar.'],
     aiUnavailable: true,
   }
@@ -319,6 +251,7 @@ function createFallbackTriage(symptoms: TriageSymptom[]): TriageResponse {
 function createTextExtractionFallbackTriage(): TriageResponse {
   return {
     careLevel: 'doctor',
+    recommendedSpecialty: 'general_practice',
     reasons: [
       'Die KI-Auswertung ist aktuell nicht verfuegbar.',
       'Die Freitext-Beschreibung konnte nicht sicher in Symptome ueberfuehrt werden. Bitte waehlen Sie die Symptome manuell aus oder lassen Sie die Beschwerden aerztlich einschaetzen.',
@@ -352,6 +285,7 @@ export async function evaluateTriage(
   if (emergencyFromLanding) {
     const result: TriageResponse = {
       careLevel: 'emergency',
+      recommendedSpecialty: 'emergency_medicine',
       reasons: ['Notfallmodus ueber die Startseite ausgewaehlt.'],
       reviewSummary: {
         plainLanguage:
@@ -361,7 +295,7 @@ export async function evaluateTriage(
       },
     }
 
-    return result
+    return attachPresentationFields(result)
   }
 
   if (text) {
@@ -385,6 +319,7 @@ export async function evaluateTriage(
   if (triageSymptoms.length === 0) {
     return {
       careLevel: 'selfcare',
+      recommendedSpecialty: 'home_care',
       reasons: [],
       reviewSummary: {
         plainLanguage:

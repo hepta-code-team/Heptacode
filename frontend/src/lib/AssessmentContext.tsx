@@ -1,5 +1,12 @@
 import { createContext, useContext, useState, ReactNode } from "react";
-import type { AssessmentPayload, AssessmentResult, PatientData, SelectedSymptom, Symptom } from "../types/assessment";
+import type {
+  AssessmentPayload,
+  AssessmentResult,
+  PatientData,
+  SelectedSymptom,
+  Symptom,
+  SymptomDetailPayload,
+} from "../types/assessment";
 import { apiClient } from "./apiClient";
 
 interface AssessmentContextType {
@@ -13,7 +20,7 @@ interface AssessmentContextType {
   setSymptomDetails: (details: Symptom[]) => void;
   assessmentResult: AssessmentResult | null;
   setAssessmentResult: (result: AssessmentResult | null) => void;
-  submitAssessment: (details: Symptom[]) => Promise<AssessmentResult>;
+  submitAssessment: (details: SymptomDetailPayload[]) => Promise<AssessmentResult>;
   resetAssessment: () => void;
 }
 
@@ -26,7 +33,7 @@ export function AssessmentProvider({ children }: { children: ReactNode }) {
   const [symptomDetails, setSymptomDetails] = useState<Symptom[]>([]);
   const [assessmentResult, setAssessmentResult] = useState<AssessmentResult | null>(null);
 
-  const submitAssessment = async (details: Symptom[]) => {
+  const submitAssessment = async (details: SymptomDetailPayload[]) => {
     if (!patientData) {
       throw new Error("Patientendaten fehlen. Bitte gehen Sie zurück und füllen Sie die Stammdaten aus.");
     }
@@ -41,7 +48,6 @@ export function AssessmentProvider({ children }: { children: ReactNode }) {
 
     const result = await apiClient.post<AssessmentResult>("/assessments", payload);
 
-    setSymptomDetails(details);
     setAssessmentResult(result);
 
     return result;

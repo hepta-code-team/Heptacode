@@ -8,6 +8,20 @@ function hasDuration(symptom: SymptomDraft): symptom is CompleteSymptomDraft {
   return symptom.duration !== undefined;
 }
 
+function validateEditableSymptomNames(symptoms: SymptomDraft[]) {
+  for (const symptom of symptoms) {
+    if (!symptom.isNameEditable) {
+      continue;
+    }
+
+    const symptomName = symptom.region.trim();
+
+    if (!symptomName) {
+      throw new Error("Bitte geben Sie für jedes erkannte Symptom einen Namen ein.");
+    }
+  }
+}
+
 type HandleSubmitAssessmentArgs = {
   symptomDetails: SymptomDraft[];
   submitAssessment: (symptoms: SymptomDetailPayload[]) => Promise<unknown>;
@@ -36,7 +50,7 @@ export async function handleSubmitAssessment({
 
   const payloadSymptoms: SymptomDetailPayload[] = completeSymptoms.map((symptom) => ({
     id: symptom.id,
-    region: symptom.region,
+    region: symptom.region.trim(),
     side: symptom.side,
     measurementType: symptom.measurementType,
     measurementValue: symptom.measurementValue,
@@ -48,6 +62,7 @@ export async function handleSubmitAssessment({
   setIsSubmitting(true);
 
   try {
+    validateEditableSymptomNames(completeSymptoms);
     await submitAssessment(payloadSymptoms);
     navigate("/result");
   } catch (error) {

@@ -101,7 +101,7 @@ describe('POST /api/v1/symptoms/extraction', () => {
     expect(response.json()).toEqual({
       text: 'Seit heute Bauchschmerzen.',
       inputType: 'text',
-      symptoms: [{ region: 'Bauch', measurementType: 'pain', measurementValue: 5, duration: 'today' }],
+      symptoms: [{ region: 'Bauch', measurementType: 'pain', duration: 'today' }],
     })
   })
 
@@ -133,7 +133,11 @@ describe('POST /api/v1/symptoms/extraction', () => {
 
     expect(response.statusCode).toBe(400)
     expect(response.json()).toMatchObject({
-      message: 'Validation failed',
+      success: false,
+      error: {
+        code: 'VALIDATION_ERROR',
+        message: 'Request body is invalid',
+      },
     })
   })
 

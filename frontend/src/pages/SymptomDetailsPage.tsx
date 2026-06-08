@@ -6,9 +6,14 @@ import SymptomButtonGrid from "../features/symptoms/SymptomButtonGrid";
 import Modal from "../components/Modal";
 import Button from "../components/Button";
 import { useAssessment } from "../lib/AssessmentContext";
-import { getMeasurementConfig, getMeasurementConfigByType } from "../features/symptoms/symptoms.constants";
+import {
+  getMeasurementConfig,
+  getMeasurementConfigByType,
+  MAX_SYMPTOMS,
+} from "../features/symptoms/symptoms.constants";
 import type { SelectedSymptom, Symptom, SymptomDraft, TriageSymptom } from "../types/assessment";
 import { handleSubmitAssessment } from "../features/symptoms/handleSubmitAssessment";
+import {X} from "lucide-react";
 
 interface SymptomDetailsRouteState {
   extractedSymptoms?: TriageSymptom[];
@@ -18,14 +23,16 @@ export default function SymptomDetailsPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const routeState = location.state as SymptomDetailsRouteState | null;
+  const hasRouteExtractedSymptoms = Boolean(routeState?.extractedSymptoms?.length);
   const {
     selectedSymptoms,
     symptomDetails: contextDetails,
+    setSymptomDetails,
     submitAssessment,
   } = useAssessment();
 
   const createSymptomDetails = (region: string, side: string | undefined, index: number): SymptomDraft => {
-    const measurementConfig = getMeasurementConfig(region, side);
+    const measurementConfig = getMeasurementConfig(region);
 
     return {
       id: `symptom-${Date.now()}-${index}`,
@@ -37,7 +44,20 @@ export default function SymptomDetailsPage() {
     };
   };
 
-  const normalizeSymptom = (symptom: SelectedSymptom | Symptom, index: number): SymptomDraft => {
+  const createEmptySymptom = (index: number): SymptomDraft => ({
+    id: `symptom-placeholder-${Date.now()}-${index}`,
+    region: "",
+    side: undefined,
+    measurementType: "pain",
+    measurementValue: 5,
+    active: false,
+  });
+
+  const normalizeSymptom = (
+    symptom: SelectedSymptom | Symptom | TriageSymptom,
+    index: number,
+    isNameEditable = false,
+  ): SymptomDraft => {
     const inferredMeasurementConfig = getMeasurementConfig(symptom.region, symptom.side);
     const measurementType = "measurementType" in symptom && symptom.measurementType
       ? symptom.measurementType
@@ -46,43 +66,53 @@ export default function SymptomDetailsPage() {
 
     return {
       ...symptom,
-      id: `symptom-${Date.now()}-${index}`,
-      active: true,
+      id: "id" in symptom ? symptom.id : `symptom-${Date.now()}-${index}`,
+      active: "active" in symptom ? symptom.active : true,
       measurementType,
-      measurementValue: "measurementValue" in symptom && Number.isFinite(symptom.measurementValue)
+      measurementValue: "measurementValue" in symptom && typeof symptom.measurementValue === "number"
         ? symptom.measurementValue
         : measurementConfig.defaultValue,
+      isNameEditable,
     };
   };
 
-  // Initialize local symptomDetails from selectedSymptoms
-  const [symptomDetails, setLocalSymptomDetails] = useState<SymptomDraft[]>(() => {
-    if (routeState?.extractedSymptoms && routeState.extractedSymptoms.length > 0) {
-      return routeState.extractedSymptoms.map(normalizeSymptom);
-    }
+  const buildInitialSymptomDetails = (): SymptomDraft[] => {
+    const activeSymptoms =
+      routeState?.extractedSymptoms && routeState.extractedSymptoms.length > 0
+        ? routeState.extractedSymptoms.map((symptom, index) => normalizeSymptom(symptom, index, true))
+        : contextDetails.length > 0
+          ? contextDetails.map((symptom, index) => normalizeSymptom(symptom, index))
+          : selectedSymptoms.map((symptom, index) => normalizeSymptom(symptom, index));
 
-    // If context already has details, use them
-    if (contextDetails.length > 0) {
-      return contextDetails.map(normalizeSymptom);
-    }
+    const placeholders = Array.from(
+      { length: Math.max(0, MAX_SYMPTOMS - activeSymptoms.length) },
+      (_, index) => createEmptySymptom(index),
+    );
 
-    return selectedSymptoms.map((s, idx) => createSymptomDetails(s.region, s.side, idx));
-  });
+    return [...activeSymptoms.slice(0, MAX_SYMPTOMS), ...placeholders];
+  };
 
+  const [symptomDetails, setLocalSymptomDetails] = useState<SymptomDraft[]>(buildInitialSymptomDetails);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [showValidationErrors, setShowValidationErrors] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (selectedSymptoms.length === 0) {
+    if (selectedSymptoms.length === 0 && contextDetails.length === 0 && !hasRouteExtractedSymptoms) {
       navigate("/symptom-selection");
     }
-  }, [selectedSymptoms, navigate]);
+  }, [contextDetails.length, hasRouteExtractedSymptoms, selectedSymptoms.length, navigate]);
 
   const updateSymptom = (index: number, field: keyof SymptomDraft, value: SymptomDraft[keyof SymptomDraft]) => {
     const updated = [...symptomDetails];
     updated[index] = { ...updated[index], [field]: value };
+    setLocalSymptomDetails(updated);
+  };
+
+  const updateSymptomName = (index: number, name: string) => {
+    const updated = [...symptomDetails];
+    updated[index] = { ...updated[index], region: name, side: undefined };
     setLocalSymptomDetails(updated);
   };
 
@@ -93,7 +123,7 @@ export default function SymptomDetailsPage() {
   };
 
   const handleAddSymptom = (regionName: string, side?: string) => {
-    const inactiveIndex = symptomDetails.findIndex((s) => !s.active);
+    const inactiveIndex = symptomDetails.findIndex((symptom) => !symptom.active);
 
     if (inactiveIndex !== -1) {
       const updated = [...symptomDetails];
@@ -105,6 +135,8 @@ export default function SymptomDetailsPage() {
   };
 
   const handleContinue = () => {
+    setSymptomDetails(symptomDetails.filter((symptom) => symptom.active) as Symptom[]);
+
     void handleSubmitAssessment({
       symptomDetails,
       submitAssessment,
@@ -119,7 +151,7 @@ export default function SymptomDetailsPage() {
     .filter((symptom) => symptom.active)
     .every((symptom) => {
       const config = getMeasurementConfigByType(symptom.measurementType);
-      return symptom.measurementValue >= config.min && symptom.measurementValue <= config.max;
+      return symptom.region.trim().length > 0 && symptom.measurementValue >= config.min && symptom.measurementValue <= config.max;
     });
 
   return (
@@ -135,6 +167,7 @@ export default function SymptomDetailsPage() {
               <SymptomDetailsForm
                 symptom={symptom}
                 onUpdate={(field, value) => updateSymptom(index, field, value)}
+                onNameUpdate={(name) => updateSymptomName(index, name)}
                 onRemove={() => toggleSymptomActive(index)}
                 showDurationError={showValidationErrors}
               />
@@ -171,24 +204,24 @@ export default function SymptomDetailsPage() {
         </div>
       )}
 
-      <Modal
-        isOpen={isAddModalOpen}
-        onClose={() => setIsAddModalOpen(false)}
-        title="Symptom hinzufügen"
-        subtitle="Wählen Sie eine Körperregion aus"
-      >
-        <SymptomButtonGrid onRegionSelect={handleAddSymptom} />
 
-        <div className="flex justify-end mt-6">
-          <Button variant="secondary" onClick={() => setIsAddModalOpen(false)}>
-            <p
-              className="font-['DM_Sans:Bold',sans-serif] font-bold text-base"
-              style={{ fontVariationSettings: "'opsz' 14" }}
-            >
-              Abbrechen
-            </p>
-          </Button>
-        </div>
+
+      <Modal
+          isOpen={isAddModalOpen}
+          onClose={() => setIsAddModalOpen(false)}
+          title="Symptom hinzufügen"
+          subtitle="Wählen Sie eine Körperregion aus"
+      >
+        <button
+            type="button"
+            onClick={() => setIsAddModalOpen(false)}
+            className="absolute right-8 top-9 rounded-full p-2 text-slate-500 hover:bg-slate-100
+            hover:text-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-400"
+            aria-label="Modal schließen"
+        >
+          <X className="h-7 w-7" aria-hidden="true" />
+        </button>
+        <SymptomButtonGrid onRegionSelect={handleAddSymptom} />
       </Modal>
     </PageShell>
   );

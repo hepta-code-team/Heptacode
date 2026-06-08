@@ -7,7 +7,6 @@ import {
   type TriageSymptom,
 } from '../../../../shared/symptom.types.js'
 import {
-  getOptionsForRegion,
   SYMPTOM_REGION_NAMES,
   SYMPTOM_REGIONS,
   type SymptomRegionName,
@@ -66,50 +65,6 @@ function normalizeMeasurementValue(value: unknown): unknown {
     return Number(numericMatch[0])
   }
 
-  const normalizedValue = normalizeLabel(value)
-
-  if (/(leicht|bisschen|wenig|mild)/.test(normalizedValue)) {
-    return 3
-  }
-
-  if (/(mittel|maessig|massig|moderat)/.test(normalizedValue)) {
-    return 5
-  }
-
-  if (/(stark|heftig|schlimm|intensiv)/.test(normalizedValue)) {
-    return 8
-  }
-
-  return value
-}
-
-function normalizeDuration(value: unknown): unknown {
-  if (value === null || value === undefined || value === '') {
-    return undefined
-  }
-
-  if (typeof value !== 'string') {
-    return value
-  }
-
-  const normalizedValue = normalizeLabel(value)
-
-  if (normalizedValue.includes('heute')) {
-    return 'today'
-  }
-
-  if (normalizedValue.includes('wochen') || normalizedValue.includes('mehrals2wochen')) {
-    return 'weeks'
-  }
-
-  if (normalizedValue.includes('woche')) {
-    return 'week'
-  }
-
-  if (normalizedValue.includes('tag') || normalizedValue.includes('tage')) {
-    return 'days'
-  }
-
   return value
 }
 
@@ -135,16 +90,7 @@ function normalizeRegion(value: string): SymptomRegionName | undefined {
 
 function normalizeOption(value: string): { region: SymptomRegionName; option: string } | undefined {
   const normalizedValue = normalizeLabel(value)
-  const exactMatch = optionByNormalizedLabel.get(normalizedValue)
-
-  if (exactMatch) {
-    return exactMatch
-  }
-
-  return [...optionByNormalizedLabel.entries()].find(
-    ([normalizedOption]) =>
-      normalizedValue.includes(normalizedOption) || normalizedOption.includes(normalizedValue),
-  )?.[1]
+  return optionByNormalizedLabel.get(normalizedValue)
 }
 
 export const extractedSymptomSchema = z
@@ -158,7 +104,7 @@ export const extractedSymptomSchema = z
       .preprocess(normalizeMeasurementValue, z.number().optional())
       .catch(undefined),
     duration: z
-      .preprocess(normalizeDuration, z.enum(TRIAGE_SYMPTOM_DURATIONS).optional())
+      .preprocess(emptyStringOrNullToUndefined, z.enum(TRIAGE_SYMPTOM_DURATIONS).optional())
       .catch(undefined),
   })
   .transform((value) => {
@@ -177,30 +123,6 @@ export const extractedSymptomSchema = z
       ...value,
       region,
       ...(side ? { side } : {}),
-    }
-  })
-  .superRefine((value, context) => {
-    if (!SYMPTOM_REGION_NAMES.includes(value.region as SymptomRegionName)) {
-      context.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ['region'],
-        message: `region must be one of: ${SYMPTOM_REGION_NAMES.join(', ')}`,
-      })
-
-      return
-    }
-
-    if (!value.side) {
-      return
-    }
-
-    const allowedOptions = getOptionsForRegion(value.region as SymptomRegionName)
-    if (!allowedOptions.includes(value.side)) {
-      context.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ['side'],
-        message: `side must be one of the options for region "${value.region}"`,
-      })
     }
   })
 
