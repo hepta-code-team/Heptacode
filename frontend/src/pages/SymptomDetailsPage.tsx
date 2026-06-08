@@ -13,6 +13,7 @@ import {
 } from "../features/symptoms/symptoms.constants";
 import type { SelectedSymptom, Symptom, SymptomDraft, TriageSymptom } from "../types/assessment";
 import { handleSubmitAssessment } from "../features/symptoms/handleSubmitAssessment";
+import {X} from "lucide-react";
 
 interface SymptomDetailsRouteState {
   extractedSymptoms?: TriageSymptom[];
@@ -30,7 +31,7 @@ export default function SymptomDetailsPage() {
   } = useAssessment();
 
   const createSymptomDetails = (region: string, side: string | undefined, index: number): SymptomDraft => {
-    const measurementConfig = getMeasurementConfig(region, side);
+    const measurementConfig = getMeasurementConfig(region);
 
     return {
       id: `symptom-${Date.now()}-${index}`,
@@ -190,11 +191,23 @@ export default function SymptomDetailsPage() {
         </div>
       )}
 
+
+
       <Modal
-        isOpen={isAddModalOpen}
-        onClose={() => setIsAddModalOpen(false)}
-        title="Beschwerde hinzufügen"
+          isOpen={isAddModalOpen}
+          onClose={() => setIsAddModalOpen(false)}
+          title="Symptom hinzufügen"
+          subtitle="Wählen Sie eine Körperregion aus"
       >
+        <button
+            type="button"
+            onClick={() => setIsAddModalOpen(false)}
+            className="absolute right-8 top-9 rounded-full p-2 text-slate-500 hover:bg-slate-100
+            hover:text-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-400"
+            aria-label="Modal schließen"
+        >
+          <X className="h-7 w-7" aria-hidden="true" />
+        </button>
         <SymptomButtonGrid onRegionSelect={handleAddSymptom} />
       </Modal>
     </PageShell>
