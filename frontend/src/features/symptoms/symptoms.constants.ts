@@ -256,22 +256,23 @@ const MEASUREMENT_CONFIGS: Record<SymptomMeasurementType, MeasurementConfig> = {
   },
 };
 
-export function getMeasurementConfig(region: string, option?: string): MeasurementConfig {
-  if (option === "Fieber") {
-    return MEASUREMENT_CONFIGS.temperature;
-  }
+export function getMeasurementConfig(region: string): MeasurementConfig {
+    if (region === "Fieber") {
+        return MEASUREMENT_CONFIGS.temperature;
+    }
 
-  if (region === "Psychische Probleme") {
-    return MEASUREMENT_CONFIGS.feeling;
-  }
+    if ((region === "Angst/Panik") || (region === "Niedergeschlagenheit") || (region === "Suizidgedanken")
+        || (region === "Halluzinationen")) {
+        return MEASUREMENT_CONFIGS.feeling;
+    }
 
-  if (["Übelkeit/Schwindel", "Schwäche", "Verwirrtheit", "Schüttelfrost", "Schnittwunde"].includes(option ?? "")) {
-    return MEASUREMENT_CONFIGS.severity;
-  }
+    if ((region === "Verwirrtheit") || (region === "Schwäche") || (region === "Übelkeit/Schwindel")) {
+        return MEASUREMENT_CONFIGS.severity;
+    }
 
-  return MEASUREMENT_CONFIGS.pain;
+    return MEASUREMENT_CONFIGS.pain;
 }
 
 export function getMeasurementConfigByType(type: SymptomMeasurementType): MeasurementConfig {
-  return MEASUREMENT_CONFIGS[type];
+    return MEASUREMENT_CONFIGS[type];
 }

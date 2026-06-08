@@ -25,7 +25,7 @@ export default function SymptomDetailsPage() {
   } = useAssessment();
 
   const createSymptomDetails = (region: string, side: string | undefined, index: number): SymptomDraft => {
-    const measurementConfig = getMeasurementConfig(region, side);
+    const measurementConfig = getMeasurementConfig(region);
 
     return {
       id: `symptom-${Date.now()}-${index}`,
@@ -38,7 +38,7 @@ export default function SymptomDetailsPage() {
   };
 
   const normalizeSymptom = (symptom: SelectedSymptom | Symptom, index: number): SymptomDraft => {
-    const inferredMeasurementConfig = getMeasurementConfig(symptom.region, symptom.side);
+    const inferredMeasurementConfig = getMeasurementConfig(symptom.region);
     const measurementType = "measurementType" in symptom && symptom.measurementType
       ? symptom.measurementType
       : inferredMeasurementConfig.type;
@@ -180,14 +180,14 @@ export default function SymptomDetailsPage() {
         <SymptomButtonGrid onRegionSelect={handleAddSymptom} />
 
         <div className="flex justify-end mt-6">
-          <Button variant="secondary" onClick={() => setIsAddModalOpen(false)}>
-            <p
-              className="font-['DM_Sans:Bold',sans-serif] font-bold text-base"
-              style={{ fontVariationSettings: "'opsz' 14" }}
-            >
-              Abbrechen
-            </p>
-          </Button>
+          <Button
+              variant="secondary"
+              icon="x"
+              onClick={() => setIsAddModalOpen(false)}
+              className="absolute right-4 top-4"
+              aria-label="Modal schließen"
+
+          />
         </div>
       </Modal>
     </PageShell>
