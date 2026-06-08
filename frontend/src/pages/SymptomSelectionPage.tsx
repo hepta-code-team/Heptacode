@@ -335,6 +335,7 @@ export default function SymptomSelectionPage() {
   const {
     selectedSymptoms: contextSymptoms,
     setSelectedSymptoms: setContextSymptoms,
+    patientData,
     symptomText,
     setSymptomText,
     setSymptomDetails: setContextSymptomDetails,
@@ -678,7 +679,7 @@ export default function SymptomSelectionPage() {
     setSymptomTextError(null);
 
     try {
-      const response = await extractSymptomsFromText(trimmedSymptomText);
+      const response = await extractSymptomsFromText(trimmedSymptomText, "text", patientData ?? undefined);
 
       // Keep the user in the modal when extraction fails so they can refine the same input.
       if (response.invalidInput || response.aiUnavailable) {

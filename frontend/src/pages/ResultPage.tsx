@@ -254,8 +254,9 @@ export default function ResultPage() {
         ? symptomDetails
             .map((symptom) => {
               const label = symptom.side ? `${symptom.region} (${symptom.side})` : symptom.region;
+              const details = symptom.details ? `, Details: ${symptom.details}` : "";
 
-              return `${label}, ${getMeasurementSummary(symptom)}${
+              return `${label}${details}, ${getMeasurementSummary(symptom)}${
                 symptom.duration ? `, ${getDurationLabel(symptom.duration)}` : ""
               }`;
             })
@@ -342,6 +343,7 @@ export default function ResultPage() {
               symptoms: symptomDetails.slice(0, 3).map((symptom) => ({
                 region: symptom.region,
                 ...(symptom.side ? { side: symptom.side } : {}),
+                ...(symptom.details ? { details: symptom.details } : {}),
                 measurementType: symptom.measurementType,
                 measurementValue: symptom.measurementValue,
                 ...(symptom.duration ? { duration: symptom.duration } : {}),
@@ -479,8 +481,9 @@ export default function ResultPage() {
                       const label = symptom.side
                         ? `${symptom.region} (${symptom.side})`
                         : symptom.region;
+                      const details = symptom.details ? `, Details: ${symptom.details}` : "";
 
-                      return `${label}: ${getMeasurementSummary(symptom)}${
+                      return `${label}${details}: ${getMeasurementSummary(symptom)}${
                         symptom.duration ? `, ${getDurationLabel(symptom.duration)}` : ""
                       }`;
                     })

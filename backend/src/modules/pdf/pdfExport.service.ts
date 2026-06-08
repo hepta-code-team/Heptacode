@@ -272,6 +272,7 @@ function summarizeSymptoms(symptoms?: TriageSymptom[]): string {
     .map((symptom, index) => {
       const detailLines = [
         `${index + 1}. ${symptomLabel(symptom)}`,
+        symptom.details ? `Details: ${symptom.details}` : null,
         formatMeasurement(symptom),
         formatDuration(symptom.duration) ? `Dauer: ${formatDuration(symptom.duration)}` : null,
       ].filter((part): part is string => part !== null)

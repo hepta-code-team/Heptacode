@@ -87,6 +87,7 @@ export const patientDataSchema = z.object({
 export const triageSymptomSchema = z.object({
   region: z.string().min(1),
   side: z.string().min(1).optional(),
+  details: z.string().min(1).optional(),
   measurementType: z.enum(SYMPTOM_MEASUREMENT_TYPES).optional(),
   measurementValue: z.number().optional(),
   duration: z.enum(TRIAGE_SYMPTOM_DURATIONS).optional(),

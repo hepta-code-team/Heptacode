@@ -95,9 +95,10 @@ function formatSymptomDetails({ symptomDetails }: AssessmentPayload): string {
 
       return [
         `${index + 1}. ${symptom.side ? `${symptom.region} (${symptom.side})` : symptom.region}`,
+        hasText(symptom.details) ? `Details: ${symptom.details.trim()}` : null,
         `${measurementLabel}: ${symptom.measurementValue}${unit}`,
         `Dauer: ${duration}`,
-      ].join(', ')
+      ].filter((part): part is string => part !== null).join(', ')
     })
     .join('\n')
 }
@@ -112,6 +113,7 @@ function toTriageSymptoms(symptoms: Symptom[]): TriageSymptom[] {
   return symptoms.map((symptom) => ({
     region: symptom.region,
     ...(symptom.side ? { side: symptom.side } : {}),
+    ...(hasText(symptom.details) ? { details: symptom.details.trim() } : {}),
     measurementType: symptom.measurementType,
     measurementValue: symptom.measurementValue,
     duration: symptom.duration,

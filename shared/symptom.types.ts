@@ -14,6 +14,7 @@ export interface SelectedSymptom {
 
 // Expanded symptom data used for triage.
 export interface TriageSymptom extends SelectedSymptom {
+  details?: string
   measurementType?: SymptomMeasurementType
   measurementValue?: number
   duration?: TriageSymptomDuration

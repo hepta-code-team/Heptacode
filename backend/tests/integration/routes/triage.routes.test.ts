@@ -13,6 +13,26 @@ vi.mock('../../../src/ai/llmAdapter.js', () => ({
 const requestStructuredAiResponseMock = vi.mocked(requestStructuredAiResponse)
 const requestStructuredAiResponseWithModelMock = vi.mocked(requestStructuredAiResponseWithModel)
 
+const malePatientData = {
+  birthMonth: '05',
+  birthYear: '1988',
+  height: '175',
+  weight: '78',
+  gender: 'Maennlich',
+  isPregnant: false,
+  isBreastfeeding: false,
+  allergies: '',
+  medications: '',
+  substanceInfluence: 'Nein',
+  recentAbroad: false,
+  recentAbroadDetails: '',
+  conditions: [],
+  isSmoker: false,
+  smokingSinceYears: '',
+  cigarettesPerDay: '',
+  conditionDetails: {},
+}
+
 async function createApp(): Promise<FastifyInstance> {
   const app = await buildApp()
   await app.ready()
@@ -166,6 +186,28 @@ describe('POST /api/v1/triage/evaluate', () => {
         message: 'Request body is invalid',
       },
     })
+  })
+
+  it('antwortet mit 400 bei logisch widerspruechlichen Schwangerschaftsangaben', async () => {
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/v1/triage/evaluate',
+      payload: {
+        patientData: malePatientData,
+        text: 'Ich waere schwanger und habe Wehen.',
+      },
+    })
+
+    expect(response.statusCode).toBe(400)
+    expect(response.json()).toMatchObject({
+      success: false,
+      error: {
+        code: 'BAD_REQUEST',
+        message: expect.stringContaining('passen logisch nicht zusammen'),
+      },
+    })
+    expect(requestStructuredAiResponseMock).not.toHaveBeenCalled()
+    expect(requestStructuredAiResponseWithModelMock).not.toHaveBeenCalled()
   })
 
   it('nutzt den kontrollierten Fallback, wenn die Triage-KI nicht antwortet', async () => {
