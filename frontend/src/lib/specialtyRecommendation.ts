@@ -21,8 +21,7 @@ function includesAny(text: string, terms: string[]) {
 }
 
 function textOf(symptom: Symptom | SelectedSymptom) {
-  const sides = "sides" in symptom && symptom.sides?.length ? symptom.sides.join(" ") : symptom.side ?? "";
-  return normalize(`${symptom.region} ${sides}`);
+  return normalize(`${symptom.region} ${symptom.side ?? ""}`);
 }
 
 function addSpecialty(

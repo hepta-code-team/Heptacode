@@ -65,6 +65,14 @@ describe('evaluateTriage', () => {
       careLevel: 'specialist',
       recommendedSpecialty: 'neurology',
       reasons: ['Die Beschwerden sollten neurologisch abgeklaert werden.'],
+      recommendedSpecialties: [
+        {
+          specialty: 'neurology',
+          label: 'Neurologie',
+          reason: 'Die Beschwerden sollten neurologisch abgeklaert werden.',
+          priority: 1,
+        },
+      ],
       reviewSummary: {
         plainLanguage: 'Bitte lassen Sie die Beschwerden neurologisch abklaeren.',
         professionalSummary: 'Care Level: specialist. Empfohlene Fachrichtung: neurology.',
@@ -201,6 +209,7 @@ describe('evaluateTriage', () => {
 
     expect(result).toEqual({
       careLevel: 'doctor',
+      recommendedSpecialty: 'general_practice',
       reasons: ['Die Beschwerden sollten aerztlich abgeklart werden.'],
       reviewSummary: {
         plainLanguage: 'Bitte lassen Sie die Beschwerden aerztlich abklaeren.',

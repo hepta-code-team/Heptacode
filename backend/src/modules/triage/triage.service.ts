@@ -7,6 +7,7 @@ import type {
   TriageSymptom,
 } from './triage.types.js'
 import { triageAiResponseSchema } from '../../shared/validation.js'
+import type { TriageAiResponse } from '../../shared/validation.js'
 import type { SymptomInputType } from '../../../../shared/symptomExtraction.types.js'
 import { triageInstructions, createTriagePrompt } from '../prompt/triage.prompt.js'
 
@@ -28,6 +29,26 @@ const MEASUREMENT_LABELS: Record<NonNullable<TriageSymptom['measurementType']>, 
   temperature: 'Temperatur',
   feeling: 'Beschwerdegefuehl',
   severity: 'Schweregrad',
+}
+
+const MEDICAL_SPECIALTY_LABELS: Record<MedicalSpecialty, string> = {
+  home_care: 'Haeusliche Versorgung',
+  emergency_medicine: 'Notfallmedizin',
+  general_practice: 'Allgemeinmedizin',
+  internal_medicine: 'Innere Medizin',
+  cardiology: 'Kardiologie',
+  neurology: 'Neurologie',
+  orthopedics: 'Orthopaedie',
+  gastroenterology: 'Gastroenterologie',
+  pulmonology: 'Pneumologie',
+  dermatology: 'Dermatologie',
+  urology: 'Urologie',
+  gynecology: 'Gynaekologie',
+  psychiatry: 'Psychiatrie',
+  pediatrics: 'Kinderheilkunde',
+  dentistry: 'Zahnmedizin',
+  ophthalmology: 'Augenheilkunde',
+  otolaryngology: 'HNO',
 }
 
 function hasText(value: string | undefined): value is string {
@@ -108,6 +129,23 @@ function formatSymptoms(symptoms: TriageSymptom[]): string {
       return `${index + 1}. ${parts.join(', ')}`
     })
     .join('\n')
+}
+function attachPresentationFields(result: TriageResponse): TriageResponse {
+  if (result.reviewSummary) {
+    return result
+  }
+
+  const text = result.reasons.length > 0
+    ? result.reasons.join(' ')
+    : `Die Einschätzung ergab das Pflegelevel ${result.careLevel}.`
+
+  return {
+    ...result,
+    reviewSummary: {
+      plainLanguage: text,
+      professionalSummary: text,
+    },
+  }
 }
 
 function getComparableMeasurementValue(symptom: TriageSymptom): number {
@@ -190,6 +228,7 @@ function createFallbackTriage(symptoms: TriageSymptom[]): TriageResponse {
   if (hasEmergencyPattern) {
     return {
       careLevel: 'emergency',
+      recommendedSpecialty: 'emergency_medicine',
       reasons: [
         'Die KI-Auswertung ist aktuell nicht verfuegbar.',
         'Die uebergebenen Beschwerden enthalten ein Warnmuster, das vorsichtshalber als Notfall eingestuft wird.',
@@ -201,6 +240,7 @@ function createFallbackTriage(symptoms: TriageSymptom[]): TriageResponse {
   if (strongestMeasurementValue >= 8) {
     return {
       careLevel: 'emergency',
+      recommendedSpecialty: 'emergency_medicine',
       reasons: [
         'Die KI-Auswertung ist aktuell nicht verfuegbar.',
         'Aufgrund der sehr starken Beschwerden wird sicherheitshalber eine Notfallabklaerung empfohlen.',
@@ -212,6 +252,7 @@ function createFallbackTriage(symptoms: TriageSymptom[]): TriageResponse {
   if (strongestMeasurementValue >= 5 || symptoms.length > 0) {
     return {
       careLevel: 'doctor',
+      recommendedSpecialty: 'general_practice',
       reasons: [
         'Die KI-Auswertung ist aktuell nicht verfuegbar.',
         'Bitte lassen Sie die Beschwerden aerztlich einschaetzen, besonders bei Verschlechterung oder anhaltenden Symptomen.',
@@ -222,6 +263,7 @@ function createFallbackTriage(symptoms: TriageSymptom[]): TriageResponse {
 
   return {
     careLevel: 'selfcare',
+    recommendedSpecialty: 'home_care',
     reasons: ['Die KI-Auswertung ist aktuell nicht verfuegbar. Ohne erkannte Symptome ist keine hoehere Dringlichkeit ableitbar.'],
     aiUnavailable: true,
   }
@@ -230,6 +272,7 @@ function createFallbackTriage(symptoms: TriageSymptom[]): TriageResponse {
 function createTextExtractionFallbackTriage(): TriageResponse {
   return {
     careLevel: 'doctor',
+    recommendedSpecialty: 'general_practice',
     reasons: [
       'Die KI-Auswertung ist aktuell nicht verfuegbar.',
       'Die Freitext-Beschreibung konnte nicht sicher in Symptome ueberfuehrt werden. Bitte waehlen Sie die Symptome manuell aus oder lassen Sie die Beschwerden aerztlich einschaetzen.',
@@ -263,6 +306,7 @@ export async function evaluateTriage(
   if (emergencyFromLanding) {
     const result: TriageResponse = {
       careLevel: 'emergency',
+      recommendedSpecialty: 'emergency_medicine',
       reasons: ['Notfallmodus ueber die Startseite ausgewaehlt.'],
       reviewSummary: {
         plainLanguage:
@@ -272,7 +316,7 @@ export async function evaluateTriage(
       },
     }
 
-    return result
+    return attachPresentationFields(result)
   }
 
   if (text) {
@@ -296,6 +340,7 @@ export async function evaluateTriage(
   if (triageSymptoms.length === 0) {
     return {
       careLevel: 'selfcare',
+      recommendedSpecialty: 'home_care',
       reasons: [],
       reviewSummary: {
         plainLanguage:

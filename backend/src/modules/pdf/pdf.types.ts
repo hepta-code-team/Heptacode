@@ -11,6 +11,8 @@ export interface PdfSection {
   content: string
 }
 
+export type PdfReviewSummary = ReviewSummary
+
 export interface PdfTriageResult {
   careLevel: CareLevel
   recommendedSpecialty?: MedicalSpecialty
@@ -18,7 +20,7 @@ export interface PdfTriageResult {
 }
 
 export interface PdfExportRequest {
-  reviewSummary: ReviewSummary
+  reviewSummary: PdfReviewSummary
   triage?: PdfTriageResult
   patientData?: PatientData
   symptoms?: TriageSymptom[]

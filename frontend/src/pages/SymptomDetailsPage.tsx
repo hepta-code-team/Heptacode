@@ -6,7 +6,11 @@ import SymptomButtonGrid from "../features/symptoms/SymptomButtonGrid";
 import Modal from "../components/Modal";
 import Button from "../components/Button";
 import { useAssessment } from "../lib/AssessmentContext";
-import { getMeasurementConfig, getMeasurementConfigByType } from "../features/symptoms/symptoms.constants";
+import {
+  getMeasurementConfig,
+  getMeasurementConfigByType,
+  MAX_SYMPTOMS,
+} from "../features/symptoms/symptoms.constants";
 import type { SelectedSymptom, Symptom, SymptomDraft, TriageSymptom } from "../types/assessment";
 import { handleSubmitAssessment } from "../features/symptoms/handleSubmitAssessment";
 
@@ -22,6 +26,7 @@ export default function SymptomDetailsPage() {
   const {
     selectedSymptoms,
     symptomDetails: contextDetails,
+    setSymptomDetails,
     submitAssessment,
   } = useAssessment();
 
@@ -51,10 +56,10 @@ export default function SymptomDetailsPage() {
 
     return {
       ...symptom,
-      id: `symptom-${Date.now()}-${index}`,
-      active: true,
+      id: "id" in symptom ? symptom.id : `symptom-${Date.now()}-${index}`,
+      active: "active" in symptom ? symptom.active : true,
       measurementType,
-      measurementValue: "measurementValue" in symptom && Number.isFinite(symptom.measurementValue)
+      measurementValue: "measurementValue" in symptom && typeof symptom.measurementValue === "number"
         ? symptom.measurementValue
         : measurementConfig.defaultValue,
       isNameEditable,
@@ -72,9 +77,10 @@ export default function SymptomDetailsPage() {
       return contextDetails.map((symptom, index) => normalizeSymptom(symptom, index));
     }
 
-    return selectedSymptoms.map((s, idx) => createSymptomDetails(s.region, s.side, idx));
-  });
+    return [...activeSymptoms.slice(0, MAX_SYMPTOMS), ...placeholders];
+  };
 
+  const [symptomDetails, setLocalSymptomDetails] = useState<SymptomDraft[]>(buildInitialSymptomDetails);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [showValidationErrors, setShowValidationErrors] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -105,7 +111,7 @@ export default function SymptomDetailsPage() {
   };
 
   const handleAddSymptom = (regionName: string, side?: string) => {
-    const inactiveIndex = symptomDetails.findIndex((s) => !s.active);
+    const inactiveIndex = symptomDetails.findIndex((symptom) => !symptom.active);
 
     if (inactiveIndex !== -1) {
       const updated = [...symptomDetails];
@@ -117,6 +123,8 @@ export default function SymptomDetailsPage() {
   };
 
   const handleContinue = () => {
+    setSymptomDetails(symptomDetails.filter((symptom) => symptom.active) as Symptom[]);
+
     void handleSubmitAssessment({
       symptomDetails,
       submitAssessment,
@@ -187,21 +195,9 @@ export default function SymptomDetailsPage() {
       <Modal
         isOpen={isAddModalOpen}
         onClose={() => setIsAddModalOpen(false)}
-        title="Symptom hinzufügen"
-        subtitle="Wählen Sie eine Körperregion aus"
+        title="Beschwerde hinzufügen"
       >
         <SymptomButtonGrid onRegionSelect={handleAddSymptom} />
-
-        <div className="flex justify-end mt-6">
-          <Button variant="secondary" onClick={() => setIsAddModalOpen(false)}>
-            <p
-              className="font-['DM_Sans:Bold',sans-serif] font-bold text-base"
-              style={{ fontVariationSettings: "'opsz' 14" }}
-            >
-              Abbrechen
-            </p>
-          </Button>
-        </div>
       </Modal>
     </PageShell>
   );

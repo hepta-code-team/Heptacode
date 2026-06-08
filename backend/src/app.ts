@@ -1,17 +1,13 @@
 import cors from '@fastify/cors'
 import helmet from '@fastify/helmet'
 import Fastify, { type FastifyInstance } from 'fastify'
-import { ZodError } from 'zod'
 import { env } from './config/env.js'
 import { pdfRoutes } from './routes/pdf.routes.js'
 import { symptomExtractionRoutes } from './routes/symptomExtraction.routes.js'
 import { triageRoutes } from './routes/triage.routes.js'
 import { assessmentRoutes } from './routes/assessment.routes.js'
-
-interface HttpError {
-  statusCode?: number
-  message?: string
-}
+import { errorHandler } from './common/middleware/errorHandler.js'
+import { notFoundHandler } from './common/middleware/notFoundHandler.js'
 
 export async function buildApp(): Promise<FastifyInstance> {
   const app = Fastify({ logger: true })
@@ -23,22 +19,10 @@ export async function buildApp(): Promise<FastifyInstance> {
     request.log.debug({ method: request.method, url: request.url }, 'incoming request')
   })
 
-  app.setErrorHandler((error: HttpError, _request, reply) => {
-    if (error instanceof ZodError) {
-      void reply.status(400).send({
-        message: 'Validation failed',
-        details: error.flatten(),
-      })
-      return
-    }
+  app.setErrorHandler(errorHandler)
+  app.setNotFoundHandler(notFoundHandler)
 
-    const statusCode = error.statusCode ?? 500
-    void reply.status(statusCode).send({
-      message: error.message ?? 'Internal Server Error',
-    })
-  })
-
-   app.get('/health', async () => ({ status: 'ok' }))
+  app.get('/health', async () => ({ status: 'ok' }))
 
   await app.register(assessmentRoutes)
   await app.register(symptomExtractionRoutes)
