@@ -25,6 +25,7 @@ export default function SymptomDetailsPage() {
   const routeState = location.state as SymptomDetailsRouteState | null;
   const hasRouteExtractedSymptoms = Boolean(routeState?.extractedSymptoms?.length);
   const {
+    patientData,
     selectedSymptoms,
     symptomDetails: contextDetails,
     setSymptomDetails,
@@ -139,6 +140,7 @@ export default function SymptomDetailsPage() {
 
     void handleSubmitAssessment({
       symptomDetails,
+      patientData: patientData ?? undefined,
       submitAssessment,
       navigate,
       setShowValidationErrors,

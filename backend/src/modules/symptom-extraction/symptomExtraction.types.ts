@@ -36,6 +36,14 @@ export interface SymptomExtractionResponse {
   message?: string
 }
 
+export interface SymptomInputValidationResponse {
+  text: string
+  inputType: SymptomInputType
+  isValidMedicalInput: boolean
+  aiUnavailable?: boolean
+  message?: string
+}
+
 function normalizeLabel(value: string): string {
   return value
     .toLowerCase()

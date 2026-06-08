@@ -17,12 +17,32 @@ export interface SymptomExtractionResponse {
   message?: string;
 }
 
+export interface SymptomInputValidationResponse {
+  text: string;
+  inputType: SymptomInputType;
+  isValidMedicalInput: boolean;
+  aiUnavailable?: boolean;
+  message?: string;
+}
+
 export async function extractSymptomsFromText(
   symptomText: string,
   inputType: SymptomInputType = "text",
   patientData?: PatientData,
 ): Promise<SymptomExtractionResponse> {
   return apiClient.post<SymptomExtractionResponse>("/api/v1/symptoms/extraction", {
+    symptomText,
+    inputType,
+    patientData,
+  });
+}
+
+export async function validateSymptomInput(
+  symptomText: string,
+  inputType: SymptomInputType = "text",
+  patientData?: PatientData,
+): Promise<SymptomInputValidationResponse> {
+  return apiClient.post<SymptomInputValidationResponse>("/api/v1/symptoms/validation", {
     symptomText,
     inputType,
     patientData,
