@@ -194,7 +194,7 @@ export default function ResultPage() {
   };
 
   const getMeasurementSummary = (symptom: Symptom) => {
-    const config = getMeasurementConfig(symptom.region, symptom.side);
+    const config = getMeasurementConfig(symptom.region);
     const value = symptom.measurementValue ?? 0;
 
     if (config.type === "temperature") {
