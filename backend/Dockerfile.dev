@@ -1,11 +1,12 @@
 FROM node:20-alpine
 
-WORKDIR /workspace
+WORKDIR /workspace/backend
 
-COPY package.json ./
-RUN npm install
+COPY backend/package.json backend/package-lock.json ./
+RUN npm ci
 
-COPY . .
+COPY backend ./
+COPY shared ../shared
 
 EXPOSE 3000
 EXPOSE 9229

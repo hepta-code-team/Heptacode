@@ -1,4 +1,4 @@
-export type CareLevel = "emergency" | "doctor" | "selfcare";
+export type CareLevel = "emergency" | "doctor" | "specialist" | "selfcare";
 
 export interface ResultConfig {
   title: string;
