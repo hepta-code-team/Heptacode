@@ -4,7 +4,7 @@
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
     "outDir": "./dist",
-    "rootDir": "./src",
+    "rootDir": "..",
     "strict": true,
     "skipLibCheck": true,
     "noImplicitReturns": true,
@@ -17,6 +17,6 @@
     "useUnknownInCatchVariables": true,
     "sourceMap": true
   },
-  "include": ["src"],
-  "exclude": ["node_modules", "dist"]
+  "include": ["src", "../shared"],
+  "exclude": ["node_modules", "dist", "**/*.test.ts", "tests"]
 }

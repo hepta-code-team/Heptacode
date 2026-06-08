@@ -27,7 +27,7 @@ export default function PageShell({
   };
 
   return (
-    <div className="bg-white size-full overflow-auto pb-20 md:pb-24">
+    <div className="bg-white size-full overflow-y-auto overflow-x-hidden pb-20 md:pb-24 [scrollbar-gutter:stable]">
       <MobileNavigation />
 
       <div className={`${maxWidthClasses[maxWidth]} mx-auto px-6 md:px-8 py-5 md:py-6`}>
