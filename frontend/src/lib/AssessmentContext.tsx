@@ -1,13 +1,7 @@
-import { createContext, useContext, useState, ReactNode } from "react";
-import type {
-  AssessmentPayload,
-  AssessmentResult,
-  PatientData,
-  SelectedSymptom,
-  Symptom,
-  SymptomDetailPayload,
-} from "../types/assessment";
+import { createContext, useContext, useRef, useState, ReactNode } from "react";
+import type { AssessmentPayload, AssessmentResult, PatientData, SelectedSymptom, Symptom } from "../types/assessment";
 import { apiClient } from "./apiClient";
+import { hasCompleteSymptomDetails, hasRequiredSymptoms, isValidPatientData } from "./assessmentValidation";
 
 interface AssessmentContextType {
   patientData: PatientData | null;
@@ -20,22 +14,66 @@ interface AssessmentContextType {
   setSymptomDetails: (details: Symptom[]) => void;
   assessmentResult: AssessmentResult | null;
   setAssessmentResult: (result: AssessmentResult | null) => void;
-  submitAssessment: (details: SymptomDetailPayload[]) => Promise<AssessmentResult>;
+  evaluationProgress: number;
+  isEvaluating: boolean;
+  submitAssessment: (details: Symptom[]) => Promise<AssessmentResult>;
   resetAssessment: () => void;
 }
 
 const AssessmentContext = createContext<AssessmentContextType | undefined>(undefined);
 
 export function AssessmentProvider({ children }: { children: ReactNode }) {
-  const [patientData, setPatientData] = useState<PatientData | null>(null);
-  const [selectedSymptoms, setSelectedSymptoms] = useState<SelectedSymptom[]>([]);
+  const [patientData, setPatientDataState] = useState<PatientData | null>(null);
+  const [selectedSymptoms, setSelectedSymptomsState] = useState<SelectedSymptom[]>([]);
   const [symptomText, setSymptomText] = useState("");
-  const [symptomDetails, setSymptomDetails] = useState<Symptom[]>([]);
+  const [symptomDetails, setSymptomDetailsState] = useState<Symptom[]>([]);
   const [assessmentResult, setAssessmentResult] = useState<AssessmentResult | null>(null);
+  const [evaluationProgress, setEvaluationProgress] = useState(0);
+  const [isEvaluating, setIsEvaluating] = useState(false);
+  const assessmentRequestVersion = useRef(0);
 
-  const submitAssessment = async (details: SymptomDetailPayload[]) => {
-    if (!patientData) {
-      throw new Error("Patientendaten fehlen. Bitte gehen Sie zurück und füllen Sie die Stammdaten aus.");
+  const invalidateAssessmentResult = () => {
+    assessmentRequestVersion.current += 1;
+    setAssessmentResult(null);
+    setEvaluationProgress(0);
+    setIsEvaluating(false);
+  };
+
+  const setPatientData = (data: PatientData) => {
+    if (JSON.stringify(patientData) !== JSON.stringify(data)) {
+      invalidateAssessmentResult();
+    }
+
+    setPatientDataState(data);
+  };
+
+  const setSelectedSymptoms = (symptoms: SelectedSymptom[]) => {
+    if (JSON.stringify(selectedSymptoms) !== JSON.stringify(symptoms)) {
+      invalidateAssessmentResult();
+    }
+
+    setSelectedSymptomsState(symptoms);
+  };
+
+  const setSymptomDetails = (details: Symptom[]) => {
+    if (JSON.stringify(symptomDetails) !== JSON.stringify(details)) {
+      invalidateAssessmentResult();
+    }
+
+    setSymptomDetailsState(details);
+  };
+
+  const submitAssessment = async (details: Symptom[]) => {
+    if (!isValidPatientData(patientData)) {
+      throw new Error("Bitte füllen Sie zuerst alle Pflichtfelder der Stammdaten vollständig aus.");
+    }
+
+    if (!hasRequiredSymptoms(selectedSymptoms)) {
+      throw new Error("Bitte wählen Sie zuerst mindestens eine Beschwerde aus.");
+    }
+
+    if (!hasCompleteSymptomDetails(details)) {
+      throw new Error("Bitte füllen Sie zuerst Dauer und Stärke für alle Beschwerden vollständig aus.");
     }
 
     const payload: AssessmentPayload = {
@@ -46,19 +84,57 @@ export function AssessmentProvider({ children }: { children: ReactNode }) {
 
     console.log("Assessment payload", payload);
 
-    const result = await apiClient.post<AssessmentResult>("/assessments", payload);
+    const requestVersion = assessmentRequestVersion.current + 1;
+    assessmentRequestVersion.current = requestVersion;
 
-    setAssessmentResult(result);
+    setAssessmentResult(null);
+    setEvaluationProgress(8);
+    setIsEvaluating(true);
 
-    return result;
+    const progressInterval = window.setInterval(() => {
+      if (assessmentRequestVersion.current !== requestVersion) {
+        return;
+      }
+
+      setEvaluationProgress((currentProgress) =>
+        Math.min(currentProgress + Math.max(1, (92 - currentProgress) * 0.12), 92),
+      );
+    }, 400);
+
+    try {
+      const result = await apiClient.post<AssessmentResult>("/assessments", payload);
+
+      if (assessmentRequestVersion.current !== requestVersion) {
+        throw new Error("Die Auswertung wurde zurückgesetzt.");
+      }
+
+      setSymptomDetailsState(details);
+      setAssessmentResult(result);
+      setEvaluationProgress(100);
+
+      return result;
+    } catch (error) {
+      if (assessmentRequestVersion.current === requestVersion) {
+        setEvaluationProgress(0);
+      }
+      throw error;
+    } finally {
+      window.clearInterval(progressInterval);
+      if (assessmentRequestVersion.current === requestVersion) {
+        setIsEvaluating(false);
+      }
+    }
   };
 
   const resetAssessment = () => {
-    setPatientData(null);
-    setSelectedSymptoms([]);
+    assessmentRequestVersion.current += 1;
+    setPatientDataState(null);
+    setSelectedSymptomsState([]);
     setSymptomText("");
-    setSymptomDetails([]);
+    setSymptomDetailsState([]);
     setAssessmentResult(null);
+    setEvaluationProgress(0);
+    setIsEvaluating(false);
   };
 
   return (
@@ -74,6 +150,8 @@ export function AssessmentProvider({ children }: { children: ReactNode }) {
         setSymptomDetails,
         assessmentResult,
         setAssessmentResult,
+        evaluationProgress,
+        isEvaluating,
         submitAssessment,
         resetAssessment,
       }}

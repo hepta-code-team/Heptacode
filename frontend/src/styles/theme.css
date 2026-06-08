@@ -15,6 +15,8 @@
   --app-text-warning-strong: #92400E;
   --app-text-on-primary: #ffffff;
   --background: #ffffff;
+  --app-background-top: #A3E64D;
+  --app-background-bottom: #1F3F59;
   --foreground: oklch(0.145 0 0);
   --card: #ffffff;
   --card-foreground: oklch(0.145 0 0);
@@ -149,7 +151,13 @@
   }
 
   body {
+    min-height: 100dvh;
+    margin: 0;
     @apply bg-background text-foreground font-sans;
+  }
+
+  #root {
+    min-height: 100dvh;
   }
 
   /**
@@ -201,5 +209,15 @@
     font-size: var(--text-base);
     font-weight: var(--font-weight-normal);
     line-height: 1.5;
+  }
+}
+
+@layer components {
+  .page-header-divider {
+    background: linear-gradient(
+      to right,
+      var(--app-background-top),
+      var(--app-background-bottom)
+    );
   }
 }

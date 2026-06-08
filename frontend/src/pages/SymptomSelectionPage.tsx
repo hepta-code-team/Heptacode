@@ -302,7 +302,9 @@ export default function SymptomSelectionPage() {
     setSelectedSymptoms: setContextSymptoms,
     symptomText,
     setSymptomText,
+    symptomDetails: contextSymptomDetails,
     setSymptomDetails: setContextSymptomDetails,
+    resetAssessment,
   } = useAssessment();
   const [selectedCategory, setSelectedCategory] = useState<BodyAreaCategory | null>(initialCategory);
   const [selectedSymptoms, setSelectedSymptoms] = useState<SelectedSymptom[]>(contextSymptoms);
@@ -541,6 +543,7 @@ export default function SymptomSelectionPage() {
 
   const handleRegionSelect = (regionName: string, side?: string) => {
     if (side && EMERGENCY_SYMPTOM_OPTIONS.includes(side)) {
+      resetAssessment();
       navigate("/result?emergency=true");
       return;
     }
@@ -562,9 +565,17 @@ export default function SymptomSelectionPage() {
     setSelectedSymptoms(selectedSymptoms.filter((_, symptomIndex) => symptomIndex !== index));
   };
 
+  const preserveSelectedSymptomDetails = (symptoms: SelectedSymptom[]) => {
+    const selectedKeys = new Set(symptoms.map(getSymptomKey));
+
+    setContextSymptomDetails(
+      contextSymptomDetails.filter((symptom) => selectedKeys.has(getSymptomKey(symptom))),
+    );
+  };
+
   const handleContinue = () => {
     setContextSymptoms(selectedSymptoms);
-    setContextSymptomDetails([]);
+    preserveSelectedSymptomDetails(selectedSymptoms);
     navigate("/symptom-details");
   };
 
@@ -612,7 +623,7 @@ export default function SymptomSelectionPage() {
 
       setSelectedSymptoms(extractedSelection);
       setContextSymptoms(extractedSelection);
-      setContextSymptomDetails([]);
+      preserveSelectedSymptomDetails(extractedSelection);
       setIsModalOpen(false);
       navigate("/symptom-details", { state: { extractedSymptoms } });
     } catch (error) {
@@ -685,32 +696,6 @@ export default function SymptomSelectionPage() {
               })}
             </div>
           </div>
-
-          <button
-            type="button"
-            onClick={() => setIsModalOpen(true)}
-            className="mt-3 w-full rounded-[16px] border border-[#d7dee7] bg-white p-4 text-left text-app-text-body shadow-sm transition-all hover:border-[#486284] hover:bg-[#f5f7fa]"
-          >
-            <div className="flex items-start gap-3">
-              <div className="flex size-11 flex-shrink-0 items-center justify-center rounded-full bg-[#486284] text-app-text-on-primary">
-                <Mic className="size-5" aria-hidden="true" />
-              </div>
-              <div>
-                <p
-                  className="font-['DM_Sans:Bold',sans-serif] font-bold text-app-text-primary text-sm"
-                  style={{ fontVariationSettings: "'opsz' 14" }}
-                >
-                  Symptome beschreiben
-                </p>
-                <p
-                  className="font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-primary text-xs leading-snug"
-                  style={{ fontVariationSettings: "'opsz' 14" }}
-                >
-                  Per Freitext oder Spracheingabe schildern
-                </p>
-              </div>
-            </div>
-          </button>
         </div>
 
         <div>
@@ -771,6 +756,32 @@ export default function SymptomSelectionPage() {
             })}
             </div>
           </div>
+
+          <button
+            type="button"
+            onClick={() => setIsModalOpen(true)}
+            className="mb-4 w-full rounded-[16px] border border-[#d7dee7] bg-white p-4 text-left text-app-text-body shadow-sm transition-all hover:border-[#486284] hover:bg-[#f5f7fa]"
+          >
+            <div className="flex items-start gap-3">
+              <div className="flex size-11 flex-shrink-0 items-center justify-center rounded-full bg-[#486284] text-app-text-on-primary">
+                <Mic className="size-5" aria-hidden="true" />
+              </div>
+              <div>
+                <p
+                  className="font-['DM_Sans:Bold',sans-serif] font-bold text-app-text-primary text-sm"
+                  style={{ fontVariationSettings: "'opsz' 14" }}
+                >
+                  Symptome beschreiben
+                </p>
+                <p
+                  className="font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-primary text-xs leading-snug"
+                  style={{ fontVariationSettings: "'opsz' 14" }}
+                >
+                  Per Freitext oder Spracheingabe schildern
+                </p>
+              </div>
+            </div>
+          </button>
 
           <div ref={symptomOptionsRef} className="scroll-mt-4" />
           {selectedCategory ? (

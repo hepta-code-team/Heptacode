@@ -14,6 +14,7 @@ import {
   Globe2,
   HeartPulse,
   Pill,
+  RotateCcw,
   ShieldAlert,
   Stethoscope,
   Wind,
@@ -203,6 +204,7 @@ export default function MedicalDataPage() {
     abroad: false,
   });
   const [expandedConditionDetails, setExpandedConditionDetails] = useState<Record<string, boolean>>({});
+  const [isRemovingCondition, setIsRemovingCondition] = useState(false);
 
   useEffect(() => {
     const handlePointerDown = (event: PointerEvent) => {
@@ -243,6 +245,40 @@ export default function MedicalDataPage() {
     }));
   };
 
+  const toggleConditionRemoval = () => {
+    setIsRemovingCondition((isRemoving) => !isRemoving);
+    setExpandedConditionDetails({});
+  };
+
+  const removeCondition = (condition: string) => {
+    setFormData((prev) => {
+      const nextConditions = prev.conditions.filter((selectedCondition) => selectedCondition !== condition);
+      const nextConditionDetails = { ...(prev.conditionDetails ?? {}) };
+      delete nextConditionDetails[condition];
+
+      return {
+        ...prev,
+        conditions: nextConditions,
+        conditionDetails: nextConditionDetails,
+      };
+    });
+  };
+
+  useEffect(() => {
+    if (formData.conditions.length === 0) {
+      setIsRemovingCondition(false);
+    }
+  }, [formData.conditions.length]);
+
+  const handleConditionClick = (condition: string, isSelected: boolean) => {
+    if (isRemovingCondition) {
+      if (isSelected) removeCondition(condition);
+      return;
+    }
+
+    toggleConditionDropdown(condition);
+  };
+
   const updateOtherCondition = (value: string) => {
     const trimmedValue = value.trim();
 
@@ -274,6 +310,7 @@ export default function MedicalDataPage() {
       title="Weitere medizinische Angaben"
       subtitle="Ergänzen Sie optionale Angaben, falls sie für Ihre Beschwerden relevant sind."
       onBack={() => navigate("/patient-data")}
+      onSkip={handleContinue}
     >
       {(formData.gender === "Weiblich" || formData.gender === "Divers") && (
         <div className="bg-[#eff2f6] rounded-[14px] p-3">
@@ -557,12 +594,34 @@ export default function MedicalDataPage() {
       </div>
 
       <div className="mt-4">
-        <p
-          className="font-['DM_Sans:Bold',sans-serif] font-bold text-app-text-primary text-lg mb-2"
-          style={{ fontVariationSettings: "'opsz' 14" }}
-        >
-          Vorerkrankungen
-        </p>
+        <div className="mb-2 flex items-center justify-between gap-3">
+          <p
+            className="font-['DM_Sans:Bold',sans-serif] font-bold text-app-text-primary text-lg"
+            style={{ fontVariationSettings: "'opsz' 14" }}
+          >
+            Vorerkrankungen
+          </p>
+          <button
+            type="button"
+            onClick={toggleConditionRemoval}
+            disabled={formData.conditions.length === 0}
+            aria-pressed={isRemovingCondition}
+            className={`flex items-center gap-1.5 rounded-[10px] px-2 py-1.5 text-xs font-semibold transition-all disabled:cursor-not-allowed disabled:text-app-text-muted disabled:opacity-60 disabled:hover:bg-transparent ${
+              isRemovingCondition
+                ? "bg-[#486284] text-white hover:bg-[#3a4d68]"
+                : "text-app-text-primary hover:bg-[#eff2f6]"
+            }`}
+          >
+            <RotateCcw className="size-3.5" aria-hidden="true" />
+            {isRemovingCondition ? "Aufheben beenden" : "Auswahl aufheben"}
+          </button>
+        </div>
+
+        {isRemovingCondition && (
+          <p className="mb-2 text-xs font-medium text-app-text-primary" role="status">
+            Klicken Sie auf eine ausgewählte Vorerkrankung, um sie aufzuheben.
+          </p>
+        )}
 
         <div ref={conditionsGridRef} className="grid grid-cols-2 md:grid-cols-3 gap-2">
           {PRE_EXISTING_CONDITIONS.map((condition) => {
@@ -577,10 +636,24 @@ export default function MedicalDataPage() {
               return (
                 <div
                   key={condition}
-                  className={`bg-[#eff2f6] rounded-[10px] p-3 min-h-[82px] flex flex-col justify-center gap-2 transition-all ${
-                    otherValue.trim() ? "ring-2 ring-[#486284]" : ""
+                  className={`relative bg-[#eff2f6] rounded-[10px] p-3 min-h-[82px] flex flex-col justify-center gap-2 transition-all ${
+                    isRemovingCondition
+                      ? isSelected
+                        ? "ring-2 ring-red-400 hover:bg-red-50"
+                        : "opacity-60"
+                      : otherValue.trim()
+                        ? "ring-2 ring-[#486284]"
+                        : ""
                   }`}
                 >
+                  {isRemovingCondition && isSelected && (
+                    <button
+                      type="button"
+                      onClick={() => removeCondition(condition)}
+                      className="absolute inset-0 z-10 rounded-[10px]"
+                      aria-label={`${condition} aufheben`}
+                    />
+                  )}
                   <div className="flex items-center gap-2">
                     <Icon
                       className={`size-5 ${otherValue.trim() ? "text-app-text-primary" : "text-app-text-muted"}`}
@@ -599,6 +672,7 @@ export default function MedicalDataPage() {
                     id="otherCondition"
                     value={otherValue}
                     onChange={(event) => updateOtherCondition(event.target.value)}
+                    disabled={isRemovingCondition}
                     placeholder="Freitext"
                     className="h-9 border-none bg-white text-xs"
                   />
@@ -610,18 +684,28 @@ export default function MedicalDataPage() {
               <div key={condition} className="relative">
                 <button
                   type="button"
-                  onClick={() => toggleConditionDropdown(condition)}
+                  onClick={() => handleConditionClick(condition, isSelected)}
                   className={`bg-[#eff2f6] rounded-[10px] p-3 min-h-[82px] w-full flex flex-col items-center justify-center gap-2 text-center transition-all ${
-                    isSelected ? "ring-2 ring-[#486284]" : "hover:bg-[#dde3ea]"
+                    isRemovingCondition
+                      ? isSelected
+                        ? "ring-2 ring-red-400 hover:bg-red-50"
+                        : "cursor-not-allowed opacity-60"
+                      : isSelected
+                        ? "ring-2 ring-[#486284]"
+                        : "hover:bg-[#dde3ea]"
                   }`}
-                  aria-expanded={isOpen}
+                  aria-expanded={!isRemovingCondition && isOpen}
+                  aria-disabled={isRemovingCondition && !isSelected}
+                  aria-label={isRemovingCondition && isSelected ? `${condition} aufheben` : undefined}
                 >
-                  <ChevronDown
-                    className={`absolute right-3 top-3 size-4 text-app-text-primary/60 transition-transform ${
-                      isOpen ? "rotate-180" : ""
-                    }`}
-                    aria-hidden="true"
-                  />
+                  {!isRemovingCondition && (
+                    <ChevronDown
+                      className={`absolute right-3 top-3 size-4 text-app-text-primary/60 transition-transform ${
+                        isOpen ? "rotate-180" : ""
+                      }`}
+                      aria-hidden="true"
+                    />
+                  )}
                   <Icon
                     className={`size-6 ${isSelected ? "text-app-text-primary" : "text-app-text-muted"}`}
                     strokeWidth={2.2}
@@ -640,7 +724,7 @@ export default function MedicalDataPage() {
                   )}
                 </button>
 
-                {isOpen && config && (
+                {!isRemovingCondition && isOpen && config && (
                   <div className="absolute z-10 top-full left-0 right-0 mt-1 bg-white border-2 border-[#486284] rounded-[12px] shadow-lg overflow-hidden">
                     {config.options.map((option) => (
                       <button

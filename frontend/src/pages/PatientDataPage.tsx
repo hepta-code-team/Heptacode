@@ -1,25 +1,36 @@
-import { useState } from "react";
+import { useState, type KeyboardEvent, type PointerEvent } from "react";
 import { useNavigate } from "react-router";
 import { Annoyed, Frown, Laugh, Mars, Meh, Smile, Transgender, Venus, type LucideIcon } from "lucide-react";
 import PageShell from "../components/PageShell";
 import Button from "../components/Button";
 import { useAssessment } from "../lib/AssessmentContext";
+import {
+  BIRTH_MONTH_MAX,
+  BIRTH_MONTH_MIN,
+  HEIGHT_MAX,
+  HEIGHT_MIN,
+  isNumberInRange,
+  isValidPatientData,
+  MAX_PATIENT_AGE_YEARS,
+  WEIGHT_MAX,
+  WEIGHT_MIN,
+} from "../lib/assessmentValidation";
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
 import type { PatientData } from "../../../shared/patientData.types";
 
-const WEIGHT_MIN = 3;
-const WEIGHT_MAX = 300;
-const HEIGHT_MIN = 45;
-const HEIGHT_MAX = 250;
-const BIRTH_MONTH_MIN = 1;
-const BIRTH_MONTH_MAX = 12;
-const MAX_PATIENT_AGE_YEARS = 125;
+const EMPTY_NUMBER_STEP_BASELINES = {
+  birthYear: 2000,
+  height: 175,
+  weight: 70,
+} as const;
 
-const GENDER_OPTIONS: Array<{ label: string; icon: LucideIcon }> = [
-  { label: "Männlich", icon: Mars },
-  { label: "Weiblich", icon: Venus },
-  { label: "Divers", icon: Transgender },
+type EmptyNumberStepField = keyof typeof EMPTY_NUMBER_STEP_BASELINES;
+
+const GENDER_OPTIONS: Array<{ label: string; icon: LucideIcon; selectedClassName: string }> = [
+  { label: "Männlich", icon: Mars, selectedClassName: "bg-[#2563EB] text-white" },
+  { label: "Weiblich", icon: Venus, selectedClassName: "bg-[#DB2777] text-white" },
+  { label: "Divers", icon: Transgender, selectedClassName: "bg-[#7C3AED] text-white" },
 ];
 
 const MOOD_OPTIONS: Array<{ label: string; icon: LucideIcon; color: string; bgColor: string }> = [
@@ -29,11 +40,6 @@ const MOOD_OPTIONS: Array<{ label: string; icon: LucideIcon; color: string; bgCo
   { label: "Gut", icon: Smile, color: "#84CC16", bgColor: "#ECFCCB" },
   { label: "Sehr gut", icon: Laugh, color: "#10B981", bgColor: "#D1FAE5" },
 ];
-
-function isNumberInRange(value: string, min: number, max: number) {
-  const numberValue = Number(value);
-  return value !== "" && Number.isFinite(numberValue) && numberValue >= min && numberValue <= max;
-}
 
 const createInitialPatientData = (patientData?: Partial<PatientData>): PatientData => ({
   birthMonth: "",
@@ -66,12 +72,7 @@ export default function PatientDataPage() {
   const [mood, setMood] = useState("");
   const [showValidationErrors, setShowValidationErrors] = useState(false);
 
-  const isFormValid =
-    Boolean(formData.birthMonth && formData.birthYear && formData.gender) &&
-    isNumberInRange(formData.height, HEIGHT_MIN, HEIGHT_MAX) &&
-    isNumberInRange(formData.weight, WEIGHT_MIN, WEIGHT_MAX) &&
-    isNumberInRange(formData.birthMonth, BIRTH_MONTH_MIN, BIRTH_MONTH_MAX) &&
-    isNumberInRange(formData.birthYear, birthYearMin, currentYear);
+  const isFormValid = isValidPatientData(formData);
 
   const hasHeightError =
     (showValidationErrors || formData.height !== "") && !isNumberInRange(formData.height, HEIGHT_MIN, HEIGHT_MAX);
@@ -104,6 +105,40 @@ export default function PatientDataPage() {
     });
   };
 
+  const stepFromEmptyBaseline = (field: EmptyNumberStepField, direction: 1 | -1) => {
+    setFormData((currentFormData) => ({
+      ...currentFormData,
+      [field]: String(EMPTY_NUMBER_STEP_BASELINES[field] + direction),
+    }));
+  };
+
+  const handleEmptyNumberKeyDown = (event: KeyboardEvent<HTMLInputElement>, field: EmptyNumberStepField) => {
+    if (event.currentTarget.value !== "" || (event.key !== "ArrowUp" && event.key !== "ArrowDown")) {
+      return;
+    }
+
+    event.preventDefault();
+    stepFromEmptyBaseline(field, event.key === "ArrowUp" ? 1 : -1);
+  };
+
+  const handleEmptyNumberPointerDown = (event: PointerEvent<HTMLInputElement>, field: EmptyNumberStepField) => {
+    if (event.pointerType !== "mouse" || event.button !== 0 || event.currentTarget.value !== "") {
+      return;
+    }
+
+    const inputBounds = event.currentTarget.getBoundingClientRect();
+    const nativeStepperWidth = Math.min(24, inputBounds.width / 3);
+    const isNativeStepperClick = event.clientX >= inputBounds.right - nativeStepperWidth;
+
+    if (!isNativeStepperClick) {
+      return;
+    }
+
+    event.preventDefault();
+    event.currentTarget.focus();
+    stepFromEmptyBaseline(field, event.clientY < inputBounds.top + inputBounds.height / 2 ? 1 : -1);
+  };
+
   return (
     <PageShell
       title="Bitte geben Sie Ihre Stammdaten ein"
@@ -127,6 +162,7 @@ export default function PatientDataPage() {
                 placeholder="MM"
                 min="1"
                 max="12"
+                autoComplete="off"
                 value={formData.birthMonth}
                 onChange={(event) => setFormData({ ...formData, birthMonth: event.target.value })}
                 className={`bg-white text-xs h-8 ${
@@ -152,10 +188,13 @@ export default function PatientDataPage() {
                 placeholder="JJJJ"
                 min={birthYearMin}
                 max={currentYear}
+                autoComplete="off"
                 aria-invalid={hasBirthYearError}
                 aria-describedby={hasBirthYearError ? "birth-year-error" : undefined}
                 value={formData.birthYear}
                 onChange={(event) => setFormData({ ...formData, birthYear: event.target.value })}
+                onKeyDown={(event) => handleEmptyNumberKeyDown(event, "birthYear")}
+                onPointerDown={(event) => handleEmptyNumberPointerDown(event, "birthYear")}
                 className={`bg-white text-xs h-8 ${
                   hasBirthYearError
                     ? "border border-red-500 focus-visible:border-red-500 focus-visible:ring-red-500/30"
@@ -196,6 +235,8 @@ export default function PatientDataPage() {
                 aria-describedby={hasHeightError ? "height-error" : undefined}
                 value={formData.height}
                 onChange={(event) => setFormData({ ...formData, height: event.target.value })}
+                onKeyDown={(event) => handleEmptyNumberKeyDown(event, "height")}
+                onPointerDown={(event) => handleEmptyNumberPointerDown(event, "height")}
                 className={`bg-white text-xs h-8 ${
                   hasHeightError
                     ? "border border-red-500 focus-visible:border-red-500 focus-visible:ring-red-500/30"
@@ -226,6 +267,8 @@ export default function PatientDataPage() {
                 aria-describedby={hasWeightError ? "weight-error" : undefined}
                 value={formData.weight}
                 onChange={(event) => setFormData({ ...formData, weight: event.target.value })}
+                onKeyDown={(event) => handleEmptyNumberKeyDown(event, "weight")}
+                onPointerDown={(event) => handleEmptyNumberPointerDown(event, "weight")}
                 className={`bg-white text-xs h-8 ${
                   hasWeightError
                     ? "border border-red-500 focus-visible:border-red-500 focus-visible:ring-red-500/30"
@@ -252,14 +295,14 @@ export default function PatientDataPage() {
             Bei Geburt zugewiesenes Geschlecht <span className="text-app-text-danger">*</span>
           </p>
           <div className="grid grid-cols-3 gap-1.5">
-            {GENDER_OPTIONS.map(({ label: gender, icon: Icon }) => (
+            {GENDER_OPTIONS.map(({ label: gender, icon: Icon, selectedClassName }) => (
               <button
                 key={gender}
                 type="button"
                 onClick={() => setGender(gender)}
                 className={`flex min-h-10 items-center justify-center gap-1.5 rounded-[8px] px-2 py-2 text-center transition-all ${
                   formData.gender === gender
-                    ? "bg-[#486284] text-white"
+                    ? selectedClassName
                     : `bg-white text-app-text-body hover:bg-[#dde3ea] ${hasGenderError ? "border border-red-200" : ""}`
                 }`}
               >
