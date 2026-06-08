@@ -17,17 +17,6 @@ export const triageAiResponseSchema = z
     reviewSummary: reviewSummarySchema,
   })
   .superRefine((value, ctx) => {
-    if (
-      value.careLevel !== 'specialist' &&
-      value.recommendedSpecialty !== undefined
-    ) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ['recommendedSpecialty'],
-        message: 'recommendedSpecialty muss leer sein, wenn careLevel nicht specialist ist',
-      })
-    }
-
     if (value.careLevel === 'specialist' && value.recommendedSpecialty === undefined) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
@@ -35,7 +24,11 @@ export const triageAiResponseSchema = z
         message: 'recommendedSpecialty ist erforderlich, wenn careLevel specialist ist',
       })
     }
-
   })
+  .transform((value) => ({
+    ...value,
+    recommendedSpecialty:
+      value.careLevel === 'specialist' ? value.recommendedSpecialty : undefined,
+  }))
 
 export type TriageAiResponse = z.infer<typeof triageAiResponseSchema>
