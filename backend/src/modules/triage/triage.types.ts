@@ -77,6 +77,13 @@ export const patientDataSchema = z.object({
   conditionDetails: z.record(z.string(), z.string()),
 })
 
+export const recommendedSpecialtyItemSchema = z.object({
+  specialty: medicalSpecialtySchema,
+  label: z.string().min(1),
+  reason: z.string().min(1),
+  priority: z.number().int(),
+})
+
 export const triageSymptomSchema = z.object({
   region: z.string().min(1),
   side: z.string().min(1).optional(),
