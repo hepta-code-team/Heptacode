@@ -9,6 +9,7 @@ import { useAssessment } from "../lib/AssessmentContext";
 import { getMeasurementConfig, getMeasurementConfigByType } from "../features/symptoms/symptoms.constants";
 import type { SelectedSymptom, Symptom, SymptomDraft, TriageSymptom } from "../types/assessment";
 import { handleSubmitAssessment } from "../features/symptoms/handleSubmitAssessment";
+import {X} from "lucide-react";
 
 interface SymptomDetailsRouteState {
   extractedSymptoms?: TriageSymptom[];
@@ -171,24 +172,30 @@ export default function SymptomDetailsPage() {
         </div>
       )}
 
+
+
       <Modal
-        isOpen={isAddModalOpen}
-        onClose={() => setIsAddModalOpen(false)}
-        title="Symptom hinzufügen"
-        subtitle="Wählen Sie eine Körperregion aus"
+
+          isOpen={isAddModalOpen}
+
+          onClose={() => setIsAddModalOpen(false)}
+
+          title="Symptom hinzufügen"
+
+          subtitle="Wählen Sie eine Körperregion aus"
+
       >
+
+        <button
+            type="button"
+            onClick={() => setIsAddModalOpen(false)}
+            className="absolute right-8 top-9 rounded-full p-2 text-slate-500 hover:bg-slate-100
+            hover:text-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-400"
+            aria-label="Modal schließen"
+        >
+          <X className="h-7 w-7" aria-hidden="true" />
+        </button>
         <SymptomButtonGrid onRegionSelect={handleAddSymptom} />
-
-        <div className="flex justify-end mt-6">
-          <Button
-              variant="secondary"
-              icon="x"
-              onClick={() => setIsAddModalOpen(false)}
-              className="absolute right-4 top-4"
-              aria-label="Modal schließen"
-
-          />
-        </div>
       </Modal>
     </PageShell>
   );
