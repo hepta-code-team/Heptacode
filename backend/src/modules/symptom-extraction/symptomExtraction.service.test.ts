@@ -10,6 +10,26 @@ vi.mock('../../ai/llmAdapter.js', () => ({
 
 const requestStructuredAiResponseMock = vi.mocked(requestStructuredAiResponse)
 
+const malePatientData = {
+  birthMonth: '05',
+  birthYear: '1988',
+  height: '175',
+  weight: '78',
+  gender: 'Maennlich',
+  isPregnant: false,
+  isBreastfeeding: false,
+  allergies: '',
+  medications: '',
+  substanceInfluence: 'Nein',
+  recentAbroad: false,
+  recentAbroadDetails: '',
+  conditions: [],
+  isSmoker: false,
+  smokingSinceYears: '',
+  cigarettesPerDay: '',
+  conditionDetails: {},
+}
+
 describe('extractSymptoms', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -23,6 +43,23 @@ describe('extractSymptoms', () => {
       inputType: 'text',
       symptoms: [],
       invalidInput: true,
+    })
+    expect(requestStructuredAiResponseMock).not.toHaveBeenCalled()
+  })
+
+  it('faengt widerspruechliche Schwangerschaftsangaben vor der KI-Auswertung ab', async () => {
+    const result = await extractSymptoms(
+      'Ich waere schwanger und habe Wehen.',
+      'text',
+      malePatientData,
+    )
+
+    expect(result).toMatchObject({
+      text: 'Ich waere schwanger und habe Wehen.',
+      inputType: 'text',
+      symptoms: [],
+      invalidInput: true,
+      message: expect.stringContaining('passen logisch nicht zusammen'),
     })
     expect(requestStructuredAiResponseMock).not.toHaveBeenCalled()
   })
@@ -94,6 +131,62 @@ describe('extractSymptoms', () => {
     expect(result.symptoms).toEqual([{ region: 'Blutiger Auswurf', measurementType: 'severity' }])
   })
 
+  it('uebernimmt relevante Zusatzdetails auch bei Mapping auf vorhandene Symptome', async () => {
+    requestStructuredAiResponseMock
+      .mockResolvedValueOnce({
+        isValidMedicalInput: true,
+        reason: 'Medizinische Beschwerde erkannt.',
+      })
+      .mockResolvedValueOnce({
+        symptoms: [
+          {
+            region: 'Verbrennung',
+            details: 'Kochendes Wasser ueber Arm geschuettet',
+            measurementType: 'severity',
+          },
+        ],
+      })
+
+    const result = await extractSymptoms('Ich habe kochendes Wasser über meinen Arm geschüttet.')
+
+    expect(result.symptoms).toEqual([
+      {
+        region: 'Verbrennung',
+        details: 'Kochendes Wasser ueber Arm geschuettet',
+        measurementType: 'severity',
+      },
+    ])
+  })
+
+  it('bewahrt Negationen in Zusatzdetails fuer die Triage', async () => {
+    requestStructuredAiResponseMock
+      .mockResolvedValueOnce({
+        isValidMedicalInput: true,
+        reason: 'Medizinischer Verletzungskontext erkannt.',
+      })
+      .mockResolvedValueOnce({
+        symptoms: [
+          {
+            region: 'In Nagel getreten',
+            side: 'Fuß',
+            details: 'Nagel steckt nicht im Fuß',
+            measurementType: 'severity',
+          },
+        ],
+      })
+
+    const result = await extractSymptoms('Der Nagel steckt aber nicht in meinem Fuß.')
+
+    expect(result.symptoms).toEqual([
+      {
+        region: 'In Nagel getreten',
+        side: 'Fuß',
+        details: 'Nagel steckt nicht im Fuß',
+        measurementType: 'severity',
+      },
+    ])
+  })
+
   it('laesst Verletzungsereignisse als Freitext-Symptom durch die Extraktion laufen', async () => {
     requestStructuredAiResponseMock
       .mockResolvedValueOnce({
@@ -101,12 +194,12 @@ describe('extractSymptoms', () => {
         reason: 'Medizinischer Verletzungskontext erkannt.',
       })
       .mockResolvedValueOnce({
-        symptoms: [{ region: 'Nageltrittverletzung', measurementType: 'severity' }],
+        symptoms: [{ region: 'In Nagel getreten', measurementType: 'severity' }],
       })
 
     const result = await extractSymptoms('Ich bin in einen Nagel getreten.')
 
-    expect(result.symptoms).toEqual([{ region: 'Nageltrittverletzung', measurementType: 'severity' }])
+    expect(result.symptoms).toEqual([{ region: 'In Nagel getreten', measurementType: 'severity' }])
     expect(requestStructuredAiResponseMock).toHaveBeenCalledTimes(2)
   })
 

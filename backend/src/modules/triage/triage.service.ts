@@ -1,6 +1,8 @@
 import { requestStructuredAiResponseWithModel } from '../../ai/llmAdapter.js'
 import { isAiRequestError } from '../../ai/timeout.js'
 import { extractSymptoms } from '../symptom-extraction/symptomExtraction.service.js'
+import { ApiError } from '../../common/errors/ApiError.js'
+import { getPatientPlausibilityError } from '../../common/patientPlausibility.js'
 import type {
   PatientData,
   TriageResponse,
@@ -11,9 +13,7 @@ import type { SymptomInputType } from '../../../../shared/symptomExtraction.type
 import { triageInstructions, createTriagePrompt } from '../prompt/triage.prompt.js'
 
 function createBadRequestError(message: string): Error & { statusCode: number } {
-  const error = new Error(message) as Error & { statusCode: number }
-  error.statusCode = 400
-  return error
+  return new ApiError(400, 'BAD_REQUEST', message) as Error & { statusCode: number }
 }
 
 const DURATION_LABELS: Record<NonNullable<TriageSymptom['duration']>, string> = {
@@ -32,6 +32,18 @@ const MEASUREMENT_LABELS: Record<NonNullable<TriageSymptom['measurementType']>, 
 
 function hasText(value: string | undefined): value is string {
   return Boolean(value && value.trim().length > 0)
+}
+
+function assertPatientDataIsPlausible(
+  patientData: PatientData | undefined,
+  text: string | undefined,
+  symptoms: TriageSymptom[] | undefined,
+): void {
+  const plausibilityError = getPatientPlausibilityError(patientData, text, symptoms)
+
+  if (plausibilityError) {
+    throw createBadRequestError(plausibilityError)
+  }
 }
 
 function buildPatientDataLines(patientData?: PatientData): string[] {
@@ -101,6 +113,7 @@ function formatSymptoms(symptoms: TriageSymptom[]): string {
     .map((symptom, index) => {
       const parts = [
         symptom.side ? `${symptom.region} (${symptom.side})` : symptom.region,
+        hasText(symptom.details) ? `Details: ${symptom.details.trim()}` : null,
         formatMeasurement(symptom),
         symptom.duration ? DURATION_LABELS[symptom.duration] : null,
       ].filter((part): part is string => part !== null)
@@ -282,6 +295,8 @@ export async function evaluateTriage(
   text?: string,
   inputType: SymptomInputType = 'text',
 ): Promise<TriageResponse> {
+  assertPatientDataIsPlausible(patientData, text, symptoms)
+
   if (emergencyFromLanding) {
     const result: TriageResponse = {
       careLevel: 'emergency',

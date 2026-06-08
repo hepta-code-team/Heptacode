@@ -300,6 +300,7 @@ export default function SymptomSelectionPage() {
   const {
     selectedSymptoms: contextSymptoms,
     setSelectedSymptoms: setContextSymptoms,
+    patientData,
     symptomText,
     setSymptomText,
     setSymptomDetails: setContextSymptomDetails,
@@ -594,7 +595,7 @@ export default function SymptomSelectionPage() {
     setSymptomTextError(null);
 
     try {
-      const response = await extractSymptomsFromText(trimmedSymptomText);
+      const response = await extractSymptomsFromText(trimmedSymptomText, "text", patientData ?? undefined);
 
       if (response.invalidInput || response.aiUnavailable) {
         setSymptomTextError(response.message ?? "Die Beschreibung konnte nicht ausgewertet werden.");

@@ -11,6 +11,8 @@ import {
   SYMPTOM_REGIONS,
   type SymptomRegionName,
 } from '../../../../shared/symptomTaxonomy.js'
+import { patientDataSchema } from '../triage/triage.types.js'
+import type { PatientData } from '../../../../shared/patientData.types.js'
 
 export type { SymptomExtractionAiResult, TriageSymptom }
 
@@ -20,6 +22,7 @@ export interface SymptomExtractionRequest {
   text: string
   input?: string
   inputType?: SymptomInputType
+  patientData?: PatientData
 }
 
 // Typ für die Antwort
@@ -93,10 +96,61 @@ function normalizeOption(value: string): { region: SymptomRegionName; option: st
   return optionByNormalizedLabel.get(normalizedValue)
 }
 
+function isFeverSymptom(region: string, side?: string): boolean {
+  return normalizeLabel(region) === 'fieber' || (
+    normalizeLabel(region) === 'allgemein' &&
+    side !== undefined &&
+    normalizeLabel(side) === 'fieber'
+  )
+}
+
+function normalizeDetails(value: string | undefined): string | undefined {
+  if (!value) {
+    return undefined
+  }
+
+  const cleaned = value
+    .replace(/\b(?:seit\s+)?(?:heute|gestern)\b/gi, ' ')
+    .replace(/\bseit\s+(?:ein\s+paar|mehreren?|einigen?|wenigen?|[2-6])\s+tag(?:en|e)?\b/gi, ' ')
+    .replace(/\bseit\s+(?:einer\s+)?woche\b/gi, ' ')
+    .replace(/\bseit\s+(?:mehr\s+als\s+)?(?:zwei|2)\s+woch(?:en|e)\b/gi, ' ')
+    .replace(/\b(?:leicht|mittel|mittelstark(?:e|er|en|es)?|maessig|mäßig|stark(?:e|er|en|es)?|sehr\s+stark(?:e|er|en|es)?)\b/gi, ' ')
+    .replace(/\b\d{1,2}\s*(?:\/|von)\s*10\b/gi, ' ')
+    .replace(/\b(?:schmerzstaerke|schmerzstärke|staerke|stärke|beschwerdestaerke|beschwerdestärke)\s*:?\s*\d{1,2}\b/gi, ' ')
+    .replace(/[;,]\s*(?=[;,])/g, '')
+    .replace(/^[\s,;:-]+|[\s,;:-]+$/g, '')
+    .replace(/\s{2,}/g, ' ')
+    .trim()
+
+  return cleaned.length > 0 ? cleaned : undefined
+}
+
+function isDuplicateSymptomDetail(details: string | undefined, region: string, side?: string): boolean {
+  if (!details) {
+    return false
+  }
+
+  const normalizedDetails = normalizeLabel(details)
+  const normalizedRegion = normalizeLabel(region)
+  const normalizedSide = side ? normalizeLabel(side) : undefined
+
+  return (
+    normalizedDetails === normalizedRegion ||
+    normalizedDetails === `${normalizedRegion}schmerz` ||
+    normalizedDetails === `${normalizedRegion}schmerzen` ||
+    normalizedDetails === normalizedSide ||
+    (normalizedSide !== undefined && (
+      normalizedDetails === `${normalizedSide}schmerz` ||
+      normalizedDetails === `${normalizedSide}schmerzen`
+    ))
+  )
+}
+
 export const extractedSymptomSchema = z
   .object({
     region: z.string().min(1),
     side: z.preprocess(emptyStringOrNullToUndefined, z.string().min(1).optional()),
+    details: z.preprocess(emptyStringOrNullToUndefined, z.string().min(1).optional()),
     measurementType: z
       .preprocess(emptyStringOrNullToUndefined, z.enum(SYMPTOM_MEASUREMENT_TYPES).optional())
       .catch(undefined),
@@ -118,11 +172,25 @@ export const extractedSymptomSchema = z
         : regionAsOption && regionAsOption.region === region
           ? regionAsOption.option
           : value.side
+    const hasInvalidTemperatureMeasurement = value.measurementType === 'temperature' && !isFeverSymptom(region, side)
+    const measurementType = hasInvalidTemperatureMeasurement ? 'pain' : value.measurementType
+    const measurementValue = hasInvalidTemperatureMeasurement ? undefined : value.measurementValue
+    const normalizedDetails = normalizeDetails(value.details)
+    const details = isDuplicateSymptomDetail(normalizedDetails, region, side)
+      ? undefined
+      : normalizedDetails
+    const symptom = { ...value }
+    delete symptom.measurementType
+    delete symptom.measurementValue
+    delete symptom.details
 
     return {
-      ...value,
+      ...symptom,
       region,
       ...(side ? { side } : {}),
+      ...(details ? { details } : {}),
+      ...(measurementType ? { measurementType } : {}),
+      ...(measurementValue !== undefined ? { measurementValue } : {}),
     }
   })
 
@@ -143,6 +211,7 @@ export const symptomExtractionRequestSchema = z
     text: z.string().trim().min(1).optional(),
     input: z.string().trim().min(1).optional(),
     inputType: z.enum(SYMPTOM_INPUT_TYPES).optional(),
+    patientData: patientDataSchema.optional(),
   })
   .refine((value) => Boolean(value.symptomText ?? value.text ?? value.input), {
     message: 'symptomText is required',
