@@ -58,7 +58,7 @@ export default function SymptomDetailsPage() {
     index: number,
     isNameEditable = false,
   ): SymptomDraft => {
-    const inferredMeasurementConfig = getMeasurementConfig(symptom.region, symptom.side);
+    const inferredMeasurementConfig = getMeasurementConfig(symptom.region);
     const measurementType = "measurementType" in symptom && symptom.measurementType
       ? symptom.measurementType
       : inferredMeasurementConfig.type;

@@ -79,9 +79,7 @@ describe('createPdfSummary', () => {
 
     expect(result.sections[0]?.content).toContain('Patientendaten:\nGeburtsdatum: 01/2000')
     expect(result.sections[0]?.content).toContain('Größe: 175 cm')
-    expect(result.sections[0]?.content).toContain(
-      'Details zu Vorerkrankungen: Schilddrüsenunterfunktion',
-    )
+    expect(result.sections[0]?.content).not.toContain('Details zu Vorerkrankungen')
     expect(result.sections[0]?.content).toContain(
       'Beschwerden:\n1. Brust (Brustmitte)\nSchmerzstärke: 7/10\nDauer: Seit ein paar Tagen',
     )

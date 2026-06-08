@@ -147,32 +147,10 @@ function formatValue(value?: string | number | null): string {
   return String(value)
 }
 
-function formatConditionDetail(condition: string, detail: string): string {
-  const cleanCondition = normalizeGermanText(condition).trim()
-  const cleanDetail = normalizeGermanText(detail).trim()
-
-  if (cleanDetail.length === 0) {
-    return ''
-  }
-
-  if (/^(sonstige|sonstiges|other)$/i.test(cleanCondition)) {
-    return cleanDetail.replace(/^(sonstige|sonstiges|other)\s*:\s*/i, '')
-  }
-
-  return cleanDetail.toLowerCase().startsWith(`${cleanCondition.toLowerCase()}:`)
-    ? cleanDetail
-    : `${cleanCondition}: ${cleanDetail}`
-}
-
 function summarizePatient(data?: PatientData): string {
   if (!data) {
     return 'Keine Stammdaten vorhanden.'
   }
-
-  const conditionDetails = Object.entries(data.conditionDetails)
-    .filter(([, detail]) => detail?.trim().length > 0)
-    .map(([condition, detail]) => formatConditionDetail(condition, detail))
-    .filter((detail) => detail.length > 0)
 
   return [
     `Geburtsdatum: ${formatValue(data.birthMonth)}/${formatValue(data.birthYear)}`,
@@ -192,7 +170,6 @@ function summarizePatient(data?: PatientData): string {
     `Raucher: ${data.isSmoker ? 'Ja' : 'Nein'}`,
     data.isSmoker ? `Rauchdauer: ${data.smokingSinceYears || '—'}` : null,
     data.isSmoker ? `Zigaretten pro Tag: ${data.cigarettesPerDay || '—'}` : null,
-    conditionDetails.length > 0 ? `Details zu Vorerkrankungen: ${conditionDetails.join('; ')}` : null,
   ].filter((line): line is string => line !== null).join('\n')
 }
 
@@ -290,6 +267,10 @@ function normalizePatientSummaryLines(lines: string[]): string[] {
       return
     }
 
+    if (/^Details zu(?:r|) Vorerkrankung(?:en)?:/i.test(trimmedLine)) {
+      return
+    }
+
     if (birthMonthMatch) {
       birthMonth = birthMonthMatch[1]?.trim() ?? null
       return
@@ -303,7 +284,9 @@ function normalizePatientSummaryLines(lines: string[]): string[] {
     normalizedLines.push(
       trimmedLine
         .replace(/^Details zu Vorerkrankungen:\s*Sonstige(?:s)?\s*:\s*/i, 'Details zu Vorerkrankungen: ')
-        .replace(/^Details zur Vorerkrankung:\s*Sonstige(?:s)?\s*:\s*/i, 'Details zu Vorerkrankungen: '),
+        .replace(/^Details zur Vorerkrankung:\s*Sonstige(?:s)?\s*:\s*/i, 'Details zu Vorerkrankungen: ')
+        .replace(/^Details zu Vorerkrankungen:\s*([^:;]+):\s*/i, 'Details zu Vorerkrankungen: ')
+        .replace(/^Details zur Vorerkrankung:\s*([^:;]+):\s*/i, 'Details zu Vorerkrankungen: '),
     )
   })
 
@@ -318,6 +301,13 @@ function normalizeComplaintSummaryLines(lines: string[]): string[] {
   return removeSelectedSymptomBlock(lines)
     .map((line) => normalizeGermanText(line.trim()))
     .filter((line) => line.length > 0)
+    .flatMap((line) =>
+      line
+        .replace(/\s+(?=(Vorerkrankungen|Risikofaktoren|Indikation)\b)/g, '\n')
+        .split('\n')
+        .map((part) => part.trim())
+        .filter((part) => part.length > 0),
+    )
     .flatMap((line) => {
       const detailMatch = line.match(/^(\d+\.\s*[^,]+),\s*(.+)$/)
 
@@ -333,6 +323,20 @@ function normalizeComplaintSummaryLines(lines: string[]): string[] {
           .filter((part) => part.length > 0),
       ]
     })
+}
+
+function extractComplaintsFromStructuredSummary(summary: string): string {
+  const cleanedSummary = cleanStructuredProfessionalSummary(summary)
+  const complaintMatch = cleanedSummary.match(/(?:^|\n)Beschwerden:\n([\s\S]*)$/i)
+
+  return complaintMatch?.[1]?.trim() || 'Keine Beschwerden vorhanden.'
+}
+
+function extractPatientFromStructuredSummary(summary: string): string {
+  const cleanedSummary = cleanStructuredProfessionalSummary(summary)
+  const patientMatch = cleanedSummary.match(/(?:^|\n)Patientendaten:\n([\s\S]*?)(?:\n\nBeschwerden:|$)/i)
+
+  return patientMatch?.[1]?.trim() || 'Keine Stammdaten vorhanden.'
 }
 
 function hasMedicalSummaryStructure(summary: string): boolean {
@@ -428,7 +432,13 @@ function summarizeMedicalOverview(request: PdfExportRequest): string {
 
   if (rawProfessionalSummary.length > 0 && hasMedicalSummaryStructure(rawProfessionalSummary)) {
     return [
-      cleanStructuredProfessionalSummary(rawProfessionalSummary),
+      'Patientendaten:',
+      request.patientData
+        ? summarizePatient(request.patientData)
+        : extractPatientFromStructuredSummary(rawProfessionalSummary),
+      '',
+      'Beschwerden:',
+      extractComplaintsFromStructuredSummary(rawProfessionalSummary),
       '',
       summarizeCareReason(request.triage),
     ].join('\n')
@@ -463,6 +473,7 @@ function formatGeneratedAt(value: string): string {
   return new Intl.DateTimeFormat('de-DE', {
     dateStyle: 'medium',
     timeStyle: 'short',
+    timeZone: 'Europe/Berlin',
   }).format(new Date(value))
 }
 
