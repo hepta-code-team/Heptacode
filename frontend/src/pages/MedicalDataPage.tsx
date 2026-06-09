@@ -16,7 +16,7 @@ import {
   Pill,
   ShieldAlert,
   Stethoscope,
-  Trash2,
+  RotateCcw,
   Wind,
   Wine,
   type LucideIcon,
@@ -675,7 +675,7 @@ export default function MedicalDataPage() {
             aria-label="Alle Auswahlen aufheben"
             title="Alle Auswahlen aufheben"
           >
-            <Trash2 className="size-4" aria-hidden="true" />
+            <RotateCcw className="size-4" aria-hidden="true" />
           </button>
         </div>
 

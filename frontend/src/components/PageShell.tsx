@@ -39,7 +39,7 @@ export default function PageShell({
     <div className="flex min-h-dvh w-full flex-col bg-white">
       <MobileNavigation />
 
-      <header className="shrink-0 bg-white px-6 pt-1 pb-2 md:px-8" aria-label="HeptaCheck">
+      <header className="shrink-0 bg-white px-6 pt-1 pb-1 md:px-8" aria-label="HeptaCheck">
         <img
           src={heptaCheckLogo}
           alt="HeptaCheck"

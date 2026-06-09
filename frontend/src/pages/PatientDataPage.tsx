@@ -24,29 +24,25 @@ const MAX_PATIENT_AGE_YEARS = 125;
 const GENDER_OPTIONS: Array<{
   label: string;
   icon: LucideIcon;
-  selectedClassName: string;
-  borderClassName: string;
+  color: string;
   bgColor: string;
 }> = [
   {
     label: "Männlich",
     icon: Mars,
-    selectedClassName: "bg-[#486284] text-white",
-    borderClassName: "border-[#486284]",
+    color: "#486284",
     bgColor: "#e8eef7",
   },
   {
     label: "Weiblich",
     icon: Venus,
-    selectedClassName: "bg-[#ec4899] text-white",
-    borderClassName: "border-[#ec4899]",
+    color: "#ec4899",
     bgColor: "#fce7f3",
   },
   {
     label: "Divers",
     icon: Transgender,
-    selectedClassName: "bg-[#7c3aed] text-white",
-    borderClassName: "border-[#7c3aed]",
+    color: "#7c3aed",
     bgColor: "#ede9fe",
   },
 ];
@@ -109,7 +105,7 @@ export default function PatientDataPage() {
   const birthYearMin = currentYear - MAX_PATIENT_AGE_YEARS;
 
   const [formData, setFormData] = useState<PatientData>(() => createInitialPatientData(patientData ?? undefined));
-  const [mood, setMood] = useState(formData.mood);
+  const [mood, setMood] = useState(formData.mood ?? "");
   const [showValidationErrors, setShowValidationErrors] = useState(false);
 
   /**
@@ -143,8 +139,6 @@ export default function PatientDataPage() {
     isNumberInRange(formData.height, HEIGHT_MIN, HEIGHT_MAX) &&
     isNumberInRange(formData.weight, WEIGHT_MIN, WEIGHT_MAX);
   const isGenderComplete = Boolean(formData.gender);
-  const selectedGenderOption = GENDER_OPTIONS.find((option) => option.label === formData.gender);
-  const selectedMoodOption = MOOD_OPTIONS.find((option) => option.label === mood);
 
   const setEmptyNumberStepValue = (
     field: "birthYear" | "height" | "weight",
@@ -228,11 +222,13 @@ export default function PatientDataPage() {
    * shared assessment context after a user changes gender.
    */
   const setGender = (gender: string) => {
+    const nextGender = formData.gender === gender ? "" : gender;
+
     setFormData({
       ...formData,
-      gender,
-      isPregnant: gender === "Weiblich" ? formData.isPregnant : false,
-      isBreastfeeding: gender === "Weiblich" ? formData.isBreastfeeding : false,
+      gender: nextGender,
+      isPregnant: nextGender === "Weiblich" ? formData.isPregnant : false,
+      isBreastfeeding: nextGender === "Weiblich" ? formData.isBreastfeeding : false,
     });
   };
 
@@ -394,10 +390,7 @@ export default function PatientDataPage() {
           </div>
         </div>
 
-        <div
-          className={getRequiredFieldCardClass(isGenderComplete, "h-full", selectedGenderOption?.borderClassName)}
-          style={{ backgroundColor: selectedGenderOption?.bgColor ?? "#eff2f6" }}
-        >
+        <div className={getRequiredFieldCardClass(isGenderComplete)}>
           <p
             className="font-['DM_Sans:Bold',sans-serif] font-bold text-app-text-body text-sm mb-1.5"
             style={{ fontVariationSettings: "'opsz' 14" }}
@@ -405,26 +398,33 @@ export default function PatientDataPage() {
             Bei Geburt zugewiesenes Geschlecht <span className="text-app-text-danger">*</span>
           </p>
           <div className="grid grid-cols-3 gap-1.5">
-            {GENDER_OPTIONS.map(({ label: gender, icon: Icon, selectedClassName }) => (
-              <button
-                key={gender}
-                type="button"
-                onClick={() => setGender(gender)}
-                className={`flex min-h-10 items-center justify-center gap-1.5 rounded-[8px] px-2 py-2 text-center transition-all ${
-                  formData.gender === gender
-                    ? selectedClassName
-                    : `bg-white text-app-text-body hover:bg-[#dde3ea] ${hasGenderError ? "border border-red-200" : ""}`
-                }`}
-              >
-                <Icon className="size-4 flex-shrink-0" strokeWidth={2.3} aria-hidden="true" />
-                <span
-                  className="font-['DM_Sans:SemiBold',sans-serif] font-semibold text-xs leading-tight sm:text-sm"
-                  style={{ fontVariationSettings: "'opsz' 14" }}
+            {GENDER_OPTIONS.map(({ label: gender, icon: Icon, color, bgColor }) => {
+              const isSelected = formData.gender === gender;
+
+              return (
+                <button
+                  key={gender}
+                  type="button"
+                  onClick={() => setGender(gender)}
+                  className={`flex min-h-10 items-center justify-center gap-1.5 rounded-[8px] border px-2 py-2 text-center text-app-text-body transition-all hover:opacity-90 ${
+                    hasGenderError && !isSelected ? "border-red-200" : ""
+                  }`}
+                  style={{
+                    backgroundColor: isSelected ? bgColor : "#ffffff",
+                    borderColor: isSelected ? color : hasGenderError ? undefined : "transparent",
+                    boxShadow: isSelected ? `0 0 0 2px ${color}33` : "none",
+                  }}
                 >
-                  {gender}
-                </span>
-              </button>
-            ))}
+                  <Icon className="size-4 flex-shrink-0" color={color} strokeWidth={2.3} aria-hidden="true" />
+                  <span
+                    className="font-['DM_Sans:SemiBold',sans-serif] font-semibold text-xs leading-tight sm:text-sm"
+                    style={{ fontVariationSettings: "'opsz' 14" }}
+                  >
+                    {gender}
+                  </span>
+                </button>
+              );
+            })}
           </div>
           {hasGenderError && (
             <p className="mt-1.5 text-xs font-medium text-app-text-danger">
@@ -434,13 +434,7 @@ export default function PatientDataPage() {
         </div>
       </div>
 
-      <div
-        className="mt-3 rounded-[14px] border-2 p-3 transition-all"
-        style={{
-          backgroundColor: selectedMoodOption?.bgColor ?? "#eff2f6",
-          borderColor: selectedMoodOption?.color ?? "transparent",
-        }}
-      >
+      <div className={getRequiredFieldCardClass(Boolean(mood), "mt-3")}>
         <div className="mb-2">
           <p
             className="font-['DM_Sans:Bold',sans-serif] font-bold text-app-text-body text-base"

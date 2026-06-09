@@ -5,6 +5,7 @@ export interface PatientData {
     height: string
     weight: string
     gender: string
+    mood?: string
     isPregnant: boolean
     isBreastfeeding: boolean
     allergies: string
