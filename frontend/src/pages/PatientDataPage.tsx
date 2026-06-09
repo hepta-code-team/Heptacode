@@ -1,36 +1,30 @@
-import { useState, type KeyboardEvent, type PointerEvent } from "react";
+import { useState } from "react";
+import type { KeyboardEvent, PointerEvent } from "react";
 import { useNavigate } from "react-router";
 import { Annoyed, Frown, Laugh, Mars, Meh, Smile, Transgender, Venus, type LucideIcon } from "lucide-react";
 import PageShell from "../components/PageShell";
 import Button from "../components/Button";
 import { useAssessment } from "../lib/AssessmentContext";
-import {
-  BIRTH_MONTH_MAX,
-  BIRTH_MONTH_MIN,
-  HEIGHT_MAX,
-  HEIGHT_MIN,
-  isNumberInRange,
-  isValidPatientData,
-  MAX_PATIENT_AGE_YEARS,
-  WEIGHT_MAX,
-  WEIGHT_MIN,
-} from "../lib/assessmentValidation";
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
 import type { PatientData } from "../../../shared/patientData.types";
 
-const EMPTY_NUMBER_STEP_BASELINES = {
-  birthYear: 2000,
-  height: 175,
-  weight: 70,
-} as const;
-
-type EmptyNumberStepField = keyof typeof EMPTY_NUMBER_STEP_BASELINES;
+const WEIGHT_MIN = 3;
+const WEIGHT_MAX = 300;
+const WEIGHT_DEFAULT = 70;
+const HEIGHT_MIN = 45;
+const HEIGHT_MAX = 250;
+const HEIGHT_DEFAULT = 175;
+const BIRTH_YEAR_DEFAULT = 2000;
+const NUMBER_INPUT_SPIN_BUTTON_WIDTH = 28;
+const BIRTH_MONTH_MIN = 1;
+const BIRTH_MONTH_MAX = 12;
+const MAX_PATIENT_AGE_YEARS = 125;
 
 const GENDER_OPTIONS: Array<{ label: string; icon: LucideIcon; selectedClassName: string }> = [
-  { label: "Männlich", icon: Mars, selectedClassName: "bg-[#2563EB] text-white" },
-  { label: "Weiblich", icon: Venus, selectedClassName: "bg-[#DB2777] text-white" },
-  { label: "Divers", icon: Transgender, selectedClassName: "bg-[#7C3AED] text-white" },
+  { label: "Männlich", icon: Mars, selectedClassName: "bg-[#486284] text-white" },
+  { label: "Weiblich", icon: Venus, selectedClassName: "bg-[#ec4899] text-white" },
+  { label: "Divers", icon: Transgender, selectedClassName: "bg-[#7c3aed] text-white" },
 ];
 
 const MOOD_OPTIONS: Array<{ label: string; icon: LucideIcon; color: string; bgColor: string }> = [
@@ -41,12 +35,27 @@ const MOOD_OPTIONS: Array<{ label: string; icon: LucideIcon; color: string; bgCo
   { label: "Sehr gut", icon: Laugh, color: "#10B981", bgColor: "#D1FAE5" },
 ];
 
-const FIELD_COMPLETED_CLASS = "ring-2 ring-[#486284]";
-const FIELD_INCOMPLETE_CLASS = "ring-2 ring-transparent";
+function isNumberInRange(value: string, min: number, max: number) {
+  const numberValue = Number(value);
+  return value !== "" && Number.isFinite(numberValue) && numberValue >= min && numberValue <= max;
+}
 
-const getCompletedFieldClass = (isComplete: boolean) =>
-  isComplete ? FIELD_COMPLETED_CLASS : FIELD_INCOMPLETE_CLASS;
+function clampNumber(value: number, min: number, max: number) {
+  return Math.min(Math.max(value, min), max);
+}
 
+function getRequiredFieldCardClass(isCompleted: boolean, spacingClass = "h-full") {
+  return `${spacingClass} rounded-[14px] border-2 p-3 transition-all ${
+    isCompleted ? "border-[#486284] bg-[#eff2f6]" : "border-transparent bg-[#eff2f6]"
+  }`;
+}
+
+/**
+ * Creates the patient-data form state with persisted context values applied.
+ *
+ * Every field starts as a controlled value so validation, navigation, and later
+ * medical-data steps can rely on a complete PatientData object.
+ */
 const createInitialPatientData = (patientData?: Partial<PatientData>): PatientData => ({
   birthMonth: "",
   birthYear: "",
@@ -78,7 +87,18 @@ export default function PatientDataPage() {
   const [mood, setMood] = useState("");
   const [showValidationErrors, setShowValidationErrors] = useState(false);
 
-  const isFormValid = isValidPatientData(formData);
+  /**
+   * Validates only the required demographic fields for the first step.
+   *
+   * Optional clinical information is collected on the next page, so this screen
+   * only blocks navigation for missing or unrealistic core patient data.
+   */
+  const isFormValid =
+    Boolean(formData.birthMonth && formData.birthYear && formData.gender) &&
+    isNumberInRange(formData.height, HEIGHT_MIN, HEIGHT_MAX) &&
+    isNumberInRange(formData.weight, WEIGHT_MIN, WEIGHT_MAX) &&
+    isNumberInRange(formData.birthMonth, BIRTH_MONTH_MIN, BIRTH_MONTH_MAX) &&
+    isNumberInRange(formData.birthYear, birthYearMin, currentYear);
 
   const hasHeightError =
     (showValidationErrors || formData.height !== "") && !isNumberInRange(formData.height, HEIGHT_MIN, HEIGHT_MAX);
@@ -91,19 +111,78 @@ export default function PatientDataPage() {
     (showValidationErrors || formData.birthYear !== "") &&
     !isNumberInRange(formData.birthYear, birthYearMin, currentYear);
   const hasGenderError = showValidationErrors && !formData.gender;
-
   const isBirthDateComplete =
-    !hasBirthMonthError &&
-    !hasBirthYearError &&
     isNumberInRange(formData.birthMonth, BIRTH_MONTH_MIN, BIRTH_MONTH_MAX) &&
     isNumberInRange(formData.birthYear, birthYearMin, currentYear);
-  const isBodyDataComplete =
-    !hasHeightError &&
-    !hasWeightError &&
+  const isBodyMeasureComplete =
     isNumberInRange(formData.height, HEIGHT_MIN, HEIGHT_MAX) &&
     isNumberInRange(formData.weight, WEIGHT_MIN, WEIGHT_MAX);
   const isGenderComplete = Boolean(formData.gender);
-  const isMoodComplete = Boolean(mood);
+
+  const setEmptyNumberStepValue = (
+    field: "birthYear" | "height" | "weight",
+    defaultValue: number,
+    direction: 1 | -1,
+    min: number,
+    max: number,
+  ) => {
+    if (formData[field] !== "") {
+      return false;
+    }
+
+    setFormData((prev) => ({
+      ...prev,
+      [field]: String(clampNumber(defaultValue + direction, min, max)),
+    }));
+    return true;
+  };
+
+  /**
+   * Starts empty number fields from the expected neutral examples when users
+   * use the native up/down controls instead of typing a value manually.
+   */
+  const handleEmptyNumberKeyStep = (
+    event: KeyboardEvent<HTMLInputElement>,
+    field: "birthYear" | "height" | "weight",
+    defaultValue: number,
+    min: number,
+    max: number,
+  ) => {
+    if (event.key !== "ArrowUp" && event.key !== "ArrowDown") {
+      return;
+    }
+
+    const direction = event.key === "ArrowUp" ? 1 : -1;
+
+    if (setEmptyNumberStepValue(field, defaultValue, direction, min, max)) {
+      event.preventDefault();
+    }
+  };
+
+  const handleEmptyNumberPointerStep = (
+    event: PointerEvent<HTMLInputElement>,
+    field: "birthYear" | "height" | "weight",
+    defaultValue: number,
+    min: number,
+    max: number,
+  ) => {
+    if (formData[field] !== "") {
+      return;
+    }
+
+    const inputRect = event.currentTarget.getBoundingClientRect();
+    const isSpinButtonClick = event.clientX >= inputRect.right - NUMBER_INPUT_SPIN_BUTTON_WIDTH;
+
+    if (!isSpinButtonClick) {
+      return;
+    }
+
+    const direction = event.clientY <= inputRect.top + inputRect.height / 2 ? 1 : -1;
+
+    event.preventDefault();
+    event.currentTarget.focus();
+    setEmptyNumberStepValue(field, defaultValue, direction, min, max);
+  };
 
   const handleContinue = () => {
     if (!isFormValid) {
@@ -115,6 +194,12 @@ export default function PatientDataPage() {
     navigate("/medical-data");
   };
 
+  /**
+   * Updates gender and clears pregnancy-related fields when they no longer apply.
+   *
+   * This prevents stale pregnancy or breastfeeding values from remaining in the
+   * shared assessment context after a user changes gender.
+   */
   const setGender = (gender: string) => {
     setFormData({
       ...formData,
@@ -124,40 +209,6 @@ export default function PatientDataPage() {
     });
   };
 
-  const stepFromEmptyBaseline = (field: EmptyNumberStepField, direction: 1 | -1) => {
-    setFormData((currentFormData) => ({
-      ...currentFormData,
-      [field]: String(EMPTY_NUMBER_STEP_BASELINES[field] + direction),
-    }));
-  };
-
-  const handleEmptyNumberKeyDown = (event: KeyboardEvent<HTMLInputElement>, field: EmptyNumberStepField) => {
-    if (event.currentTarget.value !== "" || (event.key !== "ArrowUp" && event.key !== "ArrowDown")) {
-      return;
-    }
-
-    event.preventDefault();
-    stepFromEmptyBaseline(field, event.key === "ArrowUp" ? 1 : -1);
-  };
-
-  const handleEmptyNumberPointerDown = (event: PointerEvent<HTMLInputElement>, field: EmptyNumberStepField) => {
-    if (event.pointerType !== "mouse" || event.button !== 0 || event.currentTarget.value !== "") {
-      return;
-    }
-
-    const inputBounds = event.currentTarget.getBoundingClientRect();
-    const nativeStepperWidth = Math.min(24, inputBounds.width / 3);
-    const isNativeStepperClick = event.clientX >= inputBounds.right - nativeStepperWidth;
-
-    if (!isNativeStepperClick) {
-      return;
-    }
-
-    event.preventDefault();
-    event.currentTarget.focus();
-    stepFromEmptyBaseline(field, event.clientY < inputBounds.top + inputBounds.height / 2 ? 1 : -1);
-  };
-
   return (
     <PageShell
       title="Bitte geben Sie Ihre Stammdaten ein"
@@ -165,11 +216,7 @@ export default function PatientDataPage() {
       onBack={() => navigate("/")}
     >
       <div className="grid grid-cols-1 gap-3 md:grid-cols-[1fr_1.1fr_1.5fr] md:items-stretch">
-        <div
-          className={`h-full rounded-[14px] bg-[#eff2f6] p-3 transition-all ${getCompletedFieldClass(
-            isBirthDateComplete,
-          )}`}
-        >
+        <div className={getRequiredFieldCardClass(isBirthDateComplete)}>
           <Label
             htmlFor="birthMonth"
             className="font-['DM_Sans:Bold',sans-serif] font-bold text-app-text-body text-sm mb-1.5 block"
@@ -185,7 +232,6 @@ export default function PatientDataPage() {
                 placeholder="MM"
                 min="1"
                 max="12"
-                autoComplete="off"
                 value={formData.birthMonth}
                 onChange={(event) => setFormData({ ...formData, birthMonth: event.target.value })}
                 className={`bg-white text-xs h-8 ${
@@ -211,13 +257,16 @@ export default function PatientDataPage() {
                 placeholder="JJJJ"
                 min={birthYearMin}
                 max={currentYear}
-                autoComplete="off"
                 aria-invalid={hasBirthYearError}
                 aria-describedby={hasBirthYearError ? "birth-year-error" : undefined}
                 value={formData.birthYear}
                 onChange={(event) => setFormData({ ...formData, birthYear: event.target.value })}
-                onKeyDown={(event) => handleEmptyNumberKeyDown(event, "birthYear")}
-                onPointerDown={(event) => handleEmptyNumberPointerDown(event, "birthYear")}
+                onKeyDown={(event) =>
+                  handleEmptyNumberKeyStep(event, "birthYear", BIRTH_YEAR_DEFAULT, birthYearMin, currentYear)
+                }
+                onPointerDown={(event) =>
+                  handleEmptyNumberPointerStep(event, "birthYear", BIRTH_YEAR_DEFAULT, birthYearMin, currentYear)
+                }
                 className={`bg-white text-xs h-8 ${
                   hasBirthYearError
                     ? "border border-red-500 focus-visible:border-red-500 focus-visible:ring-red-500/30"
@@ -236,11 +285,7 @@ export default function PatientDataPage() {
           </div>
         </div>
 
-        <div
-          className={`h-full rounded-[14px] bg-[#eff2f6] p-3 transition-all ${getCompletedFieldClass(
-            isBodyDataComplete,
-          )}`}
-        >
+        <div className={getRequiredFieldCardClass(isBodyMeasureComplete)}>
           <p
             className="font-['DM_Sans:Bold',sans-serif] font-bold text-app-text-body text-sm mb-1.5"
             style={{ fontVariationSettings: "'opsz' 14" }}
@@ -255,15 +300,19 @@ export default function PatientDataPage() {
               <Input
                 id="height"
                 type="number"
-                placeholder="175"
+                placeholder="zB. 175"
                 min={HEIGHT_MIN}
                 max={HEIGHT_MAX}
                 aria-invalid={hasHeightError}
                 aria-describedby={hasHeightError ? "height-error" : undefined}
                 value={formData.height}
                 onChange={(event) => setFormData({ ...formData, height: event.target.value })}
-                onKeyDown={(event) => handleEmptyNumberKeyDown(event, "height")}
-                onPointerDown={(event) => handleEmptyNumberPointerDown(event, "height")}
+                onKeyDown={(event) =>
+                  handleEmptyNumberKeyStep(event, "height", HEIGHT_DEFAULT, HEIGHT_MIN, HEIGHT_MAX)
+                }
+                onPointerDown={(event) =>
+                  handleEmptyNumberPointerStep(event, "height", HEIGHT_DEFAULT, HEIGHT_MIN, HEIGHT_MAX)
+                }
                 className={`bg-white text-xs h-8 ${
                   hasHeightError
                     ? "border border-red-500 focus-visible:border-red-500 focus-visible:ring-red-500/30"
@@ -287,15 +336,19 @@ export default function PatientDataPage() {
               <Input
                 id="weight"
                 type="number"
-                placeholder="70"
+                placeholder="zB. 70"
                 min={WEIGHT_MIN}
                 max={WEIGHT_MAX}
                 aria-invalid={hasWeightError}
                 aria-describedby={hasWeightError ? "weight-error" : undefined}
                 value={formData.weight}
                 onChange={(event) => setFormData({ ...formData, weight: event.target.value })}
-                onKeyDown={(event) => handleEmptyNumberKeyDown(event, "weight")}
-                onPointerDown={(event) => handleEmptyNumberPointerDown(event, "weight")}
+                onKeyDown={(event) =>
+                  handleEmptyNumberKeyStep(event, "weight", WEIGHT_DEFAULT, WEIGHT_MIN, WEIGHT_MAX)
+                }
+                onPointerDown={(event) =>
+                  handleEmptyNumberPointerStep(event, "weight", WEIGHT_DEFAULT, WEIGHT_MIN, WEIGHT_MAX)
+                }
                 className={`bg-white text-xs h-8 ${
                   hasWeightError
                     ? "border border-red-500 focus-visible:border-red-500 focus-visible:ring-red-500/30"
@@ -314,11 +367,7 @@ export default function PatientDataPage() {
           </div>
         </div>
 
-        <div
-          className={`h-full rounded-[14px] bg-[#eff2f6] p-3 transition-all ${getCompletedFieldClass(
-            isGenderComplete,
-          )}`}
-        >
+        <div className={getRequiredFieldCardClass(isGenderComplete)}>
           <p
             className="font-['DM_Sans:Bold',sans-serif] font-bold text-app-text-body text-sm mb-1.5"
             style={{ fontVariationSettings: "'opsz' 14" }}
@@ -355,11 +404,7 @@ export default function PatientDataPage() {
         </div>
       </div>
 
-      <div
-        className={`mt-3 rounded-[14px] bg-[#eff2f6] p-3 transition-all ${getCompletedFieldClass(
-          isMoodComplete,
-        )}`}
-      >
+      <div className={getRequiredFieldCardClass(Boolean(mood), "mt-3")}>
         <div className="mb-2">
           <p
             className="font-['DM_Sans:Bold',sans-serif] font-bold text-app-text-body text-base"

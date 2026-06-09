@@ -31,12 +31,6 @@ import type { PatientData } from "../../../shared/patientData.types";
 type MedicalSection = "allergies" | "medications" | "substance" | "abroad";
 type SmokingStatus = "Nein" | "Gelegentlich" | "Ja";
 
-const FIELD_COMPLETED_CLASS = "ring-2 ring-[#486284]";
-const FIELD_INCOMPLETE_CLASS = "ring-2 ring-transparent";
-
-const getCompletedFieldClass = (isComplete: boolean) =>
-  isComplete ? FIELD_COMPLETED_CLASS : FIELD_INCOMPLETE_CLASS;
-
 const conditionIcons = {
   Diabetes: Droplets,
   Bluthochdruck: Activity,
@@ -84,6 +78,12 @@ const CONDITION_DETAIL_CONFIGS: Record<string, { label: string; options: string[
   },
 };
 
+/**
+ * Creates the medical-data form state with persisted values applied.
+ *
+ * The defaults keep every optional field controlled from the first render, which
+ * avoids null checks throughout the large medical questionnaire.
+ */
 const createInitialPatientData = (patientData?: Partial<PatientData>): PatientData => ({
   birthMonth: "",
   birthYear: "",
@@ -105,13 +105,19 @@ const createInitialPatientData = (patientData?: Partial<PatientData>): PatientDa
   ...patientData,
 });
 
+/**
+ * Reusable disclosure panel for optional medical sections.
+ *
+ * It keeps the visual summary visible while hiding longer inputs until the user
+ * chooses to provide details.
+ */
 function MedicalAccordionPanel({
   title,
   icon: Icon,
   isOpen,
   onToggle,
   summary,
-  isComplete,
+  isCompleted = false,
   children,
 }: {
   title: string;
@@ -119,11 +125,15 @@ function MedicalAccordionPanel({
   isOpen: boolean;
   onToggle: () => void;
   summary: string;
-  isComplete?: boolean;
+  isCompleted?: boolean;
   children: ReactNode;
 }) {
   return (
-    <div className={`bg-[#eff2f6] rounded-[14px] p-3 transition-all ${getCompletedFieldClass(Boolean(isComplete))}`}>
+    <div
+      className={`rounded-[14px] border-2 p-3 transition-all ${
+        isCompleted ? "border-[#486284] bg-[#eff2f6]" : "border-transparent bg-[#eff2f6]"
+      }`}
+    >
       <button
         type="button"
         onClick={onToggle}
@@ -211,8 +221,14 @@ export default function MedicalDataPage() {
     abroad: false,
   });
   const [expandedConditionDetails, setExpandedConditionDetails] = useState<Record<string, boolean>>({});
-  const [isRemovingCondition, setIsRemovingCondition] = useState(false);
+  const [isClearingConditionSelections, setIsClearingConditionSelections] = useState(false);
 
+  /**
+   * Closes condition-detail dropdowns when the user clicks outside the grid.
+   *
+   * This keeps multiple inline popovers from staying open while users continue
+   * through the rest of the medical questionnaire.
+   */
   useEffect(() => {
     const handlePointerDown = (event: PointerEvent) => {
       if (conditionsGridRef.current?.contains(event.target as Node)) return;
@@ -222,6 +238,12 @@ export default function MedicalDataPage() {
     document.addEventListener("pointerdown", handlePointerDown);
     return () => document.removeEventListener("pointerdown", handlePointerDown);
   }, []);
+
+  useEffect(() => {
+    if (formData.conditions.length === 0) {
+      setIsClearingConditionSelections(false);
+    }
+  }, [formData.conditions.length]);
 
   const toggleMedicalSection = (section: MedicalSection) => {
     setExpandedMedicalSections((sections) => ({
@@ -237,6 +259,69 @@ export default function MedicalDataPage() {
     }));
   };
 
+  const clearAllConditionSelections = () => {
+    setFormData((prev) => ({
+      ...prev,
+      conditions: [],
+      conditionDetails: {},
+    }));
+    setExpandedConditionDetails({});
+    setIsClearingConditionSelections(false);
+  };
+
+  const clearOtherConditionSelection = () => {
+    setFormData((prev) => {
+      const { Sonstige: _removedDetail, ...nextConditionDetails } = prev.conditionDetails ?? {};
+
+      return {
+        ...prev,
+        conditions: prev.conditions.filter((condition) => condition !== "Sonstige"),
+        conditionDetails: nextConditionDetails,
+      };
+    });
+  };
+
+  const clearConditionSelection = (condition: string) => {
+    setFormData((prev) => {
+      const { [condition]: _removedDetail, ...nextConditionDetails } = prev.conditionDetails ?? {};
+
+      return {
+        ...prev,
+        conditions: prev.conditions.filter((selectedCondition) => selectedCondition !== condition),
+        conditionDetails: nextConditionDetails,
+      };
+    });
+    setExpandedConditionDetails((sections) => ({
+      ...sections,
+      [condition]: false,
+    }));
+  };
+
+  const toggleConditionClearMode = () => {
+    setIsClearingConditionSelections((isActive) => !isActive);
+    setExpandedConditionDetails({});
+  };
+
+  const toggleConditionSelection = (condition: string) => {
+    const isSelected = formData.conditions.includes(condition);
+
+    if (isClearingConditionSelections) {
+      if (isSelected) {
+        clearConditionSelection(condition);
+      }
+
+      return;
+    }
+
+    toggleConditionDropdown(condition);
+  };
+
+  /**
+   * Selects a predefined detail and ensures the parent condition is active.
+   *
+   * Choosing a detail implies the condition itself should be included in the
+   * assessment payload, even if the main condition button was not toggled first.
+   */
   const selectConditionDetail = (condition: string, value: string) => {
     setFormData((prev) => ({
       ...prev,
@@ -252,50 +337,12 @@ export default function MedicalDataPage() {
     }));
   };
 
-  const toggleConditionRemoval = () => {
-    setIsRemovingCondition((isRemoving) => !isRemoving);
-    setExpandedConditionDetails({});
-  };
-
-  const removeCondition = (condition: string) => {
-    setFormData((prev) => {
-      const nextConditions = prev.conditions.filter((selectedCondition) => selectedCondition !== condition);
-      const nextConditionDetails = { ...(prev.conditionDetails ?? {}) };
-      delete nextConditionDetails[condition];
-
-      return {
-        ...prev,
-        conditions: nextConditions,
-        conditionDetails: nextConditionDetails,
-      };
-    });
-  };
-
-  const clearAllConditions = () => {
-    setFormData((prev) => ({
-      ...prev,
-      conditions: [],
-      conditionDetails: {},
-    }));
-    setExpandedConditionDetails({});
-    setIsRemovingCondition(false);
-  };
-
-  useEffect(() => {
-    if (formData.conditions.length === 0) {
-      setIsRemovingCondition(false);
-    }
-  }, [formData.conditions.length]);
-
-  const handleConditionClick = (condition: string, isSelected: boolean) => {
-    if (isRemovingCondition) {
-      if (isSelected) removeCondition(condition);
-      return;
-    }
-
-    toggleConditionDropdown(condition);
-  };
-
+  /**
+   * Keeps the custom "Sonstige" condition synchronized with its free-text value.
+   *
+   * Clearing the field removes the synthetic condition so empty custom entries
+   * do not get sent to triage or PDF export.
+   */
   const updateOtherCondition = (value: string) => {
     const trimmedValue = value.trim();
 
@@ -317,17 +364,12 @@ export default function MedicalDataPage() {
     });
   };
 
-  const isPregnancyComplete = formData.isPregnant || formData.isBreastfeeding;
-  const isAllergiesComplete = formData.allergies.trim().length > 0;
-  const isMedicationsComplete = formData.medications.trim().length > 0;
-  const isSubstanceComplete = formData.substanceInfluence !== "Nein";
-  const isAbroadComplete = formData.recentAbroad;
-  const isSmokingComplete =
-    smokingStatus !== "Nein" &&
-    formData.smokingSinceYears.trim().length > 0 &&
-    formData.cigarettesPerDay.trim().length > 0;
-
   const handleContinue = () => {
+    setPatientData(formData);
+    navigate("/symptom-selection");
+  };
+
+  const handleSkip = () => {
     setPatientData(formData);
     navigate("/symptom-selection");
   };
@@ -337,10 +379,10 @@ export default function MedicalDataPage() {
       title="Weitere medizinische Angaben"
       subtitle="Ergänzen Sie optionale Angaben, falls sie für Ihre Beschwerden relevant sind."
       onBack={() => navigate("/patient-data")}
-      onSkip={handleContinue}
+      onSkip={handleSkip}
     >
       {(formData.gender === "Weiblich" || formData.gender === "Divers") && (
-        <div className={`bg-[#eff2f6] rounded-[14px] p-3 transition-all ${getCompletedFieldClass(isPregnancyComplete)}`}>
+        <div className="bg-[#eff2f6] rounded-[14px] p-3">
           <p
             className="font-['DM_Sans:Bold',sans-serif] font-bold text-app-text-body text-sm mb-2"
             style={{ fontVariationSettings: "'opsz' 14" }}
@@ -392,8 +434,8 @@ export default function MedicalDataPage() {
             icon={CircleAlert}
             isOpen={expandedMedicalSections.allergies}
             onToggle={() => toggleMedicalSection("allergies")}
-            summary={formData.allergies ? "Angaben hinterlegt" : "Optional ergänzen"}
-            isComplete={isAllergiesComplete}
+            summary={formData.allergies.trim() || "Optional ergänzen"}
+            isCompleted={Boolean(formData.allergies.trim())}
           >
             <Label htmlFor="allergies" className="sr-only">
               Allergien / Unverträglichkeiten
@@ -412,8 +454,8 @@ export default function MedicalDataPage() {
             icon={Pill}
             isOpen={expandedMedicalSections.medications}
             onToggle={() => toggleMedicalSection("medications")}
-            summary={formData.medications ? "Angaben hinterlegt" : "Optional ergänzen"}
-            isComplete={isMedicationsComplete}
+            summary={formData.medications.trim() || "Optional ergänzen"}
+            isCompleted={Boolean(formData.medications.trim())}
           >
             <Label htmlFor="medications" className="sr-only">
               Aktuelle Medikamente
@@ -433,7 +475,7 @@ export default function MedicalDataPage() {
             isOpen={expandedMedicalSections.substance}
             onToggle={() => toggleMedicalSection("substance")}
             summary={formData.substanceInfluence === "Nein" ? "Nein ausgewählt" : formData.substanceInfluence}
-            isComplete={isSubstanceComplete}
+            isCompleted={formData.substanceInfluence !== "Nein"}
           >
             <div className="grid grid-cols-2 gap-2">
               {["Nein", "Alkohol", "Drogen", "Medikamente"].map((option) => {
@@ -457,7 +499,7 @@ export default function MedicalDataPage() {
             isOpen={expandedMedicalSections.abroad}
             onToggle={() => toggleMedicalSection("abroad")}
             summary={formData.recentAbroad ? formData.recentAbroadDetails || "Ja ausgewählt" : "Nein ausgewählt"}
-            isComplete={isAbroadComplete}
+            isCompleted={formData.recentAbroad}
           >
             <div className="grid grid-cols-2 gap-2 mb-2">
               {[
@@ -495,7 +537,7 @@ export default function MedicalDataPage() {
         </div>
       </div>
 
-      <div className={`mt-4 bg-[#eff2f6] rounded-[14px] p-3 transition-all ${getCompletedFieldClass(isSmokingComplete)}`}>
+      <div className="mt-4 bg-[#eff2f6] rounded-[14px] p-3">
         <div className="mb-3 flex items-start gap-3">
           <span className="flex size-9 flex-shrink-0 items-center justify-center rounded-full bg-white text-app-text-primary">
             <Cigarette className="size-5" aria-hidden="true" />
@@ -625,44 +667,37 @@ export default function MedicalDataPage() {
       </div>
 
       <div className="mt-4">
-        <div className="mb-2 flex items-center justify-between gap-3">
+        <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
           <p
             className="font-['DM_Sans:Bold',sans-serif] font-bold text-app-text-primary text-lg"
             style={{ fontVariationSettings: "'opsz' 14" }}
           >
             Vorerkrankungen
           </p>
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={toggleConditionRemoval}
-              disabled={formData.conditions.length === 0}
-              aria-pressed={isRemovingCondition}
-              className={`rounded-[10px] px-2 py-1.5 text-xs font-semibold transition-all disabled:cursor-not-allowed disabled:text-app-text-muted disabled:opacity-60 disabled:hover:bg-transparent ${
-                isRemovingCondition
-                  ? "bg-[#486284] text-white hover:bg-[#3a4d68]"
-                  : "text-app-text-primary hover:bg-[#eff2f6]"
-              }`}
-            >
-              {isRemovingCondition ? "Aufheben beenden" : "Auswahl aufheben"}
-            </button>
-            {isRemovingCondition && (
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            {isClearingConditionSelections && (
               <button
                 type="button"
-                onClick={clearAllConditions}
-                className="rounded-[10px] bg-red-50 px-2 py-1.5 text-xs font-semibold text-red-700 transition-all hover:bg-red-100"
+                onClick={clearAllConditionSelections}
+                className="rounded-[10px] bg-white px-3 py-2 text-xs font-bold text-app-text-primary transition-all hover:bg-[#dde3ea]"
               >
-                Alle aufheben
+                alle aufheben
               </button>
             )}
+            <button
+              type="button"
+              onClick={toggleConditionClearMode}
+              disabled={formData.conditions.length === 0}
+              className={`rounded-[10px] px-3 py-2 text-xs font-bold transition-all disabled:cursor-not-allowed disabled:opacity-50 ${
+                isClearingConditionSelections
+                  ? "bg-[#486284] text-white hover:bg-[#3a4d68]"
+                  : "bg-white text-app-text-primary hover:bg-[#dde3ea]"
+              }`}
+            >
+              {isClearingConditionSelections ? "Aufheben beenden" : "Auswahl aufheben"}
+            </button>
           </div>
         </div>
-
-        {isRemovingCondition && (
-          <p className="mb-2 text-xs font-medium text-app-text-primary" role="status">
-            Klicken Sie auf eine ausgewählte Vorerkrankung, um sie aufzuheben.
-          </p>
-        )}
 
         <div ref={conditionsGridRef} className="grid grid-cols-2 md:grid-cols-3 gap-2">
           {PRE_EXISTING_CONDITIONS.map((condition) => {
@@ -677,24 +712,10 @@ export default function MedicalDataPage() {
               return (
                 <div
                   key={condition}
-                  className={`relative bg-[#eff2f6] rounded-[10px] p-3 min-h-[82px] flex flex-col justify-center gap-2 transition-all ${
-                    isRemovingCondition
-                      ? isSelected
-                        ? "ring-2 ring-red-400 hover:bg-red-50"
-                        : "opacity-60"
-                      : otherValue.trim()
-                        ? "ring-2 ring-[#486284]"
-                        : ""
+                  className={`bg-[#eff2f6] rounded-[10px] p-3 min-h-[82px] flex flex-col justify-center gap-2 transition-all ${
+                    otherValue.trim() ? `ring-2 ${isClearingConditionSelections ? "ring-red-500" : "ring-[#486284]"}` : ""
                   }`}
                 >
-                  {isRemovingCondition && isSelected && (
-                    <button
-                      type="button"
-                      onClick={() => removeCondition(condition)}
-                      className="absolute inset-0 z-10 rounded-[10px]"
-                      aria-label={`${condition} aufheben`}
-                    />
-                  )}
                   <div className="flex items-center gap-2">
                     <Icon
                       className={`size-5 ${otherValue.trim() ? "text-app-text-primary" : "text-app-text-muted"}`}
@@ -713,10 +734,19 @@ export default function MedicalDataPage() {
                     id="otherCondition"
                     value={otherValue}
                     onChange={(event) => updateOtherCondition(event.target.value)}
-                    disabled={isRemovingCondition}
                     placeholder="Freitext"
-                    className="h-9 border-none bg-white text-xs"
+                    disabled={isClearingConditionSelections}
+                    className="h-9 border-none bg-white text-xs disabled:cursor-not-allowed disabled:opacity-70"
                   />
+                  {isClearingConditionSelections && otherValue.trim() && (
+                    <button
+                      type="button"
+                      onClick={clearOtherConditionSelection}
+                      className="rounded-[8px] bg-white px-2 py-1.5 text-xs font-bold text-app-text-primary shadow-sm transition-all hover:bg-[#dde3ea]"
+                    >
+                      Auswahl aufheben
+                    </button>
+                  )}
                 </div>
               );
             }
@@ -725,28 +755,18 @@ export default function MedicalDataPage() {
               <div key={condition} className="relative">
                 <button
                   type="button"
-                  onClick={() => handleConditionClick(condition, isSelected)}
+                  onClick={() => toggleConditionSelection(condition)}
                   className={`bg-[#eff2f6] rounded-[10px] p-3 min-h-[82px] w-full flex flex-col items-center justify-center gap-2 text-center transition-all ${
-                    isRemovingCondition
-                      ? isSelected
-                        ? "ring-2 ring-red-400 hover:bg-red-50"
-                        : "cursor-not-allowed opacity-60"
-                      : isSelected
-                        ? "ring-2 ring-[#486284]"
-                        : "hover:bg-[#dde3ea]"
+                    isSelected ? `ring-2 ${isClearingConditionSelections ? "ring-red-500" : "ring-[#486284]"}` : "hover:bg-[#dde3ea]"
                   }`}
-                  aria-expanded={!isRemovingCondition && isOpen}
-                  aria-disabled={isRemovingCondition && !isSelected}
-                  aria-label={isRemovingCondition && isSelected ? `${condition} aufheben` : undefined}
+                  aria-expanded={isOpen}
                 >
-                  {!isRemovingCondition && (
-                    <ChevronDown
-                      className={`absolute right-3 top-3 size-4 text-app-text-primary/60 transition-transform ${
-                        isOpen ? "rotate-180" : ""
-                      }`}
-                      aria-hidden="true"
-                    />
-                  )}
+                  <ChevronDown
+                    className={`absolute right-3 top-3 size-4 text-app-text-primary/60 transition-transform ${
+                      isOpen ? "rotate-180" : ""
+                    }`}
+                    aria-hidden="true"
+                  />
                   <Icon
                     className={`size-6 ${isSelected ? "text-app-text-primary" : "text-app-text-muted"}`}
                     strokeWidth={2.2}
@@ -765,7 +785,7 @@ export default function MedicalDataPage() {
                   )}
                 </button>
 
-                {!isRemovingCondition && isOpen && config && (
+                {isOpen && config && (
                   <div className="absolute z-10 top-full left-0 right-0 mt-1 bg-white border-2 border-[#486284] rounded-[12px] shadow-lg overflow-hidden">
                     {config.options.map((option) => (
                       <button

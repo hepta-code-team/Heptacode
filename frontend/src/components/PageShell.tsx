@@ -30,6 +30,10 @@ export default function PageShell({
     xl: "max-w-5xl",
     "2xl": "max-w-6xl",
   };
+  const navigationActionClass =
+    "inline-flex min-h-6 items-center gap-2 text-app-text-primary transition-all hover:text-app-text-primary-strong";
+  const navigationIconClass = "h-4 w-4 flex-shrink-0";
+  const navigationTextClass = "font-['DM_Sans:Medium',sans-serif] text-sm font-medium leading-6";
 
   return (
     <div className="flex min-h-dvh w-full flex-col bg-white">
@@ -52,25 +56,25 @@ export default function PageShell({
                 <button
                   type="button"
                   onClick={onBack}
-                  className="flex items-center gap-2 text-app-text-primary hover:text-app-text-primary-strong transition-all"
+                  className={navigationActionClass}
                 >
-                  <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className={navigationIconClass} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
                   </svg>
-                  <span className="font-['DM_Sans:Medium',sans-serif] text-sm font-medium">Zurück</span>
+                  <span className={navigationTextClass}>Zurück</span>
                 </button>
               ) : (
                 <span aria-hidden="true" />
               )}
 
-        {onSkip && (
+              {onSkip && (
                 <button
                   type="button"
                   onClick={onSkip}
-                  className="flex items-center gap-2 text-app-text-primary hover:text-app-text-primary-strong transition-all"
+                  className={navigationActionClass}
                 >
-                  <span className="font-['DM_Sans:Medium',sans-serif] text-sm font-medium">{skipLabel}</span>
-                  <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <span className={navigationTextClass}>{skipLabel}</span>
+                  <svg className={navigationIconClass} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                   </svg>
                 </button>
@@ -87,7 +91,7 @@ export default function PageShell({
             </h1>
           )}
 
-        {subtitle && (
+          {subtitle && (
             <p
               className="font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-primary text-sm mb-4"
               style={{ fontVariationSettings: "'opsz' 14" }}
