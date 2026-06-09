@@ -21,10 +21,15 @@ function includesAny(text: string, terms: string[]) {
 }
 
 function textOf(symptom: Symptom | SelectedSymptom) {
-  const sides = "sides" in symptom && symptom.sides?.length ? symptom.sides.join(" ") : symptom.side ?? "";
-  return normalize(`${symptom.region} ${sides}`);
+  return normalize(`${symptom.region} ${symptom.side ?? ""}`);
 }
 
+/**
+ * Keeps the strongest reason for each specialty.
+ *
+ * Multiple keyword groups can point to the same specialty; priority decides
+ * which explanation should be displayed to the user.
+ */
 function addSpecialty(
   map: Map<DoctorSpecialty, RecommendedSpecialty>,
   specialty: DoctorSpecialty,
@@ -63,6 +68,13 @@ function hasHighSuicidalIdeation(symptomDetails: Symptom[]) {
   return symptomDetails.some((symptom) => textOf(symptom).includes("suizid") && (symptom.measurementValue ?? 0) >= 8);
 }
 
+/**
+ * Builds a frontend-only specialty recommendation from selected symptoms.
+ *
+ * The backend triage remains authoritative for final assessment results, but
+ * this heuristic provides immediate guidance for UI states that do not yet have
+ * an AI-backed result.
+ */
 export function getFrontendTriageRecommendation({
   patientData,
   selectedSymptoms,
@@ -78,6 +90,7 @@ export function getFrontendTriageRecommendation({
 
   const administrativeRequest = hasAdministrativeRequest(allTexts);
 
+  // Administrative requests are routed to primary care before medical keyword scoring.
   if (administrativeRequest) {
     const recommendation: RecommendedSpecialty = {
       specialty: "primary_care",
@@ -108,6 +121,7 @@ export function getFrontendTriageRecommendation({
     ]) ||
     hasHighSuicidalIdeation(symptomDetails)
   ) {
+    // Emergency evidence wins through priority, but other specialty matches are still collected.
     addSpecialty(specialties, "emergency", "Ein kritisches Warnsymptom wurde angegeben.", 100);
   }
 
@@ -175,6 +189,7 @@ export function getFrontendTriageRecommendation({
   const recommendedSpecialties = Array.from(specialties.values()).sort((a, b) => b.priority - a.priority);
   const topSpecialty = recommendedSpecialties[0];
 
+  // Only primary-care recommendations can downgrade to selfcare; specialty matches stay specialist.
   const careLevel =
     topSpecialty.specialty === "emergency"
       ? "emergency"

@@ -1,20 +1,40 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { AiResponseError } from '../../../../src/ai/timeout.js'
-import { requestStructuredAiResponse } from '../../../../src/ai/llmAdapter.js'
+import { requestStructuredAiResponseWithModel } from '../../../../src/ai/llmAdapter.js'
 import { extractSymptoms } from '../../../../src/modules/symptom-extraction/symptomExtraction.service.js'
 import { evaluateTriage } from '../../../../src/modules/triage/triage.service.js'
 
 vi.mock('../../../../src/ai/llmAdapter.js', () => ({
-  requestStructuredAiResponse: vi.fn(),
+  requestStructuredAiResponseWithModel: vi.fn(),
 }))
 
 vi.mock('../../../../src/modules/symptom-extraction/symptomExtraction.service.js', () => ({
   extractSymptoms: vi.fn(),
 }))
 
-const requestStructuredAiResponseMock = vi.mocked(requestStructuredAiResponse)
+const requestStructuredAiResponseWithModelMock = vi.mocked(requestStructuredAiResponseWithModel)
 const extractSymptomsMock = vi.mocked(extractSymptoms)
+
+const malePatientData = {
+  birthMonth: '05',
+  birthYear: '1988',
+  height: '175',
+  weight: '78',
+  gender: 'Maennlich',
+  isPregnant: false,
+  isBreastfeeding: false,
+  allergies: '',
+  medications: '',
+  substanceInfluence: 'Nein',
+  recentAbroad: false,
+  recentAbroadDetails: '',
+  conditions: [],
+  isSmoker: false,
+  smokingSinceYears: '',
+  cigarettesPerDay: '',
+  conditionDetails: {},
+}
 
 describe('evaluateTriage', () => {
   beforeEach(() => {
@@ -28,7 +48,7 @@ describe('evaluateTriage', () => {
       careLevel: 'emergency',
       reasons: ['Notfallmodus ueber die Startseite ausgewaehlt.'],
     })
-    expect(requestStructuredAiResponseMock).not.toHaveBeenCalled()
+    expect(requestStructuredAiResponseWithModelMock).not.toHaveBeenCalled()
     expect(extractSymptomsMock).not.toHaveBeenCalled()
   })
 
@@ -39,23 +59,32 @@ describe('evaluateTriage', () => {
       careLevel: 'selfcare',
       reasons: [],
     })
-    expect(requestStructuredAiResponseMock).not.toHaveBeenCalled()
+    expect(requestStructuredAiResponseWithModelMock).not.toHaveBeenCalled()
     expect(extractSymptomsMock).not.toHaveBeenCalled()
   })
 
   it('uebernimmt eine gueltige KI-Triage mit Fachrichtung', async () => {
-    requestStructuredAiResponseMock.mockResolvedValueOnce({
-      careLevel: 'specialist',
-      recommendedSpecialty: 'neurology',
-      reasons: ['Die Beschwerden sollten neurologisch abgeklaert werden.'],
-      reviewSummary: {
-        plainLanguage: 'Bitte lassen Sie die Beschwerden neurologisch abklaeren.',
-        professionalSummary: 'Care Level: specialist. Empfohlene Fachrichtung: neurology.',
+    requestStructuredAiResponseWithModelMock.mockResolvedValueOnce({
+      data: {
+        careLevel: 'specialist',
+        recommendedSpecialty: 'neurology',
+        reasons: ['Die Beschwerden sollten neurologisch abgeklaert werden.'],
+        reviewSummary: {
+          plainLanguage: 'Bitte lassen Sie die Beschwerden neurologisch abklaeren.',
+          professionalSummary: 'Care Level: specialist. Empfohlene Fachrichtung: neurology.',
+        },
       },
+      model: 'test-model',
     })
 
     const result = await evaluateTriage(undefined, [
-      { region: 'Kopf', measurementType: 'pain', measurementValue: 7, duration: 'days' },
+      {
+        region: 'Verbrennung',
+        details: 'Kochendes Wasser ueber Arm geschuettet',
+        measurementType: 'severity',
+        measurementValue: 7,
+        duration: 'today',
+      },
     ])
 
     expect(result).toEqual({
@@ -66,12 +95,28 @@ describe('evaluateTriage', () => {
         plainLanguage: 'Bitte lassen Sie die Beschwerden neurologisch abklaeren.',
         professionalSummary: 'Care Level: specialist. Empfohlene Fachrichtung: neurology.',
       },
+      aiModel: 'test-model',
     })
-    expect(requestStructuredAiResponseMock).toHaveBeenCalledTimes(1)
+    expect(requestStructuredAiResponseWithModelMock).toHaveBeenCalledTimes(1)
+    expect(requestStructuredAiResponseWithModelMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        schemaName: 'triage_result',
+      }),
+    )
+    expect(requestStructuredAiResponseWithModelMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        messages: expect.arrayContaining([
+          expect.objectContaining({
+            role: 'user',
+            content: expect.stringContaining('Details: Kochendes Wasser ueber Arm geschuettet'),
+          }),
+        ]),
+      }),
+    )
   })
 
   it('nutzt den Fallback, wenn die KI-Anfrage fehlschlaegt', async () => {
-    requestStructuredAiResponseMock.mockRejectedValueOnce(new AiResponseError('timeout'))
+    requestStructuredAiResponseWithModelMock.mockRejectedValueOnce(new AiResponseError('timeout'))
 
     const result = await evaluateTriage(undefined, [
       { region: 'Brust', measurementType: 'pain', measurementValue: 8, duration: 'today' },
@@ -84,8 +129,36 @@ describe('evaluateTriage', () => {
     expect(result.reasons).toHaveLength(2)
   })
 
+  it('eskaliert eine erfolgreiche KI-Triage nicht lokal zu specialist', async () => {
+    requestStructuredAiResponseWithModelMock.mockResolvedValueOnce({
+      data: {
+        careLevel: 'doctor',
+        reasons: ['Die Beschwerden sollten aerztlich abgeklart werden.'],
+        reviewSummary: {
+          plainLanguage: 'Bitte lassen Sie die Beschwerden aerztlich abklaeren.',
+          professionalSummary: 'Care Level: doctor.',
+        },
+      },
+      model: 'test-model',
+    })
+
+    const result = await evaluateTriage(undefined, [
+      { region: 'Bauch', measurementType: 'pain', measurementValue: 7, duration: 'days' },
+    ])
+
+    expect(result).toEqual({
+      careLevel: 'doctor',
+      reasons: ['Die Beschwerden sollten aerztlich abgeklart werden.'],
+      reviewSummary: {
+        plainLanguage: 'Bitte lassen Sie die Beschwerden aerztlich abklaeren.',
+        professionalSummary: 'Care Level: doctor.',
+      },
+      aiModel: 'test-model',
+    })
+  })
+
   it('nutzt den Doctor-Fallback bei mittleren Beschwerden', async () => {
-    requestStructuredAiResponseMock.mockRejectedValueOnce(new AiResponseError('timeout'))
+    requestStructuredAiResponseWithModelMock.mockRejectedValueOnce(new AiResponseError('timeout'))
 
     const result = await evaluateTriage(undefined, [
       { region: 'Bauch', measurementType: 'pain', measurementValue: 5, duration: 'days' },
@@ -114,6 +187,42 @@ describe('evaluateTriage', () => {
     })
   })
 
+  it('bricht bei maennlichem Geschlecht und Schwangerschaftsangaben im Freitext ab', async () => {
+    await expect(
+      evaluateTriage(
+        malePatientData,
+        undefined,
+        false,
+        'Ich waere schwanger und habe Wehen.',
+      ),
+    ).rejects.toMatchObject({
+      message: expect.stringContaining('passen logisch nicht zusammen'),
+      statusCode: 400,
+    })
+
+    expect(extractSymptomsMock).not.toHaveBeenCalled()
+    expect(requestStructuredAiResponseWithModelMock).not.toHaveBeenCalled()
+  })
+
+  it('bricht bei maennlichem Geschlecht und Schwangerschaftsangaben in Symptomen ab', async () => {
+    await expect(
+      evaluateTriage(malePatientData, [
+        {
+          region: 'Bauch',
+          details: 'Schwanger und Wehen seit heute',
+          measurementType: 'pain',
+          measurementValue: 8,
+          duration: 'today',
+        },
+      ]),
+    ).rejects.toMatchObject({
+      message: expect.stringContaining('passen logisch nicht zusammen'),
+      statusCode: 400,
+    })
+
+    expect(requestStructuredAiResponseWithModelMock).not.toHaveBeenCalled()
+  })
+
   it('nutzt den Freitext-Fallback, wenn die Symptom-Extraktion nicht verfuegbar ist', async () => {
     extractSymptomsMock.mockResolvedValueOnce({
       text: 'Ich habe starke Schmerzen.',
@@ -133,7 +242,7 @@ describe('evaluateTriage', () => {
       careLevel: 'doctor',
       aiUnavailable: true,
     })
-    expect(requestStructuredAiResponseMock).not.toHaveBeenCalled()
+    expect(requestStructuredAiResponseWithModelMock).not.toHaveBeenCalled()
   })
 
   it('verwendet extrahierte Symptome fuer die KI-Triage', async () => {
@@ -142,13 +251,16 @@ describe('evaluateTriage', () => {
       inputType: 'speech',
       symptoms: [{ region: 'Allgemein', measurementType: 'pain', measurementValue: 4, duration: 'days' }],
     })
-    requestStructuredAiResponseMock.mockResolvedValueOnce({
-      careLevel: 'doctor',
-      reasons: ['Die Beschwerden sollten aerztlich abgeklart werden.'],
-      reviewSummary: {
-        plainLanguage: 'Bitte lassen Sie die Beschwerden aerztlich abklaeren.',
-        professionalSummary: 'Care Level: doctor.',
+    requestStructuredAiResponseWithModelMock.mockResolvedValueOnce({
+      data: {
+        careLevel: 'doctor',
+        reasons: ['Die Beschwerden sollten aerztlich abgeklart werden.'],
+        reviewSummary: {
+          plainLanguage: 'Bitte lassen Sie die Beschwerden aerztlich abklaeren.',
+          professionalSummary: 'Care Level: doctor.',
+        },
       },
+      model: 'test-model',
     })
 
     const result = await evaluateTriage(
@@ -166,8 +278,9 @@ describe('evaluateTriage', () => {
         plainLanguage: 'Bitte lassen Sie die Beschwerden aerztlich abklaeren.',
         professionalSummary: 'Care Level: doctor.',
       },
+      aiModel: 'test-model',
     })
     expect(extractSymptomsMock).toHaveBeenCalledWith('Ich habe seit Tagen Husten.', 'speech')
-    expect(requestStructuredAiResponseMock).toHaveBeenCalledTimes(1)
+    expect(requestStructuredAiResponseWithModelMock).toHaveBeenCalledTimes(1)
   })
 })

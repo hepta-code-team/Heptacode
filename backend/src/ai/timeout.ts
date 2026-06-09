@@ -1,15 +1,25 @@
 import OpenAI, { APIConnectionError, APIConnectionTimeoutError, APIError } from 'openai'
 
-// TA 1.8: KI-Requests duerfen nicht unbegrenzt haengen.
-export const AI_REQUEST_TIMEOUT_MS = 30000
+// AI requests must not block the assessment flow indefinitely.
+export const AI_REQUEST_TIMEOUT_MS = {
+  primary: 17_000,
+  fallback: 17_000,
+} as const
 
-// Ohne Retries greift der definierte Fallback schnell und vorhersehbar.
+// Disable retries so the defined fallback runs quickly and predictably.
+export function createAiRequestOptions(timeout: number) {
+  return {
+    timeout,
+    maxRetries: 0,
+  } as const
+}
+
 export const AI_REQUEST_OPTIONS = {
-  timeout: AI_REQUEST_TIMEOUT_MS,
+  timeout: AI_REQUEST_TIMEOUT_MS.primary,
   maxRetries: 0,
 } as const
 
-// Wird genutzt, wenn die KI antwortet, aber keine validierbare strukturierte Ausgabe liefert.
+// Raised when the AI responds without valid structured output.
 export class AiResponseError extends Error {
   constructor(message: string) {
     super(message)
@@ -17,7 +27,7 @@ export class AiResponseError extends Error {
   }
 }
 
-// Diese Fehler duerfen von den Services in kontrollierte Fallback-Antworten umgewandelt werden.
+// Services may convert these failures into controlled fallback responses.
 export function isAiRequestError(error: unknown): boolean {
   return (
     error instanceof AiResponseError ||
@@ -26,4 +36,17 @@ export function isAiRequestError(error: unknown): boolean {
     error instanceof APIConnectionError ||
     error instanceof APIConnectionTimeoutError
   )
+}
+
+// These failures indicate that the requested model or AI service is unavailable,
+// so the smaller fallback model should be attempted.
+export function isAiAvailabilityError(error: unknown): boolean {
+  if (error instanceof APIConnectionError || error instanceof APIConnectionTimeoutError) {
+    return true
+  } 
+
+  if (error instanceof OpenAI.APIError || error instanceof APIError) {
+    return error.status === 429 || (typeof error.status === 'number' && error.status >= 500)
+  }
+  return false
 }

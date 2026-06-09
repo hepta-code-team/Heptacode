@@ -15,7 +15,7 @@ describe('triageRequestSchema', () => {
   it('akzeptiert bis zu drei strukturierte Symptome', () => {
     const result = triageRequestSchema.safeParse({
       symptoms: [
-        { region: 'Kopf', painLevel: 5, duration: 'days' },
+        { region: 'Kopf', details: 'Seit dem Aufwachen schlimmer', painLevel: 5, duration: 'days' },
         { region: 'Bauch', painLevel: 3, duration: 'today' },
         { region: 'Ruecken', painLevel: 4, duration: 'week' },
       ],

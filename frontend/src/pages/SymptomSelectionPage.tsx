@@ -1,7 +1,7 @@
-import { useMemo, useRef, useState } from "react";
-import type { KeyboardEvent } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import type { ClipboardEvent, FormEvent, KeyboardEvent } from "react";
 import { useNavigate, useSearchParams } from "react-router";
-import { Brain, Check, Mic, Sparkles, X } from "lucide-react";
+import { Brain, Check, Mic, MicOff, Sparkles, Trash2, X } from "lucide-react";
 import PageShell from "../components/PageShell";
 import Button from "../components/Button";
 import Modal from "../components/Modal";
@@ -19,6 +19,55 @@ import {
 import type { SelectedSymptom } from "../../../shared/symptom.types";
 import type { TriageSymptom } from "../../../shared/symptom.types";
 
+
+const MAX_RECORDING_DURATION_MS = 120_000;
+const MAX_RECORDING_DURATION_SECONDS = MAX_RECORDING_DURATION_MS / 1000;
+const MAX_SYMPTOM_TEXT_CHARACTERS = 500;
+const SYMPTOM_TEXT_CHARACTER_LIMIT_ERROR = `Bitte beschreiben Sie Ihre Symptome mit maximal ${MAX_SYMPTOM_TEXT_CHARACTERS} Zeichen.`;
+
+type BrowserSpeechRecognitionAlternative = {
+  transcript: string;
+};
+
+type BrowserSpeechRecognitionResult = {
+  isFinal: boolean;
+  [index: number]: BrowserSpeechRecognitionAlternative;
+};
+
+type BrowserSpeechRecognitionEvent = {
+  resultIndex: number;
+  results: {
+    length: number;
+    [index: number]: BrowserSpeechRecognitionResult;
+  };
+};
+
+type BrowserSpeechRecognitionErrorEvent = {
+  error: string;
+};
+
+type BrowserSpeechRecognition = {
+  continuous: boolean;
+  interimResults: boolean;
+  lang: string;
+  onend: (() => void) | null;
+  onerror: ((event: BrowserSpeechRecognitionErrorEvent) => void) | null;
+  onresult: ((event: BrowserSpeechRecognitionEvent) => void) | null;
+  onstart: (() => void) | null;
+  abort: () => void;
+  start: () => void;
+  stop: () => void;
+};
+
+type BrowserSpeechRecognitionConstructor = new () => BrowserSpeechRecognition;
+
+declare global {
+  interface Window {
+    SpeechRecognition?: BrowserSpeechRecognitionConstructor;
+    webkitSpeechRecognition?: BrowserSpeechRecognitionConstructor;
+  }
+}
+
 const supportingAreas = [
   {
     id: "general" as const,
@@ -34,10 +83,83 @@ const supportingAreas = [
   },
 ];
 
+
+function getCharacterCount(text: string) {
+  return text.length;
+}
+
+function formatRecordingDuration(totalSeconds: number) {
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+
+  return `${minutes}:${seconds.toString().padStart(2, "0")}`;
+}
+
+function limitTextToMaxCharacters(text: string) {
+  return text.slice(0, MAX_SYMPTOM_TEXT_CHARACTERS);
+}
+
+function exceedsSymptomTextLimit(text: string) {
+  return getCharacterCount(text) > MAX_SYMPTOM_TEXT_CHARACTERS;
+}
+
+/**
+ * Reconstructs textarea content before React receives the changed value.
+ *
+ * This lets beforeInput prevent oversized text instead of briefly accepting it
+ * and then trimming after the DOM has already changed.
+ */
+function insertTextAtSelection(text: string, insertedText: string, selectionStart: number, selectionEnd: number) {
+  return `${text.slice(0, selectionStart)}${insertedText}${text.slice(selectionEnd)}`;
+}
+
+function getTextAreaInputData(event: FormEvent<HTMLTextAreaElement>) {
+  const nativeEvent = event.nativeEvent as InputEvent;
+
+  return nativeEvent.data ?? "";
+}
+
+function isTextRemoval(event: FormEvent<HTMLTextAreaElement>) {
+  const nativeEvent = event.nativeEvent as InputEvent;
+
+  return nativeEvent.inputType.startsWith("delete");
+}
+
+/**
+ * Predicts the next textarea value for a normal typing event.
+ *
+ * The browser exposes inserted text on the native InputEvent while the DOM value
+ * still represents the previous state during beforeInput.
+ */
+function getTextWithPendingTextAreaInput(event: FormEvent<HTMLTextAreaElement>, inputText: string) {
+  const { selectionEnd, selectionStart, value } = event.currentTarget;
+
+  return insertTextAtSelection(value, inputText, selectionStart, selectionEnd);
+}
+
+/**
+ * Predicts the next textarea value for paste handling.
+ *
+ * Paste needs its own helper because clipboard text is not available through
+ * InputEvent.data in the same reliable way as keyboard input.
+ */
+function getTextWithPendingTextAreaPaste(event: ClipboardEvent<HTMLTextAreaElement>) {
+  const { selectionEnd, selectionStart, value } = event.currentTarget;
+  const pastedText = event.clipboardData.getData("text");
+
+  return insertTextAtSelection(value, pastedText, selectionStart, selectionEnd);
+}
+
 function getSymptomKey(symptom: SelectedSymptom) {
   return symptom.side ? `${symptom.region} (${symptom.side})` : symptom.region;
 }
 
+/**
+ * Deduplicates AI-extracted symptoms while preserving their original order.
+ *
+ * The detail page only supports the configured maximum number of symptoms, so
+ * the extraction result is capped before it is written into shared state.
+ */
 function getUniqueExtractedSymptoms(symptoms: TriageSymptom[]): TriageSymptom[] {
   const seenSymptomKeys = new Set<string>();
   const uniqueSymptoms: TriageSymptom[] = [];
@@ -58,10 +180,21 @@ function getUniqueExtractedSymptoms(symptoms: TriageSymptom[]): TriageSymptom[] 
   return uniqueSymptoms;
 }
 
+/**
+ * Validates the category query parameter before it is used as state.
+ *
+ * This protects deep links from rendering an unsupported body-area category.
+ */
 function isBodyAreaCategory(value: string | null): value is BodyAreaCategory {
   return Boolean(value && value in BODY_AREA_REGION_IDS);
 }
 
+/**
+ * Interactive body selector used for coarse symptom localization.
+ *
+ * The SVG uses keyboard handlers and button-like roles so body-region selection
+ * remains available beyond pointer-only interactions.
+ */
 function AnatomyFigure({
   selectedCategory,
   onSelect,
@@ -202,20 +335,265 @@ export default function SymptomSelectionPage() {
   const {
     selectedSymptoms: contextSymptoms,
     setSelectedSymptoms: setContextSymptoms,
+    patientData,
+    symptomText,
+    setSymptomText,
     setSymptomDetails: setContextSymptomDetails,
   } = useAssessment();
   const [selectedCategory, setSelectedCategory] = useState<BodyAreaCategory | null>(initialCategory);
   const [selectedSymptoms, setSelectedSymptoms] = useState<SelectedSymptom[]>(contextSymptoms);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [symptomText, setSymptomText] = useState("");
   const [isExtractingSymptoms, setIsExtractingSymptoms] = useState(false);
+  const [isRecordingSymptoms, setIsRecordingSymptoms] = useState(false);
+  const [recordingElapsedSeconds, setRecordingElapsedSeconds] = useState(0);
   const [symptomTextError, setSymptomTextError] = useState<string | null>(null);
   const symptomOptionsRef = useRef<HTMLDivElement | null>(null);
+  const speechRecognitionRef = useRef<BrowserSpeechRecognition | null>(null);
+  const recordingTimeoutRef = useRef<number | null>(null);
+  const recordingTimerIntervalRef = useRef<number | null>(null);
+  const recordedTextRef = useRef("");
 
   const selectedCategoryLabel = selectedCategory ? BODY_AREA_LABELS[selectedCategory] : "";
   const filteredRegions = useMemo(() => getBodyRegionsForCategory(selectedCategory), [selectedCategory]);
-  const shouldShowInlineOptions = selectedCategory !== "torso";
+  const shouldShowInlineOptions = false;
+  const symptomTextCharacterCount = useMemo(() => getCharacterCount(symptomText), [symptomText]);
+  const formattedRecordingElapsed = formatRecordingDuration(recordingElapsedSeconds);
+  const formattedMaxRecordingDuration = formatRecordingDuration(MAX_RECORDING_DURATION_SECONDS);
 
+  /**
+   * Updates the free-text symptom description while enforcing the hard limit.
+   *
+   * The limit is checked here as a fallback for browsers or input paths that do
+   * not pass through beforeInput or paste handling.
+   */
+  const handleSymptomTextChange = (text: string) => {
+    if (exceedsSymptomTextLimit(text)) {
+      setSymptomTextError(SYMPTOM_TEXT_CHARACTER_LIMIT_ERROR);
+      return;
+    }
+
+    setSymptomText(text);
+
+    if (symptomTextError === SYMPTOM_TEXT_CHARACTER_LIMIT_ERROR) {
+      setSymptomTextError(null);
+    }
+  };
+
+  /**
+   * Prevents keyboard input that would exceed the symptom text limit.
+   *
+   * Blocking before the DOM value changes avoids flicker and keeps screen-reader
+   * announcements aligned with the final accepted value.
+   */
+  const handleSymptomTextBeforeInput = (event: FormEvent<HTMLTextAreaElement>) => {
+    if (isTextRemoval(event)) {
+      return;
+    }
+
+    const inputText = getTextAreaInputData(event);
+
+    if (!inputText) {
+      return;
+    }
+
+    const nextText = getTextWithPendingTextAreaInput(event, inputText);
+
+    if (exceedsSymptomTextLimit(nextText)) {
+      event.preventDefault();
+      setSymptomTextError(SYMPTOM_TEXT_CHARACTER_LIMIT_ERROR);
+    }
+  };
+
+  /**
+   * Handles pasted text by trimming to the maximum supported length.
+   *
+   * Paste can add a large amount of text at once, so it is normalized separately
+   * from single-character keyboard input.
+   */
+  const handleSymptomTextPaste = (event: ClipboardEvent<HTMLTextAreaElement>) => {
+    const nextText = getTextWithPendingTextAreaPaste(event);
+
+    if (exceedsSymptomTextLimit(nextText)) {
+      event.preventDefault();
+      setSymptomText(limitTextToMaxCharacters(nextText));
+      setSymptomTextError(SYMPTOM_TEXT_CHARACTER_LIMIT_ERROR);
+    }
+  };
+
+  const clearRecordingTimeout = () => {
+    if (recordingTimeoutRef.current !== null) {
+      window.clearTimeout(recordingTimeoutRef.current);
+      recordingTimeoutRef.current = null;
+    }
+  };
+
+  const clearRecordingTimerInterval = () => {
+    if (recordingTimerIntervalRef.current !== null) {
+      window.clearInterval(recordingTimerIntervalRef.current);
+      recordingTimerIntervalRef.current = null;
+    }
+  };
+
+  const resetRecordingTimer = () => {
+    clearRecordingTimerInterval();
+    setRecordingElapsedSeconds(0);
+  };
+
+  const stopSymptomRecording = () => {
+    clearRecordingTimeout();
+    clearRecordingTimerInterval();
+
+    if (speechRecognitionRef.current) {
+      speechRecognitionRef.current.stop();
+      return;
+    }
+
+    setIsRecordingSymptoms(false);
+  };
+
+  const startRecordingTimer = () => {
+    resetRecordingTimer();
+    recordingTimerIntervalRef.current = window.setInterval(() => {
+      setRecordingElapsedSeconds((elapsedSeconds) => Math.min(elapsedSeconds + 1, MAX_RECORDING_DURATION_SECONDS));
+    }, 1000);
+  };
+
+  const appendTranscript = (baseText: string, transcript: string) => {
+    const normalizedBaseText = baseText.trim();
+    const normalizedTranscript = transcript.trim();
+
+    if (!normalizedTranscript) {
+      return limitTextToMaxCharacters(normalizedBaseText);
+    }
+
+    const combinedTranscript = normalizedBaseText ? `${normalizedBaseText} ${normalizedTranscript}` : normalizedTranscript;
+
+    return limitTextToMaxCharacters(combinedTranscript);
+  };
+
+  /**
+   * Starts or stops browser speech recognition for symptom dictation.
+   *
+   * The implementation keeps final transcript text separate from interim text so
+   * partial recognition updates can be displayed without duplicating words.
+   */
+  const handleToggleSymptomRecording = () => {
+    if (isRecordingSymptoms) {
+      stopSymptomRecording();
+      return;
+    }
+
+    if (symptomTextCharacterCount >= MAX_SYMPTOM_TEXT_CHARACTERS) {
+      setSymptomTextError(SYMPTOM_TEXT_CHARACTER_LIMIT_ERROR);
+      return;
+    }
+
+    const SpeechRecognition = window.SpeechRecognition ?? window.webkitSpeechRecognition;
+
+    if (!SpeechRecognition) {
+      setSymptomTextError("Spracheingabe wird von diesem Browser nicht unterstützt. Bitte nutzen Sie den Freitext.");
+      return;
+    }
+
+    const recognition = new SpeechRecognition();
+    recordedTextRef.current = symptomText.trim();
+    recognition.continuous = true;
+    recognition.interimResults = true;
+    recognition.lang = "de-DE";
+
+    recognition.onstart = () => {
+      setIsRecordingSymptoms(true);
+      startRecordingTimer();
+      setSymptomTextError(null);
+    };
+
+    // Keep interim transcripts visible without committing them until the browser marks them final.
+    recognition.onresult = (event) => {
+      let finalTranscript = "";
+      let interimTranscript = "";
+
+      for (let index = event.resultIndex; index < event.results.length; index += 1) {
+        const result = event.results[index];
+        const transcript = result[0]?.transcript ?? "";
+
+        if (result.isFinal) {
+          finalTranscript = appendTranscript(finalTranscript, transcript);
+        } else {
+          interimTranscript = appendTranscript(interimTranscript, transcript);
+        }
+      }
+
+      if (finalTranscript) {
+        recordedTextRef.current = appendTranscript(recordedTextRef.current, finalTranscript);
+      }
+
+      const nextSymptomText = appendTranscript(recordedTextRef.current, interimTranscript);
+      setSymptomText(nextSymptomText);
+
+      if (getCharacterCount(nextSymptomText) >= MAX_SYMPTOM_TEXT_CHARACTERS && (finalTranscript || interimTranscript)) {
+        setSymptomTextError(SYMPTOM_TEXT_CHARACTER_LIMIT_ERROR);
+        stopSymptomRecording();
+      }
+    };
+
+    recognition.onerror = (event) => {
+      // Browser speech errors are user-facing because permissions and service availability vary by device.
+      clearRecordingTimeout();
+      clearRecordingTimerInterval();
+      setIsRecordingSymptoms(false);
+      speechRecognitionRef.current = null;
+
+      if (event.error === "not-allowed" || event.error === "service-not-allowed") {
+        setSymptomTextError("Bitte erlauben Sie den Mikrofonzugriff, um Symptome diktieren zu können.");
+        return;
+      }
+
+      if (event.error !== "no-speech" && event.error !== "aborted") {
+        setSymptomTextError("Die Spracheingabe wurde unterbrochen. Bitte versuchen Sie es erneut oder nutzen Sie den Freitext.");
+      }
+    };
+
+    recognition.onend = () => {
+      clearRecordingTimeout();
+      clearRecordingTimerInterval();
+      setIsRecordingSymptoms(false);
+      speechRecognitionRef.current = null;
+    };
+
+    speechRecognitionRef.current = recognition;
+    recordingTimeoutRef.current = window.setTimeout(() => {
+      stopSymptomRecording();
+    }, MAX_RECORDING_DURATION_MS);
+
+    try {
+      recognition.start();
+    } catch (error) {
+      clearRecordingTimeout();
+      resetRecordingTimer();
+      speechRecognitionRef.current = null;
+      setIsRecordingSymptoms(false);
+      setSymptomTextError(error instanceof Error ? error.message : "Die Spracheingabe konnte nicht gestartet werden.");
+    }
+  };
+
+  /**
+   * Cleans up timers and active speech recognition when the page unmounts.
+   * Browser speech APIs can continue firing callbacks after navigation unless
+   * they are explicitly stopped and dereferenced.
+   */
+  useEffect(() => {
+    return () => {
+      clearRecordingTimeout();
+      clearRecordingTimerInterval();
+      speechRecognitionRef.current?.abort();
+    };
+  }, []);
+
+  /**
+   * Selects a coarse body area and syncs it into the URL.
+   * Keeping the category in search params makes the screen shareable and lets
+   * browser navigation restore the currently opened body area.
+   */
   const handleCategorySelect = (category: BodyAreaCategory) => {
     if (selectedCategory === category) {
       setSelectedCategory(null);
@@ -226,6 +604,7 @@ export default function SymptomSelectionPage() {
     setSelectedCategory(category);
     setSearchParams({ category });
 
+    // On mobile, move the newly opened options into view after React has rendered them.
     if (window.innerWidth < 768) {
       window.setTimeout(() => {
         symptomOptionsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -233,7 +612,13 @@ export default function SymptomSelectionPage() {
     }
   };
 
+  /**
+   * Adds or removes a specific symptom selection.
+   * Emergency suboptions short-circuit into the emergency result, while normal
+   * symptoms are capped to the maximum count supported by the details step.
+   */
   const handleRegionSelect = (regionName: string, side?: string) => {
+    // Red-flag suboptions bypass the normal selection flow and route straight to emergency.
     if (side && EMERGENCY_SYMPTOM_OPTIONS.includes(side)) {
       navigate("/result?emergency=true");
       return;
@@ -262,7 +647,21 @@ export default function SymptomSelectionPage() {
     navigate("/symptom-details");
   };
 
+  const handleClearSymptomText = () => {
+    stopSymptomRecording();
+    recordedTextRef.current = "";
+    setSymptomText("");
+    setSymptomTextError(null);
+  };
+
+  /**
+   * Sends free-text symptoms to the extraction API and opens the details step.
+   *
+   * Invalid or unavailable extraction stays in the modal so users can refine the
+   * same text instead of losing context by navigating away.
+   */
   const handleApplySymptomText = async () => {
+    stopSymptomRecording();
     const trimmedSymptomText = symptomText.trim();
 
     if (!trimmedSymptomText) {
@@ -270,12 +669,19 @@ export default function SymptomSelectionPage() {
       return;
     }
 
+    if (exceedsSymptomTextLimit(trimmedSymptomText)) {
+      setSymptomText(limitTextToMaxCharacters(trimmedSymptomText));
+      setSymptomTextError(SYMPTOM_TEXT_CHARACTER_LIMIT_ERROR);
+      return;
+    }
+
     setIsExtractingSymptoms(true);
     setSymptomTextError(null);
 
     try {
-      const response = await extractSymptomsFromText(trimmedSymptomText);
+      const response = await extractSymptomsFromText(trimmedSymptomText, "text", patientData ?? undefined);
 
+      // Keep the user in the modal when extraction fails so they can refine the same input.
       if (response.invalidInput || response.aiUnavailable) {
         setSymptomTextError(response.message ?? "Die Beschreibung konnte nicht ausgewertet werden.");
         return;
@@ -294,7 +700,6 @@ export default function SymptomSelectionPage() {
       setContextSymptoms(extractedSelection);
       setContextSymptomDetails([]);
       setIsModalOpen(false);
-      setSymptomText("");
       navigate("/symptom-details", { state: { extractedSymptoms } });
     } catch (error) {
       setSymptomTextError(error instanceof Error ? error.message : "Die Beschreibung konnte nicht ausgewertet werden.");
@@ -505,20 +910,35 @@ export default function SymptomSelectionPage() {
       <Modal
         isOpen={isModalOpen}
         onClose={() => {
+          stopSymptomRecording();
           setIsModalOpen(false);
-          setSymptomText("");
           setSymptomTextError(null);
         }}
         title="Beschreiben Sie Ihre Symptome"
         subtitle="Bitte beschreiben Sie Ihre Symptome in 1-2 Sätzen. Nennen Sie dabei Symptom, Stärke und Dauer."
+        showCloseButton
       >
         <textarea
           value={symptomText}
-          onChange={(event) => setSymptomText(event.target.value)}
+          onBeforeInput={handleSymptomTextBeforeInput}
+          onChange={(event) => handleSymptomTextChange(event.target.value)}
+          onPaste={handleSymptomTextPaste}
+          maxLength={MAX_SYMPTOM_TEXT_CHARACTERS}
           placeholder="z.B. Ich habe seit 3 Tagen starke Kopfschmerzen (7/10) und leichte Übelkeit."
           className="w-full h-40 bg-[#eff2f6] rounded-[16px] p-4 resize-none border-none outline-none focus:ring-2 focus:ring-[#486284] font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-body text-base"
           style={{ fontVariationSettings: "'opsz' 14" }}
         />
+
+        <div className="mt-2 flex justify-end">
+          <span
+            className={`font-['DM_Sans:Medium',sans-serif] text-xs font-medium ${
+              symptomTextCharacterCount >= MAX_SYMPTOM_TEXT_CHARACTERS ? "text-red-700" : "text-app-text-muted"
+            }`}
+            style={{ fontVariationSettings: "'opsz' 14" }}
+          >
+            {symptomTextCharacterCount}/{MAX_SYMPTOM_TEXT_CHARACTERS} Zeichen
+          </span>
+        </div>
 
         {symptomTextError && (
           <div className="mt-3 rounded-[14px] border border-red-200 bg-red-50 p-3 text-sm font-medium text-red-700">
@@ -526,28 +946,72 @@ export default function SymptomSelectionPage() {
           </div>
         )}
 
-        <div className="flex justify-between items-center mt-6">
-          <button
-            onClick={() => {}}
-            disabled={isExtractingSymptoms}
-            className="bg-[#486284] text-app-text-on-primary rounded-full w-16 h-16 hover:bg-[#3a4d68] transition-all shadow-lg flex items-center justify-center"
-            aria-label="Symptom diktieren"
-          >
-            <Mic className="size-8" aria-hidden="true" />
-          </button>
+        <div className="mt-6 grid grid-cols-3 items-start">
+          <div className="relative flex h-16 w-16 items-center justify-center justify-self-start">
+            <button
+              type="button"
+              onClick={handleClearSymptomText}
+              disabled={isExtractingSymptoms || symptomText.length === 0}
+              className="flex h-16 w-16 items-center justify-center rounded-full bg-red-600 text-white shadow-lg transition-all hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60"
+              aria-label="Freitext löschen"
+              title="Freitext löschen"
+            >
+              <Trash2 className="size-8" aria-hidden="true" />
+            </button>
+            <span
+              className="absolute left-1/2 top-[calc(100%+0.5rem)] min-h-4 w-24 -translate-x-1/2 text-center font-['DM_Sans:Medium',sans-serif] text-xs font-medium text-app-text-primary"
+              style={{ fontVariationSettings: "'opsz' 14" }}
+            >
+              Löschen
+            </span>
+          </div>
 
-          <button
-            onClick={handleApplySymptomText}
-            disabled={isExtractingSymptoms || symptomText.trim().length === 0}
-            className="bg-[#486284] text-app-text-on-primary rounded-full w-16 h-16 hover:bg-[#3a4d68] transition-all shadow-lg flex items-center justify-center disabled:cursor-not-allowed disabled:opacity-60"
-            aria-label="Symptombeschreibung übernehmen"
-          >
-            {isExtractingSymptoms ? (
-              <span className="size-7 animate-spin rounded-full border-4 border-white/35 border-t-white" aria-hidden="true" />
-            ) : (
-              <Check className="size-8" strokeWidth={3} aria-hidden="true" />
-            )}
-          </button>
+          <div className="relative flex h-16 w-16 items-center justify-center justify-self-center">
+            <button
+              type="button"
+              onClick={handleToggleSymptomRecording}
+              disabled={isExtractingSymptoms}
+              className={`text-app-text-on-primary rounded-full w-16 h-16 transition-all shadow-lg flex items-center justify-center disabled:cursor-not-allowed disabled:opacity-60 ${
+                isRecordingSymptoms ? "bg-red-600 hover:bg-red-700 animate-pulse" : "bg-[#486284] hover:bg-[#3a4d68]"
+              }`}
+              aria-label={isRecordingSymptoms ? "Spracheingabe stoppen" : "Symptom diktieren"}
+              aria-pressed={isRecordingSymptoms}
+            >
+              {isRecordingSymptoms ? (
+                <MicOff className="size-8" aria-hidden="true" />
+              ) : (
+                <Mic className="size-8" aria-hidden="true" />
+              )}
+            </button>
+            <span
+              className="absolute left-1/2 top-[calc(100%+0.5rem)] min-h-4 w-48 -translate-x-1/2 text-center font-['DM_Sans:Medium',sans-serif] text-xs font-medium text-app-text-primary"
+              style={{ fontVariationSettings: "'opsz' 14" }}
+            >
+              {isRecordingSymptoms ? `${formattedRecordingElapsed} / ${formattedMaxRecordingDuration}` : "Diktieren"}
+            </span>
+          </div>
+
+          <div className="relative flex h-16 w-16 items-center justify-center justify-self-end">
+            <button
+              type="button"
+              onClick={handleApplySymptomText}
+              disabled={isExtractingSymptoms || symptomText.trim().length === 0}
+              className="flex h-16 w-16 items-center justify-center rounded-full bg-[#486284] text-app-text-on-primary shadow-lg transition-all hover:bg-[#3a4d68] disabled:cursor-not-allowed disabled:opacity-60"
+              aria-label="Symptombeschreibung übernehmen"
+            >
+              {isExtractingSymptoms ? (
+                <span className="size-7 animate-spin rounded-full border-4 border-white/35 border-t-white" aria-hidden="true" />
+              ) : (
+                <Check className="size-8" strokeWidth={3} aria-hidden="true" />
+              )}
+            </button>
+            <span
+              className="absolute left-1/2 top-[calc(100%+0.5rem)] min-h-4 w-24 -translate-x-1/2 text-center font-['DM_Sans:Medium',sans-serif] text-xs font-medium text-app-text-primary"
+              style={{ fontVariationSettings: "'opsz' 14" }}
+            >
+              Bestätigen
+            </span>
+          </div>
         </div>
       </Modal>
     </PageShell>

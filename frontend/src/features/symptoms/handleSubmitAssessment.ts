@@ -1,4 +1,5 @@
-import type { SymptomDetailPayload, SymptomDraft } from "../../types/assessment";
+import { validateSymptomInput } from "../../lib/symptomExtractionApi";
+import type { PatientData, SymptomDetailPayload, SymptomDraft } from "../../types/assessment";
 
 type CompleteSymptomDraft = SymptomDraft & {
   duration: NonNullable<SymptomDraft["duration"]>;
@@ -8,8 +9,59 @@ function hasDuration(symptom: SymptomDraft): symptom is CompleteSymptomDraft {
   return symptom.duration !== undefined;
 }
 
+function validateEditableSymptomNames(symptoms: SymptomDraft[]) {
+  for (const symptom of symptoms) {
+    if (!symptom.isNameEditable) {
+      continue;
+    }
+
+    const symptomName = symptom.region.trim();
+
+    if (!symptomName) {
+      throw new Error("Bitte geben Sie für jedes erkannte Symptom einen Namen ein.");
+    }
+  }
+}
+
+async function validateEditableSymptomMedicalContext(
+  symptoms: SymptomDraft[],
+  patientData?: PatientData,
+) {
+  for (const symptom of symptoms) {
+    if (!symptom.isNameEditable) {
+      continue;
+    }
+
+    const symptomName = symptom.region.trim();
+    const symptomNameResult = await validateSymptomInput(symptomName, "text", patientData);
+
+    if (!symptomNameResult.isValidMedicalInput) {
+      throw new Error(
+        symptomNameResult.message ??
+          "Bitte prüfen Sie den bearbeiteten Symptomnamen. Er muss weiterhin einen medizinischen Kontext beschreiben.",
+      );
+    }
+
+    const details = symptom.details?.trim();
+
+    if (!details) {
+      continue;
+    }
+
+    const detailsResult = await validateSymptomInput(details, "text", patientData);
+
+    if (!detailsResult.isValidMedicalInput) {
+      throw new Error(
+        detailsResult.message ??
+          "Bitte prüfen Sie die bearbeiteten Zusatzdetails. Sie müssen weiterhin einen medizinischen Kontext beschreiben.",
+      );
+    }
+  }
+}
+
 type HandleSubmitAssessmentArgs = {
   symptomDetails: SymptomDraft[];
+  patientData?: PatientData;
   submitAssessment: (symptoms: SymptomDetailPayload[]) => Promise<unknown>;
   navigate: (path: string) => void;
   setShowValidationErrors: (value: boolean) => void;
@@ -19,6 +71,7 @@ type HandleSubmitAssessmentArgs = {
 
 export async function handleSubmitAssessment({
   symptomDetails,
+  patientData,
   submitAssessment,
   navigate,
   setShowValidationErrors,
@@ -36,8 +89,9 @@ export async function handleSubmitAssessment({
 
   const payloadSymptoms: SymptomDetailPayload[] = completeSymptoms.map((symptom) => ({
     id: symptom.id,
-    region: symptom.region,
+    region: symptom.region.trim(),
     side: symptom.side,
+    ...(symptom.details?.trim() ? { details: symptom.details.trim() } : {}),
     measurementType: symptom.measurementType,
     measurementValue: symptom.measurementValue,
     duration: symptom.duration,
@@ -48,6 +102,8 @@ export async function handleSubmitAssessment({
   setIsSubmitting(true);
 
   try {
+    validateEditableSymptomNames(completeSymptoms);
+    await validateEditableSymptomMedicalContext(completeSymptoms, patientData);
     await submitAssessment(payloadSymptoms);
     navigate("/result");
   } catch (error) {

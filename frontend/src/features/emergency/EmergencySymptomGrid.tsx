@@ -1,4 +1,4 @@
-import imgConfusion from "../../assets/emergency/confusion.png";
+import imgConfusion from "../../assets/emergency/stroke.png";
 import imgHeadache from "../../assets/emergency/headache.png";
 import imgHeartPain from "../../assets/emergency/heartpain.png";
 import imgIconAtemnot from "../../assets/emergency/shortness-of-breath.png";
@@ -110,7 +110,7 @@ export default function EmergencySymptomGrid({ onSymptomClick, variant = "mobile
         </button>
       ))}
 
-      {/* Special layout for Starke Kopfschmerzen on desktop */}
+      {/* Dedicated desktop layout for severe headache. */}
       <button
         onClick={onSymptomClick}
         className="bg-[#eff2f6] rounded-[16px] p-3 min-h-[140px] flex items-start gap-3 hover:bg-[#dde3ea] transition-all"

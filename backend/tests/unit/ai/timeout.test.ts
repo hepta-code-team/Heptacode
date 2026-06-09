@@ -4,14 +4,22 @@ import {
   AI_REQUEST_OPTIONS,
   AI_REQUEST_TIMEOUT_MS,
   AiResponseError,
+  createAiRequestOptions,
   isAiRequestError,
 } from '../../../src/ai/timeout.js'
 
 describe('AI timeout configuration', () => {
-  it('definiert ein festes Timeout ohne automatische Retries', () => {
-    expect(AI_REQUEST_TIMEOUT_MS).toBe(30000)
+  it('definiert getrennte Timeouts ohne automatische Retries', () => {
+    expect(AI_REQUEST_TIMEOUT_MS).toEqual({
+      primary: 17_000,
+      fallback: 17_000,
+    })
     expect(AI_REQUEST_OPTIONS).toEqual({
-      timeout: 30000,
+      timeout: 17_000,
+      maxRetries: 0,
+    })
+    expect(createAiRequestOptions(AI_REQUEST_TIMEOUT_MS.fallback)).toEqual({
+      timeout: 17_000,
       maxRetries: 0,
     })
   })

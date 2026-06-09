@@ -1,8 +1,9 @@
-import { requestStructuredAiResponse } from '../../ai/llmAdapter.js'
+import { requestStructuredAiResponseWithModel } from '../../ai/llmAdapter.js'
 import { isAiRequestError } from '../../ai/timeout.js'
 import { extractSymptoms } from '../symptom-extraction/symptomExtraction.service.js'
+import { ApiError } from '../../common/errors/ApiError.js'
+import { getPatientPlausibilityError } from '../../common/patientPlausibility.js'
 import type {
-  MedicalSpecialty,
   PatientData,
   TriageResponse,
   TriageSymptom,
@@ -12,9 +13,7 @@ import type { SymptomInputType } from '../../../../shared/symptomExtraction.type
 import { triageInstructions, createTriagePrompt } from '../prompt/triage.prompt.js'
 
 function createBadRequestError(message: string): Error & { statusCode: number } {
-  const error = new Error(message) as Error & { statusCode: number }
-  error.statusCode = 400
-  return error
+  return new ApiError(400, 'BAD_REQUEST', message) as Error & { statusCode: number }
 }
 
 const DURATION_LABELS: Record<NonNullable<TriageSymptom['duration']>, string> = {
@@ -35,6 +34,24 @@ function hasText(value: string | undefined): value is string {
   return Boolean(value && value.trim().length > 0)
 }
 
+function assertPatientDataIsPlausible(
+  patientData: PatientData | undefined,
+  text: string | undefined,
+  symptoms: TriageSymptom[] | undefined,
+): void {
+  const plausibilityError = getPatientPlausibilityError(patientData, text, symptoms)
+
+  if (plausibilityError) {
+    throw createBadRequestError(plausibilityError)
+  }
+}
+
+/**
+ * Converts patient data into the compact text block used by the triage prompt.
+ *
+ * Optional risk factors are only included when they are present or clinically
+ * meaningful, which keeps the prompt short without dropping relevant context.
+ */
 function buildPatientDataLines(patientData?: PatientData): string[] {
   if (!patientData) {
     return ['Keine Stammdaten uebergeben.']
@@ -80,6 +97,12 @@ function formatPatientData(patientData?: PatientData): string {
   return buildPatientDataLines(patientData).join('\n')
 }
 
+/**
+ * Formats a single symptom measurement into patient-readable German text.
+ *
+ * Temperature uses a real unit while the other measurement types share the
+ * normalized 1-10 scale used by the frontend controls.
+ */
 function formatMeasurement(symptom: TriageSymptom): string | null {
   if (symptom.measurementValue === undefined) {
     return null
@@ -93,6 +116,12 @@ function formatMeasurement(symptom: TriageSymptom): string | null {
   return `${label} ${symptom.measurementValue}/10`
 }
 
+/**
+ * Builds the symptom list that is sent to the triage model.
+ *
+ * Each symptom is kept on its own numbered line so the model can reason about
+ * multiple complaints without losing their measurement and duration context.
+ */
 function formatSymptoms(symptoms: TriageSymptom[]): string {
   if (symptoms.length === 0) {
     return 'Keine Symptome uebergeben.'
@@ -102,6 +131,7 @@ function formatSymptoms(symptoms: TriageSymptom[]): string {
     .map((symptom, index) => {
       const parts = [
         symptom.side ? `${symptom.region} (${symptom.side})` : symptom.region,
+        hasText(symptom.details) ? `Details: ${symptom.details.trim()}` : null,
         formatMeasurement(symptom),
         symptom.duration ? DURATION_LABELS[symptom.duration] : null,
       ].filter((part): part is string => part !== null)
@@ -111,6 +141,36 @@ function formatSymptoms(symptoms: TriageSymptom[]): string {
     .join('\n')
 }
 
+/**
+ * Ensures every triage response has the fields required by presentation layers.
+ *
+ * Some local fallback paths only know the care level and reasons; this fills
+ * reviewSummary from those reasons so callers can render consistently.
+ */
+function attachPresentationFields(result: TriageResponse): TriageResponse {
+  if (result.reviewSummary) {
+    return result
+  }
+
+  const text = result.reasons.length > 0
+    ? result.reasons.join(' ')
+    : `Die Einschätzung ergab das Pflegelevel ${result.careLevel}.`
+
+  return {
+    ...result,
+    reviewSummary: {
+      plainLanguage: text,
+      professionalSummary: text,
+    },
+  }
+}
+
+/**
+ * Converts mixed measurement types into one comparable urgency score.
+ *
+ * Fever is mapped onto the 1-10 severity scale so fallback decisions can compare
+ * temperature-based and slider-based complaints in one place.
+ */
 function getComparableMeasurementValue(symptom: TriageSymptom): number {
   if (symptom.measurementValue === undefined) {
     return 0
@@ -131,99 +191,17 @@ function getComparableMeasurementValue(symptom: TriageSymptom): number {
   return symptom.measurementValue
 }
 
-function inferSpecialistFromSymptoms(symptoms: TriageSymptom[]): MedicalSpecialty | undefined {
-  const primary = symptoms[0]
-
-  if (!primary) {
-    return undefined
-  }
-
-  if (primary.region === 'Psychische Probleme') {
-    return 'psychiatry'
-  }
-
-  if (primary.region === 'Verbrennung') {
-    return 'dermatology'
-  }
-
-  const measurementValue = getComparableMeasurementValue(primary)
-
-  if (primary.region === 'Kopf' && measurementValue >= 5) {
-    return 'neurology'
-  }
-
-  if (primary.region === 'Bauch' && measurementValue >= 5) {
-    return 'gastroenterology'
-  }
-
-  if (primary.region === 'Rücken' || primary.region === 'Arme' || primary.region === 'Beine') {
-    return 'orthopedics'
-  }
-
-  if (primary.region === 'Brust') {
-    if (primary.side === 'Atemabhängig') {
-      return 'pulmonology'
-    }
-
-    return 'cardiology'
-  }
-
-  return undefined
-}
-
-function normalizeTriageResult(
-  result: TriageResponse,
-  symptoms: TriageSymptom[],
-): TriageResponse {
-  if (result.careLevel === 'specialist') {
-    const specialist = result.recommendedSpecialty ?? inferSpecialistFromSymptoms(symptoms) ?? 'internal_medicine'
-
-    return {
-      ...result,
-      recommendedSpecialty: specialist,
-    }
-  }
-
-  return {
-    ...result,
-    recommendedSpecialty: undefined,
-  }
-}
-
-function applySpecialistEscalation(
-  result: TriageResponse,
-  symptoms: TriageSymptom[],
-): TriageResponse {
-  if (result.careLevel !== 'doctor') {
-    return result
-  }
-
-  const inferredSpecialist = inferSpecialistFromSymptoms(symptoms)
-  const primary = symptoms[0]
-
-  if (!inferredSpecialist || !primary) {
-    return result
-  }
-
-  const isPersistent = primary.duration === 'days' || primary.duration === 'week' || primary.duration === 'weeks'
-  const isPronounced = getComparableMeasurementValue(primary) >= 5
-
-  if (!isPersistent && !isPronounced) {
-    return result
-  }
-
-  return {
-    ...result,
-    careLevel: 'specialist',
-    recommendedSpecialty: inferredSpecialist,
-  }
-}
-
+/**
+ * Sends structured patient and symptom context to the AI triage model.
+ *
+ * The schema validation happens before the result leaves this function, so
+ * downstream fallback logic only handles typed triage responses or known errors.
+ */
 async function requestTriageFromAi(
   patientData: PatientData | undefined,
   symptoms: TriageSymptom[],
 ): Promise<TriageResponse> {
-  const parsed = await requestStructuredAiResponse({
+  const { data: parsed, model } = await requestStructuredAiResponseWithModel({
     messages: [
       { role: 'system', content: triageInstructions },
       {
@@ -239,14 +217,25 @@ async function requestTriageFromAi(
     temperature: 0,
   })
 
-  return applySpecialistEscalation(normalizeTriageResult(parsed, symptoms), symptoms)
+  return {
+    ...parsed,
+    aiModel: model,
+  }
 }
 
+/**
+ * Creates a conservative local triage result when AI classification fails.
+ *
+ * The fallback intentionally favors higher urgency for warning patterns because
+ * under-triage is riskier than asking for medical clarification.
+ */
 function createFallbackTriage(symptoms: TriageSymptom[]): TriageResponse {
   const strongestMeasurementValue = Math.max(
     0,
     ...symptoms.map(getComparableMeasurementValue),
   )
+
+  // Mirror the most urgent local safety rules when the AI cannot classify the case.
   const hasEmergencyPattern = symptoms.some((symptom) => {
     const region = symptom.region.toLowerCase()
     const side = symptom.side?.toLowerCase() ?? ''
@@ -276,6 +265,7 @@ function createFallbackTriage(symptoms: TriageSymptom[]): TriageResponse {
   if (hasEmergencyPattern) {
     return {
       careLevel: 'emergency',
+      recommendedSpecialty: 'emergency_medicine',
       reasons: [
         'Die KI-Auswertung ist aktuell nicht verfuegbar.',
         'Die uebergebenen Beschwerden enthalten ein Warnmuster, das vorsichtshalber als Notfall eingestuft wird.',
@@ -287,6 +277,7 @@ function createFallbackTriage(symptoms: TriageSymptom[]): TriageResponse {
   if (strongestMeasurementValue >= 8) {
     return {
       careLevel: 'emergency',
+      recommendedSpecialty: 'emergency_medicine',
       reasons: [
         'Die KI-Auswertung ist aktuell nicht verfuegbar.',
         'Aufgrund der sehr starken Beschwerden wird sicherheitshalber eine Notfallabklaerung empfohlen.',
@@ -298,6 +289,7 @@ function createFallbackTriage(symptoms: TriageSymptom[]): TriageResponse {
   if (strongestMeasurementValue >= 5 || symptoms.length > 0) {
     return {
       careLevel: 'doctor',
+      recommendedSpecialty: 'general_practice',
       reasons: [
         'Die KI-Auswertung ist aktuell nicht verfuegbar.',
         'Bitte lassen Sie die Beschwerden aerztlich einschaetzen, besonders bei Verschlechterung oder anhaltenden Symptomen.',
@@ -308,14 +300,22 @@ function createFallbackTriage(symptoms: TriageSymptom[]): TriageResponse {
 
   return {
     careLevel: 'selfcare',
+    recommendedSpecialty: 'home_care',
     reasons: ['Die KI-Auswertung ist aktuell nicht verfuegbar. Ohne erkannte Symptome ist keine hoehere Dringlichkeit ableitbar.'],
     aiUnavailable: true,
   }
 }
 
+/**
+ * Used when free-text extraction itself is unavailable.
+ *
+ * Without structured symptoms the service cannot safely infer a low urgency, so
+ * it routes the user toward general medical clarification.
+ */
 function createTextExtractionFallbackTriage(): TriageResponse {
   return {
     careLevel: 'doctor',
+    recommendedSpecialty: 'general_practice',
     reasons: [
       'Die KI-Auswertung ist aktuell nicht verfuegbar.',
       'Die Freitext-Beschreibung konnte nicht sicher in Symptome ueberfuehrt werden. Bitte waehlen Sie die Symptome manuell aus oder lassen Sie die Beschwerden aerztlich einschaetzen.',
@@ -324,6 +324,12 @@ function createTextExtractionFallbackTriage(): TriageResponse {
   }
 }
 
+/**
+ * Wraps the AI request with a local fallback for known availability failures.
+ *
+ * Unknown errors are rethrown because they may indicate bugs or invalid request
+ * shapes that should not be hidden behind medical fallback text.
+ */
 async function requestTriageWithFallback(
   patientData: PatientData | undefined,
   symptoms: TriageSymptom[],
@@ -339,6 +345,12 @@ async function requestTriageWithFallback(
   }
 }
 
+/**
+ * Main triage entry point for manual symptoms, emergency shortcuts, and free text.
+ *
+ * The ordering matters: explicit emergency state wins first, then free-text
+ * extraction, and finally already-structured symptom input.
+ */
 export async function evaluateTriage(
   patientData: PatientData | undefined,
   symptoms: TriageSymptom[] | undefined,
@@ -346,9 +358,13 @@ export async function evaluateTriage(
   text?: string,
   inputType: SymptomInputType = 'text',
 ): Promise<TriageResponse> {
+  // The landing-page emergency shortcut bypasses AI so critical symptoms never wait on external services.
+  assertPatientDataIsPlausible(patientData, text, symptoms)
+
   if (emergencyFromLanding) {
     const result: TriageResponse = {
       careLevel: 'emergency',
+      recommendedSpecialty: 'emergency_medicine',
       reasons: ['Notfallmodus ueber die Startseite ausgewaehlt.'],
       reviewSummary: {
         plainLanguage:
@@ -358,7 +374,7 @@ export async function evaluateTriage(
       },
     }
 
-    return result
+    return attachPresentationFields(result)
   }
 
   if (text) {
@@ -374,6 +390,7 @@ export async function evaluateTriage(
       return createTextExtractionFallbackTriage()
     }
 
+    // Free-text input is converted into structured symptoms before the shared triage path runs.
     return requestTriageWithFallback(patientData, extractionResult.symptoms)
   }
 
@@ -382,6 +399,7 @@ export async function evaluateTriage(
   if (triageSymptoms.length === 0) {
     return {
       careLevel: 'selfcare',
+      recommendedSpecialty: 'home_care',
       reasons: [],
       reviewSummary: {
         plainLanguage:

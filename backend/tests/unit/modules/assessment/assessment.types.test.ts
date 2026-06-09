@@ -30,6 +30,7 @@ const validSymptom = {
   id: 'symptom-1',
   region: 'Kopf',
   side: 'links',
+  details: 'Seit dem Aufwachen schlimmer',
   measurementType: 'pain',
   measurementValue: 6,
   duration: 'days',
@@ -101,6 +102,7 @@ describe('assessmentResultSchema', () => {
   it('akzeptiert gueltige KI-Ergebnisse', () => {
     const result = assessmentResultSchema.safeParse({
       careLevel: 'doctor',
+      recommendedSpecialty: 'general_practice',
       reasons: ['Die Beschwerden sollten aerztlich eingeordnet werden.'],
       reviewSummary: {
         plainLanguage: 'Bitte lassen Sie die Beschwerden zeitnah abklaeren.',
@@ -116,6 +118,7 @@ describe('assessmentResultSchema', () => {
   it('lehnt leere Gruende ab', () => {
     const result = assessmentResultSchema.safeParse({
       careLevel: 'doctor',
+      recommendedSpecialty: 'general_practice',
       reasons: [],
       reviewSummary: {
         plainLanguage: 'Bitte lassen Sie die Beschwerden zeitnah abklaeren.',

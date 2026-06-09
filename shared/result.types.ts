@@ -1,10 +1,13 @@
-// Recommendend Levels
+// Supported recommendation levels.
 export const CARE_LEVELS = ["selfcare", "doctor", "specialist", "emergency"] as const;
 
 export type CareLevel = (typeof CARE_LEVELS)[number];
 
-// Defined list of specialists
+// Supported medical specialties.
 export const MEDICAL_SPECIALTIES = [
+    "home_care",
+    "emergency_medicine",
+    "general_practice",
     "internal_medicine",
     "cardiology",
     "neurology",
@@ -23,7 +26,14 @@ export const MEDICAL_SPECIALTIES = [
 
 export type MedicalSpecialty = (typeof MEDICAL_SPECIALTIES)[number];
 
-// Visual result portrayed in frontend
+export interface RecommendedSpecialty {
+  specialty: MedicalSpecialty;
+  label: string;
+  reason: string;
+  priority: number;
+}
+
+// Visual configuration used by the frontend result view.
 export interface ResultConfig {
   title: string;
   color: string;

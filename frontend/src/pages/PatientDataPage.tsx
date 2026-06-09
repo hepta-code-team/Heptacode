@@ -35,6 +35,12 @@ function isNumberInRange(value: string, min: number, max: number) {
   return value !== "" && Number.isFinite(numberValue) && numberValue >= min && numberValue <= max;
 }
 
+/**
+ * Creates the patient-data form state with persisted context values applied.
+ *
+ * Every field starts as a controlled value so validation, navigation, and later
+ * medical-data steps can rely on a complete PatientData object.
+ */
 const createInitialPatientData = (patientData?: Partial<PatientData>): PatientData => ({
   birthMonth: "",
   birthYear: "",
@@ -66,6 +72,12 @@ export default function PatientDataPage() {
   const [mood, setMood] = useState("");
   const [showValidationErrors, setShowValidationErrors] = useState(false);
 
+  /**
+   * Validates only the required demographic fields for the first step.
+   *
+   * Optional clinical information is collected on the next page, so this screen
+   * only blocks navigation for missing or unrealistic core patient data.
+   */
   const isFormValid =
     Boolean(formData.birthMonth && formData.birthYear && formData.gender) &&
     isNumberInRange(formData.height, HEIGHT_MIN, HEIGHT_MAX) &&
@@ -95,6 +107,12 @@ export default function PatientDataPage() {
     navigate("/medical-data");
   };
 
+  /**
+   * Updates gender and clears pregnancy-related fields when they no longer apply.
+   *
+   * This prevents stale pregnancy or breastfeeding values from remaining in the
+   * shared assessment context after a user changes gender.
+   */
   const setGender = (gender: string) => {
     setFormData({
       ...formData,

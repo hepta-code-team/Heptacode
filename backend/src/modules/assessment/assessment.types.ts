@@ -3,6 +3,7 @@ import { CARE_LEVELS, MEDICAL_SPECIALTIES } from '../../../../shared/result.type
 import { SYMPTOM_MEASUREMENT_TYPES, TRIAGE_SYMPTOM_DURATIONS } from '../../../../shared/symptom.types.js'
 import {
   patientDataSchema,
+  recommendedSpecialtyItemSchema,
   reviewSummarySchema,
 } from '../triage/triage.types.js'
 
@@ -15,6 +16,7 @@ export const symptomSchema = z.object({
   id: z.string().min(1),
   region: z.string().min(1),
   side: z.string().optional(),
+  details: z.string().min(1).optional(),
   measurementType: z.enum(SYMPTOM_MEASUREMENT_TYPES),
   measurementValue: z.number(),
   duration: z.enum(TRIAGE_SYMPTOM_DURATIONS),
@@ -29,11 +31,13 @@ export const assessmentPayloadSchema = z.object({
 
 export const assessmentResultSchema = z.object({
   careLevel: z.enum(CARE_LEVELS),
-  recommendedSpecialty: z.enum(MEDICAL_SPECIALTIES).optional(),
+  recommendedSpecialty: z.enum(MEDICAL_SPECIALTIES),
   reasons: z.array(z.string().min(1)).min(1).max(5),
   reviewSummary: reviewSummarySchema,
+  recommendedSpecialties: z.array(recommendedSpecialtyItemSchema).optional(),
   summary: z.string().min(1),
   aiUnavailable: z.boolean().optional(),
+  aiModel: z.string().min(1).optional(),
   createdAt: z.string().min(1),
 })
 

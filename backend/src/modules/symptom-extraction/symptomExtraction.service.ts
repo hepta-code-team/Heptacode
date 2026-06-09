@@ -1,9 +1,11 @@
 import { requestStructuredAiResponse } from '../../ai/llmAdapter.js'
 import { isAiRequestError } from '../../ai/timeout.js'
+import { getPatientPlausibilityError } from '../../common/patientPlausibility.js'
 import type { SymptomExtractionResponse } from './symptomExtraction.types.js'
+import type { PatientData } from '../../../../shared/patientData.types.js'
 import type { SymptomInputType } from '../../../../shared/symptomExtraction.types.js'
-import type { TriageSymptom, TriageSymptomDuration } from '../../../../shared/symptom.types.js'
 import {
+  type SymptomInputValidationResponse,
   symptomExtractionAiResultSchema,
   symptomInputValidationAiResultSchema,
 } from './symptomExtraction.types.js'
@@ -30,108 +32,18 @@ function splitWords(text: string): string[] {
     .filter((part) => part.length > 0)
 }
 
-function inferExplicitScaleValue(text: string): number | null {
-  const normalizedText = normalizeText(text)
-  const scaleMatch = normalizedText.match(/\b(10|[1-9])\s*(?:\/|von)\s*10\b/)
-  const labeledMatch = normalizedText.match(/\b(?:schmerz(?:staerke)?|staerke|intensitaet)\s*(?:ist|von|:)?\s*(10|[1-9])\b/)
-  const rawValue = scaleMatch?.[1] ?? labeledMatch?.[1]
-
-  return rawValue ? Number(rawValue) : null
-}
-
-function inferPainLevel(text: string): number | null {
-  const explicitScaleValue = inferExplicitScaleValue(text)
-
-  if (explicitScaleValue !== null) {
-    return explicitScaleValue
-  }
-
-  const normalizedText = normalizeText(text)
-
-  if (/\b(?:stark|starke|starken|starker|heftig|heftige|heftigen|schlimm|schlimme|schlimmen)\b/.test(normalizedText)) {
-    return 8
-  }
-
-  if (/\b(?:leicht|leichte|leichten|leichter|mild|milde|milden)\b/.test(normalizedText)) {
-    return 3
-  }
-
-  return 5
-}
-
-function inferDuration(text: string): TriageSymptomDuration | null {
-  const normalizedText = normalizeText(text)
-
-  if (
-    /\b(?:seit|ueber)\s+(?:mehreren|einigen|vielen|mehrere|einige|viele|paar)\s+wochen\b/.test(normalizedText)
-    || /\bmehr\s+als\s+(?:2|zwei)\s+wochen\b/.test(normalizedText)
-    || /\b(?:wochenlang|seit\s+wochen|ueber\s+wochen)\b/.test(normalizedText)
-    || /\bseit\s+(?:1[4-9]|[2-9][0-9])\s+tagen\b/.test(normalizedText)
-  ) {
-    return 'weeks'
-  }
-
-  if (
-    /\bseit\s+(?:einer|1)\s+woche\b/.test(normalizedText)
-    || /\bseit\s+(?:7|8|9|10|11|12|13)\s+tagen\b/.test(normalizedText)
-  ) {
-    return 'week'
-  }
-
-  if (
-    /\bseit\s+(?:mehreren|einigen|paar|wenigen|mehrere|einige|wenige|2|3|4|5|6|zwei|drei|vier|fuenf|sechs)\s+tagen\b/.test(normalizedText)
-    || /\b(?:ein\s+paar|mehrere|einige|wenige)\s+tage\b/.test(normalizedText)
-    || /\b(?:seit\s+gestern|gestern)\b/.test(normalizedText)
-  ) {
-    return 'days'
-  }
-
-  if (/\b(?:seit\s+heute|heute|seit\s+1\s+tag|seit\s+einem\s+tag)\b/.test(normalizedText)) {
-    return 'today'
-  }
-
-  return null
-}
-
-function isPainLikeSymptom(symptom: TriageSymptom): boolean {
-  if (symptom.measurementType === 'pain') {
-    return true
-  }
-
-  if (symptom.measurementType || symptom.region === 'Allgemein' || symptom.region === 'Psychische Probleme') {
-    return false
-  }
-
-  return true
-}
-
-function normalizeExtractedSymptoms(text: string, symptoms: TriageSymptom[]): TriageSymptom[] {
-  const inferredDuration = inferDuration(text)
-  const inferredPainLevel = inferPainLevel(text)
-
-  return symptoms.map((symptom) => {
-    const normalizedSymptom: TriageSymptom = { ...symptom }
-
-    if (inferredDuration) {
-      normalizedSymptom.duration = inferredDuration
-    }
-
-    if (isPainLikeSymptom(normalizedSymptom) && inferredPainLevel !== null && normalizedSymptom.measurementValue === undefined) {
-      normalizedSymptom.measurementType = 'pain'
-      normalizedSymptom.measurementValue = inferredPainLevel
-    }
-
-    return normalizedSymptom
-  })
-}
-
-// Offensichtlicher Unsinn wird ohne KI-Aufruf abgefangen, um Kosten und Latenz zu sparen.
+/**
+ * Rejects obvious nonsense before calling the AI.
+ *
+ * The heuristic only catches high-confidence invalid input, because medical
+ * free text can be short or messy and should usually still reach AI validation.
+ */
 function detectHeuristicInvalidInput(text: string): string | null {
   const trimmedText = text.trim()
   const words = splitWords(text)
   const lettersOnlyText = normalizeText(text).replace(/[^a-z]/g, '')
   const uniqueLetters = new Set(lettersOnlyText.split(''))
-  const hasMedicalCue = /(schmerz|weh|fieber|uebel|übel|atem|husten|kopf|bauch|brust|ruecken|rücken|angst|schwindel|krank)/i.test(text)
+  const hasMedicalCue = /(schmerz|weh|fieber|uebel|übel|atem|husten|kopf|bauch|brust|ruecken|rücken|angst|schwindel|krank|verletz|wunde|blut|nagel|getreten|stich|schnitt|biss|bruch|gebroch|verbrenn|verbrueh|verbrüh|haut|ausschlag|juck|geschwoll|taub|erbrech|durchfall|verloren|abgetrennt|amput|fremdkoerper|fremdkörper|verschluckt|vergift)/i.test(text)
 
   if (trimmedText.length < 6) {
     return 'Bitte beschreiben Sie Ihre Beschwerden etwas genauer.'
@@ -157,8 +69,14 @@ function detectHeuristicInvalidInput(text: string): string | null {
   return null
 }
 
+/**
+ * Asks the AI whether the text is medically meaningful.
+ *
+ * This is intentionally separate from extraction so non-medical free text can be
+ * rejected with a clear reason before symptom normalization runs.
+ */
 async function requestInputValidationFromAi(text: string, inputType: SymptomInputType) {
-  // Die KI prüft hier nur, ob der Inhalt überhaupt medizinisch sinnvoll ist.
+  // The AI only checks whether the content is medically meaningful.
   return requestStructuredAiResponse({
     messages: [
       { role: 'system', content: symptomValidationInstructions },
@@ -170,11 +88,68 @@ async function requestInputValidationFromAi(text: string, inputType: SymptomInpu
     schema: symptomInputValidationAiResultSchema,
     schemaName: 'symptom_input_validation_result',
     temperature: 0,
+    modelStrategy: 'fallback-only',
   })
 }
 
+export async function validateSymptomInput(
+  text: string,
+  inputType: SymptomInputType = 'text',
+  patientData?: PatientData,
+): Promise<SymptomInputValidationResponse> {
+  const plausibilityError = getPatientPlausibilityError(patientData, text, undefined)
+
+  if (plausibilityError) {
+    return {
+      text,
+      inputType,
+      isValidMedicalInput: false,
+      message: plausibilityError,
+    }
+  }
+
+  const heuristicInvalidReason = detectHeuristicInvalidInput(text)
+
+  if (heuristicInvalidReason) {
+    return {
+      text,
+      inputType,
+      isValidMedicalInput: false,
+      message: heuristicInvalidReason,
+    }
+  }
+
+  try {
+    const validationResult = await requestInputValidationFromAi(text, inputType)
+
+    return {
+      text,
+      inputType,
+      isValidMedicalInput: validationResult.isValidMedicalInput,
+      message: validationResult.isValidMedicalInput ? undefined : validationResult.reason,
+    }
+  } catch (error) {
+    if (!isAiRequestError(error)) {
+      throw error
+    }
+
+    return {
+      text,
+      inputType,
+      isValidMedicalInput: false,
+      aiUnavailable: true,
+      message: 'Die medizinische Kontextprüfung ist aktuell nicht verfügbar. Bitte versuchen Sie es erneut.',
+    }
+  }
+}
+/**
+ * Extracts up to three normalized symptoms from valid free text.
+ *
+ * The schema accepts known taxonomy entries and free-text medical complaints so
+ * uncommon symptoms are not silently discarded.
+ */
 async function requestSymptomsFromAi(text: string, inputType: SymptomInputType) {
-  // Das model ist auf unsere feste Symptomtaxonomie beschränkt, so dass das Frontend die Ergebnis direkt verarbeiten kann.
+  // Known symptoms are normalized; unknown medical complaints remain as free-text symptoms.
   return requestStructuredAiResponse({
     messages: [
       { role: 'system', content: symptomExtractionInstructions},
@@ -186,13 +161,33 @@ async function requestSymptomsFromAi(text: string, inputType: SymptomInputType) 
     schema: symptomExtractionAiResultSchema,
     schemaName: 'symptom_extraction_result',
     temperature: 0,
+    modelStrategy: 'fallback-only',
   })
 }
 
+/**
+ * Converts free text or speech transcription into structured triage symptoms.
+ *
+ * The flow uses cheap local validation first, then AI validation, and finally AI
+ * extraction so invalid input and service outages produce different responses.
+ */
 export async function extractSymptoms(
   text: string,
   inputType: SymptomInputType = 'text',
+  patientData?: PatientData,
 ): Promise<SymptomExtractionResponse> {
+  const plausibilityError = getPatientPlausibilityError(patientData, text, undefined)
+
+  if (plausibilityError) {
+    return {
+      text,
+      inputType,
+      symptoms: [],
+      invalidInput: true,
+      message: plausibilityError,
+    }
+  }
+
   const heuristicInvalidReason = detectHeuristicInvalidInput(text)
 
   if (heuristicInvalidReason) {
@@ -210,7 +205,7 @@ export async function extractSymptoms(
   try {
     validationResult = await requestInputValidationFromAi(text, inputType)
   } catch (error) {
-    // TA 1.8: Wenn nur die Validierungs-KI ausfaellt, versuchen wir trotzdem die Extraktion.
+    // If validation fails, still attempt extraction so a transient validation outage does not block the flow.
     if (!isAiRequestError(error)) {
       throw error
     }
@@ -231,7 +226,7 @@ export async function extractSymptoms(
   try {
     result = await requestSymptomsFromAi(text, inputType)
   } catch (error) {
-    // TA 1.8: Wenn die Extraktion ausfaellt, antwortet die API kontrolliert statt mit 500.
+    // Return a controlled fallback response if extraction fails instead of surfacing a 500.
     if (!isAiRequestError(error)) {
       throw error
     }
@@ -248,6 +243,6 @@ export async function extractSymptoms(
   return {
     text,
     inputType,
-    symptoms: normalizeExtractedSymptoms(text, result.symptoms),
+    symptoms: result.symptoms,
   }
 }

@@ -66,7 +66,7 @@ describe('triageAiResponseSchema', () => {
     expect(result.success).toBe(false)
   })
 
-  it('lehnt Fachrichtungen fuer Doctor-Antworten ab', () => {
+  it('entfernt Fachrichtungen fuer Doctor-Antworten', () => {
     const result = triageAiResponseSchema.safeParse({
       careLevel: 'doctor',
       recommendedSpecialty: 'neurology',
@@ -77,7 +77,10 @@ describe('triageAiResponseSchema', () => {
       },
     })
 
-    expect(result.success).toBe(false)
+    expect(result.success).toBe(true)
+    if (result.success) {
+      expect(result.data.recommendedSpecialty).toBeUndefined()
+    }
   })
 
   it('lehnt leere reasons ab', () => {

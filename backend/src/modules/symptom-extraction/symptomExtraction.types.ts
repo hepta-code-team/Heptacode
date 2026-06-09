@@ -6,49 +6,212 @@ import {
   TRIAGE_SYMPTOM_DURATIONS,
   type TriageSymptom,
 } from '../../../../shared/symptom.types.js'
-import { getOptionsForRegion, SYMPTOM_REGION_NAMES } from '../../../../shared/symptomTaxonomy.js'
+import {
+  SYMPTOM_REGION_NAMES,
+  SYMPTOM_REGIONS,
+  type SymptomRegionName,
+} from '../../../../shared/symptomTaxonomy.js'
+import { patientDataSchema } from '../triage/triage.types.js'
+import type { PatientData } from '../../../../shared/patientData.types.js'
 
 export type { SymptomExtractionAiResult, TriageSymptom }
 
-// Typ für die Anfrage
+// Request payload for symptom extraction.
 export interface SymptomExtractionRequest {
   symptomText?: string
   text: string
   input?: string
   inputType?: SymptomInputType
+  patientData?: PatientData
 }
 
-// Typ für die Antwort
+// Response payload for symptom extraction.
 export interface SymptomExtractionResponse {
   text: string
   inputType: SymptomInputType
   symptoms: TriageSymptom[]
   invalidInput?: boolean
-  // TA 1.8: true bedeutet, dass keine KI-Antwort rechtzeitig oder strukturiert verfuegbar war.
+  // True when no timely or structured AI response was available.
   aiUnavailable?: boolean
   message?: string
 }
 
+export interface SymptomInputValidationResponse {
+  text: string
+  inputType: SymptomInputType
+  isValidMedicalInput: boolean
+  aiUnavailable?: boolean
+  message?: string
+}
+
+function normalizeLabel(value: string): string {
+  return value
+    .toLowerCase()
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/ß/g, 'ss')
+    .replace(/[^a-z0-9]+/g, '')
+}
+
+function emptyStringOrNullToUndefined(value: unknown): unknown {
+  return value === null || value === '' ? undefined : value
+}
+
+/**
+ * Accepts numeric values even when the AI returns them as localized strings.
+ *
+ * This keeps the schema tolerant of outputs such as "38,5 °C" while still
+ * rejecting non-numeric measurement text through Zod validation.
+ */
+function normalizeMeasurementValue(value: unknown): unknown {
+  if (value === null || value === undefined || value === '') {
+    return undefined
+  }
+
+  if (typeof value === 'number') {
+    return value
+  }
+
+  if (typeof value !== 'string') {
+    return value
+  }
+
+  const numericMatch = value.replace(',', '.').match(/\d+(?:\.\d+)?/)
+
+  if (numericMatch) {
+    return Number(numericMatch[0])
+  }
+
+  return value
+}
+
+const regionByNormalizedLabel = new Map(
+  SYMPTOM_REGION_NAMES.map((region) => [normalizeLabel(region), region] as const),
+)
+
+const optionByNormalizedLabel = new Map(
+  SYMPTOM_REGIONS.flatMap((region) =>
+    region.options.map((option) => [
+      normalizeLabel(option),
+      {
+        region: region.name,
+        option,
+      },
+    ] as const),
+  ),
+)
+
+function normalizeRegion(value: string): SymptomRegionName | undefined {
+  return regionByNormalizedLabel.get(normalizeLabel(value))
+}
+
+function normalizeOption(value: string): { region: SymptomRegionName; option: string } | undefined {
+  const normalizedValue = normalizeLabel(value)
+  return optionByNormalizedLabel.get(normalizedValue)
+}
+
+function isFeverSymptom(region: string, side?: string): boolean {
+  return normalizeLabel(region) === 'fieber' || (
+    normalizeLabel(region) === 'allgemein' &&
+    side !== undefined &&
+    normalizeLabel(side) === 'fieber'
+  )
+}
+
+function normalizeDetails(value: string | undefined): string | undefined {
+  if (!value) {
+    return undefined
+  }
+
+  const cleaned = value
+    .replace(/\b(?:seit\s+)?(?:heute|gestern)\b/gi, ' ')
+    .replace(/\bseit\s+(?:ein\s+paar|mehreren?|einigen?|wenigen?|[2-6])\s+tag(?:en|e)?\b/gi, ' ')
+    .replace(/\bseit\s+(?:einer\s+)?woche\b/gi, ' ')
+    .replace(/\bseit\s+(?:mehr\s+als\s+)?(?:zwei|2)\s+woch(?:en|e)\b/gi, ' ')
+    .replace(/\b(?:leicht|mittel|mittelstark(?:e|er|en|es)?|maessig|mäßig|stark(?:e|er|en|es)?|sehr\s+stark(?:e|er|en|es)?)\b/gi, ' ')
+    .replace(/\b\d{1,2}\s*(?:\/|von)\s*10\b/gi, ' ')
+    .replace(/\b(?:schmerzstaerke|schmerzstärke|staerke|stärke|beschwerdestaerke|beschwerdestärke)\s*:?\s*\d{1,2}\b/gi, ' ')
+    .replace(/[;,]\s*(?=[;,])/g, '')
+    .replace(/^[\s,;:-]+|[\s,;:-]+$/g, '')
+    .replace(/\s{2,}/g, ' ')
+    .trim()
+
+  return cleaned.length > 0 ? cleaned : undefined
+}
+
+function isDuplicateSymptomDetail(details: string | undefined, region: string, side?: string): boolean {
+  if (!details) {
+    return false
+  }
+
+  const normalizedDetails = normalizeLabel(details)
+  const normalizedRegion = normalizeLabel(region)
+  const normalizedSide = side ? normalizeLabel(side) : undefined
+
+  return (
+    normalizedDetails === normalizedRegion ||
+    normalizedDetails === `${normalizedRegion}schmerz` ||
+    normalizedDetails === `${normalizedRegion}schmerzen` ||
+    normalizedDetails === normalizedSide ||
+    (normalizedSide !== undefined && (
+      normalizedDetails === `${normalizedSide}schmerz` ||
+      normalizedDetails === `${normalizedSide}schmerzen`
+    ))
+  )
+}
+
+
+/**
+ * Validates and normalizes one extracted symptom from AI output.
+ *
+ * The transform accepts either a known region or a known option as the region
+ * field, then rewrites it into the canonical region/side pair used by triage.
+ */
 export const extractedSymptomSchema = z
   .object({
-    region: z.enum(SYMPTOM_REGION_NAMES),
-    side: z.string().min(1).optional(),
-    measurementType: z.enum(SYMPTOM_MEASUREMENT_TYPES).optional(),
-    measurementValue: z.number().optional(),
-    duration: z.enum(TRIAGE_SYMPTOM_DURATIONS).optional(),
+    region: z.string().min(1),
+    side: z.preprocess(emptyStringOrNullToUndefined, z.string().min(1).optional()),
+    details: z.preprocess(emptyStringOrNullToUndefined, z.string().min(1).optional()),
+    measurementType: z
+      .preprocess(emptyStringOrNullToUndefined, z.enum(SYMPTOM_MEASUREMENT_TYPES).optional())
+      .catch(undefined),
+    measurementValue: z
+      .preprocess(normalizeMeasurementValue, z.number().optional())
+      .catch(undefined),
+    duration: z
+      .preprocess(emptyStringOrNullToUndefined, z.enum(TRIAGE_SYMPTOM_DURATIONS).optional())
+      .catch(undefined),
   })
-  .superRefine((value, context) => {
-    if (!value.side) {
-      return
-    }
+  .transform((value) => {
+    const normalizedRegion = normalizeRegion(value.region)
+    const regionAsOption = normalizeOption(value.region)
+    const normalizedSide = value.side ? normalizeOption(value.side) : undefined
+    const region = normalizedRegion ?? regionAsOption?.region ?? value.region
+    const side =
+      normalizedSide && normalizedSide.region === region
+        ? normalizedSide.option
+        : regionAsOption && regionAsOption.region === region
+          ? regionAsOption.option
+          : value.side
+    const hasInvalidTemperatureMeasurement = value.measurementType === 'temperature' && !isFeverSymptom(region, side)
+    const measurementType = hasInvalidTemperatureMeasurement ? 'pain' : value.measurementType
+    const measurementValue = hasInvalidTemperatureMeasurement ? undefined : value.measurementValue
+    const normalizedDetails = normalizeDetails(value.details)
+    const details = isDuplicateSymptomDetail(normalizedDetails, region, side)
+      ? undefined
+      : normalizedDetails
+    const symptom = { ...value }
+    delete symptom.measurementType
+    delete symptom.measurementValue
+    delete symptom.details
 
-    const allowedOptions = getOptionsForRegion(value.region)
-    if (!allowedOptions.includes(value.side)) {
-      context.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ['side'],
-        message: `side must be one of the options for region "${value.region}"`,
-      })
+    return {
+      ...symptom,
+      region,
+      ...(side ? { side } : {}),
+      ...(details ? { details } : {}),
+      ...(measurementType ? { measurementType } : {}),
+      ...(measurementValue !== undefined ? { measurementValue } : {}),
     }
   })
 
@@ -62,13 +225,14 @@ export const symptomInputValidationAiResultSchema = z.object({
   reason: z.string().min(1),
 })
 
-// Also ich habe hier symptomText hinzugefügt da wir das in TA1.4 haben wollen.
+// Accept legacy and current text fields while requiring at least one input value.
 export const symptomExtractionRequestSchema = z
   .object({
     symptomText: z.string().trim().min(1).optional(),
     text: z.string().trim().min(1).optional(),
     input: z.string().trim().min(1).optional(),
     inputType: z.enum(SYMPTOM_INPUT_TYPES).optional(),
+    patientData: patientDataSchema.optional(),
   })
   .refine((value) => Boolean(value.symptomText ?? value.text ?? value.input), {
     message: 'symptomText is required',

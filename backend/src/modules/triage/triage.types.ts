@@ -7,6 +7,7 @@ import {
 import type {
   CareLevel,
   MedicalSpecialty,
+  RecommendedSpecialty,
 } from '../../../../shared/result.types.js'
 import { SYMPTOM_INPUT_TYPES } from '../../../../shared/symptomExtraction.types.js'
 import type { SymptomInputType } from '../../../../shared/symptomExtraction.types.js'
@@ -20,6 +21,7 @@ export type { PatientData } from '../../../../shared/patientData.types.js'
 export type {
   CareLevel,
   MedicalSpecialty,
+  RecommendedSpecialty,
 } from '../../../../shared/result.types.js'
 export type { TriageSymptom } from '../../../../shared/symptom.types.js'
 
@@ -32,6 +34,13 @@ export const careLevelSchema = z.enum(CARE_LEVELS)
 
 export const medicalSpecialtySchema = z.enum(MEDICAL_SPECIALTIES)
 
+export const recommendedSpecialtyItemSchema = z.object({
+  specialty: medicalSpecialtySchema,
+  label: z.string().min(1),
+  reason: z.string().min(1),
+  priority: z.number(),
+})
+
 export interface TriageRequest {
   patientData?: PatientData
   symptoms?: TriageSymptom[]
@@ -43,9 +52,11 @@ export interface TriageRequest {
 export interface TriageResponse {
   careLevel: CareLevel
   recommendedSpecialty?: MedicalSpecialty
+  recommendedSpecialties?: RecommendedSpecialty[]
   reasons: string[]
   reviewSummary?: ReviewSummary
   aiUnavailable?: boolean
+  aiModel?: string
 }
 
 export const reviewSummarySchema = z.object({
@@ -76,6 +87,7 @@ export const patientDataSchema = z.object({
 export const triageSymptomSchema = z.object({
   region: z.string().min(1),
   side: z.string().min(1).optional(),
+  details: z.string().min(1).optional(),
   measurementType: z.enum(SYMPTOM_MEASUREMENT_TYPES).optional(),
   measurementValue: z.number().optional(),
   duration: z.enum(TRIAGE_SYMPTOM_DURATIONS).optional(),

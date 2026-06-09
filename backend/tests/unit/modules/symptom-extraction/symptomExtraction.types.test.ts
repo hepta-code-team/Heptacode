@@ -24,6 +24,33 @@ describe('symptomExtractionRequestSchema', () => {
     expect(result.success).toBe(true)
   })
 
+  it('akzeptiert Patientendaten fuer fruehe Plausibilitaetspruefungen', () => {
+    const result = symptomExtractionRequestSchema.safeParse({
+      symptomText: 'Ich habe Bauchschmerzen.',
+      patientData: {
+        birthMonth: '05',
+        birthYear: '1988',
+        height: '175',
+        weight: '78',
+        gender: 'Maennlich',
+        isPregnant: false,
+        isBreastfeeding: false,
+        allergies: '',
+        medications: '',
+        substanceInfluence: 'Nein',
+        recentAbroad: false,
+        recentAbroadDetails: '',
+        conditions: [],
+        isSmoker: false,
+        smokingSinceYears: '',
+        cigarettesPerDay: '',
+        conditionDetails: {},
+      },
+    })
+
+    expect(result.success).toBe(true)
+  })
+
   it('lehnt Anfragen ohne Freitext ab', () => {
     const result = symptomExtractionRequestSchema.safeParse({})
 
@@ -56,12 +83,168 @@ describe('symptomExtractionAiResultSchema', () => {
     expect(result.success).toBe(false)
   })
 
-  it('lehnt unbekannte Regionen ab', () => {
+  it('akzeptiert unbekannte extrahierte Beschwerden als Freitext-Region', () => {
     const result = symptomExtractionAiResultSchema.safeParse({
-      symptoms: [{ region: 'Unbekannt' }],
+      symptoms: [{ region: 'Husten', measurementType: 'severity', measurementValue: 5 }],
     })
 
-    expect(result.success).toBe(false)
+    expect(result.success).toBe(true)
+    expect(result.data?.symptoms[0]).toMatchObject({
+      region: 'Husten',
+      measurementType: 'severity',
+      measurementValue: 5,
+    })
+  })
+
+  it('akzeptiert relevante Zusatzdetails zu extrahierten Symptomen', () => {
+    const result = symptomExtractionAiResultSchema.safeParse({
+      symptoms: [
+        {
+          region: 'Verbrennung',
+          details: 'Kochendes Wasser ueber Arm geschuettet',
+          measurementType: 'severity',
+        },
+      ],
+    })
+
+    expect(result.success).toBe(true)
+    expect(result.data?.symptoms[0]).toMatchObject({
+      region: 'Verbrennung',
+      details: 'Kochendes Wasser ueber Arm geschuettet',
+      measurementType: 'severity',
+    })
+  })
+
+  it('entfernt Dauer und Staerke aus Zusatzdetails', () => {
+    const result = symptomExtractionAiResultSchema.safeParse({
+      symptoms: [
+        {
+          region: 'Bauch',
+          details: 'Mittelstarke Bauchschmerzen seit ein paar Tagen',
+          measurementType: 'pain',
+          measurementValue: 5,
+          duration: 'days',
+        },
+      ],
+    })
+
+    expect(result.success).toBe(true)
+    expect(result.data?.symptoms[0]).toEqual({
+      region: 'Bauch',
+      measurementType: 'pain',
+      measurementValue: 5,
+      duration: 'days',
+    })
+  })
+
+  it('behaelt echte Zusatzdetails trotz genannter Staerke und Dauer', () => {
+    const result = symptomExtractionAiResultSchema.safeParse({
+      symptoms: [
+        {
+          region: 'Verbrennung',
+          details: 'Mittelstark, seit heute, kochendes Wasser ueber Arm geschuettet',
+          measurementType: 'pain',
+          measurementValue: 5,
+          duration: 'today',
+        },
+      ],
+    })
+
+    expect(result.success).toBe(true)
+    expect(result.data?.symptoms[0]).toEqual({
+      region: 'Verbrennung',
+      details: 'kochendes Wasser ueber Arm geschuettet',
+      measurementType: 'pain',
+      measurementValue: 5,
+      duration: 'today',
+    })
+  })
+
+  it('normalisiert faelschliche Temperaturmessung bei Verbrennung auf Schmerzskala', () => {
+    const result = symptomExtractionAiResultSchema.safeParse({
+      symptoms: [
+        {
+          region: 'Verbrennung',
+          details: 'Kochendes Wasser ueber Arm geschuettet',
+          measurementType: 'temperature',
+          measurementValue: 100,
+        },
+      ],
+    })
+
+    expect(result.success).toBe(true)
+    expect(result.data?.symptoms[0]).toEqual({
+      region: 'Verbrennung',
+      details: 'Kochendes Wasser ueber Arm geschuettet',
+      measurementType: 'pain',
+    })
+  })
+
+  it('behaelt Temperaturmessung bei Fieber', () => {
+    const result = symptomExtractionAiResultSchema.safeParse({
+      symptoms: [
+        {
+          region: 'Allgemein',
+          side: 'Fieber',
+          measurementType: 'temperature',
+          measurementValue: 39.2,
+        },
+      ],
+    })
+
+    expect(result.success).toBe(true)
+    expect(result.data?.symptoms[0]).toEqual({
+      region: 'Allgemein',
+      side: 'Fieber',
+      measurementType: 'temperature',
+      measurementValue: 39.2,
+    })
+  })
+
+  it('akzeptiert unbekannte Unteroptionen fuer bekannte Regionen', () => {
+    const result = symptomExtractionAiResultSchema.safeParse({
+      symptoms: [{ region: 'Allgemein', side: 'Husten' }],
+    })
+
+    expect(result.success).toBe(true)
+    expect(result.data?.symptoms[0]).toMatchObject({
+      region: 'Allgemein',
+      side: 'Husten',
+    })
+  })
+
+  it('normalisiert Freitext-Symptome nicht ueber Teiltreffer auf vorhandene Optionen', () => {
+    const result = symptomExtractionAiResultSchema.safeParse({
+      symptoms: [{ region: 'Juckender Ausschlag am Fuss' }],
+    })
+
+    expect(result.success).toBe(true)
+    expect(result.data?.symptoms[0]).toMatchObject({
+      region: 'Juckender Ausschlag am Fuss',
+    })
+  })
+
+  it('leitet Messwerte nicht lokal aus Intensitaetswoertern ab', () => {
+    const result = symptomExtractionAiResultSchema.safeParse({
+      symptoms: [{ region: 'Kopf', measurementType: 'pain', measurementValue: 'stark' }],
+    })
+
+    expect(result.success).toBe(true)
+    expect(result.data?.symptoms[0]).toEqual({
+      region: 'Kopf',
+      measurementType: 'pain',
+    })
+  })
+
+  it('leitet Dauer nicht lokal aus Freitext ab', () => {
+    const result = symptomExtractionAiResultSchema.safeParse({
+      symptoms: [{ region: 'Kopf', duration: 'seit heute' }],
+    })
+
+    expect(result.success).toBe(true)
+    expect(result.data?.symptoms[0]).toEqual({
+      region: 'Kopf',
+    })
   })
 })
 

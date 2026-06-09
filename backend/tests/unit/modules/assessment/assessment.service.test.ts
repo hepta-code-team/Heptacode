@@ -37,6 +37,7 @@ function createPayload(): AssessmentPayload {
         id: 'symptom-1',
         region: 'Kopf',
         side: 'links',
+        details: 'Seit dem Aufwachen schlimmer',
         measurementType: 'pain',
         measurementValue: 7,
         duration: 'days',
@@ -80,6 +81,7 @@ describe('evaluateAssessmentWithAi', () => {
         {
           region: 'Kopf',
           side: 'links',
+          details: 'Seit dem Aufwachen schlimmer',
           measurementType: 'pain',
           measurementValue: 7,
           duration: 'days',
@@ -103,6 +105,7 @@ describe('evaluateAssessmentWithAi', () => {
     expect(result.summary).toBe(result.reviewSummary.plainLanguage)
     expect(result.reviewSummary.professionalSummary).toContain('Geburtsjahr: 1990')
     expect(result.reviewSummary.professionalSummary).toContain('Kopf (links)')
+    expect(result.reviewSummary.professionalSummary).toContain('Details: Seit dem Aufwachen schlimmer')
     expect(result.reviewSummary.professionalSummary).toContain('Schmerzstaerke: 7/10')
   })
 
