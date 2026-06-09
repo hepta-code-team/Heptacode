@@ -147,6 +147,65 @@ function formatValue(value?: string | number | null): string {
   return String(value)
 }
 
+function formatIsoDate(value: string): string {
+  const match = value.match(/^(\d{4})-(\d{2})-(\d{2})$/)
+
+  if (!match) {
+    return value
+  }
+
+  return `${match[3]}.${match[2]}.${match[1]}`
+}
+
+function splitTravelDetails(details: string) {
+  const [country = '', startDate = '', endDate = ''] = details.split('|').map((part) => part.trim())
+
+  if (startDate || endDate) {
+    return { country, startDate, endDate }
+  }
+
+  return { country: details.trim(), startDate: '', endDate: '' }
+}
+
+function formatTravelDisplay(value: string): string {
+  const { country, startDate, endDate } = splitTravelDetails(value)
+  const formattedStartDate = startDate ? formatIsoDate(startDate) : ''
+  const formattedEndDate = endDate ? formatIsoDate(endDate) : ''
+
+  if (country && formattedStartDate && formattedEndDate) {
+    return `${country}, ${formattedStartDate} bis ${formattedEndDate}`
+  }
+
+  if (country && formattedStartDate) {
+    return `${country}, ab ${formattedStartDate}`
+  }
+
+  if (country && formattedEndDate) {
+    return `${country}, bis ${formattedEndDate}`
+  }
+
+  return country || formattedStartDate || formattedEndDate || value
+}
+
+function formatRecentAbroad(data: PatientData): string {
+  if (!data.recentAbroad) {
+    return 'Nein'
+  }
+
+  return formatTravelDisplay(data.recentAbroadDetails) || 'Ja'
+}
+
+function normalizeTravelSummaryLine(line: string): string {
+  return line.replace(
+    /^(Reise ins Ausland|Auslandsreise|Auslandsaufenthalt(?: letzte 3 Monate)?):\s*(.+)$/i,
+    (match, label: string, value: string) => {
+      const formattedValue = formatTravelDisplay(value)
+
+      return formattedValue ? `${label}: ${formattedValue}` : match
+    },
+  )
+}
+
 function summarizePatient(data?: PatientData): string {
   if (!data) {
     return 'Keine Stammdaten vorhanden.'
@@ -162,8 +221,7 @@ function summarizePatient(data?: PatientData): string {
     `Allergien: ${data.allergies || '-'}`,
     `Medikamente: ${data.medications || '-'}`,
     `Substanzbeeinflussung: ${data.substanceInfluence || 'Nein'}`,
-    `Reise ins Ausland: ${data.recentAbroad ? data.recentAbroadDetails || 'Ja' : 'Nein'
-    }`,
+    `Reise ins Ausland: ${formatRecentAbroad(data)}`,
     data.conditions.length > 0
       ? `Vorerkrankungen: ${data.conditions.join(', ')}`
       : 'Vorerkrankungen: —',
@@ -282,7 +340,7 @@ function normalizePatientSummaryLines(lines: string[]): string[] {
     }
 
     normalizedLines.push(
-      trimmedLine
+      normalizeTravelSummaryLine(trimmedLine)
         .replace(/^Details zu Vorerkrankungen:\s*Sonstige(?:s)?\s*:\s*/i, 'Details zu Vorerkrankungen: ')
         .replace(/^Details zur Vorerkrankung:\s*Sonstige(?:s)?\s*:\s*/i, 'Details zu Vorerkrankungen: ')
         .replace(/^Details zu Vorerkrankungen:\s*([^:;]+):\s*/i, 'Details zu Vorerkrankungen: ')
