@@ -168,7 +168,7 @@ async function requestWithModel<TSchema extends z.ZodTypeAny>(
     const validated = schema.safeParse(parsedJson)
 
     if (!validated.success) {
-      console.warn('AI JSON validation failed' {
+      console.warn('AI JSON validation failed', {
         model,
         schemaName,
         issues: validated.error.issues,
