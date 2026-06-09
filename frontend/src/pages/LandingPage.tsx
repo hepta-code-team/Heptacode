@@ -13,7 +13,8 @@ export default function LandingPage() {
     const [isEmergencyInfoOpen, setIsEmergencyInfoOpen] = useState(false);
 
     const handleEmergencySymptom = () => {
-        // Red-flag symptoms always route directly to the emergency result.
+        // Red Flag symptoms always lead to emergency
+        resetAssessment();
         navigate("/result?emergency=true");
     };
 
