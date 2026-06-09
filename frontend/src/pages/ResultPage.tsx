@@ -294,11 +294,13 @@ export default function ResultPage() {
       : TRIAGE_CONFIGS[careLevel === "specialist" ? "doctor" : careLevel];
 
   const callAction =
-    careLevel === "emergency"
-      ? { href: "tel:112", label: "112 anrufen", description: "Notruf" }
-      : careLevel === "doctor"
-        ? { href: "tel:116117", label: "116 117 anrufen", description: "Ärztlicher Bereitschaftsdienst" }
-        : null;
+      careLevel === "emergency"
+          ? {href: "tel:112", label: "112 anrufen", description: "Notruf"}
+          : careLevel === "doctor"
+              ? {href: "tel:116117", label: "Ärztlicher Bereitschaftsdienst (116 117)", description: "Ärztlicher Bereitschaftsdienst"}
+              : recommendedSpecialty === "psychiatry"
+                  ? {href: "tel:0800 1110111", label: "Telefonseelsorge (0800 1110111)", description: "Telefonseelsorge"}
+                  : null;
 
   const explanationReasons = assessmentResult?.reasons?.length
     ? assessmentResult.reasons
