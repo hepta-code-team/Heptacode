@@ -117,6 +117,7 @@ function MedicalAccordionPanel({
   isOpen,
   onToggle,
   summary,
+  isCompleted = false,
   children,
 }: {
   title: string;
@@ -124,10 +125,15 @@ function MedicalAccordionPanel({
   isOpen: boolean;
   onToggle: () => void;
   summary: string;
+  isCompleted?: boolean;
   children: ReactNode;
 }) {
   return (
-    <div className="bg-[#eff2f6] rounded-[14px] p-3">
+    <div
+      className={`rounded-[14px] border-2 p-3 transition-all ${
+        isCompleted ? "border-[#486284] bg-[#eff2f6]" : "border-transparent bg-[#eff2f6]"
+      }`}
+    >
       <button
         type="button"
         onClick={onToggle}
@@ -246,6 +252,27 @@ export default function MedicalDataPage() {
     }));
   };
 
+  const toggleConditionSelection = (condition: string) => {
+    if (formData.conditions.includes(condition)) {
+      setFormData((prev) => {
+        const { [condition]: _removedDetail, ...nextConditionDetails } = prev.conditionDetails ?? {};
+
+        return {
+          ...prev,
+          conditions: prev.conditions.filter((selectedCondition) => selectedCondition !== condition),
+          conditionDetails: nextConditionDetails,
+        };
+      });
+      setExpandedConditionDetails((sections) => ({
+        ...sections,
+        [condition]: false,
+      }));
+      return;
+    }
+
+    toggleConditionDropdown(condition);
+  };
+
   /**
    * Selects a predefined detail and ensures the parent condition is active.
    *
@@ -358,7 +385,8 @@ export default function MedicalDataPage() {
             icon={CircleAlert}
             isOpen={expandedMedicalSections.allergies}
             onToggle={() => toggleMedicalSection("allergies")}
-            summary={formData.allergies ? "Angaben hinterlegt" : "Optional ergänzen"}
+            summary={formData.allergies.trim() || "Optional ergänzen"}
+            isCompleted={Boolean(formData.allergies.trim())}
           >
             <Label htmlFor="allergies" className="sr-only">
               Allergien / Unverträglichkeiten
@@ -377,7 +405,8 @@ export default function MedicalDataPage() {
             icon={Pill}
             isOpen={expandedMedicalSections.medications}
             onToggle={() => toggleMedicalSection("medications")}
-            summary={formData.medications ? "Angaben hinterlegt" : "Optional ergänzen"}
+            summary={formData.medications.trim() || "Optional ergänzen"}
+            isCompleted={Boolean(formData.medications.trim())}
           >
             <Label htmlFor="medications" className="sr-only">
               Aktuelle Medikamente
@@ -397,6 +426,7 @@ export default function MedicalDataPage() {
             isOpen={expandedMedicalSections.substance}
             onToggle={() => toggleMedicalSection("substance")}
             summary={formData.substanceInfluence === "Nein" ? "Nein ausgewählt" : formData.substanceInfluence}
+            isCompleted={formData.substanceInfluence !== "Nein"}
           >
             <div className="grid grid-cols-2 gap-2">
               {["Nein", "Alkohol", "Drogen", "Medikamente"].map((option) => {
@@ -420,6 +450,7 @@ export default function MedicalDataPage() {
             isOpen={expandedMedicalSections.abroad}
             onToggle={() => toggleMedicalSection("abroad")}
             summary={formData.recentAbroad ? formData.recentAbroadDetails || "Ja ausgewählt" : "Nein ausgewählt"}
+            isCompleted={formData.recentAbroad}
           >
             <div className="grid grid-cols-2 gap-2 mb-2">
               {[
@@ -640,7 +671,7 @@ export default function MedicalDataPage() {
               <div key={condition} className="relative">
                 <button
                   type="button"
-                  onClick={() => toggleConditionDropdown(condition)}
+                  onClick={() => toggleConditionSelection(condition)}
                   className={`bg-[#eff2f6] rounded-[10px] p-3 min-h-[82px] w-full flex flex-col items-center justify-center gap-2 text-center transition-all ${
                     isSelected ? "ring-2 ring-[#486284]" : "hover:bg-[#dde3ea]"
                   }`}
