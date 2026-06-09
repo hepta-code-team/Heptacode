@@ -11,15 +11,15 @@ import {
 describe('AI timeout configuration', () => {
   it('definiert getrennte Timeouts ohne automatische Retries', () => {
     expect(AI_REQUEST_TIMEOUT_MS).toEqual({
-      primary: 17_000,
-      fallback: 17_000,
+      primary: 40_000,
+      fallback: 22_000,
     })
     expect(AI_REQUEST_OPTIONS).toEqual({
-      timeout: 17_000,
+      timeout: 40_000,
       maxRetries: 0,
     })
     expect(createAiRequestOptions(AI_REQUEST_TIMEOUT_MS.fallback)).toEqual({
-      timeout: 17_000,
+      timeout: 22_000,
       maxRetries: 0,
     })
   })
