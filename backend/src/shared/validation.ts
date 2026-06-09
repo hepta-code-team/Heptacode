@@ -46,6 +46,12 @@ export const triageAiResponseSchema = z
     }
   })
   .transform((value) => {
+    if (value.careLevel === 'emergency') {
+      return {
+        ...value,
+        recommendedSpecialty: 'emergency_medicine',
+      }
+    }
     if (value.careLevel !== 'specialist' && isSpecialistSpecialty(value.recommendedSpecialty)) {
       return {
         ...value,
