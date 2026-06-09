@@ -1161,7 +1161,7 @@ export default function SymptomSelectionPage() {
               className="absolute left-1/2 top-[calc(100%+0.5rem)] min-h-4 w-24 -translate-x-1/2 text-center font-['DM_Sans:Medium',sans-serif] text-xs font-medium text-app-text-primary"
               style={{ fontVariationSettings: "'opsz' 14" }}
             >
-              Bestätigen
+              {isExtractingSymptoms ? "Lädt..." : "Bestätigen"}
             </span>
           </div>
         </div>
