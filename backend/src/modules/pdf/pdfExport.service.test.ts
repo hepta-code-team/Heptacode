@@ -79,13 +79,58 @@ describe('createPdfSummary', () => {
 
     expect(result.sections[0]?.content).toContain('Patientendaten:\nGeburtsdatum: 01/2000')
     expect(result.sections[0]?.content).toContain('Größe: 175 cm')
-    expect(result.sections[0]?.content).toContain(
-      'Details zu Vorerkrankungen: Schilddrüsenunterfunktion',
-    )
+    expect(result.sections[0]?.content).not.toContain('Details zu Vorerkrankungen')
     expect(result.sections[0]?.content).toContain(
       'Beschwerden:\n1. Brust (Brustmitte)\nSchmerzstärke: 7/10\nDauer: Seit ein paar Tagen',
     )
     expect(result.sections[0]?.content).not.toContain('Stammdaten:')
     expect(result.sections[0]?.content).not.toContain('Ausgewählte Symptome:')
+  })
+
+  it('formatiert Reisedetails in Patientendaten lesbar', async () => {
+    const result = await createPdfSummary({
+      reviewSummary: {
+        plainLanguage: 'Die Beschwerden wurden zusammengefasst.',
+        professionalSummary: '',
+      },
+      patientData: {
+        birthMonth: '01',
+        birthYear: '1990',
+        height: '170',
+        weight: '70',
+        gender: 'female',
+        isPregnant: false,
+        isBreastfeeding: false,
+        allergies: '',
+        medications: '',
+        substanceInfluence: '',
+        recentAbroad: true,
+        recentAbroadDetails: 'Kroatien | 2026-06-01 | 2026-06-14',
+        conditions: [],
+        isSmoker: false,
+        smokingSinceYears: '',
+        cigarettesPerDay: '',
+        conditionDetails: {},
+      },
+    })
+
+    expect(result.sections[0]?.content).toContain('Reise ins Ausland: Kroatien, 01.06.2026 bis 14.06.2026')
+  })
+
+  it('normalisiert Reisedetails aus strukturierten Zusammenfassungen', async () => {
+    const result = await createPdfSummary({
+      reviewSummary: {
+        plainLanguage: 'Die Beschwerden wurden zusammengefasst.',
+        professionalSummary: [
+          'Patientendaten:',
+          'Reise ins Ausland: Kroatien | 2026-06-01 | 2026-06-14',
+          '',
+          'Beschwerden:',
+          'Keine Beschwerden vorhanden.',
+        ].join('\n'),
+      },
+    })
+
+    expect(result.sections[0]?.content).toContain('Reise ins Ausland: Kroatien, 01.06.2026 bis 14.06.2026')
   })
 })
