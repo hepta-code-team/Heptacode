@@ -1,6 +1,6 @@
-import {useEffect, useState} from "react";
-import {useNavigate, useSearchParams} from "react-router";
-import {Edit3, PhoneCall} from "lucide-react";
+import { useEffect, useState } from "react";
+import { useNavigate, useSearchParams } from "react-router";
+import { ChevronDown, Edit3, PhoneCall } from "lucide-react";
 import PageShell from "../components/PageShell";
 import ResultCard from "../features/results/ResultCard";
 import Button from "../components/Button";
@@ -263,41 +263,35 @@ function formatTravelDisplay(value: string) {
 }
 
 export default function ResultPage() {
-    const navigate = useNavigate();
-    const [searchParams] = useSearchParams();
-    const {
-        patientData,
-        setPatientData,
-        symptomDetails,
-        assessmentResult,
-        setAssessmentResult,
-        resetAssessment
-    } = useAssessment();
-    const [isEditingSummary, setIsEditingSummary] = useState(false);
-    const [patientDataDraft, setPatientDataDraft] = useState<PatientData | null>(null);
-    const [conditionListDraft, setConditionListDraft] = useState("");
-    const [travelCountryDraft, setTravelCountryDraft] = useState("");
-    const [travelStartDateDraft, setTravelStartDateDraft] = useState("");
-    const [travelEndDateDraft, setTravelEndDateDraft] = useState("");
-    const [editableProfessionalSummary, setEditableProfessionalSummary] = useState("");
-    const [professionalSummaryDraft, setProfessionalSummaryDraft] = useState<MedicalSummarySections>(
-        EMPTY_MEDICAL_SUMMARY_SECTIONS,
-    );
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const { patientData, setPatientData, symptomDetails, assessmentResult, setAssessmentResult, resetAssessment } = useAssessment();
+  const [isEditingSummary, setIsEditingSummary] = useState(false);
+  const [patientDataDraft, setPatientDataDraft] = useState<PatientData | null>(null);
+  const [conditionListDraft, setConditionListDraft] = useState("");
+  const [travelCountryDraft, setTravelCountryDraft] = useState("");
+  const [travelStartDateDraft, setTravelStartDateDraft] = useState("");
+  const [travelEndDateDraft, setTravelEndDateDraft] = useState("");
+  const [editableProfessionalSummary, setEditableProfessionalSummary] = useState("");
+  const [isExplanationOpen, setIsExplanationOpen] = useState(false);
+  const [professionalSummaryDraft, setProfessionalSummaryDraft] = useState<MedicalSummarySections>(
+    EMPTY_MEDICAL_SUMMARY_SECTIONS,
+  );
 
-    const isEmergency = searchParams.get("emergency") === "true";
-    const fallbackCareLevel: CareLevel = isEmergency ? "emergency" : "selfcare";
-    const careLevel = assessmentResult?.careLevel ?? fallbackCareLevel;
-    const specialtyParam = searchParams.get("specialty");
-    const recommendedSpecialty = isValidMedicalSpecialty(assessmentResult?.recommendedSpecialty)
-        ? assessmentResult.recommendedSpecialty
-        : isMedicalSpecialty(specialtyParam)
-            ? specialtyParam
-            : fallbackSpecialtyForCareLevel(careLevel);
+  const isEmergency = searchParams.get("emergency") === "true";
+  const fallbackCareLevel: CareLevel = isEmergency ? "emergency" : "selfcare";
+  const careLevel = assessmentResult?.careLevel ?? fallbackCareLevel;
+  const specialtyParam = searchParams.get("specialty");
+  const recommendedSpecialty = isValidMedicalSpecialty(assessmentResult?.recommendedSpecialty)
+    ? assessmentResult.recommendedSpecialty
+    : isMedicalSpecialty(specialtyParam)
+      ? specialtyParam
+      : fallbackSpecialtyForCareLevel(careLevel);
 
-    const config =
-        careLevel === "specialist" && isMedicalSpecialty(recommendedSpecialty)
-            ? createSpecialtyConfig(recommendedSpecialty)
-            : TRIAGE_CONFIGS[careLevel === "specialist" ? "doctor" : careLevel];
+  const config =
+    careLevel === "specialist" && isMedicalSpecialty(recommendedSpecialty)
+      ? createSpecialtyConfig(recommendedSpecialty)
+      : TRIAGE_CONFIGS[careLevel === "specialist" ? "doctor" : careLevel];
 
     const callAction =
         careLevel === "emergency"
@@ -308,28 +302,152 @@ export default function ResultPage() {
                     ? {href: "tel:0800 1110111", label: "Telefonseelsorge (0800 1110111)", description: "Telefonseelsorge"}
                     : null;
 
-    const explanationReasons = assessmentResult?.reasons?.length
-        ? assessmentResult.reasons
-        : [
-            "Ihre Angaben wurden ausgewertet.",
-            "Bei Verschlechterung oder Unsicherheit sollten Sie medizinische Hilfe suchen.",
-        ];
+  const explanationReasons = assessmentResult?.reasons?.length
+    ? assessmentResult.reasons
+    : [
+        "Ihre Angaben wurden ausgewertet.",
+        "Bei Verschlechterung oder Unsicherheit sollten Sie medizinische Hilfe suchen.",
+      ];
 
-    const plainLanguageSummary =
-        assessmentResult?.reviewSummary?.plainLanguage?.trim() ||
-        assessmentResult?.summary?.trim() ||
-        "Die Angaben wurden strukturiert ausgewertet.";
+  const plainLanguageSummary =
+    assessmentResult?.reviewSummary?.plainLanguage?.trim() ||
+    assessmentResult?.summary?.trim() ||
+    "Die Angaben wurden strukturiert ausgewertet.";
 
-    const getDurationLabel = (durationId: string) => {
-        return DURATIONS.find((duration) => duration.id === durationId)?.label || durationId;
-    };
+  const getDurationLabel = (durationId: string) => {
+    return DURATIONS.find((duration) => duration.id === durationId)?.label || durationId;
+  };
 
-    const getMeasurementSummary = (symptom: Symptom) => {
-        const config = getMeasurementConfig(symptom.region);
-        const value = symptom.measurementValue ?? 0;
+  const getMeasurementSummary = (symptom: Symptom) => {
+    const config = getMeasurementConfig(symptom.region);
+    const value = symptom.measurementValue ?? 0;
 
-        if (config.type === "temperature") {
-            return `${config.title} ${value.toFixed(1)} ${config.unit}`;
+    if (config.type === "temperature") {
+      return `${config.title} ${value.toFixed(1)} ${config.unit}`;
+    }
+
+    return `${config.title} ${value}/10`;
+  };
+
+  /**
+   * Creates a professional summary when the backend did not provide one.
+   *
+   * The generated text intentionally follows the same headings as AI summaries
+   * so editing and PDF export can use one parser for both paths.
+   */
+  const buildProfessionalSummaryFallback = () => {
+    // Build the same section format that the PDF export expects when the backend summary is missing.
+    return [
+      "Beschwerden:",
+      symptomDetails.length > 0
+        ? symptomDetails
+            .map((symptom) => {
+              const label = symptom.side ? `${symptom.region} (${symptom.side})` : symptom.region;
+              const details = symptom.details ? `, Details: ${symptom.details}` : "";
+
+              return `${label}${details}, ${getMeasurementSummary(symptom)}${
+                symptom.duration ? `, ${getDurationLabel(symptom.duration)}` : ""
+              }`;
+            })
+            .join("\n\n")
+        : "Keine Beschwerden vorhanden.",
+    ].join("\n");
+  };
+
+  const professionalSummary =
+    assessmentResult?.reviewSummary?.professionalSummary?.trim() || buildProfessionalSummaryFallback();
+
+  const conditionDetails = patientData
+    ? Object.entries(patientData.conditionDetails)
+        .filter(([, detail]) => detail.trim().length > 0)
+        .map(([condition, detail]) => `${condition}: ${detail}`)
+    : [];
+
+  const patientDataRows = patientData
+    ? [
+        { label: "Geburtsdatum", value: `${formatOptionalValue(patientData.birthMonth)}/${formatOptionalValue(patientData.birthYear)}` },
+        { label: "Größe / Gewicht", value: `${formatOptionalValue(patientData.height)} cm / ${formatOptionalValue(patientData.weight)} kg` },
+        { label: "Geschlecht", value: formatGender(patientData.gender) },
+        { label: "Schwangerschaft", value: patientData.isPregnant ? "Ja" : "Nein" },
+        { label: "Stillzeit", value: patientData.isBreastfeeding ? "Ja" : "Nein" },
+        { label: "Allergien", value: formatOptionalValue(patientData.allergies) },
+        { label: "Medikamente", value: formatOptionalValue(patientData.medications) },
+        { label: "Substanzbeeinflussung", value: formatOptionalValue(patientData.substanceInfluence || "Nein") },
+        {
+          label: "Auslandsreise",
+          value: patientData.recentAbroad
+            ? formatOptionalValue(formatTravelDisplay(patientData.recentAbroadDetails) || "Ja")
+            : "Nein",
+        },
+        {
+          label: "Vorerkrankungen",
+          value: patientData.conditions.length > 0 ? patientData.conditions.join(", ") : "Keine angegeben",
+        },
+        { label: "Raucher", value: patientData.isSmoker ? "Ja" : "Nein" },
+        ...(patientData.isSmoker
+          ? [
+              { label: "Rauchdauer", value: formatOptionalValue(patientData.smokingSinceYears) },
+              { label: "Zigaretten pro Tag", value: formatOptionalValue(patientData.cigarettesPerDay) },
+            ]
+          : []),
+        ...(conditionDetails.length > 0
+          ? [{ label: "Details zu Vorerkrankungen", value: conditionDetails.join("; ") }]
+          : []),
+      ]
+    : [];
+
+  useEffect(() => {
+    setEditableProfessionalSummary(professionalSummary);
+    setProfessionalSummaryDraft(parseMedicalSummarySections(professionalSummary));
+  }, [professionalSummary]);
+
+  const displayedProfessionalSummary = editableProfessionalSummary.trim()
+    ? formatMedicalSummarySections(parseMedicalSummarySections(editableProfessionalSummary))
+    : formatMedicalSummarySections(parseMedicalSummarySections(professionalSummary));
+
+  const updatePatientDataDraft = <K extends keyof PatientData>(key: K, value: PatientData[K]) => {
+    setPatientDataDraft((currentDraft) => currentDraft ? { ...currentDraft, [key]: value } : currentDraft);
+  };
+
+  const handleReset = () => {
+    resetAssessment();
+    navigate("/");
+  };
+
+  const handleStartSummaryEdit = () => {
+    const summaryDraft = parseMedicalSummarySections(displayedProfessionalSummary);
+    const travelDetails = splitTravelDetails(patientData?.recentAbroadDetails ?? "");
+
+    setPatientDataDraft(patientData ? { ...patientData } : null);
+    setConditionListDraft(patientData?.conditions.join(", ") ?? "");
+    setTravelCountryDraft(travelDetails.country);
+    setTravelStartDateDraft(travelDetails.startDate);
+    setTravelEndDateDraft(travelDetails.endDate);
+    setProfessionalSummaryDraft(summaryDraft);
+    setIsEditingSummary(true);
+  };
+
+  const handleCancelSummaryEdit = () => {
+    setProfessionalSummaryDraft(parseMedicalSummarySections(displayedProfessionalSummary));
+    setPatientDataDraft(null);
+    setConditionListDraft("");
+    setTravelCountryDraft("");
+    setTravelStartDateDraft("");
+    setTravelEndDateDraft("");
+    setIsEditingSummary(false);
+  };
+
+  const handleSaveSummaryEdit = () => {
+    const nextPatientData = patientDataDraft
+      ? {
+          ...patientDataDraft,
+          recentAbroadDetails: patientDataDraft.recentAbroad
+            ? formatTravelDetails(travelCountryDraft, travelStartDateDraft, travelEndDateDraft)
+            : "",
+          conditions: conditionListDraft
+            .split(",")
+            .map((condition) => condition.trim())
+            .filter((condition) => condition.length > 0),
         }
 
         return `${config.title} ${value}/10`;
@@ -542,28 +660,106 @@ export default function ResultPage() {
                 const errorText = await response.text();
                 throw new Error(`PDF konnte nicht erstellt werden: ${errorText}`);
             }
+          : {}),
+      };
 
-            const blob = await response.blob();
-            const url = URL.createObjectURL(blob);
-            const link = document.createElement("a");
+      const response = await fetch(`${apiBaseUrl}/api/v1/pdf/export`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(pdfPayload),
+      });
 
-            link.href = url;
-            link.download = "medizinische-ersteinschaetzung.pdf";
-            document.body.appendChild(link);
-            link.click();
-            link.remove();
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`PDF konnte nicht erstellt werden: ${errorText}`);
+      }
 
-            URL.revokeObjectURL(url);
-        } catch (error) {
-            console.error(error);
-            alert("Das PDF konnte nicht heruntergeladen werden.");
-        }
-    };
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
 
-    return (
-        <PageShell
-            title="Ihre Auswertung"
-            subtitle="Basierend auf Ihren Angaben haben wir folgende Empfehlung für Sie."
+      link.href = url;
+      link.download = "medizinische-ersteinschaetzung.pdf";
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error(error);
+      alert("Das PDF konnte nicht heruntergeladen werden.");
+    }
+  };
+
+  return (
+    <PageShell
+      title="Ihre Auswertung"
+      subtitle="Basierend auf Ihren Angaben haben wir folgende Empfehlung für Sie."
+    >
+      <ResultCard config={config} />
+
+      <div className="bg-white border border-[#d8e0ea] rounded-[16px] p-5 md:p-6 mb-4">
+        <p className="font-['DM_Sans:Bold',sans-serif] font-bold text-app-text-primary text-lg mb-3">
+          Ihre Einschätzung
+        </p>
+        <p className="font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-body text-sm md:text-base leading-relaxed">
+          {plainLanguageSummary}
+        </p>
+        {assessmentResult?.aiUnavailable && (
+          <p className="mt-3 font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-body text-xs leading-relaxed">
+            Die automatische KI-Auswertung war nicht vollständig verfügbar. Die Empfehlung wurde
+            deshalb mit einem vorsichtigen medizinischen Fallback erzeugt.
+          </p>
+        )}
+
+        <button
+          type="button"
+          onClick={() => setIsExplanationOpen((isOpen) => !isOpen)}
+          className="mt-5 inline-flex items-center gap-2 rounded-[10px] border border-[#d8e0ea] px-4 py-2 text-app-text-primary transition-all hover:border-[#486284] hover:bg-[#eff2f6]"
+          aria-expanded={isExplanationOpen}
+        >
+          <span className="font-['DM_Sans:Bold',sans-serif] font-bold text-sm">
+            {isExplanationOpen ? "KI-Begründung ausblenden" : "KI-Begründung anzeigen"}
+          </span>
+          <ChevronDown
+            className={`size-4 flex-shrink-0 text-app-text-primary transition-transform ${
+              isExplanationOpen ? "rotate-180" : ""
+            }`}
+            aria-hidden="true"
+          />
+        </button>
+
+        {isExplanationOpen && (
+          <div className="mt-4">
+            <p className="font-['DM_Sans:Bold',sans-serif] font-bold text-app-text-primary text-sm mb-2">
+              KI-Begründung
+            </p>
+            <ul className="space-y-1.5">
+              {explanationReasons.map((reason) => (
+                <li
+                  key={reason}
+                  className="font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-body text-sm leading-relaxed"
+                >
+                  • {reason}
+                </li>
+              ))}
+              {assessmentResult?.aiModel && (
+                <li className="font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-body text-sm leading-relaxed">
+                  • Die Einschätzung wurde mit dem KI-Modell{" "}
+                  <strong>{assessmentResult.aiModel}</strong> durchgeführt.
+                </li>
+              )}
+            </ul>
+          </div>
+        )}
+      </div>
+
+      {callAction && (
+        <a
+          href={callAction.href}
+          className="md:hidden mb-4 flex min-h-[56px] w-full items-center justify-center gap-3 rounded-[14px] px-5 py-3 text-app-text-on-primary shadow-sm transition-all hover:opacity-90"
+          style={{ backgroundColor: config.color }}
+          aria-label={callAction.label}
         >
             <ResultCard config={config} careLevel={careLevel} recommendedSpecialty={recommendedSpecialty}/>
 
@@ -593,22 +789,49 @@ export default function ResultPage() {
                     <span className="font-['DM_Sans:Bold',sans-serif] font-bold text-base">
             {callAction.label}
           </span>
-                    <span className="sr-only">{callAction.description}</span>
-                </a>
-            )}
+          <span className="sr-only">{callAction.description}</span>
+        </a>
+      )}
 
-            <div className="bg-[#eff2f6] rounded-[16px] p-5 md:p-6 mb-4">
-                <p className="font-['DM_Sans:Bold',sans-serif] font-bold text-app-text-primary text-lg mb-3">
-                    Begründung
-                </p>
-                <ul className="space-y-1.5">
-                    {explanationReasons.map((reason) => (
-                        <li key={reason}
-                            className="font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-body text-sm leading-relaxed">
-                            • {reason}
-                        </li>
-                    ))}
-                </ul>
+      <div className="bg-white border-2 border-[#486284] rounded-[16px] p-5 md:p-6 mb-4">
+        <div className="flex flex-col gap-3 mb-4 sm:flex-row sm:items-center sm:justify-between">
+          <p className="font-['DM_Sans:Bold',sans-serif] font-bold text-app-text-primary text-lg">
+            Ihre Angaben
+          </p>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={handleStartSummaryEdit}
+              aria-label="medical-summary-bearbeiten"
+              className="inline-flex items-center justify-center gap-2 rounded-[10px] border border-[#486284] px-4 py-2 text-sm font-bold text-[#486284] transition-all hover:bg-[#eff2f6]"
+            >
+              <Edit3 className="size-4" aria-hidden="true" />
+              Bearbeiten
+            </button>
+            <button
+              type="button"
+              onClick={handlePdfDownload}
+              aria-label="download-summary"
+              className="bg-[#486284] text-app-text-on-primary rounded-[10px] px-4 py-2 hover:bg-[#3a4d68] transition-all"
+            >
+              PDF
+            </button>
+          </div>
+        </div>
+
+        <div className="bg-[#eff2f6] rounded-[12px] p-4 mb-4 space-y-3">
+          <div className="grid gap-3 md:grid-cols-2">
+            <div className="bg-white rounded-[10px] p-3 border border-[#d8e0ea]">
+              <p className="text-xs text-app-text-subtle mb-1">Empfehlung</p>
+              <p className="font-['DM_Sans:Bold',sans-serif] font-bold text-app-text-body text-sm">
+                {CARE_LEVEL_LABELS[careLevel]}
+              </p>
+            </div>
+            <div className="bg-white rounded-[10px] p-3 border border-[#d8e0ea]">
+              <p className="text-xs text-app-text-subtle mb-1">Fachrichtung</p>
+              <p className="font-['DM_Sans:Bold',sans-serif] font-bold text-app-text-body text-sm">
+                {MEDICAL_SPECIALTY_LABELS[recommendedSpecialty]}
+              </p>
             </div>
 
             <div className="bg-white border-2 border-[#486284] rounded-[16px] p-5 md:p-6 mb-4">
@@ -967,6 +1190,64 @@ export default function ResultPage() {
                         })}
                     </p>
                 </div>
+              </div>
+            ) : patientDataRows.length > 0 ? (
+              <dl className="grid gap-x-4 gap-y-2 md:grid-cols-2">
+                {patientDataRows.map((row) => (
+                  <div key={row.label} className="min-w-0">
+                    <dt className="text-[11px] font-medium text-app-text-subtle">{row.label}</dt>
+                    <dd className="break-words font-['DM_Sans:Bold',sans-serif] text-sm font-bold text-app-text-body">
+                      {row.value}
+                    </dd>
+                  </div>
+                ))}
+              </dl>
+            ) : (
+              <p className="font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-body text-xs leading-relaxed">
+                Keine Patientendaten angegeben.
+              </p>
+            )}
+          </div>
+
+          <div className="bg-white rounded-[10px] p-3 border border-[#d8e0ea]">
+            <p className="text-xs text-app-text-subtle mb-1">Beschwerden</p>
+            <div className="space-y-2 font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-body text-xs leading-relaxed">
+              {symptomDetails.length > 0 ? (
+                symptomDetails.map((symptom) => {
+                      const label = symptom.side
+                        ? `${symptom.region} (${symptom.side})`
+                        : symptom.region;
+
+                      return (
+                        <p key={`${label}-${symptom.measurementType}-${symptom.measurementValue}-${symptom.duration ?? ""}`}>
+                          {label}: {getMeasurementSummary(symptom)}{
+                        symptom.duration ? `, ${getDurationLabel(symptom.duration)}` : ""
+                      }
+                        </p>
+                      );
+                    })
+              ) : (
+                <p>Keine Beschwerden angegeben.</p>
+              )}
+            </div>
+          </div>
+
+          {isEditingSummary && (
+            <div className="flex justify-end gap-2 pt-1">
+              <button
+                type="button"
+                onClick={handleCancelSummaryEdit}
+                className="rounded-[10px] border border-[#d8e0ea] bg-white px-4 py-2 text-sm font-bold text-app-text-body transition-all hover:bg-[#eff2f6]"
+              >
+                Abbrechen
+              </button>
+              <button
+                type="button"
+                onClick={handleSaveSummaryEdit}
+                className="rounded-[10px] bg-[#486284] px-4 py-2 text-sm font-bold text-app-text-on-primary transition-all hover:bg-[#3a4d68]"
+              >
+                Speichern
+              </button>
             </div>
 
             <div className="bg-[#FEF3C7] border-l-4 border-[#F59E0B] rounded-[16px] p-5 md:p-6 mt-4">
