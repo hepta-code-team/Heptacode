@@ -1,22 +1,15 @@
 import OpenAI, { APIConnectionError, APIConnectionTimeoutError, APIError } from 'openai'
 
-// TA 1.8: KI-Requests duerfen nicht unbegrenzt haengen.
-export const AI_REQUEST_TIMEOUT_MS = {
-  primary: 40_000,
-  fallback: 20_000,
+// AI requests must not block the assessment flow indefinitely.
+export const AI_REQUEST_TIMEOUT_MS = 17000
+
+// Disable retries so the defined fallback runs quickly and predictably.
+export const AI_REQUEST_OPTIONS = {
+  timeout: AI_REQUEST_TIMEOUT_MS,
+  maxRetries: 0,
 } as const
 
-// Ohne Retries greift der definierte Fallback schnell und vorhersehbar.
-export const AI_REQUEST_OPTIONS = createAiRequestOptions(AI_REQUEST_TIMEOUT_MS.primary)
-
-export function createAiRequestOptions(timeoutMs: number) {
-  return {
-    timeout: timeoutMs,
-    maxRetries: 0,
-  } as const
-}
-
-// Wird genutzt, wenn die KI antwortet, aber keine validierbare strukturierte Ausgabe liefert.
+// Raised when the AI responds without valid structured output.
 export class AiResponseError extends Error {
   constructor(message: string) {
     super(message)
@@ -24,7 +17,7 @@ export class AiResponseError extends Error {
   }
 }
 
-// Diese Fehler duerfen von den Services in kontrollierte Fallback-Antworten umgewandelt werden.
+// Services may convert these failures into controlled fallback responses.
 export function isAiRequestError(error: unknown): boolean {
   return (
     error instanceof AiResponseError ||
@@ -35,9 +28,8 @@ export function isAiRequestError(error: unknown): boolean {
   )
 }
 
-// Diese Fehler bedeuten, dass das angefragte Modell bzw. der AI-Dienst nicht
-// erreichbar ist oder nicht rechtzeitig antwortet. In diesen Faellen wird das
-// kleinere Fallback-Modell versucht.
+// These failures indicate that the requested model or AI service is unavailable,
+// so the smaller fallback model should be attempted.
 export function isAiAvailabilityError(error: unknown): boolean {
   if (error instanceof APIConnectionError || error instanceof APIConnectionTimeoutError) {
     return true

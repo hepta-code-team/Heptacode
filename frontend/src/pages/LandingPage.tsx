@@ -13,8 +13,7 @@ export default function LandingPage() {
     const [isEmergencyInfoOpen, setIsEmergencyInfoOpen] = useState(false);
 
     const handleEmergencySymptom = () => {
-        // Red Flag symptoms always lead to emergency
-        resetAssessment();
+        // Red-flag symptoms always route directly to the emergency result.
         navigate("/result?emergency=true");
     };
 
@@ -70,7 +69,7 @@ export default function LandingPage() {
                 </div>
             )}
 
-            {/* Mobile */}
+            {/* Mobile layout */}
             <div className="block lg:hidden">
                 <div className="mb-3 flex items-start gap-2">
                     <h1 className="font-['DM_Sans:Bold',sans-serif] font-bold text-app-text-primary text-2xl"
@@ -101,7 +100,7 @@ export default function LandingPage() {
                 </button>
             </div>
 
-            {/* Desktop */}
+            {/* Desktop layout */}
             <div className="hidden lg:block">
                 <div className="mb-2 flex items-center gap-2">
                     <h1

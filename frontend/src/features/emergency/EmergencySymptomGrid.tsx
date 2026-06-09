@@ -110,7 +110,7 @@ export default function EmergencySymptomGrid({ onSymptomClick, variant = "mobile
         </button>
       ))}
 
-      {/* Special layout for Starke Kopfschmerzen on desktop */}
+      {/* Dedicated desktop layout for severe headache. */}
       <button
         onClick={onSymptomClick}
         className="bg-[#eff2f6] rounded-[16px] p-3 min-h-[140px] flex items-start gap-3 hover:bg-[#dde3ea] transition-all"

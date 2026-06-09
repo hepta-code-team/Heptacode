@@ -28,6 +28,14 @@ type ModelRequest<TSchema extends z.ZodTypeAny> = Required<Omit<
   'modelStrategy'
 >>
 
+
+/**
+ * Requests one model and validates the response against the expected schema.
+ *
+ * The preferred parse endpoint is tried first; if parsing itself fails for a
+ * non-availability reason, the adapter falls back to plain JSON mode and local
+ * Zod validation so callers still receive the same typed contract.
+ */
 function getErrorStatus(error: unknown): number | undefined {
   if (typeof error === 'object' && error !== null && 'status' in error) {
     const status = (error as { status?: unknown }).status
@@ -167,7 +175,7 @@ async function requestWithModel<TSchema extends z.ZodTypeAny>(
   }
 }
 
-// Funktion um strukturierte Antworten von der KI zu erhalten, basierend auf einem bereitgestellten Zod-Schema.
+// Requests a structured AI response and validates it against the provided Zod schema.
 export async function requestStructuredAiResponse<TSchema extends z.ZodTypeAny>({
   messages,
   schema,
@@ -186,6 +194,12 @@ export async function requestStructuredAiResponse<TSchema extends z.ZodTypeAny>(
   return response.data
 }
 
+/**
+ * Requests structured output and records which model produced it.
+ *
+ * Services use the model name for transparency in the frontend, and they can
+ * force fallback-only mode for cheaper validation-style AI checks.
+ */
 export async function requestStructuredAiResponseWithModel<TSchema extends z.ZodTypeAny>({
   messages,
   schema,

@@ -2,13 +2,33 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { requestStructuredAiResponse } from '../../ai/llmAdapter.js'
 import { AiResponseError } from '../../ai/timeout.js'
-import { extractSymptoms } from './symptomExtraction.service.js'
+import { extractSymptoms, validateSymptomInput } from './symptomExtraction.service.js'
 
 vi.mock('../../ai/llmAdapter.js', () => ({
   requestStructuredAiResponse: vi.fn(),
 }))
 
 const requestStructuredAiResponseMock = vi.mocked(requestStructuredAiResponse)
+
+const malePatientData = {
+  birthMonth: '05',
+  birthYear: '1988',
+  height: '175',
+  weight: '78',
+  gender: 'Maennlich',
+  isPregnant: false,
+  isBreastfeeding: false,
+  allergies: '',
+  medications: '',
+  substanceInfluence: 'Nein',
+  recentAbroad: false,
+  recentAbroadDetails: '',
+  conditions: [],
+  isSmoker: false,
+  smokingSinceYears: '',
+  cigarettesPerDay: '',
+  conditionDetails: {},
+}
 
 describe('extractSymptoms', () => {
   beforeEach(() => {
@@ -23,6 +43,23 @@ describe('extractSymptoms', () => {
       inputType: 'text',
       symptoms: [],
       invalidInput: true,
+    })
+    expect(requestStructuredAiResponseMock).not.toHaveBeenCalled()
+  })
+
+  it('faengt widerspruechliche Schwangerschaftsangaben vor der KI-Auswertung ab', async () => {
+    const result = await extractSymptoms(
+      'Ich waere schwanger und habe Wehen.',
+      'text',
+      malePatientData,
+    )
+
+    expect(result).toMatchObject({
+      text: 'Ich waere schwanger und habe Wehen.',
+      inputType: 'text',
+      symptoms: [],
+      invalidInput: true,
+      message: expect.stringContaining('passen logisch nicht zusammen'),
     })
     expect(requestStructuredAiResponseMock).not.toHaveBeenCalled()
   })
@@ -94,6 +131,62 @@ describe('extractSymptoms', () => {
     expect(result.symptoms).toEqual([{ region: 'Blutiger Auswurf', measurementType: 'severity' }])
   })
 
+  it('uebernimmt relevante Zusatzdetails auch bei Mapping auf vorhandene Symptome', async () => {
+    requestStructuredAiResponseMock
+      .mockResolvedValueOnce({
+        isValidMedicalInput: true,
+        reason: 'Medizinische Beschwerde erkannt.',
+      })
+      .mockResolvedValueOnce({
+        symptoms: [
+          {
+            region: 'Verbrennung',
+            details: 'Kochendes Wasser ueber Arm geschuettet',
+            measurementType: 'severity',
+          },
+        ],
+      })
+
+    const result = await extractSymptoms('Ich habe kochendes Wasser über meinen Arm geschüttet.')
+
+    expect(result.symptoms).toEqual([
+      {
+        region: 'Verbrennung',
+        details: 'Kochendes Wasser ueber Arm geschuettet',
+        measurementType: 'severity',
+      },
+    ])
+  })
+
+  it('bewahrt Negationen in Zusatzdetails fuer die Triage', async () => {
+    requestStructuredAiResponseMock
+      .mockResolvedValueOnce({
+        isValidMedicalInput: true,
+        reason: 'Medizinischer Verletzungskontext erkannt.',
+      })
+      .mockResolvedValueOnce({
+        symptoms: [
+          {
+            region: 'In Nagel getreten',
+            side: 'Fuß',
+            details: 'Nagel steckt nicht im Fuß',
+            measurementType: 'severity',
+          },
+        ],
+      })
+
+    const result = await extractSymptoms('Der Nagel steckt aber nicht in meinem Fuß.')
+
+    expect(result.symptoms).toEqual([
+      {
+        region: 'In Nagel getreten',
+        side: 'Fuß',
+        details: 'Nagel steckt nicht im Fuß',
+        measurementType: 'severity',
+      },
+    ])
+  })
+
   it('laesst Verletzungsereignisse als Freitext-Symptom durch die Extraktion laufen', async () => {
     requestStructuredAiResponseMock
       .mockResolvedValueOnce({
@@ -101,12 +194,12 @@ describe('extractSymptoms', () => {
         reason: 'Medizinischer Verletzungskontext erkannt.',
       })
       .mockResolvedValueOnce({
-        symptoms: [{ region: 'Nageltrittverletzung', measurementType: 'severity' }],
+        symptoms: [{ region: 'In Nagel getreten', measurementType: 'severity' }],
       })
 
     const result = await extractSymptoms('Ich bin in einen Nagel getreten.')
 
-    expect(result.symptoms).toEqual([{ region: 'Nageltrittverletzung', measurementType: 'severity' }])
+    expect(result.symptoms).toEqual([{ region: 'In Nagel getreten', measurementType: 'severity' }])
     expect(requestStructuredAiResponseMock).toHaveBeenCalledTimes(2)
   })
 
@@ -181,5 +274,71 @@ describe('extractSymptoms', () => {
     requestStructuredAiResponseMock.mockRejectedValueOnce(new Error('boom'))
 
     await expect(extractSymptoms('Ich habe seit Tagen Husten.')).rejects.toThrow('boom')
+  })
+})
+
+describe('validateSymptomInput', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('validiert medizinischen Kontext ohne Extraktionsaufruf', async () => {
+    requestStructuredAiResponseMock.mockResolvedValueOnce({
+      isValidMedicalInput: true,
+      reason: 'Medizinischer Kontext erkannt.',
+    })
+
+    const result = await validateSymptomInput('Verbrennung, kochendes Wasser ueber Arm geschuettet')
+
+    expect(result).toEqual({
+      text: 'Verbrennung, kochendes Wasser ueber Arm geschuettet',
+      inputType: 'text',
+      isValidMedicalInput: true,
+    })
+    expect(requestStructuredAiResponseMock).toHaveBeenCalledTimes(1)
+    expect(requestStructuredAiResponseMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        schemaName: 'symptom_input_validation_result',
+        modelStrategy: 'fallback-only',
+      }),
+    )
+  })
+
+  it('meldet themenfremde Eingaben als ungueltig', async () => {
+    requestStructuredAiResponseMock.mockResolvedValueOnce({
+      isValidMedicalInput: false,
+      reason: 'Der Text beschreibt keine gesundheitlichen Beschwerden.',
+    })
+
+    const result = await validateSymptomInput('Ich mag Pizza und Filme.')
+
+    expect(result).toEqual({
+      text: 'Ich mag Pizza und Filme.',
+      inputType: 'text',
+      isValidMedicalInput: false,
+      message: 'Der Text beschreibt keine gesundheitlichen Beschwerden.',
+    })
+  })
+
+  it('faengt wiederholte Platzhaltertexte wie BlaBla ohne KI-Aufruf ab', async () => {
+    const result = await validateSymptomInput('BlaBla, BlaBla')
+
+    expect(result).toMatchObject({
+      text: 'BlaBla, BlaBla',
+      inputType: 'text',
+      isValidMedicalInput: false,
+    })
+    expect(requestStructuredAiResponseMock).not.toHaveBeenCalled()
+  })
+
+  it('faengt Platzhaltertexte im Symptomnamen ohne KI-Aufruf ab', async () => {
+    const result = await validateSymptomInput('BlaBla')
+
+    expect(result).toMatchObject({
+      text: 'BlaBla',
+      inputType: 'text',
+      isValidMedicalInput: false,
+    })
+    expect(requestStructuredAiResponseMock).not.toHaveBeenCalled()
   })
 })

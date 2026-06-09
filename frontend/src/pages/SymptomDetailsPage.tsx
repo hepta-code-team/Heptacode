@@ -13,7 +13,7 @@ import {
 } from "../features/symptoms/symptoms.constants";
 import type { SelectedSymptom, Symptom, SymptomDraft, TriageSymptom } from "../types/assessment";
 import { handleSubmitAssessment } from "../features/symptoms/handleSubmitAssessment";
-import {X} from "lucide-react";
+import { LoaderCircle, X } from "lucide-react";
 
 interface SymptomDetailsRouteState {
   extractedSymptoms?: TriageSymptom[];
@@ -25,6 +25,7 @@ export default function SymptomDetailsPage() {
   const routeState = location.state as SymptomDetailsRouteState | null;
   const hasRouteExtractedSymptoms = Boolean(routeState?.extractedSymptoms?.length);
   const {
+    patientData,
     selectedSymptoms,
     symptomDetails: contextDetails,
     setSymptomDetails,
@@ -58,7 +59,7 @@ export default function SymptomDetailsPage() {
     index: number,
     isNameEditable = false,
   ): SymptomDraft => {
-    const inferredMeasurementConfig = getMeasurementConfig(symptom.region, symptom.side);
+    const inferredMeasurementConfig = getMeasurementConfig(symptom.region);
     const measurementType = "measurementType" in symptom && symptom.measurementType
       ? symptom.measurementType
       : inferredMeasurementConfig.type;
@@ -139,6 +140,7 @@ export default function SymptomDetailsPage() {
 
     void handleSubmitAssessment({
       symptomDetails,
+      patientData: patientData ?? undefined,
       submitAssessment,
       navigate,
       setShowValidationErrors,
@@ -189,12 +191,14 @@ export default function SymptomDetailsPage() {
 
       <div className="mt-6 mb-3 flex justify-end">
         <Button onClick={handleContinue} disabled={!canContinue || isSubmitting}>
-          <p
-            className="font-['DM_Sans:Bold',sans-serif] font-bold text-base"
+          <span
+            className="flex items-center justify-center gap-2 font-['DM_Sans:Bold',sans-serif] font-bold text-base"
             style={{ fontVariationSettings: "'opsz' 14" }}
+            aria-live="polite"
           >
-            {isSubmitting ? "Wird gesendet..." : "Weiter"}
-          </p>
+            {isSubmitting ? "Angaben werden ausgewertet..." : "Weiter"}
+            {isSubmitting && <LoaderCircle className="size-5 animate-spin" aria-hidden="true" />}
+          </span>
         </Button>
       </div>
 

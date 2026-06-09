@@ -76,10 +76,22 @@ function trimSectionLines(lines: string[]) {
   return lines.join("\n").trim();
 }
 
+/**
+ * Detects placeholder patient-data text that should not be edited as real data.
+ *
+ * Backend fallbacks use this sentence when no patient profile exists, but the
+ * result page should treat it as absence of content rather than user input.
+ */
 function isEmptyPatientDataPlaceholder(line: string) {
   return line.trim().toLowerCase() === "keine stammdaten vorhanden.";
 }
 
+/**
+ * Splits a professional summary into editable patient and complaint sections.
+ *
+ * The parser accepts both current PDF headings and older fallback headings so
+ * stored AI summaries, local fallbacks, and user edits stay compatible.
+ */
 function parseMedicalSummarySections(summary: string): MedicalSummarySections {
   const sections: MedicalSummarySections = { ...EMPTY_MEDICAL_SUMMARY_SECTIONS };
   const patientDataLines: string[] = [];
@@ -138,6 +150,12 @@ function parseMedicalSummarySections(summary: string): MedicalSummarySections {
   return sections;
 }
 
+/**
+ * Reassembles editable summary fields into the PDF-compatible section format.
+ *
+ * The backend PDF export recognizes these headings, so the edited summary can
+ * round-trip from the result page into a clean medical overview.
+ */
 function formatMedicalSummarySections(sections: MedicalSummarySections) {
   const patientData = sections.patientData.trim() || "Keine Stammdaten vorhanden.";
   const complaints = sections.complaints.trim() || "Keine Beschwerden vorhanden.";
@@ -194,7 +212,7 @@ export default function ResultPage() {
   };
 
   const getMeasurementSummary = (symptom: Symptom) => {
-    const config = getMeasurementConfig(symptom.region, symptom.side);
+    const config = getMeasurementConfig(symptom.region);
     const value = symptom.measurementValue ?? 0;
 
     if (config.type === "temperature") {
@@ -204,7 +222,14 @@ export default function ResultPage() {
     return `${config.title} ${value}/10`;
   };
 
+  /**
+   * Creates a professional summary when the backend did not provide one.
+   *
+   * The generated text intentionally follows the same headings as AI summaries
+   * so editing and PDF export can use one parser for both paths.
+   */
   const buildProfessionalSummaryFallback = () => {
+    // Build the same section format that the PDF export expects when the backend summary is missing.
     return [
       "Patientendaten:",
       patientData
@@ -229,8 +254,9 @@ export default function ResultPage() {
         ? symptomDetails
             .map((symptom) => {
               const label = symptom.side ? `${symptom.region} (${symptom.side})` : symptom.region;
+              const details = symptom.details ? `, Details: ${symptom.details}` : "";
 
-              return `${label}, ${getMeasurementSummary(symptom)}${
+              return `${label}${details}, ${getMeasurementSummary(symptom)}${
                 symptom.duration ? `, ${getDurationLabel(symptom.duration)}` : ""
               }`;
             })
@@ -284,6 +310,12 @@ export default function ResultPage() {
     setIsEditingSummary(false);
   };
 
+  /**
+   * Sends the current result state to the backend PDF endpoint and downloads it.
+   *
+   * The page can also render from URL fallbacks, so this builds a schema-safe
+   * payload even when no persisted assessment result exists in context.
+   */
   const handlePdfDownload = async () => {
     try {
       const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:3000";
@@ -294,6 +326,7 @@ export default function ResultPage() {
         ? assessmentResult.recommendedSpecialty
         : recommendedSpecialty;
 
+      // Keep the export payload conservative and schema-shaped even when the page is rendered from URL fallbacks.
       const pdfPayload = {
         reviewSummary: {
           plainLanguage: plainLanguageSummary,
@@ -310,6 +343,7 @@ export default function ResultPage() {
               symptoms: symptomDetails.slice(0, 3).map((symptom) => ({
                 region: symptom.region,
                 ...(symptom.side ? { side: symptom.side } : {}),
+                ...(symptom.details ? { details: symptom.details } : {}),
                 measurementType: symptom.measurementType,
                 measurementValue: symptom.measurementValue,
                 ...(symptom.duration ? { duration: symptom.duration } : {}),
@@ -447,8 +481,9 @@ export default function ResultPage() {
                       const label = symptom.side
                         ? `${symptom.region} (${symptom.side})`
                         : symptom.region;
+                      const details = symptom.details ? `, Details: ${symptom.details}` : "";
 
-                      return `${label}: ${getMeasurementSummary(symptom)}${
+                      return `${label}${details}: ${getMeasurementSummary(symptom)}${
                         symptom.duration ? `, ${getDurationLabel(symptom.duration)}` : ""
                       }`;
                     })

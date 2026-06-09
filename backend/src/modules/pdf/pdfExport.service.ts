@@ -58,6 +58,12 @@ const PAGE = {
   bottom: 54,
 }
 
+/**
+ * Maps internal care-level identifiers to the wording shown in the PDF header.
+ *
+ * This keeps the exported document patient-readable while preserving the typed
+ * care-level contract used by the API.
+ */
 function formatCareLevel(careLevel: PdfTriageResult['careLevel']): string {
   switch (careLevel) {
     case 'emergency':
@@ -94,6 +100,12 @@ function formatGender(value: string): string {
   }
 }
 
+/**
+ * Normalizes common ASCII spellings that can come from prompts or fallbacks.
+ *
+ * The PDF is a patient-facing artifact, so it should prefer proper German
+ * characters even when upstream service text uses ue/ae/oe fallbacks.
+ */
 function normalizeGermanText(value: string): string {
   return value
     .replace(/Groesse/g, 'Größe')
@@ -118,6 +130,12 @@ function normalizeGermanText(value: string): string {
     .replace(/schilddruesenunterfunktion/g, 'Schilddrüsenunterfunktion')
 }
 
+/**
+ * Cleans an individual triage reason before it is joined into prose.
+ *
+ * Reasons may already contain punctuation depending on whether they came from
+ * local fallbacks or AI output, so the formatter standardizes the ending.
+ */
 function formatReason(reason: string): string {
   const cleanedReason = normalizeGermanText(reason)
     .trim()
@@ -147,6 +165,12 @@ function formatValue(value?: string | number | null): string {
   return String(value)
 }
 
+/**
+ * Preserves custom condition details without repeating the condition name.
+ *
+ * "Sonstige" entries are treated specially because the free-text value is the
+ * actual condition detail rather than a category label.
+ */
 function formatConditionDetail(condition: string, detail: string): string {
   const cleanCondition = normalizeGermanText(condition).trim()
   const cleanDetail = normalizeGermanText(detail).trim()
@@ -164,6 +188,12 @@ function formatConditionDetail(condition: string, detail: string): string {
     : `${cleanCondition}: ${cleanDetail}`
 }
 
+/**
+ * Builds the patient-data block used when no structured professional summary exists.
+ *
+ * The output intentionally includes negative answers for important risk fields
+ * so the PDF documents what was asked, not only what was positive.
+ */
 function summarizePatient(data?: PatientData): string {
   if (!data) {
     return 'Keine Stammdaten vorhanden.'
@@ -227,6 +257,12 @@ function formatMeasurement(symptom: TriageSymptom): string | null {
   return `Schmerzstärke: ${symptom.measurementValue}/10`
 }
 
+/**
+ * Formats symptoms as a readable multi-line complaint block for the PDF.
+ *
+ * Each symptom is separated by a blank line so measurement and duration details
+ * remain visually grouped in the exported document.
+ */
 function summarizeSymptoms(symptoms?: TriageSymptom[]): string {
   if (!symptoms || symptoms.length === 0) {
     return 'Keine Beschwerden vorhanden.'
@@ -236,6 +272,7 @@ function summarizeSymptoms(symptoms?: TriageSymptom[]): string {
     .map((symptom, index) => {
       const detailLines = [
         `${index + 1}. ${symptomLabel(symptom)}`,
+        symptom.details ? `Details: ${symptom.details}` : null,
         formatMeasurement(symptom),
         formatDuration(symptom.duration) ? `Dauer: ${formatDuration(symptom.duration)}` : null,
       ].filter((part): part is string => part !== null)
@@ -245,6 +282,12 @@ function summarizeSymptoms(symptoms?: TriageSymptom[]): string {
     .join('\n\n')
 }
 
+/**
+ * Removes the short preselection section from backend-generated summaries.
+ *
+ * The detailed active symptom section carries better information for the PDF,
+ * so keeping both would make the complaint block repetitive.
+ */
 function removeSelectedSymptomBlock(lines: string[]): string[] {
   const cleanedLines: string[] = []
   let skipSelectedSymptoms = false
@@ -272,6 +315,12 @@ function removeSelectedSymptomBlock(lines: string[]): string[] {
   return cleanedLines
 }
 
+/**
+ * Normalizes patient summary lines into the current PDF section format.
+ *
+ * Older summaries can contain separate birth-month and birth-year lines; this
+ * combines them into the single birth-date row shown in the export.
+ */
 function normalizePatientSummaryLines(lines: string[]): string[] {
   const normalizedLines: string[] = []
   let birthMonth: string | null = null
@@ -314,6 +363,12 @@ function normalizePatientSummaryLines(lines: string[]): string[] {
   return normalizedLines
 }
 
+/**
+ * Splits compact symptom detail rows into separate PDF lines.
+ *
+ * Backend fallback summaries often encode symptom, measurement, and duration on
+ * one comma-separated line; the PDF layout reads better when they are separated.
+ */
 function normalizeComplaintSummaryLines(lines: string[]): string[] {
   return removeSelectedSymptomBlock(lines)
     .map((line) => normalizeGermanText(line.trim()))
@@ -335,16 +390,29 @@ function normalizeComplaintSummaryLines(lines: string[]): string[] {
     })
 }
 
+/**
+ * Detects whether a professional summary already contains parseable sections.
+ *
+ * When this returns true, the PDF reuses the edited structure instead of
+ * replacing it with a generic summary built from raw request fields.
+ */
 function hasMedicalSummaryStructure(summary: string): boolean {
   return /(^|\n)\s*(Patientendaten|Stammdaten|Beschwerden|Ausgewählte Symptome|Ausgewaehlte Symptome|Detailangaben zu aktiven Symptomen)\s*:/i.test(summary)
 }
 
+/**
+ * Cleans a structured professional summary before it is embedded in the PDF.
+ *
+ * The parser accepts both current and older heading names because summaries may
+ * be produced by backend fallbacks, AI responses, or user edits in the frontend.
+ */
 function cleanStructuredProfessionalSummary(summary: string): string {
   const patientLines: string[] = []
   const complaintLines: string[] = []
   let activeSection: 'patientData' | 'complaints' | null = null
   let skipSelectedSymptoms = false
 
+  // Rebuild only the patient and complaint sections to avoid duplicating the selection summary in the PDF.
   normalizeGermanText(summary)
     .split('\n')
     .forEach((line) => {
@@ -398,6 +466,12 @@ function cleanStructuredProfessionalSummary(summary: string): string {
   ].join('\n')
 }
 
+/**
+ * Creates the recommendation rationale shown below the medical overview.
+ *
+ * Known care levels use carefully worded patient-facing explanations, while
+ * unknown values fall back to the raw reasons provided in the request.
+ */
 function summarizeCareReason(triage?: PdfTriageResult): string {
   if (!triage) {
     return 'Begründung der Empfehlung: Keine Begründung vorhanden.'
@@ -421,11 +495,18 @@ function summarizeCareReason(triage?: PdfTriageResult): string {
   }
 }
 
+/**
+ * Chooses the best source for the PDF's medical overview section.
+ *
+ * Edited professional summaries win when they have recognizable headings;
+ * otherwise the overview is rebuilt from structured patient and symptom data.
+ */
 function summarizeMedicalOverview(request: PdfExportRequest): string {
   const rawProfessionalSummary = normalizeGermanText(
     request.reviewSummary.professionalSummary,
   ).trim()
 
+  // Preserve clinician-edited structured summaries, but normalize them into the PDF section format.
   if (rawProfessionalSummary.length > 0 && hasMedicalSummaryStructure(rawProfessionalSummary)) {
     return [
       cleanStructuredProfessionalSummary(rawProfessionalSummary),
@@ -445,6 +526,12 @@ function summarizeMedicalOverview(request: PdfExportRequest): string {
   ].join('\n')
 }
 
+/**
+ * Defines the ordered PDF sections.
+ *
+ * The medical overview stays first because it is the primary artifact, while
+ * the warning remains a separate card for visual emphasis.
+ */
 function buildSections(request: PdfExportRequest): PdfSection[] {
   return [
     {
@@ -466,6 +553,12 @@ function formatGeneratedAt(value: string): string {
   }).format(new Date(value))
 }
 
+/**
+ * Collects PDFKit stream chunks into a single Buffer.
+ *
+ * PDFKit writes asynchronously, so callers must start collection before drawing
+ * content and await the promise after doc.end().
+ */
 function collectPdfBuffer(doc: PdfDoc): Promise<Buffer> {
   return new Promise((resolve, reject) => {
     const chunks: Buffer[] = []
@@ -486,6 +579,12 @@ function paintPageBackground(doc: PdfDoc): void {
   doc.rect(0, 0, doc.page.width, doc.page.height).fill(THEME.background)
 }
 
+/**
+ * Draws the repeating document header for the first page.
+ *
+ * The logo is optional so local development and production builds can still
+ * export PDFs even if the asset is missing from the runtime image.
+ */
 function addHeader(
   doc: PdfDoc,
   generatedAt: string,
@@ -539,11 +638,17 @@ function addHeader(
         valign: 'center',
       })
     } catch {
-      // Falls das Logo nicht geladen werden kann, wird es übersprungen.
+      // Skip the logo if the asset cannot be loaded.
     }
   }
 }
 
+/**
+ * Adds a footer after all pages are known.
+ *
+ * Page numbers are written in a second pass because PDFKit only knows the final
+ * page count after content rendering has finished.
+ */
 function addFooter(doc: PdfDoc, pageNumber: number, totalPages: number): void {
   const footerY = doc.page.height - 34
   const contentWidth = doc.page.width - PAGE.marginX * 2
@@ -574,6 +679,12 @@ function addFooter(doc: PdfDoc, pageNumber: number, totalPages: number): void {
     })
 }
 
+/**
+ * Starts a new page when the next card would overflow the printable area.
+ *
+ * This keeps cards intact instead of splitting rounded backgrounds across page
+ * boundaries, which would make the medical summary harder to scan.
+ */
 function ensureSpace(doc: PdfDoc, neededHeight: number): void {
   const maxY = doc.page.height - PAGE.bottom
 
@@ -615,10 +726,22 @@ function addIntroBox(doc: PdfDoc): void {
   doc.y = y + boxHeight + 16
 }
 
+/**
+ * Strips Markdown URLs before measuring card height.
+ *
+ * The visible PDF text only displays link labels, so measurement must use the
+ * same text that will be rendered to avoid oversized cards.
+ */
 function removeMarkdownLinkUrls(value: string): string {
   return value.replace(/\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g, '$1')
 }
 
+/**
+ * Renders one line of text with inline clickable links.
+ *
+ * PDFKit does not parse Markdown links automatically, so this function splits
+ * the line into styled text runs and attaches link targets manually.
+ */
 function renderTextWithLinks(
   doc: PdfDoc,
   line: string,
@@ -636,6 +759,7 @@ function renderTextWithLinks(
   let lastIndex = 0
   let match: RegExpExecArray | null
 
+  // Split linkable phrases from plain text because PDFKit applies link styling per text run.
   while ((match = linkPattern.exec(line)) !== null) {
     const linkText = match[1] ?? match[2] ?? match[3] ?? ''
     const linkUrl = match[4] ?? EMERGENCY_INFO_URL
@@ -738,6 +862,12 @@ function renderTextWithLinks(
   doc.fillColor(THEME.text).font('Helvetica').fontSize(10)
 }
 
+/**
+ * Draws one rounded PDF section card and renders its formatted text.
+ *
+ * Height is calculated before drawing because PDFKit cannot auto-layout a card
+ * background around content after the text has already been written.
+ */
 function addSectionCard(
   doc: PdfDoc,
   section: PdfSection,
@@ -802,6 +932,7 @@ function addSectionCard(
 
     const headingMatch = line.trim().match(/^([^:]+:)(\s*)(.*)$/)
 
+    // Render "Label: value" lines with bold labels while keeping inline links clickable.
     if (headingMatch) {
       const prefix = headingMatch[1] ?? ''
       const spacing = headingMatch[2] ?? ''
@@ -831,6 +962,12 @@ function addSectionCard(
   doc.y = y + cardHeight + 14
 }
 
+/**
+ * Draws all visible PDF content before page numbers are added.
+ *
+ * The warning section receives separate colors here so the data-building layer
+ * does not need to know about presentation styling.
+ */
 function addPdfContent(
   doc: PdfDoc,
   request: PdfExportRequest,
@@ -855,6 +992,12 @@ function addPdfContent(
   })
 }
 
+/**
+ * Adds final page numbers to every buffered page.
+ *
+ * This function must run after addPdfContent because it switches between pages
+ * that PDFKit has already buffered.
+ */
 function addPageNumbers(doc: PdfDoc): void {
   const range = doc.bufferedPageRange()
   const totalPages = range.count
@@ -865,6 +1008,12 @@ function addPageNumbers(doc: PdfDoc): void {
   }
 }
 
+/**
+ * Public PDF export entry point.
+ *
+ * It builds sections, renders the buffered PDF, adds page numbers, and returns
+ * a base64 payload that the frontend can download without handling binary data.
+ */
 export async function createPdfSummary(
   request: PdfExportRequest,
 ): Promise<PdfExportResult> {

@@ -30,7 +30,7 @@ export default function Modal({
         onClick={onClose}
       />
 
-      {/* Modal Content */}
+      {/* Modal content */}
       <div className={`relative bg-white rounded-[24px] shadow-2xl ${maxWidth} w-full p-8 md:p-10 max-h-[80vh] overflow-y-auto`}>
         {showCloseButton && (
           <button

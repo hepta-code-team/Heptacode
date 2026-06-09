@@ -27,6 +27,11 @@ export interface BodyRegion {
 
 export type BodyAreaCategory = "head" | "torso" | "arms" | "legs" | "mental" | "general";
 
+/**
+ * Canonical symptom regions shown in the manual selection flow.
+ * These names are also used by AI extraction and triage normalization, so
+ * display labels should only change together with the shared taxonomy.
+ */
 export const BODY_REGIONS: BodyRegion[] = [
   {
     id: "kopf",
@@ -148,8 +153,18 @@ export const BODY_REGIONS: BodyRegion[] = [
   },
 ];
 
+/**
+ * Manual suboptions that immediately trigger the emergency path.
+ * The list is intentionally small because these options bypass the normal
+ * symptom-details step and should only include high-confidence red flags.
+ */
 export const EMERGENCY_SYMPTOM_OPTIONS = ["Suizidgedanken"];
 
+/**
+ * Maps coarse body areas to the detailed regions shown after selection.
+ * Shared injury types such as burns and cuts appear in multiple body areas
+ * because their location is less important than surfacing the symptom quickly.
+ */
 export const BODY_AREA_REGION_IDS: Record<BodyAreaCategory, string[]> = {
   head: ["kopf", "gesicht", "verbrennung", "schnittwunde"],
   torso: ["brust", "bauch", "ruecken", "huefte", "verbrennung", "schnittwunde"],
@@ -256,6 +271,11 @@ const MEASUREMENT_CONFIGS: Record<SymptomMeasurementType, MeasurementConfig> = {
   },
 };
 
+/**
+ * Chooses the measurement UI based on the selected symptom region.
+ * Most symptoms use pain by default, while fever, mental-health symptoms, and
+ * general complaints need scales that better match their clinical meaning.
+ */
 export function getMeasurementConfig(region: string): MeasurementConfig {
     if (region === "Fieber") {
         return MEASUREMENT_CONFIGS.temperature;
