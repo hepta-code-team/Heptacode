@@ -165,29 +165,6 @@ function formatValue(value?: string | number | null): string {
   return String(value)
 }
 
-/**
- * Preserves custom condition details without repeating the condition name.
- *
- * "Sonstige" entries are treated specially because the free-text value is the
- * actual condition detail rather than a category label.
- */
-function formatConditionDetail(condition: string, detail: string): string {
-  const cleanCondition = normalizeGermanText(condition).trim()
-  const cleanDetail = normalizeGermanText(detail).trim()
-
-  if (cleanDetail.length === 0) {
-    return ''
-  }
-
-  if (/^(sonstige|sonstiges|other)$/i.test(cleanCondition)) {
-    return cleanDetail.replace(/^(sonstige|sonstiges|other)\s*:\s*/i, '')
-  }
-
-  return cleanDetail.toLowerCase().startsWith(`${cleanCondition.toLowerCase()}:`)
-    ? cleanDetail
-    : `${cleanCondition}: ${cleanDetail}`
-}
-
 function formatIsoDate(value: string): string {
   const match = value.match(/^(\d{4})-(\d{2})-(\d{2})$/)
 
@@ -258,11 +235,6 @@ function summarizePatient(data?: PatientData): string {
     return 'Keine Stammdaten vorhanden.'
   }
 
-  const conditionDetails = Object.entries(data.conditionDetails)
-    .filter(([, detail]) => detail?.trim().length > 0)
-    .map(([condition, detail]) => formatConditionDetail(condition, detail))
-    .filter((detail) => detail.length > 0)
-
   return [
     `Geburtsdatum: ${formatValue(data.birthMonth)}/${formatValue(data.birthYear)}`,
     `Größe: ${formatValue(data.height)} cm`,
@@ -280,7 +252,6 @@ function summarizePatient(data?: PatientData): string {
     `Raucher: ${data.isSmoker ? 'Ja' : 'Nein'}`,
     data.isSmoker ? `Rauchdauer: ${data.smokingSinceYears || '—'}` : null,
     data.isSmoker ? `Zigaretten pro Tag: ${data.cigarettesPerDay || '—'}` : null,
-    conditionDetails.length > 0 ? `Details zu Vorerkrankungen: ${conditionDetails.join('; ')}` : null,
   ].filter((line): line is string => line !== null).join('\n')
 }
 
@@ -475,12 +446,6 @@ function extractPatientFromStructuredSummary(summary: string): string {
   return patientMatch?.[1]?.trim() || 'Keine Stammdaten vorhanden.'
 }
 
-/**
- * Detects whether a professional summary already contains parseable sections.
- *
- * When this returns true, the PDF reuses the edited structure instead of
- * replacing it with a generic summary built from raw request fields.
- */
 function hasMedicalSummaryStructure(summary: string): boolean {
   return /(^|\n)\s*(Patientendaten|Stammdaten|Beschwerden|Ausgewählte Symptome|Ausgewaehlte Symptome|Detailangaben zu aktiven Symptomen)\s*:/i.test(summary)
 }
