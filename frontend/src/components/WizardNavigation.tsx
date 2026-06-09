@@ -36,6 +36,9 @@ export default function WizardNavigation() {
     "/result": true,
   };
   const hasCompletedAssessment = Boolean(assessmentResult) && !isEvaluating;
+  const navigationFrameBorderColor = hasCompletedAssessment && !isEmergencyResult
+    ? "border-[#A3E64D]"
+    : "border-gray-300";
   const completedThroughPath = hasCompletedAssessment || isEmergencyResult
     ? "/result"
     : isEvaluating || evaluationProgress > 0
@@ -46,8 +49,8 @@ export default function WizardNavigation() {
     : -1;
 
   return (
-      <div className="fixed bottom-6 left-1/2 z-20 hidden min-w-[60vw] -translate-x-1/2 rounded-2xl border
-      border-gray-300 bg-white px-8 py-3 shadow-md md:block">
+      <div className={`fixed bottom-6 left-1/2 z-20 hidden min-w-[60vw] -translate-x-1/2 rounded-2xl border
+      bg-white px-8 py-3 shadow-md transition-colors md:block ${navigationFrameBorderColor}`}>
         <div className="mx-auto max-w-5xl">
         <div className="grid gap-2" style={{ gridTemplateColumns: `repeat(${pages.length}, minmax(0, 1fr))` }}>
           {pages.map((page, index) => {
