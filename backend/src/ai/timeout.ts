@@ -1,13 +1,20 @@
 import OpenAI, { APIConnectionError, APIConnectionTimeoutError, APIError } from 'openai'
 
 // AI requests must not block the assessment flow indefinitely.
-export const AI_REQUEST_TIMEOUT_MS = 17000
-
-// Disable retries so the defined fallback runs quickly and predictably.
-export const AI_REQUEST_OPTIONS = {
-  timeout: AI_REQUEST_TIMEOUT_MS,
-  maxRetries: 0,
+export const AI_REQUEST_TIMEOUT_MS = {
+  primary: 40_000,
+  fallback: 22_000,
 } as const
+// Disable retries so the defined fallback runs quickly and predictably.
+export const AI_REQUEST_OPTIONS = createAiRequestOptions(AI_REQUEST_TIMEOUT_MS.primary)
+
+
+export function createAiRequestOptions(timeoutMs: number) {
+  return {
+    timeout: timeoutMs,
+    maxRetries: 0,
+  } as const
+}
 
 // Raised when the AI responds without valid structured output.
 export class AiResponseError extends Error {
