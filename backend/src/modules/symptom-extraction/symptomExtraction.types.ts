@@ -16,7 +16,7 @@ import type { PatientData } from '../../../../shared/patientData.types.js'
 
 export type { SymptomExtractionAiResult, TriageSymptom }
 
-// Typ für die Anfrage
+// Request payload for symptom extraction.
 export interface SymptomExtractionRequest {
   symptomText?: string
   text: string
@@ -25,13 +25,13 @@ export interface SymptomExtractionRequest {
   patientData?: PatientData
 }
 
-// Typ für die Antwort
+// Response payload for symptom extraction.
 export interface SymptomExtractionResponse {
   text: string
   inputType: SymptomInputType
   symptoms: TriageSymptom[]
   invalidInput?: boolean
-  // TA 1.8: true bedeutet, dass keine KI-Antwort rechtzeitig oder strukturiert verfuegbar war.
+  // True when no timely or structured AI response was available.
   aiUnavailable?: boolean
   message?: string
 }
@@ -57,6 +57,12 @@ function emptyStringOrNullToUndefined(value: unknown): unknown {
   return value === null || value === '' ? undefined : value
 }
 
+/**
+ * Accepts numeric values even when the AI returns them as localized strings.
+ *
+ * This keeps the schema tolerant of outputs such as "38,5 °C" while still
+ * rejecting non-numeric measurement text through Zod validation.
+ */
 function normalizeMeasurementValue(value: unknown): unknown {
   if (value === null || value === undefined || value === '') {
     return undefined
@@ -154,6 +160,13 @@ function isDuplicateSymptomDetail(details: string | undefined, region: string, s
   )
 }
 
+
+/**
+ * Validates and normalizes one extracted symptom from AI output.
+ *
+ * The transform accepts either a known region or a known option as the region
+ * field, then rewrites it into the canonical region/side pair used by triage.
+ */
 export const extractedSymptomSchema = z
   .object({
     region: z.string().min(1),
@@ -212,7 +225,7 @@ export const symptomInputValidationAiResultSchema = z.object({
   reason: z.string().min(1),
 })
 
-// Also ich habe hier symptomText hinzugefügt da wir das in TA1.4 haben wollen.
+// Accept legacy and current text fields while requiring at least one input value.
 export const symptomExtractionRequestSchema = z
   .object({
     symptomText: z.string().trim().min(1).optional(),

@@ -1,4 +1,4 @@
-// Patient Data
+// Patient data collected before the symptom assessment.
 export interface PatientData {
     birthMonth: string
     birthYear: string

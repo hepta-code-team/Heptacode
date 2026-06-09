@@ -46,6 +46,12 @@ function assertPatientDataIsPlausible(
   }
 }
 
+/**
+ * Converts patient data into the compact text block used by the triage prompt.
+ *
+ * Optional risk factors are only included when they are present or clinically
+ * meaningful, which keeps the prompt short without dropping relevant context.
+ */
 function buildPatientDataLines(patientData?: PatientData): string[] {
   if (!patientData) {
     return ['Keine Stammdaten uebergeben.']
@@ -91,6 +97,12 @@ function formatPatientData(patientData?: PatientData): string {
   return buildPatientDataLines(patientData).join('\n')
 }
 
+/**
+ * Formats a single symptom measurement into patient-readable German text.
+ *
+ * Temperature uses a real unit while the other measurement types share the
+ * normalized 1-10 scale used by the frontend controls.
+ */
 function formatMeasurement(symptom: TriageSymptom): string | null {
   if (symptom.measurementValue === undefined) {
     return null
@@ -104,6 +116,12 @@ function formatMeasurement(symptom: TriageSymptom): string | null {
   return `${label} ${symptom.measurementValue}/10`
 }
 
+/**
+ * Builds the symptom list that is sent to the triage model.
+ *
+ * Each symptom is kept on its own numbered line so the model can reason about
+ * multiple complaints without losing their measurement and duration context.
+ */
 function formatSymptoms(symptoms: TriageSymptom[]): string {
   if (symptoms.length === 0) {
     return 'Keine Symptome uebergeben.'
@@ -122,6 +140,13 @@ function formatSymptoms(symptoms: TriageSymptom[]): string {
     })
     .join('\n')
 }
+
+/**
+ * Ensures every triage response has the fields required by presentation layers.
+ *
+ * Some local fallback paths only know the care level and reasons; this fills
+ * reviewSummary from those reasons so callers can render consistently.
+ */
 function attachPresentationFields(result: TriageResponse): TriageResponse {
   if (result.reviewSummary) {
     return result
@@ -140,6 +165,12 @@ function attachPresentationFields(result: TriageResponse): TriageResponse {
   }
 }
 
+/**
+ * Converts mixed measurement types into one comparable urgency score.
+ *
+ * Fever is mapped onto the 1-10 severity scale so fallback decisions can compare
+ * temperature-based and slider-based complaints in one place.
+ */
 function getComparableMeasurementValue(symptom: TriageSymptom): number {
   if (symptom.measurementValue === undefined) {
     return 0
@@ -160,6 +191,12 @@ function getComparableMeasurementValue(symptom: TriageSymptom): number {
   return symptom.measurementValue
 }
 
+/**
+ * Sends structured patient and symptom context to the AI triage model.
+ *
+ * The schema validation happens before the result leaves this function, so
+ * downstream fallback logic only handles typed triage responses or known errors.
+ */
 async function requestTriageFromAi(
   patientData: PatientData | undefined,
   symptoms: TriageSymptom[],
@@ -186,11 +223,19 @@ async function requestTriageFromAi(
   }
 }
 
+/**
+ * Creates a conservative local triage result when AI classification fails.
+ *
+ * The fallback intentionally favors higher urgency for warning patterns because
+ * under-triage is riskier than asking for medical clarification.
+ */
 function createFallbackTriage(symptoms: TriageSymptom[]): TriageResponse {
   const strongestMeasurementValue = Math.max(
     0,
     ...symptoms.map(getComparableMeasurementValue),
   )
+
+  // Mirror the most urgent local safety rules when the AI cannot classify the case.
   const hasEmergencyPattern = symptoms.some((symptom) => {
     const region = symptom.region.toLowerCase()
     const side = symptom.side?.toLowerCase() ?? ''
@@ -261,6 +306,12 @@ function createFallbackTriage(symptoms: TriageSymptom[]): TriageResponse {
   }
 }
 
+/**
+ * Used when free-text extraction itself is unavailable.
+ *
+ * Without structured symptoms the service cannot safely infer a low urgency, so
+ * it routes the user toward general medical clarification.
+ */
 function createTextExtractionFallbackTriage(): TriageResponse {
   return {
     careLevel: 'doctor',
@@ -273,6 +324,12 @@ function createTextExtractionFallbackTriage(): TriageResponse {
   }
 }
 
+/**
+ * Wraps the AI request with a local fallback for known availability failures.
+ *
+ * Unknown errors are rethrown because they may indicate bugs or invalid request
+ * shapes that should not be hidden behind medical fallback text.
+ */
 async function requestTriageWithFallback(
   patientData: PatientData | undefined,
   symptoms: TriageSymptom[],
@@ -288,6 +345,12 @@ async function requestTriageWithFallback(
   }
 }
 
+/**
+ * Main triage entry point for manual symptoms, emergency shortcuts, and free text.
+ *
+ * The ordering matters: explicit emergency state wins first, then free-text
+ * extraction, and finally already-structured symptom input.
+ */
 export async function evaluateTriage(
   patientData: PatientData | undefined,
   symptoms: TriageSymptom[] | undefined,
@@ -295,8 +358,12 @@ export async function evaluateTriage(
   text?: string,
   inputType: SymptomInputType = 'text',
 ): Promise<TriageResponse> {
+<<<<<<< 84-add-system-wide-comments
+  // The landing-page emergency shortcut bypasses AI so critical symptoms never wait on external services.
+=======
   assertPatientDataIsPlausible(patientData, text, symptoms)
 
+>>>>>>> dev
   if (emergencyFromLanding) {
     const result: TriageResponse = {
       careLevel: 'emergency',
@@ -326,6 +393,7 @@ export async function evaluateTriage(
       return createTextExtractionFallbackTriage()
     }
 
+    // Free-text input is converted into structured symptoms before the shared triage path runs.
     return requestTriageWithFallback(patientData, extractionResult.symptoms)
   }
 

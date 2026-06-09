@@ -5,8 +5,7 @@ import {
   reviewSummarySchema,
 } from '../modules/triage/triage.types.js'
 
-// TA 2.5: Zentrale Validierung fuer KI-Responses der Triage.
-// Dadurch kann dieselbe KI-Antwortstruktur an mehreren Stellen wiederverwendet werden.
+// Central validation for triage AI responses so the same response shape can be reused.
 export const triageAiResponseSchema = z
   .object({
     careLevel: careLevelSchema,

@@ -62,7 +62,6 @@ export function createSymptomExtractionPrompt(input: SymptomExtractionPromptInpu
 }
 
 export const symptomValidationInstructions = [
-  //Prompt von ChatGPT erstellt:
   'Du bewertest, ob ein deutscher Freitext eine sinnvolle medizinische Beschreibung oder einen medizinisch relevanten Kontext enthält.',
   'Ungültig sind insbesondere Buchstabensalat, Songtexte, Gedichte, themenfremde Fragen, allgemeiner Smalltalk und sonstige nicht-medizinische Inhalte.',
   'Gültig sind Texte, die erkennbare gesundheitliche Beschwerden, Symptome, Verletzungen, Unfälle, Wunden, Fremdkoerper, Vergiftungen, Blutungen, Funktionsverluste oder andere relevante medizinische Kontexte beschreiben.',
