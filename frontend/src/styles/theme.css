@@ -216,8 +216,8 @@
   .page-header-divider {
     background: linear-gradient(
       to right,
-      var(--app-background-top),
-      var(--app-background-bottom)
+      var(--app-background-bottom),
+      var(--app-background-top)
     );
   }
 }

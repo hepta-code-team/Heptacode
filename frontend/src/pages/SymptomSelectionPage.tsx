@@ -343,6 +343,7 @@ export default function SymptomSelectionPage() {
   const [selectedCategory, setSelectedCategory] = useState<BodyAreaCategory | null>(initialCategory);
   const [selectedSymptoms, setSelectedSymptoms] = useState<SelectedSymptom[]>(contextSymptoms);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [symptomTextDraft, setSymptomTextDraft] = useState(symptomText);
   const [isExtractingSymptoms, setIsExtractingSymptoms] = useState(false);
   const [isRecordingSymptoms, setIsRecordingSymptoms] = useState(false);
   const [recordingElapsedSeconds, setRecordingElapsedSeconds] = useState(0);
@@ -356,7 +357,7 @@ export default function SymptomSelectionPage() {
   const selectedCategoryLabel = selectedCategory ? BODY_AREA_LABELS[selectedCategory] : "";
   const filteredRegions = useMemo(() => getBodyRegionsForCategory(selectedCategory), [selectedCategory]);
   const shouldShowInlineOptions = false;
-  const symptomTextCharacterCount = useMemo(() => getCharacterCount(symptomText), [symptomText]);
+  const symptomTextCharacterCount = useMemo(() => getCharacterCount(symptomTextDraft), [symptomTextDraft]);
   const formattedRecordingElapsed = formatRecordingDuration(recordingElapsedSeconds);
   const formattedMaxRecordingDuration = formatRecordingDuration(MAX_RECORDING_DURATION_SECONDS);
 
@@ -372,7 +373,7 @@ export default function SymptomSelectionPage() {
       return;
     }
 
-    setSymptomText(text);
+    setSymptomTextDraft(text);
 
     if (symptomTextError === SYMPTOM_TEXT_CHARACTER_LIMIT_ERROR) {
       setSymptomTextError(null);
@@ -415,7 +416,7 @@ export default function SymptomSelectionPage() {
 
     if (exceedsSymptomTextLimit(nextText)) {
       event.preventDefault();
-      setSymptomText(limitTextToMaxCharacters(nextText));
+      setSymptomTextDraft(limitTextToMaxCharacters(nextText));
       setSymptomTextError(SYMPTOM_TEXT_CHARACTER_LIMIT_ERROR);
     }
   };
@@ -496,7 +497,7 @@ export default function SymptomSelectionPage() {
     }
 
     const recognition = new SpeechRecognition();
-    recordedTextRef.current = symptomText.trim();
+    recordedTextRef.current = symptomTextDraft.trim();
     recognition.continuous = true;
     recognition.interimResults = true;
     recognition.lang = "de-DE";
@@ -528,7 +529,7 @@ export default function SymptomSelectionPage() {
       }
 
       const nextSymptomText = appendTranscript(recordedTextRef.current, interimTranscript);
-      setSymptomText(nextSymptomText);
+      setSymptomTextDraft(nextSymptomText);
 
       if (getCharacterCount(nextSymptomText) >= MAX_SYMPTOM_TEXT_CHARACTERS && (finalTranscript || interimTranscript)) {
         setSymptomTextError(SYMPTOM_TEXT_CHARACTER_LIMIT_ERROR);
@@ -641,6 +642,12 @@ export default function SymptomSelectionPage() {
     setSelectedSymptoms(selectedSymptoms.filter((_, symptomIndex) => symptomIndex !== index));
   };
 
+  const openSymptomTextModal = () => {
+    setSymptomTextDraft(symptomText);
+    setSymptomTextError(null);
+    setIsModalOpen(true);
+  };
+
   const handleContinue = () => {
     setContextSymptoms(selectedSymptoms);
     setContextSymptomDetails([]);
@@ -650,7 +657,7 @@ export default function SymptomSelectionPage() {
   const handleClearSymptomText = () => {
     stopSymptomRecording();
     recordedTextRef.current = "";
-    setSymptomText("");
+    setSymptomTextDraft("");
     setSymptomTextError(null);
   };
 
@@ -662,7 +669,7 @@ export default function SymptomSelectionPage() {
    */
   const handleApplySymptomText = async () => {
     stopSymptomRecording();
-    const trimmedSymptomText = symptomText.trim();
+    const trimmedSymptomText = symptomTextDraft.trim();
 
     if (!trimmedSymptomText) {
       setSymptomTextError("Bitte beschreiben Sie Ihre Symptome kurz.");
@@ -670,11 +677,12 @@ export default function SymptomSelectionPage() {
     }
 
     if (exceedsSymptomTextLimit(trimmedSymptomText)) {
-      setSymptomText(limitTextToMaxCharacters(trimmedSymptomText));
+      setSymptomTextDraft(limitTextToMaxCharacters(trimmedSymptomText));
       setSymptomTextError(SYMPTOM_TEXT_CHARACTER_LIMIT_ERROR);
       return;
     }
 
+    setSymptomText(trimmedSymptomText);
     setIsExtractingSymptoms(true);
     setSymptomTextError(null);
 
@@ -834,7 +842,7 @@ export default function SymptomSelectionPage() {
 
           <button
             type="button"
-            onClick={() => setIsModalOpen(true)}
+            onClick={openSymptomTextModal}
             className={`mb-4 w-full rounded-[16px] border-2 bg-white p-4 text-left text-app-text-body shadow-sm transition-all hover:border-[#486284] hover:bg-[#f5f7fa] ${
               symptomText.trim() ? "border-[#486284]" : "border-[#d7dee7]"
             }`}
@@ -914,6 +922,7 @@ export default function SymptomSelectionPage() {
         onClose={() => {
           stopSymptomRecording();
           setIsModalOpen(false);
+          setSymptomTextDraft(symptomText);
           setSymptomTextError(null);
         }}
         title="Beschreiben Sie Ihre Symptome"
@@ -921,7 +930,7 @@ export default function SymptomSelectionPage() {
         showCloseButton
       >
         <textarea
-          value={symptomText}
+          value={symptomTextDraft}
           onBeforeInput={handleSymptomTextBeforeInput}
           onChange={(event) => handleSymptomTextChange(event.target.value)}
           onPaste={handleSymptomTextPaste}
@@ -953,7 +962,7 @@ export default function SymptomSelectionPage() {
             <button
               type="button"
               onClick={handleClearSymptomText}
-              disabled={isExtractingSymptoms || symptomText.length === 0}
+              disabled={isExtractingSymptoms || symptomTextDraft.length === 0}
               className="flex h-16 w-16 items-center justify-center rounded-full bg-red-600 text-white shadow-lg transition-all hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60"
               aria-label="Freitext löschen"
               title="Freitext löschen"
@@ -997,7 +1006,7 @@ export default function SymptomSelectionPage() {
             <button
               type="button"
               onClick={handleApplySymptomText}
-              disabled={isExtractingSymptoms || symptomText.trim().length === 0}
+              disabled={isExtractingSymptoms || symptomTextDraft.trim().length === 0}
               className="flex h-16 w-16 items-center justify-center rounded-full bg-[#486284] text-app-text-on-primary shadow-lg transition-all hover:bg-[#3a4d68] disabled:cursor-not-allowed disabled:opacity-60"
               aria-label="Symptombeschreibung übernehmen"
             >

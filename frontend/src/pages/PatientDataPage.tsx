@@ -21,10 +21,34 @@ const BIRTH_MONTH_MIN = 1;
 const BIRTH_MONTH_MAX = 12;
 const MAX_PATIENT_AGE_YEARS = 125;
 
-const GENDER_OPTIONS: Array<{ label: string; icon: LucideIcon; selectedClassName: string }> = [
-  { label: "Männlich", icon: Mars, selectedClassName: "bg-[#486284] text-white" },
-  { label: "Weiblich", icon: Venus, selectedClassName: "bg-[#ec4899] text-white" },
-  { label: "Divers", icon: Transgender, selectedClassName: "bg-[#7c3aed] text-white" },
+const GENDER_OPTIONS: Array<{
+  label: string;
+  icon: LucideIcon;
+  selectedClassName: string;
+  borderClassName: string;
+  bgColor: string;
+}> = [
+  {
+    label: "Männlich",
+    icon: Mars,
+    selectedClassName: "bg-[#486284] text-white",
+    borderClassName: "border-[#486284]",
+    bgColor: "#e8eef7",
+  },
+  {
+    label: "Weiblich",
+    icon: Venus,
+    selectedClassName: "bg-[#ec4899] text-white",
+    borderClassName: "border-[#ec4899]",
+    bgColor: "#fce7f3",
+  },
+  {
+    label: "Divers",
+    icon: Transgender,
+    selectedClassName: "bg-[#7c3aed] text-white",
+    borderClassName: "border-[#7c3aed]",
+    bgColor: "#ede9fe",
+  },
 ];
 
 const MOOD_OPTIONS: Array<{ label: string; icon: LucideIcon; color: string; bgColor: string }> = [
@@ -44,9 +68,9 @@ function clampNumber(value: number, min: number, max: number) {
   return Math.min(Math.max(value, min), max);
 }
 
-function getRequiredFieldCardClass(isCompleted: boolean, spacingClass = "h-full") {
+function getRequiredFieldCardClass(isCompleted: boolean, spacingClass = "h-full", borderClassName = "border-[#486284]") {
   return `${spacingClass} rounded-[14px] border-2 p-3 transition-all ${
-    isCompleted ? "border-[#486284] bg-[#eff2f6]" : "border-transparent bg-[#eff2f6]"
+    isCompleted ? `${borderClassName} bg-[#eff2f6]` : "border-transparent bg-[#eff2f6]"
   }`;
 }
 
@@ -62,6 +86,7 @@ const createInitialPatientData = (patientData?: Partial<PatientData>): PatientDa
   height: "",
   weight: "",
   gender: "",
+  mood: "",
   isPregnant: false,
   isBreastfeeding: false,
   allergies: "",
@@ -84,7 +109,7 @@ export default function PatientDataPage() {
   const birthYearMin = currentYear - MAX_PATIENT_AGE_YEARS;
 
   const [formData, setFormData] = useState<PatientData>(() => createInitialPatientData(patientData ?? undefined));
-  const [mood, setMood] = useState("");
+  const [mood, setMood] = useState(formData.mood);
   const [showValidationErrors, setShowValidationErrors] = useState(false);
 
   /**
@@ -118,6 +143,8 @@ export default function PatientDataPage() {
     isNumberInRange(formData.height, HEIGHT_MIN, HEIGHT_MAX) &&
     isNumberInRange(formData.weight, WEIGHT_MIN, WEIGHT_MAX);
   const isGenderComplete = Boolean(formData.gender);
+  const selectedGenderOption = GENDER_OPTIONS.find((option) => option.label === formData.gender);
+  const selectedMoodOption = MOOD_OPTIONS.find((option) => option.label === mood);
 
   const setEmptyNumberStepValue = (
     field: "birthYear" | "height" | "weight",
@@ -190,7 +217,7 @@ export default function PatientDataPage() {
       return;
     }
 
-    setPatientData(formData);
+    setPatientData({ ...formData, mood });
     navigate("/medical-data");
   };
 
@@ -367,7 +394,10 @@ export default function PatientDataPage() {
           </div>
         </div>
 
-        <div className={getRequiredFieldCardClass(isGenderComplete)}>
+        <div
+          className={getRequiredFieldCardClass(isGenderComplete, "h-full", selectedGenderOption?.borderClassName)}
+          style={{ backgroundColor: selectedGenderOption?.bgColor ?? "#eff2f6" }}
+        >
           <p
             className="font-['DM_Sans:Bold',sans-serif] font-bold text-app-text-body text-sm mb-1.5"
             style={{ fontVariationSettings: "'opsz' 14" }}
@@ -404,13 +434,19 @@ export default function PatientDataPage() {
         </div>
       </div>
 
-      <div className={getRequiredFieldCardClass(Boolean(mood), "mt-3")}>
+      <div
+        className="mt-3 rounded-[14px] border-2 p-3 transition-all"
+        style={{
+          backgroundColor: selectedMoodOption?.bgColor ?? "#eff2f6",
+          borderColor: selectedMoodOption?.color ?? "transparent",
+        }}
+      >
         <div className="mb-2">
           <p
             className="font-['DM_Sans:Bold',sans-serif] font-bold text-app-text-body text-base"
             style={{ fontVariationSettings: "'opsz' 14" }}
           >
-            Wie ist Ihre allgemeine Stimmung heute?
+            Wie ist Ihre aktuelle Stimmung heute?
           </p>
         </div>
 

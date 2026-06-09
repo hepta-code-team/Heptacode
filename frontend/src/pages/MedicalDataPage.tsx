@@ -16,6 +16,7 @@ import {
   Pill,
   ShieldAlert,
   Stethoscope,
+  Trash2,
   Wind,
   Wine,
   type LucideIcon,
@@ -90,6 +91,7 @@ const createInitialPatientData = (patientData?: Partial<PatientData>): PatientDa
   height: "",
   weight: "",
   gender: "",
+  mood: "",
   isPregnant: false,
   isBreastfeeding: false,
   allergies: "",
@@ -221,7 +223,6 @@ export default function MedicalDataPage() {
     abroad: false,
   });
   const [expandedConditionDetails, setExpandedConditionDetails] = useState<Record<string, boolean>>({});
-  const [isClearingConditionSelections, setIsClearingConditionSelections] = useState(false);
 
   /**
    * Closes condition-detail dropdowns when the user clicks outside the grid.
@@ -239,11 +240,6 @@ export default function MedicalDataPage() {
     return () => document.removeEventListener("pointerdown", handlePointerDown);
   }, []);
 
-  useEffect(() => {
-    if (formData.conditions.length === 0) {
-      setIsClearingConditionSelections(false);
-    }
-  }, [formData.conditions.length]);
 
   const toggleMedicalSection = (section: MedicalSection) => {
     setExpandedMedicalSections((sections) => ({
@@ -266,7 +262,6 @@ export default function MedicalDataPage() {
       conditionDetails: {},
     }));
     setExpandedConditionDetails({});
-    setIsClearingConditionSelections(false);
   };
 
   const clearOtherConditionSelection = () => {
@@ -297,19 +292,9 @@ export default function MedicalDataPage() {
     }));
   };
 
-  const toggleConditionClearMode = () => {
-    setIsClearingConditionSelections((isActive) => !isActive);
-    setExpandedConditionDetails({});
-  };
-
   const toggleConditionSelection = (condition: string) => {
-    const isSelected = formData.conditions.includes(condition);
-
-    if (isClearingConditionSelections) {
-      if (isSelected) {
-        clearConditionSelection(condition);
-      }
-
+    if (formData.conditions.includes(condition)) {
+      clearConditionSelection(condition);
       return;
     }
 
@@ -382,7 +367,11 @@ export default function MedicalDataPage() {
       onSkip={handleSkip}
     >
       {(formData.gender === "Weiblich" || formData.gender === "Divers") && (
-        <div className="bg-[#eff2f6] rounded-[14px] p-3">
+        <div
+          className={`rounded-[14px] border-2 bg-[#eff2f6] p-3 transition-all ${
+            formData.isPregnant || formData.isBreastfeeding ? "border-[#486284]" : "border-transparent"
+          }`}
+        >
           <p
             className="font-['DM_Sans:Bold',sans-serif] font-bold text-app-text-body text-sm mb-2"
             style={{ fontVariationSettings: "'opsz' 14" }}
@@ -537,7 +526,11 @@ export default function MedicalDataPage() {
         </div>
       </div>
 
-      <div className="mt-4 bg-[#eff2f6] rounded-[14px] p-3">
+      <div
+        className={`mt-4 rounded-[14px] border-2 bg-[#eff2f6] p-3 transition-all ${
+          smokingStatus !== "Nein" ? "border-[#486284]" : "border-transparent"
+        }`}
+      >
         <div className="mb-3 flex items-start gap-3">
           <span className="flex size-9 flex-shrink-0 items-center justify-center rounded-full bg-white text-app-text-primary">
             <Cigarette className="size-5" aria-hidden="true" />
@@ -674,29 +667,16 @@ export default function MedicalDataPage() {
           >
             Vorerkrankungen
           </p>
-          <div className="flex flex-wrap items-center justify-end gap-2">
-            {isClearingConditionSelections && (
-              <button
-                type="button"
-                onClick={clearAllConditionSelections}
-                className="rounded-[10px] bg-white px-3 py-2 text-xs font-bold text-app-text-primary transition-all hover:bg-[#dde3ea]"
-              >
-                alle aufheben
-              </button>
-            )}
-            <button
-              type="button"
-              onClick={toggleConditionClearMode}
-              disabled={formData.conditions.length === 0}
-              className={`rounded-[10px] px-3 py-2 text-xs font-bold transition-all disabled:cursor-not-allowed disabled:opacity-50 ${
-                isClearingConditionSelections
-                  ? "bg-[#486284] text-white hover:bg-[#3a4d68]"
-                  : "bg-white text-app-text-primary hover:bg-[#dde3ea]"
-              }`}
-            >
-              {isClearingConditionSelections ? "Aufheben beenden" : "Auswahl aufheben"}
-            </button>
-          </div>
+          <button
+            type="button"
+            onClick={clearAllConditionSelections}
+            disabled={formData.conditions.length === 0}
+            className="rounded-[10px] bg-white p-2 text-app-text-primary transition-all hover:bg-[#dde3ea] disabled:cursor-not-allowed disabled:opacity-50"
+            aria-label="Alle Auswahlen aufheben"
+            title="Alle Auswahlen aufheben"
+          >
+            <Trash2 className="size-4" aria-hidden="true" />
+          </button>
         </div>
 
         <div ref={conditionsGridRef} className="grid grid-cols-2 md:grid-cols-3 gap-2">
@@ -713,7 +693,7 @@ export default function MedicalDataPage() {
                 <div
                   key={condition}
                   className={`bg-[#eff2f6] rounded-[10px] p-3 min-h-[82px] flex flex-col justify-center gap-2 transition-all ${
-                    otherValue.trim() ? `ring-2 ${isClearingConditionSelections ? "ring-red-500" : "ring-[#486284]"}` : ""
+                    otherValue.trim() ? "ring-2 ring-[#486284]" : ""
                   }`}
                 >
                   <div className="flex items-center gap-2">
@@ -735,16 +715,15 @@ export default function MedicalDataPage() {
                     value={otherValue}
                     onChange={(event) => updateOtherCondition(event.target.value)}
                     placeholder="Freitext"
-                    disabled={isClearingConditionSelections}
-                    className="h-9 border-none bg-white text-xs disabled:cursor-not-allowed disabled:opacity-70"
+                    className="h-9 border-none bg-white text-xs"
                   />
-                  {isClearingConditionSelections && otherValue.trim() && (
+                  {otherValue.trim() && (
                     <button
                       type="button"
                       onClick={clearOtherConditionSelection}
                       className="rounded-[8px] bg-white px-2 py-1.5 text-xs font-bold text-app-text-primary shadow-sm transition-all hover:bg-[#dde3ea]"
                     >
-                      Auswahl aufheben
+                      Aufheben
                     </button>
                   )}
                 </div>
@@ -757,7 +736,7 @@ export default function MedicalDataPage() {
                   type="button"
                   onClick={() => toggleConditionSelection(condition)}
                   className={`bg-[#eff2f6] rounded-[10px] p-3 min-h-[82px] w-full flex flex-col items-center justify-center gap-2 text-center transition-all ${
-                    isSelected ? `ring-2 ${isClearingConditionSelections ? "ring-red-500" : "ring-[#486284]"}` : "hover:bg-[#dde3ea]"
+                    isSelected ? "ring-2 ring-[#486284]" : "hover:bg-[#dde3ea]"
                   }`}
                   aria-expanded={isOpen}
                 >
