@@ -4,6 +4,19 @@ import {
   medicalSpecialtySchema,
   reviewSummarySchema,
 } from '../modules/triage/triage.types.js'
+import type { MedicalSpecialty } from '../modules/triage/triage.types.js'
+
+const NON_SPECIALIST_SPECIALTIES: MedicalSpecialty[] = [
+  'home_care',
+  'emergency_medicine',
+  'general_practice',
+]
+
+function isSpecialistSpecialty(
+  specialty: MedicalSpecialty | undefined,
+): specialty is MedicalSpecialty {
+  return specialty !== undefined && !NON_SPECIALIST_SPECIALTIES.includes(specialty)
+}
 
 // TA 2.5: Zentrale Validierung fuer KI-Responses der Triage.
 // Dadurch kann dieselbe KI-Antwortstruktur an mehreren Stellen wiederverwendet werden.
@@ -24,11 +37,29 @@ export const triageAiResponseSchema = z
         message: 'recommendedSpecialty ist erforderlich, wenn careLevel specialist ist',
       })
     }
+
+    if (value.careLevel === 'specialist' && !isSpecialistSpecialty(value.recommendedSpecialty)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['recommendedSpecialty'],
+        message: 'recommendedSpecialty muss fuer careLevel specialist eine fachaerztliche Disziplin sein',
+      })
+    }
   })
-  .transform((value) => ({
-    ...value,
-    recommendedSpecialty:
-      value.careLevel === 'specialist' ? value.recommendedSpecialty : undefined,
-  }))
+  .transform((value) => {
+    if (value.careLevel !== 'specialist' && isSpecialistSpecialty(value.recommendedSpecialty)) {
+      return {
+        ...value,
+        careLevel: 'specialist' as const,
+        recommendedSpecialty: value.recommendedSpecialty,
+      }
+    }
+
+    return {
+      ...value,
+      recommendedSpecialty:
+        value.careLevel === 'specialist' ? value.recommendedSpecialty : undefined,
+    }
+  })
 
 export type TriageAiResponse = z.infer<typeof triageAiResponseSchema>

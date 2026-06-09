@@ -180,8 +180,10 @@ async function requestTriageFromAi(
     temperature: 0,
   })
 
+  const normalized = triageAiResponseSchema.parse(parsed)
+
   return {
-    ...parsed,
+    ...normalized,
     aiModel: model,
   }
 }

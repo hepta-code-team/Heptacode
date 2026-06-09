@@ -78,14 +78,6 @@ describe('POST /api/v1/triage/evaluate', () => {
       careLevel: 'specialist',
       recommendedSpecialty: 'cardiology',
       reasons: ['Die Beschwerden sollten kardiologisch abgeklaert werden.'],
-      recommendedSpecialties: [
-        {
-          specialty: 'cardiology',
-          label: 'Kardiologie',
-          reason: 'Die Beschwerden sollten kardiologisch abgeklaert werden.',
-          priority: 1,
-        },
-      ],
       reviewSummary: {
         plainLanguage: 'Bitte lassen Sie die Beschwerden kardiologisch abklaeren.',
         professionalSummary: 'Care Level: specialist. Empfohlene Fachrichtung: cardiology.',
@@ -135,14 +127,6 @@ describe('POST /api/v1/triage/evaluate', () => {
     expect(response.json()).toEqual({
       careLevel: 'doctor',
       reasons: ['Die Beschwerden sollten aerztlich abgeklart werden.'],
-      recommendedSpecialties: [
-        {
-          specialty: 'neurology',
-          label: 'Neurologie',
-          reason: 'Die Beschwerden sollten aerztlich abgeklart werden.',
-          priority: 1,
-        },
-      ],
       reviewSummary: {
         plainLanguage: 'Bitte lassen Sie die Beschwerden aerztlich abklaeren.',
         professionalSummary: 'Care Level: doctor.',

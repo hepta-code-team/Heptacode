@@ -89,8 +89,8 @@ describe('POST /assessments', () => {
 
     expect(response.statusCode).toBe(200)
     expect(body).toMatchObject({
-      careLevel: 'specialist',
-      recommendedSpecialty: 'neurology',
+      careLevel: 'doctor',
+      recommendedSpecialty: 'general_practice',
       reasons: ['Die Beschwerden sollten aerztlich eingeordnet werden.'],
       summary: 'Bitte lassen Sie die Beschwerden zeitnah abklaeren.',
     })
