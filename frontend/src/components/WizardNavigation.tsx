@@ -36,7 +36,8 @@ export default function WizardNavigation() {
     "/result": true,
   };
   const hasCompletedAssessment = Boolean(assessmentResult) && !isEvaluating;
-  const navigationFrameBorderColor = hasCompletedAssessment && !isEmergencyResult
+  const shouldHighlightNavigationFrame = hasCompletedAssessment || isEmergencyResult;
+  const navigationFrameBorderColor = shouldHighlightNavigationFrame
     ? "border-[#A3E64D]"
     : "border-gray-300";
   const completedThroughPath = hasCompletedAssessment || isEmergencyResult
