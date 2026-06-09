@@ -358,12 +358,9 @@ export async function evaluateTriage(
   text?: string,
   inputType: SymptomInputType = 'text',
 ): Promise<TriageResponse> {
-<<<<<<< 84-add-system-wide-comments
   // The landing-page emergency shortcut bypasses AI so critical symptoms never wait on external services.
-=======
   assertPatientDataIsPlausible(patientData, text, symptoms)
 
->>>>>>> dev
   if (emergencyFromLanding) {
     const result: TriageResponse = {
       careLevel: 'emergency',
