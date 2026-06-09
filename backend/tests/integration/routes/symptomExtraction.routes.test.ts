@@ -246,4 +246,50 @@ describe('POST /api/v1/symptoms/extraction', () => {
       aiUnavailable: true,
     })
   })
+
+  it('validiert bearbeitete Symptomtexte ueber eine eigene HTTP-Route', async () => {
+    requestStructuredAiResponseMock.mockResolvedValueOnce({
+      isValidMedicalInput: true,
+      reason: 'Medizinischer Kontext erkannt.',
+    })
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/v1/symptoms/validation',
+      payload: {
+        text: 'Verbrennung, kochendes Wasser ueber Arm geschuettet',
+      },
+    })
+
+    expect(response.statusCode).toBe(200)
+    expect(response.json()).toEqual({
+      text: 'Verbrennung, kochendes Wasser ueber Arm geschuettet',
+      inputType: 'text',
+      isValidMedicalInput: true,
+    })
+    expect(requestStructuredAiResponseMock).toHaveBeenCalledTimes(1)
+  })
+
+  it('lehnt nicht-medizinischen Kontext ueber die Validierungsroute ab', async () => {
+    requestStructuredAiResponseMock.mockResolvedValueOnce({
+      isValidMedicalInput: false,
+      reason: 'Der Text beschreibt keine gesundheitlichen Beschwerden.',
+    })
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/v1/symptoms/validation',
+      payload: {
+        text: 'Ich mag Pizza und Filme.',
+      },
+    })
+
+    expect(response.statusCode).toBe(200)
+    expect(response.json()).toEqual({
+      text: 'Ich mag Pizza und Filme.',
+      inputType: 'text',
+      isValidMedicalInput: false,
+      message: 'Der Text beschreibt keine gesundheitlichen Beschwerden.',
+    })
+  })
 })

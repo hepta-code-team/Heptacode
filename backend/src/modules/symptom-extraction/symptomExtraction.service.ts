@@ -5,6 +5,7 @@ import type { SymptomExtractionResponse } from './symptomExtraction.types.js'
 import type { PatientData } from '../../../../shared/patientData.types.js'
 import type { SymptomInputType } from '../../../../shared/symptomExtraction.types.js'
 import {
+  type SymptomInputValidationResponse,
   symptomExtractionAiResultSchema,
   symptomInputValidationAiResultSchema,
 } from './symptomExtraction.types.js'
@@ -42,7 +43,7 @@ function detectHeuristicInvalidInput(text: string): string | null {
   const words = splitWords(text)
   const lettersOnlyText = normalizeText(text).replace(/[^a-z]/g, '')
   const uniqueLetters = new Set(lettersOnlyText.split(''))
-  const hasMedicalCue = /(schmerz|weh|fieber|uebel|übel|atem|husten|kopf|bauch|brust|ruecken|rücken|angst|schwindel|krank|verletz|wunde|blut|nagel|getreten|stich|schnitt|biss|bruch|gebroch|verloren|abgetrennt|amput|fremdkoerper|fremdkörper|verschluckt|vergift)/i.test(text)
+  const hasMedicalCue = /(schmerz|weh|fieber|uebel|übel|atem|husten|kopf|bauch|brust|ruecken|rücken|angst|schwindel|krank|verletz|wunde|blut|nagel|getreten|stich|schnitt|biss|bruch|gebroch|verbrenn|verbrueh|verbrüh|haut|ausschlag|juck|geschwoll|taub|erbrech|durchfall|verloren|abgetrennt|amput|fremdkoerper|fremdkörper|verschluckt|vergift)/i.test(text)
 
   if (trimmedText.length < 6) {
     return 'Bitte beschreiben Sie Ihre Beschwerden etwas genauer.'
@@ -91,6 +92,56 @@ async function requestInputValidationFromAi(text: string, inputType: SymptomInpu
   })
 }
 
+export async function validateSymptomInput(
+  text: string,
+  inputType: SymptomInputType = 'text',
+  patientData?: PatientData,
+): Promise<SymptomInputValidationResponse> {
+  const plausibilityError = getPatientPlausibilityError(patientData, text, undefined)
+
+  if (plausibilityError) {
+    return {
+      text,
+      inputType,
+      isValidMedicalInput: false,
+      message: plausibilityError,
+    }
+  }
+
+  const heuristicInvalidReason = detectHeuristicInvalidInput(text)
+
+  if (heuristicInvalidReason) {
+    return {
+      text,
+      inputType,
+      isValidMedicalInput: false,
+      message: heuristicInvalidReason,
+    }
+  }
+
+  try {
+    const validationResult = await requestInputValidationFromAi(text, inputType)
+
+    return {
+      text,
+      inputType,
+      isValidMedicalInput: validationResult.isValidMedicalInput,
+      message: validationResult.isValidMedicalInput ? undefined : validationResult.reason,
+    }
+  } catch (error) {
+    if (!isAiRequestError(error)) {
+      throw error
+    }
+
+    return {
+      text,
+      inputType,
+      isValidMedicalInput: false,
+      aiUnavailable: true,
+      message: 'Die medizinische Kontextprüfung ist aktuell nicht verfügbar. Bitte versuchen Sie es erneut.',
+    }
+  }
+}
 /**
  * Extracts up to three normalized symptoms from valid free text.
  *
