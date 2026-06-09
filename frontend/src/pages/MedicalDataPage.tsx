@@ -355,7 +355,6 @@ export default function MedicalDataPage() {
   };
 
   const handleSkip = () => {
-    setPatientData(formData);
     navigate("/symptom-selection");
   };
 
