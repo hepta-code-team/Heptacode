@@ -553,7 +553,7 @@ export default function ResultPage() {
       title="Ihre Auswertung"
       subtitle="Basierend auf Ihren Angaben haben wir folgende Empfehlung für Sie."
     >
-      <ResultCard config={config} />
+      <ResultCard config={config} careLevel={careLevel} recommendedSpecialty={recommendedSpecialty} />
 
       <div className="bg-white border border-[#d8e0ea] rounded-[16px] p-5 md:p-6 mb-4">
         <p className="font-['DM_Sans:Bold',sans-serif] font-bold text-app-text-primary text-lg mb-3">
