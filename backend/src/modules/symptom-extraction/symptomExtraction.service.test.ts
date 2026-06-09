@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { requestStructuredAiResponse } from '../../ai/llmAdapter.js'
 import { AiResponseError } from '../../ai/timeout.js'
-import { extractSymptoms } from './symptomExtraction.service.js'
+import { extractSymptoms, validateSymptomInput } from './symptomExtraction.service.js'
 
 vi.mock('../../ai/llmAdapter.js', () => ({
   requestStructuredAiResponse: vi.fn(),
@@ -274,5 +274,71 @@ describe('extractSymptoms', () => {
     requestStructuredAiResponseMock.mockRejectedValueOnce(new Error('boom'))
 
     await expect(extractSymptoms('Ich habe seit Tagen Husten.')).rejects.toThrow('boom')
+  })
+})
+
+describe('validateSymptomInput', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('validiert medizinischen Kontext ohne Extraktionsaufruf', async () => {
+    requestStructuredAiResponseMock.mockResolvedValueOnce({
+      isValidMedicalInput: true,
+      reason: 'Medizinischer Kontext erkannt.',
+    })
+
+    const result = await validateSymptomInput('Verbrennung, kochendes Wasser ueber Arm geschuettet')
+
+    expect(result).toEqual({
+      text: 'Verbrennung, kochendes Wasser ueber Arm geschuettet',
+      inputType: 'text',
+      isValidMedicalInput: true,
+    })
+    expect(requestStructuredAiResponseMock).toHaveBeenCalledTimes(1)
+    expect(requestStructuredAiResponseMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        schemaName: 'symptom_input_validation_result',
+        modelStrategy: 'fallback-only',
+      }),
+    )
+  })
+
+  it('meldet themenfremde Eingaben als ungueltig', async () => {
+    requestStructuredAiResponseMock.mockResolvedValueOnce({
+      isValidMedicalInput: false,
+      reason: 'Der Text beschreibt keine gesundheitlichen Beschwerden.',
+    })
+
+    const result = await validateSymptomInput('Ich mag Pizza und Filme.')
+
+    expect(result).toEqual({
+      text: 'Ich mag Pizza und Filme.',
+      inputType: 'text',
+      isValidMedicalInput: false,
+      message: 'Der Text beschreibt keine gesundheitlichen Beschwerden.',
+    })
+  })
+
+  it('faengt wiederholte Platzhaltertexte wie BlaBla ohne KI-Aufruf ab', async () => {
+    const result = await validateSymptomInput('BlaBla, BlaBla')
+
+    expect(result).toMatchObject({
+      text: 'BlaBla, BlaBla',
+      inputType: 'text',
+      isValidMedicalInput: false,
+    })
+    expect(requestStructuredAiResponseMock).not.toHaveBeenCalled()
+  })
+
+  it('faengt Platzhaltertexte im Symptomnamen ohne KI-Aufruf ab', async () => {
+    const result = await validateSymptomInput('BlaBla')
+
+    expect(result).toMatchObject({
+      text: 'BlaBla',
+      inputType: 'text',
+      isValidMedicalInput: false,
+    })
+    expect(requestStructuredAiResponseMock).not.toHaveBeenCalled()
   })
 })
