@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { ClipboardEvent, FormEvent, KeyboardEvent, ReactNode } from "react";
 import { useNavigate, useSearchParams } from "react-router";
-import { Brain, Check, Mic, MicOff, RotateCw, Sparkles, Trash2, X } from "lucide-react";
+import { Brain, Check, Mic, MicOff, Sparkles, Trash2, X } from "lucide-react";
 import PageShell from "../components/PageShell";
 import Button from "../components/Button";
 import Modal from "../components/Modal";
@@ -419,7 +419,9 @@ export default function SymptomSelectionPage() {
   const formattedRecordingElapsed = formatRecordingDuration(recordingElapsedSeconds);
   const formattedMaxRecordingDuration = formatRecordingDuration(MAX_RECORDING_DURATION_SECONDS);
   const actionButtonProgress = symptomExtractionProgress;
-  const showActionButtonProgress = isExtractingSymptoms;
+  const symptomTextAreaClassName = `w-full h-40 bg-[#eff2f6] rounded-[16px] p-4 resize-none border-none outline-none font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-body text-base disabled:cursor-not-allowed disabled:text-app-text-muted ${
+    isExtractingSymptoms ? "focus:ring-0" : "focus:ring-2 focus:ring-[#486284]"
+  }`;
 
   /**
    * Updates the free-text symptom description while enforcing the hard limit.
@@ -434,6 +436,7 @@ export default function SymptomSelectionPage() {
     }
 
     setSymptomTextDraft(text);
+    setSymptomText(text);
 
     if (symptomTextError === SYMPTOM_TEXT_CHARACTER_LIMIT_ERROR) {
       setSymptomTextError(null);
@@ -476,7 +479,9 @@ export default function SymptomSelectionPage() {
 
     if (exceedsSymptomTextLimit(nextText)) {
       event.preventDefault();
-      setSymptomTextDraft(limitTextToMaxCharacters(nextText));
+      const limitedText = limitTextToMaxCharacters(nextText);
+      setSymptomTextDraft(limitedText);
+      setSymptomText(limitedText);
       setSymptomTextError(SYMPTOM_TEXT_CHARACTER_LIMIT_ERROR);
     }
   };
@@ -604,6 +609,7 @@ export default function SymptomSelectionPage() {
 
       const nextSymptomText = appendTranscript(recordedTextRef.current, interimTranscript);
       setSymptomTextDraft(nextSymptomText);
+      setSymptomText(nextSymptomText);
 
       if (getCharacterCount(nextSymptomText) >= MAX_SYMPTOM_TEXT_CHARACTERS && (finalTranscript || interimTranscript)) {
         setSymptomTextError(SYMPTOM_TEXT_CHARACTER_LIMIT_ERROR);
@@ -746,16 +752,6 @@ export default function SymptomSelectionPage() {
     setSymptomTextError(null);
   };
 
-  const handleCancelSymptomExtraction = () => {
-    cancelSymptomExtraction();
-    setSymptomTextError(null);
-  };
-
-  const handleRestartSymptomExtraction = () => {
-    cancelSymptomExtraction();
-    void handleApplySymptomText();
-  };
-
   /**
    * Sends free-text symptoms to the extraction API and opens the details step.
    *
@@ -777,7 +773,6 @@ export default function SymptomSelectionPage() {
       return;
     }
 
-    setSymptomText(trimmedSymptomText);
     symptomExtractionRequestVersionRef.current += 1;
     const requestVersion = symptomExtractionRequestVersionRef.current;
 
@@ -814,6 +809,7 @@ export default function SymptomSelectionPage() {
 
       const extractedSelection = extractedSymptoms.map(({ region, side }) => ({ region, side }));
 
+      setSymptomText(trimmedSymptomText);
       setSelectedSymptoms(extractedSelection);
       setContextSymptoms(extractedSelection);
       setContextSymptomDetails([]);
@@ -1047,9 +1043,10 @@ export default function SymptomSelectionPage() {
           onBeforeInput={handleSymptomTextBeforeInput}
           onChange={(event) => handleSymptomTextChange(event.target.value)}
           onPaste={handleSymptomTextPaste}
+          disabled={isExtractingSymptoms}
           maxLength={MAX_SYMPTOM_TEXT_CHARACTERS}
           placeholder="z.B. Ich habe seit 3 Tagen starke Kopfschmerzen (7/10) und leichte Übelkeit."
-          className="w-full h-40 bg-[#eff2f6] rounded-[16px] p-4 resize-none border-none outline-none focus:ring-2 focus:ring-[#486284] font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-body text-base"
+          className={symptomTextAreaClassName}
           style={{ fontVariationSettings: "'opsz' 14" }}
         />
 
@@ -1073,33 +1070,30 @@ export default function SymptomSelectionPage() {
         <div className="mt-6 grid grid-cols-3 items-start">
           <div className="relative flex h-16 w-16 items-center justify-center justify-self-start">
             <VerticalProgressIconButton
-              onClick={isExtractingSymptoms ? handleCancelSymptomExtraction : handleClearSymptomText}
-              disabled={!isExtractingSymptoms && symptomTextDraft.length === 0}
+              onClick={handleClearSymptomText}
+              disabled={isExtractingSymptoms || symptomTextDraft.length === 0}
               className="bg-red-600 text-white hover:bg-red-700 disabled:bg-red-600/35"
               fillClassName="bg-red-600"
               progress={0}
               showProgress={false}
-              ariaLabel={isExtractingSymptoms ? "Ladevorgang abbrechen" : "Freitext löschen"}
-              title={isExtractingSymptoms ? "Ladevorgang abbrechen" : "Freitext löschen"}
+              ariaLabel="Freitext löschen"
+              title="Freitext löschen"
             >
-              {isExtractingSymptoms ? (
-                <X className="size-8" strokeWidth={3} aria-hidden="true" />
-              ) : (
-                <Trash2 className="size-8" aria-hidden="true" />
-              )}
+              <Trash2 className="size-8" aria-hidden="true" />
             </VerticalProgressIconButton>
             <span
               className="absolute left-1/2 top-[calc(100%+0.5rem)] min-h-4 w-24 -translate-x-1/2 text-center font-['DM_Sans:Medium',sans-serif] text-xs font-medium text-app-text-primary"
               style={{ fontVariationSettings: "'opsz' 14" }}
             >
-              {isExtractingSymptoms ? "Abbrechen" : "Löschen"}
+              Löschen
             </span>
           </div>
 
           <div className="relative flex h-16 w-16 items-center justify-center justify-self-center">
             <VerticalProgressIconButton
-              onClick={isExtractingSymptoms ? handleRestartSymptomExtraction : handleToggleSymptomRecording}
-              className={`text-app-text-on-primary ${
+              onClick={handleToggleSymptomRecording}
+              disabled={isExtractingSymptoms}
+              className={`text-app-text-on-primary disabled:bg-[#486284]/25 ${
                 isRecordingSymptoms
                   ? "bg-red-600 hover:bg-red-700 animate-pulse"
                   : "bg-[#486284] hover:bg-[#3a4d68]"
@@ -1107,19 +1101,10 @@ export default function SymptomSelectionPage() {
               fillClassName="bg-[#486284]"
               progress={0}
               showProgress={false}
-              ariaLabel={
-                isExtractingSymptoms
-                  ? "Ladevorgang neu starten"
-                  : isRecordingSymptoms
-                    ? "Spracheingabe stoppen"
-                    : "Symptom diktieren"
-              }
+              ariaLabel={isRecordingSymptoms ? "Spracheingabe stoppen" : "Symptom diktieren"}
               ariaPressed={isRecordingSymptoms}
-              title={isExtractingSymptoms ? "Ladevorgang neu starten" : undefined}
             >
-              {isExtractingSymptoms ? (
-                <RotateCw className="size-8" aria-hidden="true" />
-              ) : isRecordingSymptoms ? (
+              {isRecordingSymptoms ? (
                 <MicOff className="size-8" aria-hidden="true" />
               ) : (
                 <Mic className="size-8" aria-hidden="true" />
@@ -1129,11 +1114,7 @@ export default function SymptomSelectionPage() {
               className="absolute left-1/2 top-[calc(100%+0.5rem)] min-h-4 w-48 -translate-x-1/2 text-center font-['DM_Sans:Medium',sans-serif] text-xs font-medium text-app-text-primary"
               style={{ fontVariationSettings: "'opsz' 14" }}
             >
-              {isExtractingSymptoms
-                ? "Neu laden"
-                : isRecordingSymptoms
-                  ? `${formattedRecordingElapsed} / ${formattedMaxRecordingDuration}`
-                  : "Diktieren"}
+              {isRecordingSymptoms ? `${formattedRecordingElapsed} / ${formattedMaxRecordingDuration}` : "Diktieren"}
             </span>
           </div>
 
@@ -1148,7 +1129,7 @@ export default function SymptomSelectionPage() {
               } text-app-text-on-primary`}
               fillClassName="bg-[#486284]"
               progress={actionButtonProgress}
-              showProgress={showActionButtonProgress}
+              showProgress={false}
               ariaLabel="Symptombeschreibung übernehmen"
             >
               {isExtractingSymptoms ? (
