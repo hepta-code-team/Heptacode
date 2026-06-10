@@ -16,6 +16,7 @@ import {
   Pill,
   ShieldAlert,
   Stethoscope,
+  RotateCcw,
   Wind,
   Wine,
   type LucideIcon,
@@ -90,6 +91,7 @@ const createInitialPatientData = (patientData?: Partial<PatientData>): PatientDa
   height: "",
   weight: "",
   gender: "",
+  mood: "",
   isPregnant: false,
   isBreastfeeding: false,
   allergies: "",
@@ -238,6 +240,7 @@ export default function MedicalDataPage() {
     return () => document.removeEventListener("pointerdown", handlePointerDown);
   }, []);
 
+
   const toggleMedicalSection = (section: MedicalSection) => {
     setExpandedMedicalSections((sections) => ({
       ...sections,
@@ -252,21 +255,46 @@ export default function MedicalDataPage() {
     }));
   };
 
+  const clearAllConditionSelections = () => {
+    setFormData((prev) => ({
+      ...prev,
+      conditions: [],
+      conditionDetails: {},
+    }));
+    setExpandedConditionDetails({});
+  };
+
+  const clearOtherConditionSelection = () => {
+    setFormData((prev) => {
+      const { Sonstige: _removedDetail, ...nextConditionDetails } = prev.conditionDetails ?? {};
+
+      return {
+        ...prev,
+        conditions: prev.conditions.filter((condition) => condition !== "Sonstige"),
+        conditionDetails: nextConditionDetails,
+      };
+    });
+  };
+
+  const clearConditionSelection = (condition: string) => {
+    setFormData((prev) => {
+      const { [condition]: _removedDetail, ...nextConditionDetails } = prev.conditionDetails ?? {};
+
+      return {
+        ...prev,
+        conditions: prev.conditions.filter((selectedCondition) => selectedCondition !== condition),
+        conditionDetails: nextConditionDetails,
+      };
+    });
+    setExpandedConditionDetails((sections) => ({
+      ...sections,
+      [condition]: false,
+    }));
+  };
+
   const toggleConditionSelection = (condition: string) => {
     if (formData.conditions.includes(condition)) {
-      setFormData((prev) => {
-        const { [condition]: _removedDetail, ...nextConditionDetails } = prev.conditionDetails ?? {};
-
-        return {
-          ...prev,
-          conditions: prev.conditions.filter((selectedCondition) => selectedCondition !== condition),
-          conditionDetails: nextConditionDetails,
-        };
-      });
-      setExpandedConditionDetails((sections) => ({
-        ...sections,
-        [condition]: false,
-      }));
+      clearConditionSelection(condition);
       return;
     }
 
@@ -326,14 +354,23 @@ export default function MedicalDataPage() {
     navigate("/symptom-selection");
   };
 
+  const handleSkip = () => {
+    navigate("/symptom-selection");
+  };
+
   return (
     <PageShell
       title="Weitere medizinische Angaben"
       subtitle="Ergänzen Sie optionale Angaben, falls sie für Ihre Beschwerden relevant sind."
       onBack={() => navigate("/patient-data")}
+      onSkip={handleSkip}
     >
       {(formData.gender === "Weiblich" || formData.gender === "Divers") && (
-        <div className="bg-[#eff2f6] rounded-[14px] p-3">
+        <div
+          className={`rounded-[14px] border-2 bg-[#eff2f6] p-3 transition-all ${
+            formData.isPregnant || formData.isBreastfeeding ? "border-[#486284]" : "border-transparent"
+          }`}
+        >
           <p
             className="font-['DM_Sans:Bold',sans-serif] font-bold text-app-text-body text-sm mb-2"
             style={{ fontVariationSettings: "'opsz' 14" }}
@@ -488,7 +525,11 @@ export default function MedicalDataPage() {
         </div>
       </div>
 
-      <div className="mt-4 bg-[#eff2f6] rounded-[14px] p-3">
+      <div
+        className={`mt-4 rounded-[14px] border-2 bg-[#eff2f6] p-3 transition-all ${
+          smokingStatus !== "Nein" ? "border-[#486284]" : "border-transparent"
+        }`}
+      >
         <div className="mb-3 flex items-start gap-3">
           <span className="flex size-9 flex-shrink-0 items-center justify-center rounded-full bg-white text-app-text-primary">
             <Cigarette className="size-5" aria-hidden="true" />
@@ -618,12 +659,24 @@ export default function MedicalDataPage() {
       </div>
 
       <div className="mt-4">
-        <p
-          className="font-['DM_Sans:Bold',sans-serif] font-bold text-app-text-primary text-lg mb-2"
-          style={{ fontVariationSettings: "'opsz' 14" }}
-        >
-          Vorerkrankungen
-        </p>
+        <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+          <p
+            className="font-['DM_Sans:Bold',sans-serif] font-bold text-app-text-primary text-lg"
+            style={{ fontVariationSettings: "'opsz' 14" }}
+          >
+            Vorerkrankungen
+          </p>
+          <button
+            type="button"
+            onClick={clearAllConditionSelections}
+            disabled={formData.conditions.length === 0}
+            className="rounded-[10px] bg-white p-2 text-app-text-primary transition-all hover:bg-[#dde3ea] disabled:cursor-not-allowed disabled:opacity-50"
+            aria-label="Alle Auswahlen aufheben"
+            title="Alle Auswahlen aufheben"
+          >
+            <RotateCcw className="size-4" aria-hidden="true" />
+          </button>
+        </div>
 
         <div ref={conditionsGridRef} className="grid grid-cols-2 md:grid-cols-3 gap-2">
           {PRE_EXISTING_CONDITIONS.map((condition) => {
@@ -663,6 +716,15 @@ export default function MedicalDataPage() {
                     placeholder="Freitext"
                     className="h-9 border-none bg-white text-xs"
                   />
+                  {otherValue.trim() && (
+                    <button
+                      type="button"
+                      onClick={clearOtherConditionSelection}
+                      className="rounded-[8px] bg-white px-2 py-1.5 text-xs font-bold text-app-text-primary shadow-sm transition-all hover:bg-[#dde3ea]"
+                    >
+                      Aufheben
+                    </button>
+                  )}
                 </div>
               );
             }

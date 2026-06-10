@@ -29,6 +29,7 @@ export default function SymptomDetailsPage() {
     selectedSymptoms,
     symptomDetails: contextDetails,
     setSymptomDetails,
+    isEvaluating,
     submitAssessment,
   } = useAssessment();
 
@@ -149,6 +150,7 @@ export default function SymptomDetailsPage() {
     });
   };
 
+  const isAssessmentSubmitting = isSubmitting || isEvaluating;
   const canContinue = symptomDetails
     .filter((symptom) => symptom.active)
     .every((symptom) => {
@@ -190,14 +192,14 @@ export default function SymptomDetailsPage() {
       </div>
 
       <div className="mt-6 mb-3 flex justify-end">
-        <Button onClick={handleContinue} disabled={!canContinue || isSubmitting}>
+        <Button onClick={handleContinue} disabled={!canContinue || isAssessmentSubmitting}>
           <span
             className="flex items-center justify-center gap-2 font-['DM_Sans:Bold',sans-serif] font-bold text-base"
             style={{ fontVariationSettings: "'opsz' 14" }}
             aria-live="polite"
           >
-            {isSubmitting ? "Angaben werden ausgewertet..." : "Weiter"}
-            {isSubmitting && <LoaderCircle className="size-5 animate-spin" aria-hidden="true" />}
+            {isAssessmentSubmitting ? "Angaben werden ausgewertet..." : "Weiter"}
+            {isAssessmentSubmitting && <LoaderCircle className="size-5 animate-spin" aria-hidden="true" />}
           </span>
         </Button>
       </div>
