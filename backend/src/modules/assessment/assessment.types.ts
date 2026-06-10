@@ -31,7 +31,7 @@ export const assessmentPayloadSchema = z.object({
 
 export const assessmentResultSchema = z.object({
   careLevel: z.enum(CARE_LEVELS),
-  recommendedSpecialty: z.enum(MEDICAL_SPECIALTIES),
+  recommendedSpecialty: z.enum(MEDICAL_SPECIALTIES).optional(),
   reasons: z.array(z.string().min(1)).min(1).max(5),
   reviewSummary: reviewSummarySchema,
   recommendedSpecialties: z.array(recommendedSpecialtyItemSchema).optional(),

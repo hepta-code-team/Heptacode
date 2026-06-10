@@ -213,6 +213,61 @@ describe('evaluateTriage', () => {
     })
   })
 
+  it('normalisiert widerspruechliche KI-Antworten mit Fachrichtung zu specialist', async () => {
+    requestStructuredAiResponseWithModelMock.mockResolvedValueOnce({
+      data: {
+        careLevel: 'doctor',
+        recommendedSpecialty: 'orthopedics',
+        reasons: ['Die Beschwerden sollten orthopaedisch abgeklaert werden.'],
+        reviewSummary: {
+          plainLanguage: 'Bitte lassen Sie die Beschwerden orthopaedisch abklaeren.',
+          professionalSummary: 'Care Level: doctor. Empfohlene Fachrichtung: orthopedics.',
+        },
+      },
+      model: 'test-model',
+    })
+
+    const result = await evaluateTriage(undefined, [
+      { region: 'Huefte', measurementType: 'pain', measurementValue: 7, duration: 'weeks' },
+    ])
+
+    expect(result).toMatchObject({
+      careLevel: 'specialist',
+      recommendedSpecialty: 'orthopedics',
+      aiModel: 'test-model',
+    })
+  })
+
+  it('uebernimmt die KI-Entscheidung fuer orthopaedische Beschwerden ohne lokale Facharztkorrektur', async () => {
+    requestStructuredAiResponseWithModelMock.mockResolvedValueOnce({
+      data: {
+        careLevel: 'specialist',
+        recommendedSpecialty: 'orthopedics',
+        reasons: ['Die Beschwerden sollten fachaerztlich abgeklaert werden.'],
+        reviewSummary: {
+          plainLanguage: 'Bitte lassen Sie die Beschwerden fachaerztlich abklaeren.',
+          professionalSummary: 'Care Level: specialist. Empfohlene Fachrichtung: orthopedics.',
+        },
+      },
+      model: 'test-model',
+    })
+
+    const result = await evaluateTriage(undefined, [
+      { region: 'Ruecken', measurementType: 'pain', measurementValue: 7, duration: 'weeks' },
+    ])
+
+    expect(result).toEqual({
+      careLevel: 'specialist',
+      recommendedSpecialty: 'orthopedics',
+      reasons: ['Die Beschwerden sollten fachaerztlich abgeklaert werden.'],
+      reviewSummary: {
+        plainLanguage: 'Bitte lassen Sie die Beschwerden fachaerztlich abklaeren.',
+        professionalSummary: 'Care Level: specialist. Empfohlene Fachrichtung: orthopedics.',
+      },
+      aiModel: 'test-model',
+    })
+  })
+
   it('nutzt den Doctor-Fallback bei mittleren Beschwerden', async () => {
     requestStructuredAiResponseWithModelMock.mockRejectedValueOnce(new AiResponseError('timeout'))
 

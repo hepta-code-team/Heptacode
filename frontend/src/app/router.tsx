@@ -1,4 +1,4 @@
-import { createBrowserRouter, Navigate } from "react-router";
+import { createBrowserRouter } from "react-router";
 import LandingPage from "../pages/LandingPage";
 import PatientDataPage from "../pages/PatientDataPage";
 import MedicalDataPage from "../pages/MedicalDataPage";
@@ -20,10 +20,6 @@ export const router = createBrowserRouter([
     element: <MedicalDataPage />,
   },
   {
-    path: "/body-area",
-    element: <Navigate to="/symptom-selection" replace />,
-  },
-  {
     path: "/symptom-selection",
     element: <SymptomSelectionPage />,
   },
@@ -34,18 +30,6 @@ export const router = createBrowserRouter([
   {
     path: "/result",
     element: <ResultPage />,
-  },
-  {
-    path: "/stammdaten",
-    element: <Navigate to="/patient-data" replace />,
-  },
-  {
-    path: "/body-regions",
-    element: <Navigate to="/symptom-selection" replace />,
-  },
-  {
-    path: "/evaluation",
-    element: <Navigate to="/result" replace />,
   },
 ], {
   future: {

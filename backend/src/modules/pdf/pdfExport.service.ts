@@ -165,27 +165,63 @@ function formatValue(value?: string | number | null): string {
   return String(value)
 }
 
-/**
- * Preserves custom condition details without repeating the condition name.
- *
- * "Sonstige" entries are treated specially because the free-text value is the
- * actual condition detail rather than a category label.
- */
-function formatConditionDetail(condition: string, detail: string): string {
-  const cleanCondition = normalizeGermanText(condition).trim()
-  const cleanDetail = normalizeGermanText(detail).trim()
+function formatIsoDate(value: string): string {
+  const match = value.match(/^(\d{4})-(\d{2})-(\d{2})$/)
 
-  if (cleanDetail.length === 0) {
-    return ''
+  if (!match) {
+    return value
   }
 
-  if (/^(sonstige|sonstiges|other)$/i.test(cleanCondition)) {
-    return cleanDetail.replace(/^(sonstige|sonstiges|other)\s*:\s*/i, '')
+  return `${match[3]}.${match[2]}.${match[1]}`
+}
+
+function splitTravelDetails(details: string) {
+  const [country = '', startDate = '', endDate = ''] = details.split('|').map((part) => part.trim())
+
+  if (startDate || endDate) {
+    return { country, startDate, endDate }
   }
 
-  return cleanDetail.toLowerCase().startsWith(`${cleanCondition.toLowerCase()}:`)
-    ? cleanDetail
-    : `${cleanCondition}: ${cleanDetail}`
+  return { country: details.trim(), startDate: '', endDate: '' }
+}
+
+function formatTravelDisplay(value: string): string {
+  const { country, startDate, endDate } = splitTravelDetails(value)
+  const formattedStartDate = startDate ? formatIsoDate(startDate) : ''
+  const formattedEndDate = endDate ? formatIsoDate(endDate) : ''
+
+  if (country && formattedStartDate && formattedEndDate) {
+    return `${country}, ${formattedStartDate} bis ${formattedEndDate}`
+  }
+
+  if (country && formattedStartDate) {
+    return `${country}, ab ${formattedStartDate}`
+  }
+
+  if (country && formattedEndDate) {
+    return `${country}, bis ${formattedEndDate}`
+  }
+
+  return country || formattedStartDate || formattedEndDate || value
+}
+
+function formatRecentAbroad(data: PatientData): string {
+  if (!data.recentAbroad) {
+    return 'Nein'
+  }
+
+  return formatTravelDisplay(data.recentAbroadDetails) || 'Ja'
+}
+
+function normalizeTravelSummaryLine(line: string): string {
+  return line.replace(
+    /^(Reise ins Ausland|Auslandsreise|Auslandsaufenthalt(?: letzte 3 Monate)?):\s*(.+)$/i,
+    (match, label: string, value: string) => {
+      const formattedValue = formatTravelDisplay(value)
+
+      return formattedValue ? `${label}: ${formattedValue}` : match
+    },
+  )
 }
 
 /**
@@ -199,11 +235,6 @@ function summarizePatient(data?: PatientData): string {
     return 'Keine Stammdaten vorhanden.'
   }
 
-  const conditionDetails = Object.entries(data.conditionDetails)
-    .filter(([, detail]) => detail?.trim().length > 0)
-    .map(([condition, detail]) => formatConditionDetail(condition, detail))
-    .filter((detail) => detail.length > 0)
-
   return [
     `Geburtsdatum: ${formatValue(data.birthMonth)}/${formatValue(data.birthYear)}`,
     `Größe: ${formatValue(data.height)} cm`,
@@ -214,15 +245,13 @@ function summarizePatient(data?: PatientData): string {
     `Allergien: ${data.allergies || '-'}`,
     `Medikamente: ${data.medications || '-'}`,
     `Substanzbeeinflussung: ${data.substanceInfluence || 'Nein'}`,
-    `Reise ins Ausland: ${data.recentAbroad ? data.recentAbroadDetails || 'Ja' : 'Nein'
-    }`,
+    `Reise ins Ausland: ${formatRecentAbroad(data)}`,
     data.conditions.length > 0
       ? `Vorerkrankungen: ${data.conditions.join(', ')}`
       : 'Vorerkrankungen: —',
     `Raucher: ${data.isSmoker ? 'Ja' : 'Nein'}`,
     data.isSmoker ? `Rauchdauer: ${data.smokingSinceYears || '—'}` : null,
     data.isSmoker ? `Zigaretten pro Tag: ${data.cigarettesPerDay || '—'}` : null,
-    conditionDetails.length > 0 ? `Details zu Vorerkrankungen: ${conditionDetails.join('; ')}` : null,
   ].filter((line): line is string => line !== null).join('\n')
 }
 
@@ -339,6 +368,10 @@ function normalizePatientSummaryLines(lines: string[]): string[] {
       return
     }
 
+    if (/^Details zu(?:r|) Vorerkrankung(?:en)?:/i.test(trimmedLine)) {
+      return
+    }
+
     if (birthMonthMatch) {
       birthMonth = birthMonthMatch[1]?.trim() ?? null
       return
@@ -350,9 +383,11 @@ function normalizePatientSummaryLines(lines: string[]): string[] {
     }
 
     normalizedLines.push(
-      trimmedLine
+      normalizeTravelSummaryLine(trimmedLine)
         .replace(/^Details zu Vorerkrankungen:\s*Sonstige(?:s)?\s*:\s*/i, 'Details zu Vorerkrankungen: ')
-        .replace(/^Details zur Vorerkrankung:\s*Sonstige(?:s)?\s*:\s*/i, 'Details zu Vorerkrankungen: '),
+        .replace(/^Details zur Vorerkrankung:\s*Sonstige(?:s)?\s*:\s*/i, 'Details zu Vorerkrankungen: ')
+        .replace(/^Details zu Vorerkrankungen:\s*([^:;]+):\s*/i, 'Details zu Vorerkrankungen: ')
+        .replace(/^Details zur Vorerkrankung:\s*([^:;]+):\s*/i, 'Details zu Vorerkrankungen: '),
     )
   })
 
@@ -373,6 +408,13 @@ function normalizeComplaintSummaryLines(lines: string[]): string[] {
   return removeSelectedSymptomBlock(lines)
     .map((line) => normalizeGermanText(line.trim()))
     .filter((line) => line.length > 0)
+    .flatMap((line) =>
+      line
+        .replace(/\s+(?=(Vorerkrankungen|Risikofaktoren|Indikation)\b)/g, '\n')
+        .split('\n')
+        .map((part) => part.trim())
+        .filter((part) => part.length > 0),
+    )
     .flatMap((line) => {
       const detailMatch = line.match(/^(\d+\.\s*[^,]+),\s*(.+)$/)
 
@@ -390,12 +432,20 @@ function normalizeComplaintSummaryLines(lines: string[]): string[] {
     })
 }
 
-/**
- * Detects whether a professional summary already contains parseable sections.
- *
- * When this returns true, the PDF reuses the edited structure instead of
- * replacing it with a generic summary built from raw request fields.
- */
+function extractComplaintsFromStructuredSummary(summary: string): string {
+  const cleanedSummary = cleanStructuredProfessionalSummary(summary)
+  const complaintMatch = cleanedSummary.match(/(?:^|\n)Beschwerden:\n([\s\S]*)$/i)
+
+  return complaintMatch?.[1]?.trim() || 'Keine Beschwerden vorhanden.'
+}
+
+function extractPatientFromStructuredSummary(summary: string): string {
+  const cleanedSummary = cleanStructuredProfessionalSummary(summary)
+  const patientMatch = cleanedSummary.match(/(?:^|\n)Patientendaten:\n([\s\S]*?)(?:\n\nBeschwerden:|$)/i)
+
+  return patientMatch?.[1]?.trim() || 'Keine Stammdaten vorhanden.'
+}
+
 function hasMedicalSummaryStructure(summary: string): boolean {
   return /(^|\n)\s*(Patientendaten|Stammdaten|Beschwerden|Ausgewählte Symptome|Ausgewaehlte Symptome|Detailangaben zu aktiven Symptomen)\s*:/i.test(summary)
 }
@@ -509,7 +559,13 @@ function summarizeMedicalOverview(request: PdfExportRequest): string {
   // Preserve clinician-edited structured summaries, but normalize them into the PDF section format.
   if (rawProfessionalSummary.length > 0 && hasMedicalSummaryStructure(rawProfessionalSummary)) {
     return [
-      cleanStructuredProfessionalSummary(rawProfessionalSummary),
+      'Patientendaten:',
+      request.patientData
+        ? summarizePatient(request.patientData)
+        : extractPatientFromStructuredSummary(rawProfessionalSummary),
+      '',
+      'Beschwerden:',
+      extractComplaintsFromStructuredSummary(rawProfessionalSummary),
       '',
       summarizeCareReason(request.triage),
     ].join('\n')
@@ -550,6 +606,7 @@ function formatGeneratedAt(value: string): string {
   return new Intl.DateTimeFormat('de-DE', {
     dateStyle: 'medium',
     timeStyle: 'short',
+    timeZone: 'Europe/Berlin',
   }).format(new Date(value))
 }
 
