@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
 
-import { MEDICAL_SPECIALTIES } from '../../../shared/result.types.js'
-import { SPECIALIST_MEDICAL_SPECIALTIES, TRIAGE_SPECIALTY_CASES } from '../../tests/fixtures/triageSpecialtyCases.js'
-import { triageAiResponseSchema } from './validation.js'
+import { MEDICAL_SPECIALTIES } from '../../../../shared/result.types.js'
+import { SPECIALIST_MEDICAL_SPECIALTIES, TRIAGE_SPECIALTY_CASES } from '../../fixtures/triageSpecialtyCases.js'
+import { triageAiResponseSchema } from '../../../src/shared/validation.js'
 
 const NON_SPECIALIST_SPECIALTIES = [
   'home_care',
