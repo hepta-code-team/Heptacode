@@ -36,10 +36,7 @@ export default function WizardNavigation() {
     "/result": true,
   };
   const hasCompletedAssessment = Boolean(assessmentResult) && !isEvaluating;
-  const shouldHighlightNavigationFrame = hasCompletedAssessment || isEmergencyResult;
-  const navigationFrameBorderColor = shouldHighlightNavigationFrame
-    ? "border-[#A3E64D]"
-    : "border-gray-300";
+  const navigationFrameBorderColor = "border-gray-300";
   const completedThroughPath = hasCompletedAssessment || isEmergencyResult
     ? "/result"
     : isEvaluating || evaluationProgress > 0
@@ -61,6 +58,7 @@ export default function WizardNavigation() {
               : currentIndex >= 0 && index < currentIndex && (!isEmergencyResult || index === 0);
             const isValid = validSteps[page.path];
             const isBypassedEmergencyStep = isEmergencyResult && page.path !== "/" && page.path !== "/result";
+            const isEmergencyHighlightedStep = isEmergencyResult && index > 0 && page.path !== "/result";
             const isVisuallyComplete = isComplete && !isBypassedEmergencyStep && isValid;
             const hasValidationError = isComplete && !isValid && !isBypassedEmergencyStep;
             const isSymptomDetailsStep = page.path === "/symptom-details";
@@ -84,7 +82,7 @@ export default function WizardNavigation() {
                   : "text-transparent";
             const barColor = hasValidationError
               ? "bg-red-500"
-              : isVisuallyComplete
+              : isVisuallyComplete || isEmergencyHighlightedStep
                 ? "bg-[#A3E64D]"
                 : isActive
                   ? "bg-[#486284]"
