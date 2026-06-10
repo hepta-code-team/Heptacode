@@ -217,7 +217,7 @@ async function requestTriageFromAi(
     temperature: 0,
   })
 
-  const normalized = triageAiResponseSchema.parse(parsed)
+  const normalized = triageAiResponseSchema.parse(parsed) as Omit<TriageResponse, 'aiModel'>
 
   return {
     ...normalized,

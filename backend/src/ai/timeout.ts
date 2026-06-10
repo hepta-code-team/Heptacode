@@ -5,9 +5,9 @@ export const AI_REQUEST_TIMEOUT_MS = {
   primary: 40_000,
   fallback: 22_000,
 } as const
+
 // Disable retries so the defined fallback runs quickly and predictably.
 export const AI_REQUEST_OPTIONS = createAiRequestOptions(AI_REQUEST_TIMEOUT_MS.primary)
-
 
 export function createAiRequestOptions(timeoutMs: number) {
   return {
@@ -40,7 +40,7 @@ export function isAiRequestError(error: unknown): boolean {
 export function isAiAvailabilityError(error: unknown): boolean {
   if (error instanceof APIConnectionError || error instanceof APIConnectionTimeoutError) {
     return true
-  } 
+  }
 
   if (error instanceof OpenAI.APIError || error instanceof APIError) {
     return error.status === 429 || (typeof error.status === 'number' && error.status >= 500)
