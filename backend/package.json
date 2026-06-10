@@ -8,6 +8,7 @@
     "build": "tsc",
     "start": "node dist/index.js",
     "test": "vitest run",
+    "test:ai-triage": "RUN_AI_TRIAGE_EVAL=true vitest run tests/live/triage-specialty.live.test.ts --testTimeout=120000",
     "test:watch": "vitest"
   },
   "dependencies": {
@@ -21,6 +22,7 @@
   "devDependencies": {
     "@types/node": "^20.14.12",
     "@types/pdfkit": "^0.17.6",
+    "@vitest/coverage-v8": "^4.1.6",
     "tsx": "^4.16.2",
     "typescript": "^5.5.3",
     "vitest": "^4.1.6"

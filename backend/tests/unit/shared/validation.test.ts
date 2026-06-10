@@ -43,6 +43,24 @@ describe('triageAiResponseSchema', () => {
     expect(result.success).toBe(true)
   })
 
+  it('normalisiert einzelne Reason-Strings zu einem Array', () => {
+    const result = triageAiResponseSchema.safeParse({
+      careLevel: 'doctor',
+      reasons: 'Die Beschwerden sollten aerztlich abgeklart werden.',
+      reviewSummary: {
+        plainLanguage: 'Bitte lassen Sie die Beschwerden aerztlich einordnen.',
+        professionalSummary: 'Care Level: doctor.',
+      },
+    })
+
+    expect(result.success).toBe(true)
+    if (result.success) {
+      expect(result.data.reasons).toEqual([
+        'Die Beschwerden sollten aerztlich abgeklart werden.',
+      ])
+    }
+  })
+
   it('lehnt KI-Antworten ohne Review-Summary ab', () => {
     const result = triageAiResponseSchema.safeParse({
       careLevel: 'doctor',
@@ -66,7 +84,7 @@ describe('triageAiResponseSchema', () => {
     expect(result.success).toBe(false)
   })
 
-  it('entfernt Fachrichtungen fuer Doctor-Antworten', () => {
+  it('normalisiert Doctor-Antworten mit Fachrichtung zu Specialist', () => {
     const result = triageAiResponseSchema.safeParse({
       careLevel: 'doctor',
       recommendedSpecialty: 'neurology',
@@ -79,8 +97,41 @@ describe('triageAiResponseSchema', () => {
 
     expect(result.success).toBe(true)
     if (result.success) {
+      expect(result.data.careLevel).toBe('specialist')
+      expect(result.data.recommendedSpecialty).toBe('neurology')
+    }
+  })
+
+  it('entfernt Allgemeinmedizin fuer Doctor-Antworten', () => {
+    const result = triageAiResponseSchema.safeParse({
+      careLevel: 'doctor',
+      recommendedSpecialty: 'general_practice',
+      reasons: ['Eine hausaerztliche Abklaerung ist sinnvoll.'],
+      reviewSummary: {
+        plainLanguage: 'Bitte lassen Sie die Beschwerden hausaerztlich abklaeren.',
+        professionalSummary: 'Care Level: doctor.',
+      },
+    })
+
+    expect(result.success).toBe(true)
+    if (result.success) {
+      expect(result.data.careLevel).toBe('doctor')
       expect(result.data.recommendedSpecialty).toBeUndefined()
     }
+  })
+
+  it('lehnt Specialist-Antworten mit Allgemeinmedizin ab', () => {
+    const result = triageAiResponseSchema.safeParse({
+      careLevel: 'specialist',
+      recommendedSpecialty: 'general_practice',
+      reasons: ['Eine fachliche Abklaerung ist sinnvoll.'],
+      reviewSummary: {
+        plainLanguage: 'Bitte lassen Sie die Beschwerden fachlich abklaeren.',
+        professionalSummary: 'Care Level: specialist. Empfohlene Fachrichtung: general_practice.',
+      },
+    })
+
+    expect(result.success).toBe(false)
   })
 
   it('lehnt leere reasons ab', () => {

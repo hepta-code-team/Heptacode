@@ -1,7 +1,7 @@
 import type {
   CareLevel,
   MedicalSpecialty,
-  RecommendedSpecialty as SharedRecommendedSpecialty,
+  RecommendedSpecialty,
   ResultConfig,
 } from "../../../shared/result.types";
 import {
@@ -14,6 +14,7 @@ import {
 export type {
   CareLevel,
   MedicalSpecialty,
+  RecommendedSpecialty,
   ResultConfig,
 } from "../../../shared/result.types";
 
@@ -23,12 +24,6 @@ export {
   isMedicalSpecialty,
   TRIAGE_CONFIGS,
 };
-
-export type DoctorSpecialty = MedicalSpecialty | "primary_care" | "emergency";
-
-export interface RecommendedSpecialty extends Omit<SharedRecommendedSpecialty, "specialty"> {
-  specialty: DoctorSpecialty;
-}
 
 export interface TriageResult extends ResultConfig {
   careLevel: CareLevel;

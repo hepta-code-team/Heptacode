@@ -13,7 +13,7 @@ const pages = [
 export default function WizardNavigation() {
   const navigate = useNavigate();
   const location = useLocation();
-  const activePath = location.pathname === "/body-area" ? "/symptom-selection" : location.pathname;
+  const activePath = location.pathname;
   const currentIndex = pages.findIndex((p) => p.path === activePath);
 
   return (

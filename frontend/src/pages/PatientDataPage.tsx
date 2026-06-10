@@ -207,7 +207,7 @@ export default function PatientDataPage() {
               <Input
                 id="height"
                 type="number"
-                placeholder="175"
+                placeholder="zB. 175"
                 min={HEIGHT_MIN}
                 max={HEIGHT_MAX}
                 aria-invalid={hasHeightError}
@@ -237,7 +237,7 @@ export default function PatientDataPage() {
               <Input
                 id="weight"
                 type="number"
-                placeholder="70"
+                placeholder="zB. 70"
                 min={WEIGHT_MIN}
                 max={WEIGHT_MAX}
                 aria-invalid={hasWeightError}

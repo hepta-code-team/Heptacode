@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router";
-import { Edit3, PhoneCall } from "lucide-react";
+import { ChevronDown, Edit3, PhoneCall } from "lucide-react";
 import PageShell from "../components/PageShell";
 import ResultCard from "../features/results/ResultCard";
 import Button from "../components/Button";
@@ -13,7 +13,7 @@ import { useAssessment } from "../lib/AssessmentContext";
 import type { CareLevel, MedicalSpecialty } from "../../../shared/result.types";
 import { CARE_LEVELS, MEDICAL_SPECIALTIES } from "../../../shared/result.types";
 import { DURATIONS, getMeasurementConfig } from "../features/symptoms/symptoms.constants";
-import type { Symptom } from "../types/assessment";
+import type { PatientData, Symptom } from "../types/assessment";
 
 const CARE_LEVEL_LABELS: Record<CareLevel, string> = {
   emergency: "Notfall - sofort medizinische Hilfe suchen",
@@ -42,6 +42,45 @@ const MEDICAL_SPECIALTY_LABELS: Record<MedicalSpecialty, string> = {
   otolaryngology: "HNO",
 };
 
+const SUBSTANCE_OPTIONS = [
+  "Alkohol",
+  "Cannabis",
+  "Kokain",
+  "Amphetamine",
+  "Opioide",
+  "Beruhigungsmittel",
+  "Andere",
+];
+
+const TRAVEL_COUNTRIES = [
+  "Deutschland",
+  "Frankreich",
+  "Italien",
+  "Spanien",
+  "Österreich",
+  "Schweiz",
+  "Türkei",
+  "Griechenland",
+  "Kroatien",
+  "Polen",
+  "Niederlande",
+  "Vereinigtes Königreich",
+  "USA",
+  "Kanada",
+  "Mexiko",
+  "Brasilien",
+  "Ägypten",
+  "Marokko",
+  "Tunesien",
+  "Südafrika",
+  "Indien",
+  "Thailand",
+  "Vietnam",
+  "China",
+  "Japan",
+  "Australien",
+];
+
 function isValidCareLevel(value: string | undefined): value is CareLevel {
   return value !== undefined && CARE_LEVELS.includes(value as CareLevel);
 }
@@ -60,6 +99,27 @@ function fallbackSpecialtyForCareLevel(careLevel: CareLevel): MedicalSpecialty {
   }
 
   return "general_practice";
+}
+
+function formatOptionalValue(value: string | undefined) {
+  return value?.trim() || "Nicht angegeben";
+}
+
+function formatGender(value: string) {
+  switch (value.toLowerCase()) {
+    case "female":
+    case "weiblich":
+      return "Weiblich";
+    case "male":
+    case "männlich":
+    case "maennlich":
+      return "Männlich";
+    case "diverse":
+    case "divers":
+      return "Divers";
+    default:
+      return formatOptionalValue(value);
+  }
 }
 
 interface MedicalSummarySections {
@@ -157,18 +217,63 @@ function parseMedicalSummarySections(summary: string): MedicalSummarySections {
  * round-trip from the result page into a clean medical overview.
  */
 function formatMedicalSummarySections(sections: MedicalSummarySections) {
-  const patientData = sections.patientData.trim() || "Keine Stammdaten vorhanden.";
   const complaints = sections.complaints.trim() || "Keine Beschwerden vorhanden.";
 
-  return `Patientendaten:\n${patientData}\n\nBeschwerden:\n${complaints}`;
+  return `Beschwerden:\n${complaints}`;
+}
+
+function splitTravelDetails(details: string) {
+  const [country = "", startDate = "", endDate = ""] = details.split("|").map((part) => part.trim());
+
+  if (startDate || endDate) {
+    return { country, startDate, endDate };
+  }
+
+  return { country: details.trim(), startDate: "", endDate: "" };
+}
+
+function formatTravelDetails(country: string, startDate: string, endDate: string) {
+  const cleanCountry = country.trim();
+  const cleanStartDate = startDate.trim();
+  const cleanEndDate = endDate.trim();
+
+  if (cleanCountry || cleanStartDate || cleanEndDate) {
+    return [cleanCountry, cleanStartDate, cleanEndDate].join(" | ");
+  }
+
+  return "";
+}
+
+function formatTravelDisplay(value: string) {
+  const { country, startDate, endDate } = splitTravelDetails(value);
+
+  if (country && startDate && endDate) {
+    return `${country}, ${startDate} bis ${endDate}`;
+  }
+
+  if (country && startDate) {
+    return `${country}, ab ${startDate}`;
+  }
+
+  if (country && endDate) {
+    return `${country}, bis ${endDate}`;
+  }
+
+  return country || startDate || endDate || value;
 }
 
 export default function ResultPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { patientData, symptomDetails, assessmentResult, setAssessmentResult, resetAssessment } = useAssessment();
+  const { patientData, setPatientData, symptomDetails, assessmentResult, setAssessmentResult, resetAssessment } = useAssessment();
   const [isEditingSummary, setIsEditingSummary] = useState(false);
+  const [patientDataDraft, setPatientDataDraft] = useState<PatientData | null>(null);
+  const [conditionListDraft, setConditionListDraft] = useState("");
+  const [travelCountryDraft, setTravelCountryDraft] = useState("");
+  const [travelStartDateDraft, setTravelStartDateDraft] = useState("");
+  const [travelEndDateDraft, setTravelEndDateDraft] = useState("");
   const [editableProfessionalSummary, setEditableProfessionalSummary] = useState("");
+  const [isExplanationOpen, setIsExplanationOpen] = useState(false);
   const [professionalSummaryDraft, setProfessionalSummaryDraft] = useState<MedicalSummarySections>(
     EMPTY_MEDICAL_SUMMARY_SECTIONS,
   );
@@ -189,11 +294,13 @@ export default function ResultPage() {
       : TRIAGE_CONFIGS[careLevel === "specialist" ? "doctor" : careLevel];
 
   const callAction =
-    careLevel === "emergency"
-      ? { href: "tel:112", label: "112 anrufen", description: "Notruf" }
-      : careLevel === "doctor"
-        ? { href: "tel:116117", label: "116 117 anrufen", description: "Ärztlicher Bereitschaftsdienst" }
-        : null;
+      careLevel === "emergency"
+          ? {href: "tel:112", label: "112 anrufen", description: "Notruf"}
+          : careLevel === "doctor"
+              ? {href: "tel:116117", label: "Ärztlicher Bereitschaftsdienst (116 117)", description: "Ärztlicher Bereitschaftsdienst"}
+              : recommendedSpecialty === "psychiatry"
+                  ? {href: "tel:0800 1110111", label: "Telefonseelsorge (0800 1110111)", description: "Telefonseelsorge"}
+                  : null;
 
   const explanationReasons = assessmentResult?.reasons?.length
     ? assessmentResult.reasons
@@ -231,24 +338,6 @@ export default function ResultPage() {
   const buildProfessionalSummaryFallback = () => {
     // Build the same section format that the PDF export expects when the backend summary is missing.
     return [
-      "Patientendaten:",
-      patientData
-        ? [
-            `Geburtsdatum: ${patientData.birthMonth}/${patientData.birthYear}`,
-            `Größe/Gewicht: ${patientData.height} cm / ${patientData.weight} kg`,
-            `Geschlecht: ${patientData.gender}`,
-            patientData.isPregnant ? "Schwanger: Ja" : null,
-            patientData.isBreastfeeding ? "Stillend: Ja" : null,
-            patientData.allergies ? `Allergien: ${patientData.allergies}` : null,
-            patientData.medications ? `Medikamente: ${patientData.medications}` : null,
-            patientData.conditions.length > 0
-              ? `Vorerkrankungen: ${patientData.conditions.join(", ")}`
-              : null,
-          ]
-            .filter(Boolean)
-            .join("\n")
-        : "Keine Stammdaten vorhanden.",
-      "",
       "Beschwerden:",
       symptomDetails.length > 0
         ? symptomDetails
@@ -260,7 +349,7 @@ export default function ResultPage() {
                 symptom.duration ? `, ${getDurationLabel(symptom.duration)}` : ""
               }`;
             })
-            .join("\n")
+            .join("\n\n")
         : "Keine Beschwerden vorhanden.",
     ].join("\n");
   };
@@ -268,14 +357,57 @@ export default function ResultPage() {
   const professionalSummary =
     assessmentResult?.reviewSummary?.professionalSummary?.trim() || buildProfessionalSummaryFallback();
 
+  const conditionDetails = patientData
+    ? Object.entries(patientData.conditionDetails)
+        .filter(([, detail]) => detail.trim().length > 0)
+        .map(([condition, detail]) => `${condition}: ${detail}`)
+    : [];
+
+  const patientDataRows = patientData
+    ? [
+        { label: "Geburtsdatum", value: `${formatOptionalValue(patientData.birthMonth)}/${formatOptionalValue(patientData.birthYear)}` },
+        { label: "Größe / Gewicht", value: `${formatOptionalValue(patientData.height)} cm / ${formatOptionalValue(patientData.weight)} kg` },
+        { label: "Geschlecht", value: formatGender(patientData.gender) },
+        { label: "Schwangerschaft", value: patientData.isPregnant ? "Ja" : "Nein" },
+        { label: "Stillzeit", value: patientData.isBreastfeeding ? "Ja" : "Nein" },
+        { label: "Allergien", value: formatOptionalValue(patientData.allergies) },
+        { label: "Medikamente", value: formatOptionalValue(patientData.medications) },
+        { label: "Substanzbeeinflussung", value: formatOptionalValue(patientData.substanceInfluence || "Nein") },
+        {
+          label: "Auslandsreise",
+          value: patientData.recentAbroad
+            ? formatOptionalValue(formatTravelDisplay(patientData.recentAbroadDetails) || "Ja")
+            : "Nein",
+        },
+        {
+          label: "Vorerkrankungen",
+          value: patientData.conditions.length > 0 ? patientData.conditions.join(", ") : "Keine angegeben",
+        },
+        { label: "Raucher", value: patientData.isSmoker ? "Ja" : "Nein" },
+        ...(patientData.isSmoker
+          ? [
+              { label: "Rauchdauer", value: formatOptionalValue(patientData.smokingSinceYears) },
+              { label: "Zigaretten pro Tag", value: formatOptionalValue(patientData.cigarettesPerDay) },
+            ]
+          : []),
+        ...(conditionDetails.length > 0
+          ? [{ label: "Details zu Vorerkrankungen", value: conditionDetails.join("; ") }]
+          : []),
+      ]
+    : [];
+
   useEffect(() => {
     setEditableProfessionalSummary(professionalSummary);
     setProfessionalSummaryDraft(parseMedicalSummarySections(professionalSummary));
   }, [professionalSummary]);
 
   const displayedProfessionalSummary = editableProfessionalSummary.trim()
-    ? editableProfessionalSummary
-    : professionalSummary;
+    ? formatMedicalSummarySections(parseMedicalSummarySections(editableProfessionalSummary))
+    : formatMedicalSummarySections(parseMedicalSummarySections(professionalSummary));
+
+  const updatePatientDataDraft = <K extends keyof PatientData>(key: K, value: PatientData[K]) => {
+    setPatientDataDraft((currentDraft) => currentDraft ? { ...currentDraft, [key]: value } : currentDraft);
+  };
 
   const handleReset = () => {
     resetAssessment();
@@ -283,19 +415,50 @@ export default function ResultPage() {
   };
 
   const handleStartSummaryEdit = () => {
-    setProfessionalSummaryDraft(parseMedicalSummarySections(displayedProfessionalSummary));
+    const summaryDraft = parseMedicalSummarySections(displayedProfessionalSummary);
+    const travelDetails = splitTravelDetails(patientData?.recentAbroadDetails ?? "");
+
+    setPatientDataDraft(patientData ? { ...patientData } : null);
+    setConditionListDraft(patientData?.conditions.join(", ") ?? "");
+    setTravelCountryDraft(travelDetails.country);
+    setTravelStartDateDraft(travelDetails.startDate);
+    setTravelEndDateDraft(travelDetails.endDate);
+    setProfessionalSummaryDraft(summaryDraft);
     setIsEditingSummary(true);
   };
 
   const handleCancelSummaryEdit = () => {
     setProfessionalSummaryDraft(parseMedicalSummarySections(displayedProfessionalSummary));
+    setPatientDataDraft(null);
+    setConditionListDraft("");
+    setTravelCountryDraft("");
+    setTravelStartDateDraft("");
+    setTravelEndDateDraft("");
     setIsEditingSummary(false);
   };
 
   const handleSaveSummaryEdit = () => {
-    const nextProfessionalSummary = formatMedicalSummarySections(professionalSummaryDraft);
+    const nextPatientData = patientDataDraft
+      ? {
+          ...patientDataDraft,
+          recentAbroadDetails: patientDataDraft.recentAbroad
+            ? formatTravelDetails(travelCountryDraft, travelStartDateDraft, travelEndDateDraft)
+            : "",
+          conditions: conditionListDraft
+            .split(",")
+            .map((condition) => condition.trim())
+            .filter((condition) => condition.length > 0),
+        }
+      : null;
+    const nextProfessionalSummary = formatMedicalSummarySections({
+      ...professionalSummaryDraft,
+    });
 
     setEditableProfessionalSummary(nextProfessionalSummary);
+
+    if (nextPatientData) {
+      setPatientData(nextPatientData);
+    }
 
     if (assessmentResult) {
       setAssessmentResult({
@@ -307,6 +470,11 @@ export default function ResultPage() {
       });
     }
 
+    setPatientDataDraft(null);
+    setConditionListDraft("");
+    setTravelCountryDraft("");
+    setTravelStartDateDraft("");
+    setTravelEndDateDraft("");
     setIsEditingSummary(false);
   };
 
@@ -330,7 +498,7 @@ export default function ResultPage() {
       const pdfPayload = {
         reviewSummary: {
           plainLanguage: plainLanguageSummary,
-          professionalSummary: editableProfessionalSummary.trim() || professionalSummary,
+          professionalSummary: displayedProfessionalSummary,
         },
         triage: {
           careLevel: safeCareLevel,
@@ -385,8 +553,22 @@ export default function ResultPage() {
       title="Ihre Auswertung"
       subtitle="Basierend auf Ihren Angaben haben wir folgende Empfehlung für Sie."
     >
-      <ResultCard config={config} />
+      <ResultCard config={config} careLevel={careLevel} recommendedSpecialty={recommendedSpecialty} />
 
+      {callAction && (
+          <a
+              href={callAction.href}
+              className="md:hidden mb-4 flex min-h-[56px] w-full items-center justify-center gap-3 rounded-[14px] px-5 py-3 text-app-text-on-primary shadow-sm transition-all hover:opacity-90"
+              style={{ backgroundColor: config.color }}
+              aria-label={callAction.label}
+          >
+            <PhoneCall className="size-5 flex-shrink-0" aria-hidden="true" />
+            <span className="font-['DM_Sans:Bold',sans-serif] font-bold text-base">
+            {callAction.label}
+          </span>
+            <span className="sr-only">{callAction.description}</span>
+          </a>
+      )}
       <div className="bg-white border border-[#d8e0ea] rounded-[16px] p-5 md:p-6 mb-4">
         <p className="font-['DM_Sans:Bold',sans-serif] font-bold text-app-text-primary text-lg mb-3">
           Ihre Einschätzung
@@ -400,35 +582,52 @@ export default function ResultPage() {
             deshalb mit einem vorsichtigen medizinischen Fallback erzeugt.
           </p>
         )}
-      </div>
 
-      {callAction && (
-        <a
-          href={callAction.href}
-          className="md:hidden mb-4 flex min-h-[56px] w-full items-center justify-center gap-3 rounded-[14px] px-5 py-3 text-app-text-on-primary shadow-sm transition-all hover:opacity-90"
-          style={{ backgroundColor: config.color }}
-          aria-label={callAction.label}
+
+
+        <button
+          type="button"
+          onClick={() => setIsExplanationOpen((isOpen) => !isOpen)}
+          className="mt-5 inline-flex items-center gap-2 rounded-[10px] border border-[#d8e0ea] px-4 py-2 text-app-text-primary transition-all hover:border-[#486284] hover:bg-[#eff2f6]"
+          aria-expanded={isExplanationOpen}
         >
-          <PhoneCall className="size-5 flex-shrink-0" aria-hidden="true" />
-          <span className="font-['DM_Sans:Bold',sans-serif] font-bold text-base">
-            {callAction.label}
+          <span className="font-['DM_Sans:Bold',sans-serif] font-bold text-sm">
+            {isExplanationOpen ? "KI-Begründung ausblenden" : "KI-Begründung anzeigen"}
           </span>
-          <span className="sr-only">{callAction.description}</span>
-        </a>
-      )}
+          <ChevronDown
+            className={`size-4 flex-shrink-0 text-app-text-primary transition-transform ${
+              isExplanationOpen ? "rotate-180" : ""
+            }`}
+            aria-hidden="true"
+          />
+        </button>
 
-      <div className="bg-[#eff2f6] rounded-[16px] p-5 md:p-6 mb-4">
-        <p className="font-['DM_Sans:Bold',sans-serif] font-bold text-app-text-primary text-lg mb-3">
-          Begründung
-        </p>
-        <ul className="space-y-1.5">
-          {explanationReasons.map((reason) => (
-            <li key={reason} className="font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-body text-sm leading-relaxed">
-              • {reason}
-            </li>
-          ))}
-        </ul>
+        {isExplanationOpen && (
+          <div className="mt-4">
+            <p className="font-['DM_Sans:Bold',sans-serif] font-bold text-app-text-primary text-sm mb-2">
+              KI-Begründung
+            </p>
+            <ul className="space-y-1.5">
+              {explanationReasons.map((reason) => (
+                <li
+                  key={reason}
+                  className="font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-body text-sm leading-relaxed"
+                >
+                  • {reason}
+                </li>
+              ))}
+              {assessmentResult?.aiModel && (
+                <li className="font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-body text-sm leading-relaxed">
+                  • Die Einschätzung wurde mit dem KI-Modell{" "}
+                  <strong>{assessmentResult.aiModel}</strong> durchgeführt.
+                </li>
+              )}
+            </ul>
+          </div>
+        )}
       </div>
+
+
 
       <div className="bg-white border-2 border-[#486284] rounded-[16px] p-5 md:p-6 mb-4">
         <div className="flex flex-col gap-3 mb-4 sm:flex-row sm:items-center sm:justify-between">
@@ -473,24 +672,265 @@ export default function ResultPage() {
           </div>
 
           <div className="bg-white rounded-[10px] p-3 border border-[#d8e0ea]">
+            <p className="text-xs text-app-text-subtle mb-2">Patientendaten</p>
+            {isEditingSummary && patientDataDraft ? (
+              <div className="grid gap-3 md:grid-cols-2">
+                <label className="block">
+                  <span className="text-[11px] font-medium text-app-text-subtle">Geburtsmonat</span>
+                  <input
+                    value={patientDataDraft.birthMonth}
+                    onChange={(event) => updatePatientDataDraft("birthMonth", event.target.value)}
+                    className="mt-1 w-full rounded-[8px] border border-[#d8e0ea] px-3 py-2 text-sm font-medium text-app-text-body outline-none focus:border-[#486284] focus:ring-2 focus:ring-[#486284]/20"
+                  />
+                </label>
+                <label className="block">
+                  <span className="text-[11px] font-medium text-app-text-subtle">Geburtsjahr</span>
+                  <input
+                    value={patientDataDraft.birthYear}
+                    onChange={(event) => updatePatientDataDraft("birthYear", event.target.value)}
+                    className="mt-1 w-full rounded-[8px] border border-[#d8e0ea] px-3 py-2 text-sm font-medium text-app-text-body outline-none focus:border-[#486284] focus:ring-2 focus:ring-[#486284]/20"
+                  />
+                </label>
+                <label className="block">
+                  <span className="text-[11px] font-medium text-app-text-subtle">Größe</span>
+                  <input
+                    value={patientDataDraft.height}
+                    onChange={(event) => updatePatientDataDraft("height", event.target.value)}
+                    className="mt-1 w-full rounded-[8px] border border-[#d8e0ea] px-3 py-2 text-sm font-medium text-app-text-body outline-none focus:border-[#486284] focus:ring-2 focus:ring-[#486284]/20"
+                  />
+                </label>
+                <label className="block">
+                  <span className="text-[11px] font-medium text-app-text-subtle">Gewicht</span>
+                  <input
+                    value={patientDataDraft.weight}
+                    onChange={(event) => updatePatientDataDraft("weight", event.target.value)}
+                    className="mt-1 w-full rounded-[8px] border border-[#d8e0ea] px-3 py-2 text-sm font-medium text-app-text-body outline-none focus:border-[#486284] focus:ring-2 focus:ring-[#486284]/20"
+                  />
+                </label>
+                <label className="block">
+                  <span className="text-[11px] font-medium text-app-text-subtle">Geschlecht</span>
+                  <select
+                    value={patientDataDraft.gender}
+                    onChange={(event) => updatePatientDataDraft("gender", event.target.value)}
+                    className="mt-1 w-full rounded-[8px] border border-[#d8e0ea] bg-white px-3 py-2 text-sm font-medium text-app-text-body outline-none focus:border-[#486284] focus:ring-2 focus:ring-[#486284]/20"
+                  >
+                    <option value="Weiblich">Weiblich</option>
+                    <option value="Männlich">Männlich</option>
+                    <option value="Divers">Divers</option>
+                  </select>
+                </label>
+                <div className="grid grid-cols-2 gap-3">
+                  <label className="flex items-center gap-2 rounded-[8px] border border-[#d8e0ea] px-3 py-2 text-sm font-bold text-app-text-body">
+                    <input
+                      type="checkbox"
+                      checked={patientDataDraft.isPregnant}
+                      onChange={(event) => updatePatientDataDraft("isPregnant", event.target.checked)}
+                    />
+                    Schwanger
+                  </label>
+                  <label className="flex items-center gap-2 rounded-[8px] border border-[#d8e0ea] px-3 py-2 text-sm font-bold text-app-text-body">
+                    <input
+                      type="checkbox"
+                      checked={patientDataDraft.isBreastfeeding}
+                      onChange={(event) => updatePatientDataDraft("isBreastfeeding", event.target.checked)}
+                    />
+                    Stillzeit
+                  </label>
+                </div>
+                <label className="block">
+                  <span className="text-[11px] font-medium text-app-text-subtle">Allergien</span>
+                  <input
+                    value={patientDataDraft.allergies}
+                    onChange={(event) => updatePatientDataDraft("allergies", event.target.value)}
+                    className="mt-1 w-full rounded-[8px] border border-[#d8e0ea] px-3 py-2 text-sm font-medium text-app-text-body outline-none focus:border-[#486284] focus:ring-2 focus:ring-[#486284]/20"
+                  />
+                </label>
+                <label className="block">
+                  <span className="text-[11px] font-medium text-app-text-subtle">Medikamente</span>
+                  <input
+                    value={patientDataDraft.medications}
+                    onChange={(event) => updatePatientDataDraft("medications", event.target.value)}
+                    className="mt-1 w-full rounded-[8px] border border-[#d8e0ea] px-3 py-2 text-sm font-medium text-app-text-body outline-none focus:border-[#486284] focus:ring-2 focus:ring-[#486284]/20"
+                  />
+                </label>
+                <div className="block">
+                  <span className="text-[11px] font-medium text-app-text-subtle">Substanzbeeinflussung</span>
+                  <select
+                    value={patientDataDraft.substanceInfluence.trim().toLowerCase() === "nein" || !patientDataDraft.substanceInfluence.trim() ? "Nein" : "Ja"}
+                    onChange={(event) => updatePatientDataDraft("substanceInfluence", event.target.value === "Ja" ? SUBSTANCE_OPTIONS[0] : "Nein")}
+                    className="mt-1 w-full rounded-[8px] border border-[#d8e0ea] bg-white px-3 py-2 text-sm font-medium text-app-text-body outline-none focus:border-[#486284] focus:ring-2 focus:ring-[#486284]/20"
+                  >
+                    <option value="Nein">Nein</option>
+                    <option value="Ja">Ja</option>
+                  </select>
+                  {patientDataDraft.substanceInfluence.trim().toLowerCase() !== "nein" && patientDataDraft.substanceInfluence.trim() && (
+                    <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                      <select
+                        value={SUBSTANCE_OPTIONS.includes(patientDataDraft.substanceInfluence) ? patientDataDraft.substanceInfluence : "Andere"}
+                        onChange={(event) => updatePatientDataDraft("substanceInfluence", event.target.value)}
+                        className="w-full rounded-[8px] border border-[#d8e0ea] bg-white px-3 py-2 text-sm font-medium text-app-text-body outline-none focus:border-[#486284] focus:ring-2 focus:ring-[#486284]/20"
+                      >
+                        {SUBSTANCE_OPTIONS.map((substance) => (
+                          <option key={substance} value={substance}>{substance}</option>
+                        ))}
+                      </select>
+                      <input
+                        value={SUBSTANCE_OPTIONS.includes(patientDataDraft.substanceInfluence) ? "" : patientDataDraft.substanceInfluence}
+                        onChange={(event) => updatePatientDataDraft("substanceInfluence", event.target.value)}
+                        placeholder="Welche Substanz?"
+                        className="w-full rounded-[8px] border border-[#d8e0ea] px-3 py-2 text-sm font-medium text-app-text-body outline-none focus:border-[#486284] focus:ring-2 focus:ring-[#486284]/20"
+                      />
+                    </div>
+                  )}
+                </div>
+                <div className="grid gap-3 md:col-span-2 md:grid-cols-[auto_1fr_1fr]">
+                  <label className="flex items-center gap-2 rounded-[8px] border border-[#d8e0ea] px-3 py-2 text-sm font-bold text-app-text-body">
+                    <input
+                      type="checkbox"
+                      checked={patientDataDraft.recentAbroad}
+                      onChange={(event) => {
+                        updatePatientDataDraft("recentAbroad", event.target.checked);
+
+                        if (!event.target.checked) {
+                          setTravelCountryDraft("");
+                          setTravelStartDateDraft("");
+                          setTravelEndDateDraft("");
+                        }
+                      }}
+                    />
+                    Auslandsreise
+                  </label>
+                  <label className="block">
+                    <span className="text-[11px] font-medium text-app-text-subtle">Wo</span>
+                    <input
+                      list="travel-country-options"
+                      value={travelCountryDraft}
+                      onChange={(event) => setTravelCountryDraft(event.target.value)}
+                      disabled={!patientDataDraft.recentAbroad}
+                      className="mt-1 w-full rounded-[8px] border border-[#d8e0ea] px-3 py-2 text-sm font-medium text-app-text-body outline-none focus:border-[#486284] focus:ring-2 focus:ring-[#486284]/20"
+                    />
+                    <datalist id="travel-country-options">
+                      {TRAVEL_COUNTRIES.map((country) => (
+                        <option key={country} value={country} />
+                      ))}
+                    </datalist>
+                  </label>
+                  <label className="block">
+                    <span className="text-[11px] font-medium text-app-text-subtle">Von</span>
+                    <input
+                      type="date"
+                      value={travelStartDateDraft}
+                      onChange={(event) => setTravelStartDateDraft(event.target.value)}
+                      disabled={!patientDataDraft.recentAbroad}
+                      className="mt-1 w-full rounded-[8px] border border-[#d8e0ea] px-3 py-2 text-sm font-medium text-app-text-body outline-none focus:border-[#486284] focus:ring-2 focus:ring-[#486284]/20"
+                    />
+                  </label>
+                  <label className="block md:col-start-3">
+                    <span className="text-[11px] font-medium text-app-text-subtle">Bis</span>
+                    <input
+                      type="date"
+                      value={travelEndDateDraft}
+                      min={travelStartDateDraft || undefined}
+                      onChange={(event) => setTravelEndDateDraft(event.target.value)}
+                      disabled={!patientDataDraft.recentAbroad}
+                      className="mt-1 w-full rounded-[8px] border border-[#d8e0ea] px-3 py-2 text-sm font-medium text-app-text-body outline-none focus:border-[#486284] focus:ring-2 focus:ring-[#486284]/20"
+                    />
+                  </label>
+                </div>
+                <label className="block md:col-span-2">
+                  <span className="text-[11px] font-medium text-app-text-subtle">Vorerkrankungen</span>
+                  <input
+                    value={conditionListDraft}
+                    onChange={(event) => setConditionListDraft(event.target.value)}
+                    className="mt-1 w-full rounded-[8px] border border-[#d8e0ea] px-3 py-2 text-sm font-medium text-app-text-body outline-none focus:border-[#486284] focus:ring-2 focus:ring-[#486284]/20"
+                  />
+                </label>
+                <div className="grid gap-3 md:col-span-2 md:grid-cols-[auto_1fr_1fr]">
+                  <label className="flex items-center gap-2 rounded-[8px] border border-[#d8e0ea] px-3 py-2 text-sm font-bold text-app-text-body">
+                    <input
+                      type="checkbox"
+                      checked={patientDataDraft.isSmoker}
+                      onChange={(event) => updatePatientDataDraft("isSmoker", event.target.checked)}
+                    />
+                    Raucher
+                  </label>
+                  <label className="block">
+                    <span className="text-[11px] font-medium text-app-text-subtle">Rauchdauer</span>
+                    <input
+                      value={patientDataDraft.smokingSinceYears}
+                      onChange={(event) => updatePatientDataDraft("smokingSinceYears", event.target.value)}
+                      className="mt-1 w-full rounded-[8px] border border-[#d8e0ea] px-3 py-2 text-sm font-medium text-app-text-body outline-none focus:border-[#486284] focus:ring-2 focus:ring-[#486284]/20"
+                    />
+                  </label>
+                  <label className="block">
+                    <span className="text-[11px] font-medium text-app-text-subtle">Zigaretten pro Tag</span>
+                    <input
+                      value={patientDataDraft.cigarettesPerDay}
+                      onChange={(event) => updatePatientDataDraft("cigarettesPerDay", event.target.value)}
+                      className="mt-1 w-full rounded-[8px] border border-[#d8e0ea] px-3 py-2 text-sm font-medium text-app-text-body outline-none focus:border-[#486284] focus:ring-2 focus:ring-[#486284]/20"
+                    />
+                  </label>
+                </div>
+              </div>
+            ) : patientDataRows.length > 0 ? (
+              <dl className="grid gap-x-4 gap-y-2 md:grid-cols-2">
+                {patientDataRows.map((row) => (
+                  <div key={row.label} className="min-w-0">
+                    <dt className="text-[11px] font-medium text-app-text-subtle">{row.label}</dt>
+                    <dd className="break-words font-['DM_Sans:Bold',sans-serif] text-sm font-bold text-app-text-body">
+                      {row.value}
+                    </dd>
+                  </div>
+                ))}
+              </dl>
+            ) : (
+              <p className="font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-body text-xs leading-relaxed">
+                Keine Patientendaten angegeben.
+              </p>
+            )}
+          </div>
+
+          <div className="bg-white rounded-[10px] p-3 border border-[#d8e0ea]">
             <p className="text-xs text-app-text-subtle mb-1">Beschwerden</p>
-            <p className="font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-body text-xs leading-relaxed">
-              {symptomDetails.length > 0
-                ? symptomDetails
-                    .map((symptom) => {
+            <div className="space-y-2 font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-body text-xs leading-relaxed">
+              {symptomDetails.length > 0 ? (
+                symptomDetails.map((symptom) => {
                       const label = symptom.side
                         ? `${symptom.region} (${symptom.side})`
                         : symptom.region;
-                      const details = symptom.details ? `, Details: ${symptom.details}` : "";
 
-                      return `${label}${details}: ${getMeasurementSummary(symptom)}${
+                      return (
+                        <p key={`${label}-${symptom.measurementType}-${symptom.measurementValue}-${symptom.duration ?? ""}`}>
+                          {label}: {getMeasurementSummary(symptom)}{
                         symptom.duration ? `, ${getDurationLabel(symptom.duration)}` : ""
-                      }`;
+                      }
+                        </p>
+                      );
                     })
-                    .join("; ")
-                : "Keine Beschwerden angegeben."}
-            </p>
+              ) : (
+                <p>Keine Beschwerden angegeben.</p>
+              )}
+            </div>
           </div>
+
+          {isEditingSummary && (
+            <div className="flex justify-end gap-2 pt-1">
+              <button
+                type="button"
+                onClick={handleCancelSummaryEdit}
+                className="rounded-[10px] border border-[#d8e0ea] bg-white px-4 py-2 text-sm font-bold text-app-text-body transition-all hover:bg-[#eff2f6]"
+              >
+                Abbrechen
+              </button>
+              <button
+                type="button"
+                onClick={handleSaveSummaryEdit}
+                className="rounded-[10px] bg-[#486284] px-4 py-2 text-sm font-bold text-app-text-on-primary transition-all hover:bg-[#3a4d68]"
+              >
+                Speichern
+              </button>
+            </div>
+          )}
         </div>
 
         <div className="bg-white rounded-[12px] p-4 border border-[#d8e0ea] mb-4">
@@ -498,45 +938,10 @@ export default function ResultPage() {
             <p className="font-['DM_Sans:Bold',sans-serif] font-bold text-app-text-primary text-base">
               Medical Summary
             </p>
-            {isEditingSummary && (
-              <div className="flex gap-2">
-                <button
-                  type="button"
-                  onClick={handleCancelSummaryEdit}
-                  className="rounded-[10px] border border-[#d8e0ea] px-3 py-1.5 text-sm font-bold text-app-text-body transition-all hover:bg-[#eff2f6]"
-                >
-                  Abbrechen
-                </button>
-                <button
-                  type="button"
-                  onClick={handleSaveSummaryEdit}
-                  className="rounded-[10px] bg-[#486284] px-3 py-1.5 text-sm font-bold text-app-text-on-primary transition-all hover:bg-[#3a4d68]"
-                >
-                  Speichern
-                </button>
-              </div>
-            )}
           </div>
 
           {isEditingSummary ? (
             <div className="space-y-4">
-              <div>
-                <p className="mb-2 font-['DM_Sans:Bold',sans-serif] text-sm font-bold text-app-text-body">
-                  Patientendaten:
-                </p>
-                <textarea
-                  value={professionalSummaryDraft.patientData}
-                  onChange={(event) =>
-                    setProfessionalSummaryDraft((currentDraft) => ({
-                      ...currentDraft,
-                      patientData: event.target.value,
-                    }))
-                  }
-                  aria-label="Patientendaten bearbeiten"
-                  className="min-h-[96px] w-full resize-y rounded-[10px] border border-[#d8e0ea] bg-white p-3 font-['DM_Sans:Medium',sans-serif] text-sm leading-relaxed text-app-text-body outline-none transition-all focus:border-[#486284] focus:ring-2 focus:ring-[#486284]/20"
-                />
-              </div>
-
               <div>
                 <p className="mb-2 font-['DM_Sans:Bold',sans-serif] text-sm font-bold text-app-text-body">
                   Beschwerden:
