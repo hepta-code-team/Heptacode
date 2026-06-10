@@ -88,4 +88,81 @@ describe('createPdfSummary', () => {
     expect(result.sections[0]?.content).not.toContain('Stammdaten:')
     expect(result.sections[0]?.content).not.toContain('Ausgewählte Symptome:')
   })
+
+  it('formatiert Triage-Empfehlungen und optionale Symptominformationen im medizinischen Ueberblick', async () => {
+    const result = await createPdfSummary({
+      reviewSummary: {
+        plainLanguage: 'Die Beschwerden wurden zusammengefasst.',
+        professionalSummary: '',
+      },
+      patientData: {
+        birthMonth: '03',
+        birthYear: '1985',
+        height: '180',
+        weight: '82',
+        gender: 'male',
+        isPregnant: false,
+        isBreastfeeding: false,
+        allergies: 'Hausstaub',
+        medications: 'Ramipril',
+        substanceInfluence: 'Nein',
+        recentAbroad: true,
+        recentAbroadDetails: '',
+        conditions: ['Sonstige'],
+        isSmoker: true,
+        smokingSinceYears: '12',
+        cigarettesPerDay: '8',
+        conditionDetails: {
+          Sonstige: 'Sonstige: Herzrhythmusstoerungen',
+        },
+      },
+      symptoms: [
+        {
+          region: 'Brust',
+          side: 'Brustmitte',
+          details: 'Atemabhaengig',
+          measurementType: 'temperature',
+          measurementValue: 39.2,
+          duration: 'week',
+        },
+        {
+          region: 'Allgemein',
+          measurementType: 'feeling',
+          measurementValue: 8,
+          duration: 'weeks',
+        },
+      ],
+      triage: {
+        careLevel: 'doctor',
+        reasons: ['Die Beschwerden sollten aerztlich eingestuft werden.'],
+      },
+    })
+
+    expect(result.sections[0]?.content).toContain('Geschlecht:')
+    expect(result.sections[0]?.content).toContain('Reise ins Ausland: Ja')
+    expect(result.sections[0]?.content).toContain('Raucher: Ja')
+    expect(result.sections[0]?.content).toContain('Details zu Vorerkrankungen: Herzrhythmusstoerungen')
+    expect(result.sections[0]?.content).toContain('Temperatur: 39.2')
+    expect(result.sections[0]?.content).toContain('8/10')
+    expect(result.sections[0]?.content).toContain('Dauer: Seit einer Woche')
+    expect(result.sections[0]?.content).toContain('Dauer: Seit mehreren Wochen')
+    expect(result.sections[0]?.content).toContain('empfohlen')
+  })
+
+  it('nutzt die uebergebenen Gruende fuer unbekannte Care-Level', async () => {
+    const result = await createPdfSummary({
+      reviewSummary: {
+        plainLanguage: 'Die Beschwerden wurden zusammengefasst.',
+        professionalSummary: '',
+      },
+      triage: {
+        careLevel: 'custom' as never,
+        reasons: ['Begruendung mit Satzzeichen;', ' zweiter Grund,'],
+      },
+    })
+
+    expect(result.sections[0]?.content).toMatch(
+      /Begr.ndung der Empfehlung: Begr.ndung mit Satzzeichen\. zweiter Grund\./,
+    )
+  })
 })

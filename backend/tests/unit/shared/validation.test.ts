@@ -43,6 +43,24 @@ describe('triageAiResponseSchema', () => {
     expect(result.success).toBe(true)
   })
 
+  it('normalisiert einzelne Reason-Strings zu einem Array', () => {
+    const result = triageAiResponseSchema.safeParse({
+      careLevel: 'doctor',
+      reasons: 'Die Beschwerden sollten aerztlich abgeklart werden.',
+      reviewSummary: {
+        plainLanguage: 'Bitte lassen Sie die Beschwerden aerztlich einordnen.',
+        professionalSummary: 'Care Level: doctor.',
+      },
+    })
+
+    expect(result.success).toBe(true)
+    if (result.success) {
+      expect(result.data.reasons).toEqual([
+        'Die Beschwerden sollten aerztlich abgeklart werden.',
+      ])
+    }
+  })
+
   it('lehnt KI-Antworten ohne Review-Summary ab', () => {
     const result = triageAiResponseSchema.safeParse({
       careLevel: 'doctor',

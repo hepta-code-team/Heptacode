@@ -50,6 +50,19 @@ describe('extractSymptoms', () => {
     expect(requestStructuredAiResponseMock).not.toHaveBeenCalled()
   })
 
+  it('faengt reine Satzzeichen ohne KI-Aufruf ab', async () => {
+    const result = await extractSymptoms('123 !!!')
+
+    expect(result).toMatchObject({
+      text: '123 !!!',
+      inputType: 'text',
+      symptoms: [],
+      invalidInput: true,
+    })
+    expect(result.message).toContain('zusammen')
+    expect(requestStructuredAiResponseMock).not.toHaveBeenCalled()
+  })
+
   it('faengt widerspruechliche Schwangerschaftsangaben vor der KI-Auswertung ab', async () => {
     const result = await extractSymptoms(
       'Ich waere schwanger und habe Wehen.',
@@ -206,6 +219,22 @@ describe('extractSymptoms', () => {
     expect(requestStructuredAiResponseMock).toHaveBeenCalledTimes(2)
   })
 
+  it('laesst kurze medizinische Einzelbegriffe mit Medical Cue zur KI-Pruefung durch', async () => {
+    requestStructuredAiResponseMock
+      .mockResolvedValueOnce({
+        isValidMedicalInput: true,
+        reason: 'Medizinischer Kontext erkannt.',
+      })
+      .mockResolvedValueOnce({
+        symptoms: [{ region: 'Fieber', measurementType: 'temperature' }],
+      })
+
+    const result = await extractSymptoms('Fieber')
+
+    expect(result.symptoms).toEqual([{ region: 'Fieber', measurementType: 'temperature' }])
+    expect(requestStructuredAiResponseMock).toHaveBeenCalledTimes(2)
+  })
+
   it('laesst Koerperteilverlust als Freitext-Symptom durch die Extraktion laufen', async () => {
     requestStructuredAiResponseMock
       .mockResolvedValueOnce({
@@ -332,6 +361,26 @@ describe('validateSymptomInput', () => {
       isValidMedicalInput: false,
     })
     expect(requestStructuredAiResponseMock).not.toHaveBeenCalled()
+  })
+
+  it('meldet kontrolliert, wenn die Validierungs-KI nicht verfuegbar ist', async () => {
+    requestStructuredAiResponseMock.mockRejectedValueOnce(new AiResponseError('validation timeout'))
+
+    const result = await validateSymptomInput('Ich habe seit Tagen Husten.')
+
+    expect(result).toMatchObject({
+      text: 'Ich habe seit Tagen Husten.',
+      inputType: 'text',
+      isValidMedicalInput: false,
+      aiUnavailable: true,
+    })
+    expect(result.message).toContain('Kontext')
+  })
+
+  it('reicht unerwartete Validierungsfehler weiter', async () => {
+    requestStructuredAiResponseMock.mockRejectedValueOnce(new Error('boom'))
+
+    await expect(validateSymptomInput('Ich habe seit Tagen Husten.')).rejects.toThrow('boom')
   })
 
   it('faengt Platzhaltertexte im Symptomnamen ohne KI-Aufruf ab', async () => {

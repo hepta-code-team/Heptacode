@@ -129,6 +129,62 @@ describe('evaluateTriage', () => {
     expect(result.reasons).toHaveLength(2)
   })
 
+  it('nutzt den Notfall-Fallback bei psychischen Warnmustern', async () => {
+    requestStructuredAiResponseWithModelMock.mockRejectedValueOnce(new AiResponseError('timeout'))
+
+    const result = await evaluateTriage(undefined, [
+      {
+        region: 'Psychische Probleme',
+        side: 'Suizidgedanken',
+        measurementType: 'severity',
+        measurementValue: 3,
+        duration: 'today',
+      },
+    ])
+
+    expect(result).toMatchObject({
+      careLevel: 'emergency',
+      recommendedSpecialty: 'emergency_medicine',
+      aiUnavailable: true,
+    })
+    expect(result.reasons.join(' ')).toContain('Warnmuster')
+  })
+
+  it('nutzt den Notfall-Fallback bei Verwirrtheit', async () => {
+    requestStructuredAiResponseWithModelMock.mockRejectedValueOnce(new AiResponseError('timeout'))
+
+    const result = await evaluateTriage(undefined, [
+      {
+        region: 'Allgemein',
+        side: 'Verwirrtheit',
+        measurementType: 'feeling',
+        measurementValue: 4,
+        duration: 'today',
+      },
+    ])
+
+    expect(result).toMatchObject({
+      careLevel: 'emergency',
+      recommendedSpecialty: 'emergency_medicine',
+      aiUnavailable: true,
+    })
+  })
+
+  it('nutzt den Notfall-Fallback bei sehr starken Beschwerden ohne spezielles Warnmuster', async () => {
+    requestStructuredAiResponseWithModelMock.mockRejectedValueOnce(new AiResponseError('timeout'))
+
+    const result = await evaluateTriage(undefined, [
+      { region: 'Ruecken', measurementType: 'pain', measurementValue: 8, duration: 'today' },
+    ])
+
+    expect(result).toMatchObject({
+      careLevel: 'emergency',
+      recommendedSpecialty: 'emergency_medicine',
+      aiUnavailable: true,
+    })
+    expect(result.reasons.join(' ')).toContain('sehr starken Beschwerden')
+  })
+
   it('eskaliert eine erfolgreiche KI-Triage nicht lokal zu specialist', async () => {
     requestStructuredAiResponseWithModelMock.mockResolvedValueOnce({
       data: {
@@ -282,5 +338,40 @@ describe('evaluateTriage', () => {
     })
     expect(extractSymptomsMock).toHaveBeenCalledWith('Ich habe seit Tagen Husten.', 'speech')
     expect(requestStructuredAiResponseWithModelMock).toHaveBeenCalledTimes(1)
+  })
+
+  it('nutzt Selfcare-Fallback, wenn aus Freitext keine Symptome extrahiert wurden und die KI-Triage ausfaellt', async () => {
+    extractSymptomsMock.mockResolvedValueOnce({
+      text: 'Ich bin unsicher.',
+      inputType: 'text',
+      symptoms: [],
+    })
+    requestStructuredAiResponseWithModelMock.mockRejectedValueOnce(new AiResponseError('timeout'))
+
+    const result = await evaluateTriage(undefined, undefined, false, 'Ich bin unsicher.')
+
+    expect(result).toMatchObject({
+      careLevel: 'selfcare',
+      recommendedSpecialty: 'home_care',
+      aiUnavailable: true,
+    })
+  })
+
+  it('reicht unerwartete Fehler aus der KI-Triage weiter', async () => {
+    requestStructuredAiResponseWithModelMock.mockRejectedValueOnce(new Error('boom'))
+
+    await expect(
+      evaluateTriage(undefined, [
+        { region: 'Bauch', measurementType: 'pain', measurementValue: 5, duration: 'days' },
+      ]),
+    ).rejects.toThrow('boom')
+  })
+
+  it('reicht unerwartete Fehler aus der Symptom-Extraktion weiter', async () => {
+    extractSymptomsMock.mockRejectedValueOnce(new Error('boom'))
+
+    await expect(evaluateTriage(undefined, undefined, false, 'Ich habe Husten.')).rejects.toThrow(
+      'boom',
+    )
   })
 })
