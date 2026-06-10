@@ -1,4 +1,4 @@
-import type { ResultConfig } from "../../../../shared/result.types";
+import type { CareLevel, MedicalSpecialty, ResultConfig } from "../../../../shared/result.types";
 
 type ResultCardConfig = ResultConfig & {
   titleSupplement?: string;
@@ -6,9 +6,11 @@ type ResultCardConfig = ResultConfig & {
 
 interface ResultCardProps {
   config: ResultCardConfig;
+  careLevel: CareLevel;
+  recommendedSpecialty?: MedicalSpecialty;
 }
 
-export default function ResultCard({ config }: ResultCardProps) {
+export default function ResultCard({ config, careLevel, recommendedSpecialty }: ResultCardProps) {
   return (
     <div
       className="rounded-[16px] p-5 md:p-6 mb-4"
@@ -44,6 +46,20 @@ export default function ResultCard({ config }: ResultCardProps) {
         style={{ fontVariationSettings: "'opsz' 14" }}
       >
         {config.description}
+        {careLevel === "doctor" && (
+          <span className="hidden md:inline">
+            {" "}
+            Bei weiteren Fragen oder Unsicherheiten kontaktieren Sie die{" "}
+            <strong>116 117</strong>.
+          </span>
+        )}
+        {recommendedSpecialty === "psychiatry" && (
+          <span className="hidden md:inline">
+            {" "}
+            Bei akuten Sorgen erreichen Sie die Telefonseelsorge unter{" "}
+            <strong>0800 1110111</strong>.
+          </span>
+        )}
       </p>
     </div>
   );

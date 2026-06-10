@@ -294,11 +294,13 @@ export default function ResultPage() {
       : TRIAGE_CONFIGS[careLevel === "specialist" ? "doctor" : careLevel];
 
   const callAction =
-    careLevel === "emergency"
-      ? { href: "tel:112", label: "112 anrufen", description: "Notruf" }
-      : careLevel === "doctor"
-        ? { href: "tel:116117", label: "116 117 anrufen", description: "Ärztlicher Bereitschaftsdienst" }
-        : null;
+      careLevel === "emergency"
+          ? {href: "tel:112", label: "112 anrufen", description: "Notruf"}
+          : careLevel === "doctor"
+              ? {href: "tel:116117", label: "Ärztlicher Bereitschaftsdienst (116 117)", description: "Ärztlicher Bereitschaftsdienst"}
+              : recommendedSpecialty === "psychiatry"
+                  ? {href: "tel:0800 1110111", label: "Telefonseelsorge (0800 1110111)", description: "Telefonseelsorge"}
+                  : null;
 
   const explanationReasons = assessmentResult?.reasons?.length
     ? assessmentResult.reasons
@@ -551,8 +553,22 @@ export default function ResultPage() {
       title="Ihre Auswertung"
       subtitle="Basierend auf Ihren Angaben haben wir folgende Empfehlung für Sie."
     >
-      <ResultCard config={config} />
+      <ResultCard config={config} careLevel={careLevel} recommendedSpecialty={recommendedSpecialty} />
 
+      {callAction && (
+          <a
+              href={callAction.href}
+              className="md:hidden mb-4 flex min-h-[56px] w-full items-center justify-center gap-3 rounded-[14px] px-5 py-3 text-app-text-on-primary shadow-sm transition-all hover:opacity-90"
+              style={{ backgroundColor: config.color }}
+              aria-label={callAction.label}
+          >
+            <PhoneCall className="size-5 flex-shrink-0" aria-hidden="true" />
+            <span className="font-['DM_Sans:Bold',sans-serif] font-bold text-base">
+            {callAction.label}
+          </span>
+            <span className="sr-only">{callAction.description}</span>
+          </a>
+      )}
       <div className="bg-white border border-[#d8e0ea] rounded-[16px] p-5 md:p-6 mb-4">
         <p className="font-['DM_Sans:Bold',sans-serif] font-bold text-app-text-primary text-lg mb-3">
           Ihre Einschätzung
@@ -566,6 +582,8 @@ export default function ResultPage() {
             deshalb mit einem vorsichtigen medizinischen Fallback erzeugt.
           </p>
         )}
+
+
 
         <button
           type="button"
@@ -609,20 +627,7 @@ export default function ResultPage() {
         )}
       </div>
 
-      {callAction && (
-        <a
-          href={callAction.href}
-          className="md:hidden mb-4 flex min-h-[56px] w-full items-center justify-center gap-3 rounded-[14px] px-5 py-3 text-app-text-on-primary shadow-sm transition-all hover:opacity-90"
-          style={{ backgroundColor: config.color }}
-          aria-label={callAction.label}
-        >
-          <PhoneCall className="size-5 flex-shrink-0" aria-hidden="true" />
-          <span className="font-['DM_Sans:Bold',sans-serif] font-bold text-base">
-            {callAction.label}
-          </span>
-          <span className="sr-only">{callAction.description}</span>
-        </a>
-      )}
+
 
       <div className="bg-white border-2 border-[#486284] rounded-[16px] p-5 md:p-6 mb-4">
         <div className="flex flex-col gap-3 mb-4 sm:flex-row sm:items-center sm:justify-between">
