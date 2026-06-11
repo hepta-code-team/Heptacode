@@ -9,6 +9,34 @@ interface PainScaleSelectorProps {
   onValueChange: (value: number) => void;
 }
 
+function ScaleLabels({ config }: { config: MeasurementConfig }) {
+  if (!config.scaleLabels?.length) {
+    return null;
+  }
+
+  return (
+    <div
+      className="mt-2 grid h-8"
+      style={{ gridTemplateColumns: `repeat(${config.scaleLabels.length}, minmax(0, 1fr))` }}
+    >
+      {config.scaleLabels.map((scaleLabel, index) => (
+        <span
+          key={`${scaleLabel.value}-${scaleLabel.label}`}
+          className={`min-w-0 truncate text-xs text-app-text-subtle ${
+            index === 0
+              ? "text-left"
+              : index === config.scaleLabels!.length - 1
+                ? "text-right"
+                : "text-center"
+          }`}
+        >
+          {scaleLabel.label}
+        </span>
+      ))}
+    </div>
+  );
+}
+
 export default function PainScaleSelector({ config, value, onValueChange }: PainScaleSelectorProps) {
   const [isScaleInfoOpen, setIsScaleInfoOpen] = useState(false);
 
@@ -83,7 +111,7 @@ export default function PainScaleSelector({ config, value, onValueChange }: Pain
               <button
                 key={temperature}
                 onClick={() => onValueChange(temperature)}
-                className="flex-1 h-12 rounded-lg transition-all hover:opacity-90 flex items-center justify-center font-['DM_Sans:Bold',sans-serif] font-bold text-xs"
+                className="flex-1 h-12 rounded-lg transition-all hover:opacity-90 flex items-center justify-center font-['DM_Sans:Bold',sans-serif] font-bold text-base"
                 style={{
                   backgroundColor: temperature > value ? "#E5E7EB" : getTemperatureColor(temperature),
                   color: temperature <= 38 ? "#3e3e3e" : "white",
@@ -96,10 +124,7 @@ export default function PainScaleSelector({ config, value, onValueChange }: Pain
             );
           })}
         </div>
-        <div className="flex justify-between">
-          <span className="text-xs text-app-text-subtle">{config.minLabel}</span>
-          <span className="text-xs text-app-text-subtle">{config.maxLabel}</span>
-        </div>
+        <ScaleLabels config={config} />
       </div>
     );
   }
@@ -150,10 +175,7 @@ export default function PainScaleSelector({ config, value, onValueChange }: Pain
           </button>
         ))}
       </div>
-      <div className="flex justify-between">
-        <span className="text-xs text-app-text-subtle">{config.minLabel}</span>
-        <span className="text-xs text-app-text-subtle">{config.maxLabel}</span>
-      </div>
+      <ScaleLabels config={config} />
       <Modal
         isOpen={isScaleInfoOpen}
         onClose={() => setIsScaleInfoOpen(false)}

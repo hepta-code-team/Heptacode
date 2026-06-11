@@ -240,8 +240,12 @@ export interface MeasurementConfig {
   step?: number;
   defaultValue: number;
   unit?: string;
-  minLabel: string;
-  maxLabel: string;
+  minLabel?: string;
+  maxLabel?: string;
+  scaleLabels?: Array<{
+    value: number;
+    label: string;
+  }>;
 }
 
 const MEASUREMENT_CONFIGS: Record<SymptomMeasurementType, MeasurementConfig> = {
@@ -251,9 +255,14 @@ const MEASUREMENT_CONFIGS: Record<SymptomMeasurementType, MeasurementConfig> = {
     min: 1,
     max: 10,
     defaultValue: 5,
-    minLabel: "Leicht",
-    maxLabel: "Sehr stark",
+    scaleLabels: [
+      { value: 1, label: "Leicht" },
+      { value: 4, label: "Mittel" },
+      { value: 7, label: "Stark" },
+      { value: 10, label: "Sehr stark" },
+    ],
   },
+
   temperature: {
     type: "temperature",
     title: "Temperatur",
@@ -271,8 +280,12 @@ const MEASUREMENT_CONFIGS: Record<SymptomMeasurementType, MeasurementConfig> = {
     min: 1,
     max: 10,
     defaultValue: 5,
-    minLabel: "Leicht",
-    maxLabel: "Sehr stark",
+    scaleLabels: [
+      { value: 1, label: "Leicht" },
+      { value: 4, label: "Mittel" },
+      { value: 7, label: "Stark" },
+      { value: 10, label: "Sehr stark" },
+    ],
   },
   severity: {
     type: "severity",
@@ -280,8 +293,12 @@ const MEASUREMENT_CONFIGS: Record<SymptomMeasurementType, MeasurementConfig> = {
     min: 1,
     max: 10,
     defaultValue: 5,
-    minLabel: "Leicht",
-    maxLabel: "Sehr stark",
+    scaleLabels: [
+      { value: 1, label: "Leicht" },
+      { value: 4, label: "Mittel" },
+      { value: 7, label: "Stark" },
+      { value: 10, label: "Sehr stark" },
+    ],
   },
 };
 
