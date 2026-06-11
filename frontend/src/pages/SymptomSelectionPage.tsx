@@ -273,7 +273,7 @@ function AnatomyFigure({
   return (
     <svg
       viewBox="0 0 220 350"
-      className="mx-auto h-[330px] w-[210px] md:h-[390px] md:w-[245px]"
+      className="mx-auto h-[360px] w-[230px] sm:h-[330px] sm:w-[210px] md:h-[390px] md:w-[245px]"
       role="img"
       aria-label="Klickbare Körperauswahl"
     >
@@ -379,11 +379,38 @@ function AnatomyFigure({
       <g
         role="button"
         tabIndex={0}
+        aria-label="Kopf und Hals auswählen"
+        aria-pressed={selectedCategory === "headNeck"}
+        onClick={() => onSelect("headNeck")}
+        onKeyDown={activate("headNeck")}
+        className={`${interactiveClass} sm:hidden`}
+      >
+        <path
+          d="M80 42 C80 20 94 7 110 7 C126 7 140 20 140 42 C140 64 127 78 110 78 C93 78 80 64 80 42 Z"
+          fill={partFill("headNeck")}
+          stroke={partStroke("headNeck")}
+          strokeWidth="4"
+          filter="url(#body-shadow)"
+        />
+        <path
+          d="M92 72 C99 84 121 84 128 72 L130 96 C122 104 98 104 90 96 Z"
+          fill={partFill("headNeck")}
+          stroke={partStroke("headNeck")}
+          strokeWidth="3.5"
+          strokeLinejoin="round"
+        />
+        <text x="110" y="38" textAnchor="middle" fill={labelFill("headNeck")} fontSize="13" fontWeight="700">Kopf +</text>
+        <text x="110" y="55" textAnchor="middle" fill={labelFill("headNeck")} fontSize="13" fontWeight="700">Hals</text>
+      </g>
+
+      <g
+        role="button"
+        tabIndex={0}
         aria-label="Hals auswählen"
         aria-pressed={selectedCategory === "neck"}
         onClick={() => onSelect("neck")}
         onKeyDown={activate("neck")}
-        className={interactiveClass}
+        className={`${interactiveClass} hidden sm:block`}
       >
         <path
           d="M94 72 C100 82 120 82 126 72 L128 94 C121 101 99 101 92 94 Z"
@@ -402,7 +429,7 @@ function AnatomyFigure({
         aria-pressed={selectedCategory === "head"}
         onClick={() => onSelect("head")}
         onKeyDown={activate("head")}
-        className={interactiveClass}
+        className={`${interactiveClass} hidden sm:block`}
       >
         <path
           d="M80 42 C80 20 94 7 110 7 C126 7 140 20 140 42 C140 64 127 78 110 78 C93 78 80 64 80 42 Z"

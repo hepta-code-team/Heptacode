@@ -27,7 +27,7 @@ export interface BodyRegion {
   options?: string[];
 }
 
-export type BodyAreaCategory = "head" | "neck" | "torso" | "hips" | "arms" | "legs" | "mental" | "general";
+export type BodyAreaCategory = "headNeck" | "head" | "neck" | "torso" | "hips" | "arms" | "legs" | "mental" | "general";
 
 /**
  * Canonical symptom regions shown in the manual selection flow.
@@ -174,6 +174,7 @@ export const EMERGENCY_SYMPTOM_OPTIONS = ["Suizidgedanken"];
  * because their location is less important than surfacing the symptom quickly.
  */
 export const BODY_AREA_REGION_IDS: Record<BodyAreaCategory, string[]> = {
+  headNeck: ["kopf", "gesicht", "hals", "verbrennung", "schnittwunde"],
   head: ["kopf", "gesicht", "verbrennung", "schnittwunde"],
   neck: ["hals", "verbrennung", "schnittwunde"],
   torso: ["brust", "bauch", "ruecken", "verbrennung", "schnittwunde"],
@@ -185,6 +186,7 @@ export const BODY_AREA_REGION_IDS: Record<BodyAreaCategory, string[]> = {
 };
 
 export const BODY_AREA_LABELS: Record<BodyAreaCategory, string> = {
+  headNeck: "Kopf & Hals",
   head: "Kopf",
   neck: "Hals",
   torso: "Torso",

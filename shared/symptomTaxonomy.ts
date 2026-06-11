@@ -6,7 +6,7 @@ export const SYMPTOM_REGIONS = [
   },
   {
     name: 'Hals',
-    options: ['Hals', 'Rachen', 'Schluckbeschwerden',, 'Nacken'],
+    options: ['Hals', 'Rachen', 'Schluckbeschwerden', 'Nacken'],
   },
   {
     name: 'Brust',
