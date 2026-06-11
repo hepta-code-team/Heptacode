@@ -313,7 +313,11 @@ export default function MedicalDataPage() {
       conditions: prev.conditions.includes(condition) ? prev.conditions : [...prev.conditions, condition],
       conditionDetails: {
         ...(prev.conditionDetails ?? {}),
-        [condition]: value,
+        [condition]: {
+          condition,
+          detail: value,
+          duration: prev.conditionDetails?.[condition]?.duration ?? "",
+        },
       },
     }));
     setExpandedConditionDetails((sections) => ({
@@ -343,7 +347,11 @@ export default function MedicalDataPage() {
         conditions: nextConditions,
         conditionDetails: {
           ...(prev.conditionDetails ?? {}),
-          Sonstige: value,
+          Sonstige: {
+            condition: "Sonstige",
+            detail: value,
+            duration: prev.conditionDetails?.Sonstige?.duration ?? "",
+          },
         },
       };
     });
@@ -682,9 +690,9 @@ export default function MedicalDataPage() {
           {PRE_EXISTING_CONDITIONS.map((condition) => {
             const Icon = conditionIcons[condition as keyof typeof conditionIcons] ?? CircleHelp;
             const isSelected = formData.conditions.includes(condition);
-            const otherValue = formData.conditionDetails?.Sonstige ?? "";
+            const otherValue = formData.conditionDetails?.Sonstige?.detail ?? "";
             const config = CONDITION_DETAIL_CONFIGS[condition];
-            const detail = formData.conditionDetails?.[condition] ?? "";
+            const detail = formData.conditionDetails?.[condition]?.detail ?? "";
             const isOpen = expandedConditionDetails[condition] ?? false;
 
             if (condition === "Sonstige") {
