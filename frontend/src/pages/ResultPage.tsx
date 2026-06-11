@@ -357,10 +357,22 @@ export default function ResultPage() {
   const professionalSummary =
     assessmentResult?.reviewSummary?.professionalSummary?.trim() || buildProfessionalSummaryFallback();
 
+  const formatConditionDetail = (detail: PatientData["conditionDetails"][string]) => {
+    const parts = [
+      detail.detail.trim() ? detail.detail.trim() : null,
+      detail.duration.trim() ? `Dauer: ${detail.duration.trim()}` : null,
+    ].filter((part): part is string => part !== null);
+
+    return parts.join(", ");
+  };
+
   const conditionDetails = patientData
     ? Object.entries(patientData.conditionDetails)
-        .filter(([, detail]) => detail.trim().length > 0)
-        .map(([condition, detail]) => `${condition}: ${detail}`)
+        .map(([condition, detail]) => {
+          const formattedDetail = formatConditionDetail(detail);
+          return formattedDetail ? `${condition}: ${formattedDetail}` : null;
+        })
+        .filter((detail): detail is string => detail !== null)
     : [];
 
   const patientDataRows = patientData

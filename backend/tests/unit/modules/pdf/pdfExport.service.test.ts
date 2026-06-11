@@ -111,7 +111,11 @@ describe('createPdfSummary', () => {
         smokingSinceYears: '12',
         cigarettesPerDay: '8',
         conditionDetails: {
-          Sonstige: 'Sonstige: Herzrhythmusstoerungen',
+          Sonstige: {
+            condition: 'Sonstige',
+            detail: 'Sonstige: Herzrhythmusstoerungen',
+            duration: '',
+          },
         },
       },
       symptoms: [
