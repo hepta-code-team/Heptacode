@@ -43,6 +43,7 @@ export default function PainScaleSelector({ config, value, onValueChange }: Pain
   const getScaleColor = (level: number) => {
     const colors = [
       "#ACED40",
+      "#ACED40",
       "#BDE635",
       "#CAE63C",
       "#D1DB42",
@@ -53,7 +54,7 @@ export default function PainScaleSelector({ config, value, onValueChange }: Pain
       "#EF4444",
       "#DC2626",
     ];
-    return colors[level - 1] || colors[0];
+    return colors[level] || colors[0];
   };
 
   const getButtonColor = (buttonLevel: number, selectedLevel: number) => {
@@ -161,7 +162,7 @@ export default function PainScaleSelector({ config, value, onValueChange }: Pain
         </p>
       </div>
       <div className="flex gap-1 mb-2">
-        {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((level) => (
+        {Array.from({ length: config.max - config.min + 1 }, (_, index) => config.min + index).map((level) => (
           <button
             key={level}
             onClick={() => onValueChange(level)}
@@ -180,10 +181,11 @@ export default function PainScaleSelector({ config, value, onValueChange }: Pain
         isOpen={isScaleInfoOpen}
         onClose={() => setIsScaleInfoOpen(false)}
         title="Numerische Rating-Skala"
-        subtitle="Die Schmerzstärke wird hier mit der Numerischen Rating-Skala von 1 bis 10 abgefragt."
+        subtitle="Die Schmerzstärke wird hier mit der Numerischen Rating-Skala von 0 bis 10 abgefragt."
         maxWidth="max-w-lg"
       >
         <div className="space-y-3 text-sm font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-body">
+          <p>0 steht für keinen Schmerz.</p>
           <p>1 bis 3 steht eher für leichte Schmerzen, die noch gut auszuhalten sind.</p>
           <p>4 bis 6 beschreibt mittlere Schmerzen, die deutlich stören oder einschränken.</p>
           <p>7 bis 10 steht für starke bis sehr starke Schmerzen, die sehr belastend sind oder kaum auszuhalten wirken.</p>

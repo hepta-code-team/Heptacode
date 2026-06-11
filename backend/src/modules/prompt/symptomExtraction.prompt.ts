@@ -19,7 +19,7 @@ export const symptomExtractionInstructions = [
   'Wenn ein Problem auf eine vorhandene Region gemappt wird, darf details trotzdem die konkrete Freitextinformation enthalten.',
   'Schreibe in details keine Dauer und keine Beschwerde- oder Schmerzstaerke, weil duration, measurementType und measurementValue dafuer eigene Felder sind.',
   'Wenn ein Text nur Symptom, Dauer und Staerke enthaelt, lasse details weg. Beispiel: "Ich habe mittelstarke Bauchschmerzen schon seit ein paar Tagen" -> region "Bauch", measurementType "pain", measurementValue 5, duration "days", keine details.',
-  'Erkenne selbstständig, ob pro Beschwerde eine Schmerzintensität genannt wird. Wenn ja, gib measurementType als pain und measurementValue mit einer ganzen Zahl von 1 bis 10 zurück.',
+  'Erkenne selbstständig, ob pro Beschwerde eine Schmerzintensität genannt wird. Wenn ja, gib measurementType als pain und measurementValue mit einer ganzen Zahl von 0 bis 10 zurück.',
   'Wenn im Text Fieber oder eine gemessene Koerpertemperatur genannt wird, gib measurementType als temperature und measurementValue als Temperaturwert zurück.',
   'Nutze measurementType temperature nur fuer Fieber oder gemessene Koerpertemperatur. Heisse Ursachen wie kochendes Wasser, heisser Tee, Dampf, Feuer oder Verbrennungen sind keine Temperaturmessung; nutze dafuer pain oder severity.',
   'Wenn im Text eine seelische Intensität genannt wird, gib measurementType als feeling und measurementValue mit einer Zahl von 1 bis 10 zurück.',

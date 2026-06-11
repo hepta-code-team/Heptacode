@@ -252,11 +252,12 @@ const MEASUREMENT_CONFIGS: Record<SymptomMeasurementType, MeasurementConfig> = {
   pain: {
     type: "pain",
     title: "Schmerzstärke",
-    min: 1,
+    min: 0,
     max: 10,
     defaultValue: 5,
     scaleLabels: [
-      { value: 1, label: "Leicht" },
+      { value: 0, label: "Kein Schmerz" },
+      { value: 3, label: "Leicht" },
       { value: 4, label: "Mittel" },
       { value: 7, label: "Stark" },
       { value: 10, label: "Sehr stark" },
