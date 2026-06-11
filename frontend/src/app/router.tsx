@@ -1,10 +1,26 @@
-import { createBrowserRouter } from "react-router";
+import { Navigate, createBrowserRouter, useLocation } from "react-router";
+import type { ReactElement } from "react";
 import LandingPage from "../pages/LandingPage";
 import PatientDataPage from "../pages/PatientDataPage";
 import MedicalDataPage from "../pages/MedicalDataPage";
 import SymptomSelectionPage from "../pages/SymptomSelectionPage";
 import SymptomDetailsPage from "../pages/SymptomDetailsPage";
 import ResultPage from "../pages/ResultPage";
+import { useAssessment } from "../lib/AssessmentContext";
+import { isValidPatientData } from "../lib/assessmentValidation";
+
+function PatientDataRequiredRoute({ children }: { children: ReactElement }) {
+  const location = useLocation();
+  const { patientData } = useAssessment();
+  const isEmergencyResult =
+    location.pathname === "/result" && new URLSearchParams(location.search).get("emergency") === "true";
+
+  if (isEmergencyResult || isValidPatientData(patientData)) {
+    return children;
+  }
+
+  return <Navigate to="/patient-data" replace />;
+}
 
 export const router = createBrowserRouter([
   {
@@ -17,19 +33,35 @@ export const router = createBrowserRouter([
   },
   {
     path: "/medical-data",
-    element: <MedicalDataPage />,
+    element: (
+      <PatientDataRequiredRoute>
+        <MedicalDataPage />
+      </PatientDataRequiredRoute>
+    ),
   },
   {
     path: "/symptom-selection",
-    element: <SymptomSelectionPage />,
+    element: (
+      <PatientDataRequiredRoute>
+        <SymptomSelectionPage />
+      </PatientDataRequiredRoute>
+    ),
   },
   {
     path: "/symptom-details",
-    element: <SymptomDetailsPage />,
+    element: (
+      <PatientDataRequiredRoute>
+        <SymptomDetailsPage />
+      </PatientDataRequiredRoute>
+    ),
   },
   {
     path: "/result",
-    element: <ResultPage />,
+    element: (
+      <PatientDataRequiredRoute>
+        <ResultPage />
+      </PatientDataRequiredRoute>
+    ),
   },
 ], {
   future: {

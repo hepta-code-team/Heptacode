@@ -45,6 +45,7 @@ export default function WizardNavigation() {
   const completedThroughIndex = completedThroughPath
     ? pages.findIndex((page) => page.path === completedThroughPath)
     : -1;
+  const hasValidPatientData = isValidPatientData(patientData);
 
   return (
       <div className={`fixed bottom-6 left-1/2 z-20 hidden min-w-[60vw] -translate-x-1/2 rounded-2xl border
@@ -63,9 +64,11 @@ export default function WizardNavigation() {
             const hasValidationError = isComplete && !isValid && !isBypassedEmergencyStep;
             const isSymptomDetailsStep = page.path === "/symptom-details";
             const isEvaluationStep = page.path === "/result";
+            const requiresPatientData = page.path !== "/" && page.path !== "/patient-data";
             const canNavigateToStep = isEmergencyResult
               ? page.path === "/"
-              : (!isSymptomDetailsStep || hasRequiredSymptoms(selectedSymptoms)) &&
+              : (!requiresPatientData || hasValidPatientData) &&
+                (!isSymptomDetailsStep || hasRequiredSymptoms(selectedSymptoms)) &&
                 (!isEvaluationStep || hasCompletedAssessment);
             const showsEvaluationProgress =
               isEvaluationStep && !isEmergencyResult && evaluationProgress > 0 && (isEvaluating || isActive);
