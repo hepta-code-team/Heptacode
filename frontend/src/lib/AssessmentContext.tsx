@@ -24,6 +24,23 @@ const defaultPersistedAssessmentState: PersistedAssessmentState = {
 
 const isBrowserStorageAvailable = () => typeof window !== "undefined" && typeof window.localStorage !== "undefined";
 
+function omitMoodFromPatientData(patientData: PatientData | null | undefined): PatientData | null {
+  if (!patientData) {
+    return null;
+  }
+
+  const { mood: _mood, ...patientDataWithoutMood } = patientData;
+
+  return patientDataWithoutMood;
+}
+
+function normalizePersistedAssessmentState(state: PersistedAssessmentState): PersistedAssessmentState {
+  return {
+    ...state,
+    patientData: omitMoodFromPatientData(state.patientData),
+  };
+}
+
 function readPersistedAssessmentState(): PersistedAssessmentState {
   if (!isBrowserStorageAvailable()) {
     return defaultPersistedAssessmentState;
@@ -38,13 +55,13 @@ function readPersistedAssessmentState(): PersistedAssessmentState {
 
     const parsedState = JSON.parse(storedState) as Partial<PersistedAssessmentState>;
 
-    return {
+    return normalizePersistedAssessmentState({
       patientData: parsedState.patientData ?? null,
       selectedSymptoms: Array.isArray(parsedState.selectedSymptoms) ? parsedState.selectedSymptoms : [],
       symptomText: typeof parsedState.symptomText === "string" ? parsedState.symptomText : "",
       symptomDetails: Array.isArray(parsedState.symptomDetails) ? parsedState.symptomDetails : [],
       assessmentResult: parsedState.assessmentResult ?? null,
-    };
+    });
   } catch (error) {
     console.warn("Persistierte Ersteinschätzung konnte nicht geladen werden.", error);
     return defaultPersistedAssessmentState;
@@ -57,7 +74,7 @@ function writePersistedAssessmentState(state: PersistedAssessmentState) {
   }
 
   try {
-    window.localStorage.setItem(ASSESSMENT_STORAGE_KEY, JSON.stringify(state));
+    window.localStorage.setItem(ASSESSMENT_STORAGE_KEY, JSON.stringify(normalizePersistedAssessmentState(state)));
   } catch (error) {
     console.warn("Ersteinschätzung konnte nicht im Browser gespeichert werden.", error);
   }
@@ -133,11 +150,12 @@ export function AssessmentProvider({ children }: { children: ReactNode }) {
   };
 
   const setPatientData = (data: PatientData) => {
-    const hasChanged = JSON.stringify(patientData) !== JSON.stringify(data);
+    const nextPatientData = omitMoodFromPatientData(data);
+    const hasChanged = JSON.stringify(patientData) !== JSON.stringify(nextPatientData);
 
-    if (hasChanged) {
+    if (hasChanged && nextPatientData) {
       invalidateAssessmentResult();
-      setPatientDataState(data);
+      setPatientDataState(nextPatientData);
     }
   };
 

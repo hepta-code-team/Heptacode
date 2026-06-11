@@ -82,7 +82,6 @@ const createInitialPatientData = (patientData?: Partial<PatientData>): PatientDa
   height: "",
   weight: "",
   gender: "",
-  mood: "",
   isPregnant: false,
   isBreastfeeding: false,
   allergies: "",
@@ -105,7 +104,7 @@ export default function PatientDataPage() {
   const birthYearMin = currentYear - MAX_PATIENT_AGE_YEARS;
 
   const [formData, setFormData] = useState<PatientData>(() => createInitialPatientData(patientData ?? undefined));
-  const [mood, setMood] = useState(formData.mood ?? "");
+  const [mood, setMood] = useState("");
   const [showValidationErrors, setShowValidationErrors] = useState(false);
 
   /**
@@ -141,8 +140,8 @@ export default function PatientDataPage() {
   const isGenderComplete = Boolean(formData.gender);
 
   useEffect(() => {
-    setPatientData({ ...formData, mood });
-  }, [formData, mood, setPatientData]);
+    setPatientData(formData);
+  }, [formData, setPatientData]);
 
   const setEmptyNumberStepValue = (
     field: "birthYear" | "height" | "weight",
@@ -215,7 +214,7 @@ export default function PatientDataPage() {
       return;
     }
 
-    setPatientData({ ...formData, mood });
+    setPatientData(formData);
     navigate("/medical-data");
   };
 

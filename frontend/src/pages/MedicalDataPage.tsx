@@ -91,7 +91,6 @@ const createInitialPatientData = (patientData?: Partial<PatientData>): PatientDa
   height: "",
   weight: "",
   gender: "",
-  mood: "",
   isPregnant: false,
   isBreastfeeding: false,
   allergies: "",
