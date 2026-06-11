@@ -892,6 +892,36 @@ export default function SymptomSelectionPage() {
     }
   };
 
+  const renderSymptomTextButton = (className = "") => (
+    <button
+      type="button"
+      onClick={openSymptomTextModal}
+      className={`${className} w-full rounded-[16px] border-2 bg-white p-4 text-left text-app-text-body shadow-sm transition-all hover:border-[#486284] hover:bg-[#f5f7fa] ${
+        symptomText.trim() ? "border-[#486284]" : "border-[#d7dee7]"
+      }`}
+    >
+      <div className="flex items-start gap-3">
+        <div className="flex size-11 flex-shrink-0 items-center justify-center rounded-full bg-[#486284] text-app-text-on-primary">
+          <Mic className="size-5" aria-hidden="true" />
+        </div>
+        <div>
+          <p
+            className="font-['DM_Sans:Bold',sans-serif] font-bold text-app-text-primary text-sm"
+            style={{ fontVariationSettings: "'opsz' 14" }}
+          >
+            Symptome beschreiben
+          </p>
+          <p
+            className="font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-primary text-xs leading-snug"
+            style={{ fontVariationSettings: "'opsz' 14" }}
+          >
+            Per Freitext oder Spracheingabe schildern
+          </p>
+        </div>
+      </div>
+    </button>
+  );
+
   return (
     <PageShell
       title="Wo haben Sie Beschwerden?"
@@ -955,6 +985,7 @@ export default function SymptomSelectionPage() {
               })}
             </div>
           </div>
+          {renderSymptomTextButton("mt-3 lg:hidden")}
         </div>
 
         <div>
@@ -1053,33 +1084,7 @@ export default function SymptomSelectionPage() {
             </div>
           )}
 
-          <button
-            type="button"
-            onClick={openSymptomTextModal}
-            className={`mt-4 w-full rounded-[16px] border-2 bg-white p-4 text-left text-app-text-body shadow-sm transition-all hover:border-[#486284] hover:bg-[#f5f7fa] ${
-              symptomText.trim() ? "border-[#486284]" : "border-[#d7dee7]"
-            }`}
-          >
-            <div className="flex items-start gap-3">
-              <div className="flex size-11 flex-shrink-0 items-center justify-center rounded-full bg-[#486284] text-app-text-on-primary">
-                <Mic className="size-5" aria-hidden="true" />
-              </div>
-              <div>
-                <p
-                  className="font-['DM_Sans:Bold',sans-serif] font-bold text-app-text-primary text-sm"
-                  style={{ fontVariationSettings: "'opsz' 14" }}
-                >
-                  Symptome beschreiben
-                </p>
-                <p
-                  className="font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-primary text-xs leading-snug"
-                  style={{ fontVariationSettings: "'opsz' 14" }}
-                >
-                  Per Freitext oder Spracheingabe schildern
-                </p>
-              </div>
-            </div>
-          </button>
+          {renderSymptomTextButton("mt-4 hidden lg:block")}
 
           <div className="mt-6 flex justify-end">
             <Button onClick={handleContinue} disabled={selectedSymptoms.length === 0}>
