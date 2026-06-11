@@ -240,6 +240,10 @@ export default function MedicalDataPage() {
     return () => document.removeEventListener("pointerdown", handlePointerDown);
   }, []);
 
+  useEffect(() => {
+    setPatientData(formData);
+  }, [formData, setPatientData]);
+
 
   const toggleMedicalSection = (section: MedicalSection) => {
     setExpandedMedicalSections((sections) => ({

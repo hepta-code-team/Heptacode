@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { KeyboardEvent, PointerEvent } from "react";
 import { useNavigate } from "react-router";
 import { Annoyed, Frown, Laugh, Mars, Meh, Smile, Transgender, Venus, type LucideIcon } from "lucide-react";
@@ -139,6 +139,10 @@ export default function PatientDataPage() {
     isNumberInRange(formData.height, HEIGHT_MIN, HEIGHT_MAX) &&
     isNumberInRange(formData.weight, WEIGHT_MIN, WEIGHT_MAX);
   const isGenderComplete = Boolean(formData.gender);
+
+  useEffect(() => {
+    setPatientData({ ...formData, mood });
+  }, [formData, mood, setPatientData]);
 
   const setEmptyNumberStepValue = (
     field: "birthYear" | "height" | "weight",

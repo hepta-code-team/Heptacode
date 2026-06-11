@@ -101,6 +101,10 @@ export default function SymptomDetailsPage() {
   const [submitError, setSubmitError] = useState<string | null>(null);
 
   useEffect(() => {
+    setSymptomDetails(symptomDetails.filter((symptom) => symptom.active) as Symptom[]);
+  }, [symptomDetails, setSymptomDetails]);
+
+  useEffect(() => {
     if (selectedSymptoms.length === 0 && contextDetails.length === 0 && !hasRouteExtractedSymptoms) {
       navigate("/symptom-selection");
     }

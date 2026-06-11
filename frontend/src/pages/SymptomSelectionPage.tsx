@@ -711,17 +711,26 @@ export default function SymptomSelectionPage() {
     const alreadySelected = selectedSymptoms.some((symptom) => getSymptomKey(symptom) === symptomKey);
 
     if (alreadySelected) {
-      setSelectedSymptoms((symptoms) => symptoms.filter((symptom) => getSymptomKey(symptom) !== symptomKey));
+      const nextSymptoms = selectedSymptoms.filter((symptom) => getSymptomKey(symptom) !== symptomKey);
+      setSelectedSymptoms(nextSymptoms);
+      setContextSymptoms(nextSymptoms);
+      setContextSymptomDetails([]);
       return;
     }
 
     if (selectedSymptoms.length < MAX_SYMPTOMS) {
-      setSelectedSymptoms([...selectedSymptoms, { region: regionName, side }]);
+      const nextSymptoms = [...selectedSymptoms, { region: regionName, side }];
+      setSelectedSymptoms(nextSymptoms);
+      setContextSymptoms(nextSymptoms);
+      setContextSymptomDetails([]);
     }
   };
 
   const removeSymptom = (index: number) => {
-    setSelectedSymptoms(selectedSymptoms.filter((_, symptomIndex) => symptomIndex !== index));
+    const nextSymptoms = selectedSymptoms.filter((_, symptomIndex) => symptomIndex !== index);
+    setSelectedSymptoms(nextSymptoms);
+    setContextSymptoms(nextSymptoms);
+    setContextSymptomDetails([]);
   };
 
   const openSymptomTextModal = () => {
