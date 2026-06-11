@@ -748,8 +748,14 @@ export default function SymptomSelectionPage() {
   };
 
   const handleContinue = () => {
+    const hasSelectionChanged = JSON.stringify(contextSymptoms) !== JSON.stringify(selectedSymptoms);
+
     setContextSymptoms(selectedSymptoms);
-    setContextSymptomDetails([]);
+
+    if (hasSelectionChanged) {
+      setContextSymptomDetails([]);
+    }
+
     navigate("/symptom-details");
   };
 

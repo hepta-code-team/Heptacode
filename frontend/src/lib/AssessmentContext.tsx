@@ -34,10 +34,31 @@ function omitMoodFromPatientData(patientData: PatientData | null | undefined): P
   return patientDataWithoutMood;
 }
 
+function normalizeAssessmentSymptomDetails(symptomDetails: Symptom[]): Symptom[] {
+  return symptomDetails.map((symptom) => {
+    const normalizedSymptom: Symptom = {
+      id: symptom.id,
+      region: symptom.region.trim(),
+      side: symptom.side,
+      measurementType: symptom.measurementType,
+      measurementValue: symptom.measurementValue,
+      duration: symptom.duration,
+      active: symptom.active,
+    };
+
+    if (symptom.details?.trim()) {
+      normalizedSymptom.details = symptom.details.trim();
+    }
+
+    return normalizedSymptom;
+  });
+}
+
 function normalizePersistedAssessmentState(state: PersistedAssessmentState): PersistedAssessmentState {
   return {
     ...state,
     patientData: omitMoodFromPatientData(state.patientData),
+    symptomDetails: normalizeAssessmentSymptomDetails(state.symptomDetails),
   };
 }
 
@@ -169,11 +190,13 @@ export function AssessmentProvider({ children }: { children: ReactNode }) {
   };
 
   const setSymptomDetails = (details: Symptom[]) => {
-    const hasChanged = JSON.stringify(symptomDetails) !== JSON.stringify(details);
+    const normalizedDetails = normalizeAssessmentSymptomDetails(details);
+    const hasChanged =
+      JSON.stringify(normalizeAssessmentSymptomDetails(symptomDetails)) !== JSON.stringify(normalizedDetails);
 
     if (hasChanged) {
       invalidateAssessmentResult();
-      setSymptomDetailsState(details);
+      setSymptomDetailsState(normalizedDetails);
     }
   };
 
@@ -222,7 +245,7 @@ export function AssessmentProvider({ children }: { children: ReactNode }) {
         throw new Error("Die Auswertung wurde zurückgesetzt.");
       }
 
-      setSymptomDetailsState(details);
+      setSymptomDetailsState(normalizeAssessmentSymptomDetails(details));
       setAssessmentResult(result);
       setEvaluationProgress(100);
 
