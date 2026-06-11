@@ -734,7 +734,7 @@ export default function MedicalDataPage() {
               return (
                 <div
                   key={condition}
-                  className={`bg-[#eff2f6] rounded-[10px] p-3 min-h-[82px] flex flex-col justify-center gap-2 transition-all ${
+                  className={`bg-[#eff2f6] rounded-[10px] p-2.5 h-[82px] flex flex-col justify-center gap-1.5 transition-all ${
                     otherValue.trim() ? "ring-2 ring-[#486284]" : ""
                   }`}
                 >
@@ -758,17 +758,17 @@ export default function MedicalDataPage() {
                       value={otherValue}
                       onChange={(event) => updateOtherCondition(event.target.value)}
                       placeholder="Freitext"
-                      className="h-9 border-none bg-white pr-8 text-xs"
+                      className="h-8 border-none bg-white pr-8 text-xs"
                     />
                     {otherValue.trim() && (
                       <button
                         type="button"
                         onClick={clearOtherConditionSelection}
-                        className="absolute right-1 top-1/2 flex size-8 -translate-y-1/2 items-center justify-center rounded-[8px] text-red-600 transition-all hover:bg-[#eff2f6]"
+                        className="absolute right-1 top-1/2 flex size-7 -translate-y-1/2 items-center justify-center rounded-[8px] text-red-600 transition-all hover:bg-[#eff2f6]"
                         aria-label="Sonstige Angabe löschen"
                         title="Sonstige Angabe löschen"
                       >
-                        <X className="size-5" aria-hidden="true" />
+                        <X className="size-4" aria-hidden="true" />
                       </button>
                     )}
                   </div>
@@ -831,14 +831,13 @@ export default function MedicalDataPage() {
           })}
         </div>
 
-        <div className="mt-3 min-h-[132px]">
-          {selectedConditionDetails.length > 0 && (
-            <div className="max-h-[132px] space-y-2 overflow-y-auto pr-1">
-              {selectedConditionDetails.map((detail) => (
-                <div
-                  key={detail.condition}
-                  className="rounded-[12px] border border-[#d8dee6] bg-white p-3"
-                >
+        {selectedConditionDetails.length > 0 && (
+          <div className="mt-3 max-h-[132px] space-y-2 overflow-y-auto pr-1">
+            {selectedConditionDetails.map((detail) => (
+              <div
+                key={detail.condition}
+                className="rounded-[12px] border border-[#d8dee6] bg-white p-3"
+              >
                   <div className="mb-2 flex flex-wrap items-baseline gap-1.5">
                     <p
                       className="font-['DM_Sans:Bold',sans-serif] font-bold text-app-text-body text-sm"
@@ -876,14 +875,13 @@ export default function MedicalDataPage() {
                       Ich weiß es nicht
                     </button>
                   </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
-      <div className="mt-5 mb-5 flex justify-end">
+      <div className="mt-4 mb-5 flex justify-end">
         <Button onClick={handleContinue}>
           <p
             className="font-['DM_Sans:Bold',sans-serif] font-bold text-base"
