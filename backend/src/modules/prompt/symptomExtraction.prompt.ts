@@ -32,6 +32,7 @@ export const symptomExtractionInstructions = [
   'Wenn keine Dauer genannt wird oder sie nicht sicher zuordenbar ist, lasse duration weg.',
   'Vorhandene Regionen und Unteroptionen:',
   'Kopf: Stirn, Schläfen, Hinterkopf, Gesicht.',
+  'Hals: Hals, Rachen, Schluckbeschwerden, Heiserkeit, Nacken.',
   'Brust: Brustmitte, Linksseitig, Rechtsseitig, Rippen, Atemabhängig.',
   'Rücken: Nacken, Oberer Rücken, Mittlerer Rücken, Unterer Rücken, Steißbein.',
   'Arme: Schulter, Oberarm, Ellenbogen, Unterarm, Hand/Handgelenk, Finger.',

@@ -357,7 +357,43 @@ function AnatomyFigure({
         <text x="110" y="151" textAnchor="middle" fill={labelFill("torso")} fontSize="15" fontWeight="700">Torso</text>
       </g>
 
-      <path d="M96 74 C99 84 121 84 124 74 L124 91 C118 96 102 96 96 91 Z" fill="#dfe5ec" />
+      <g
+        role="button"
+        tabIndex={0}
+        aria-label="Hüfte auswählen"
+        aria-pressed={selectedCategory === "hips"}
+        onClick={() => onSelect("hips")}
+        onKeyDown={activate("hips")}
+        className={interactiveClass}
+      >
+        <path
+          d="M65.5 174.5 C77 188 91.5 194.5 110 194.5 C128.5 194.5 143 188 154.5 174.5 L156 208 C156 216 152 220 144 220 L76 220 C68 220 64 216 64 208 Z"
+          fill={partFill("hips")}
+          stroke={partStroke("hips")}
+          strokeWidth="3.5"
+          strokeLinejoin="round"
+        />
+        <text x="110" y="208" textAnchor="middle" dominantBaseline="middle" fill={labelFill("hips")} fontSize="13" fontWeight="700">Hüfte</text>
+      </g>
+
+      <g
+        role="button"
+        tabIndex={0}
+        aria-label="Hals auswählen"
+        aria-pressed={selectedCategory === "neck"}
+        onClick={() => onSelect("neck")}
+        onKeyDown={activate("neck")}
+        className={interactiveClass}
+      >
+        <path
+          d="M94 72 C100 82 120 82 126 72 L128 94 C121 101 99 101 92 94 Z"
+          fill={partFill("neck")}
+          stroke={partStroke("neck")}
+          strokeWidth="3.5"
+          strokeLinejoin="round"
+        />
+        <text x="110" y="89" textAnchor="middle" dominantBaseline="middle" fill={labelFill("neck")} fontSize="13" fontWeight="700">Hals</text>
+      </g>
 
       <g
         role="button"

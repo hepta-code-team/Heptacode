@@ -13,10 +13,12 @@ import upperArmIcon from "../../assets/symptoms/upperArm.png";
 import upperLegIcon from "../../assets/symptoms/upperLeg.png";
 import lowerLegIcon from "../../assets/symptoms/lowerLeg.png";
 import hipPainIcon from "../../assets/symptoms/hip.png"
+import throatIcon from "../../assets/symptoms/throat.png";
 import nauseaIcon from "../../assets/symptoms/nausea.png";
 import feverIcon from "../../assets/symptoms/fever.png";
 import weaknessIcon from "../../assets/symptoms/weakness.png";
 import confusionIcon from "../../assets/symptoms/confusion.png";
+
 
 export interface BodyRegion {
   id: string;
@@ -25,7 +27,7 @@ export interface BodyRegion {
   options?: string[];
 }
 
-export type BodyAreaCategory = "head" | "torso" | "arms" | "legs" | "mental" | "general";
+export type BodyAreaCategory = "head" | "neck" | "torso" | "hips" | "arms" | "legs" | "mental" | "general";
 
 /**
  * Canonical symptom regions shown in the manual selection flow.
@@ -46,6 +48,12 @@ export const BODY_REGIONS: BodyRegion[] = [
     options: ["Augen", "Ohren", "Nase", "Mund"],
   },
   {
+    id: "hals",
+    name: "Hals",
+    icon: throatIcon,
+    options: ["Hals", "Rachen", "Schluckbeschwerden", "Nacken"],
+  },
+  {
     id: "brust",
     name: "Brust",
     icon: chestPainIcon,
@@ -61,7 +69,7 @@ export const BODY_REGIONS: BodyRegion[] = [
     id: "huefte",
     name: "Hüfte",
     icon: hipPainIcon,
-    options: ["Leiste", "Gesäßschmerzen", "Hüfte", "Seitliche Hüfte"],
+    options: ["Leiste", "Hüfte", "Seitliche Hüfte","Gesäßschmerzen", "Genitalbereich"],
   },
   {
     id: "oberarm",
@@ -167,7 +175,9 @@ export const EMERGENCY_SYMPTOM_OPTIONS = ["Suizidgedanken"];
  */
 export const BODY_AREA_REGION_IDS: Record<BodyAreaCategory, string[]> = {
   head: ["kopf", "gesicht", "verbrennung", "schnittwunde"],
-  torso: ["brust", "bauch", "ruecken", "huefte", "verbrennung", "schnittwunde"],
+  neck: ["hals", "verbrennung", "schnittwunde"],
+  torso: ["brust", "bauch", "ruecken", "verbrennung", "schnittwunde"],
+  hips: ["huefte", "verbrennung", "schnittwunde"],
   arms: ["oberarm", "unterarm", "verbrennung", "schnittwunde"],
   legs: ["oberschenkel", "unterschenkel", "verbrennung", "schnittwunde"],
   mental: ["angst", "depression","halluzinationen", "suizidgedanken"],
@@ -176,7 +186,9 @@ export const BODY_AREA_REGION_IDS: Record<BodyAreaCategory, string[]> = {
 
 export const BODY_AREA_LABELS: Record<BodyAreaCategory, string> = {
   head: "Kopf",
-  torso: "Torso und Hüfte",
+  neck: "Hals",
+  torso: "Torso",
+  hips: "Hüfte",
   arms: "Arme",
   legs: "Beine",
   mental: "Psyche",
