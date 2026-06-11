@@ -25,20 +25,41 @@ export interface BodyRegion {
   options?: string[];
 }
 
-export type BodyAreaCategory = "head" | "torso" | "arms" | "legs" | "mental" | "general";
+const MALE_GENITAL_OPTIONS = ["Hoden", "Männliches Genital", "Vorhaut", "Brennen beim Wasserlassen", "Schwellung"];
+const FEMALE_GENITAL_OPTIONS = ["Vaginalbereich", "Unterleib", "Ausfluss", "Vaginale Blutung", "Brennen beim Wasserlassen"];
+const ALL_GENITAL_OPTIONS = Array.from(new Set([...MALE_GENITAL_OPTIONS, ...FEMALE_GENITAL_OPTIONS]));
+
+export type BodyAreaCategory =
+  | "head"
+  | "neck"
+  | "torso"
+  | "hips"
+  | "arms"
+  | "hands"
+  | "legs"
+  | "knees"
+  | "feet"
+  | "mental"
+  | "general";
 
 export const BODY_REGIONS: BodyRegion[] = [
   {
     id: "kopf",
     name: "Kopf",
     icon: headAcheIcon,
-    options: ["Stirn", "Schläfen", "Hinterkopf", "Gesicht"],
+    options: ["Kopf allgemein", "Stirn", "Schläfen", "Hinterkopf", "Kopfhaut", "Platzwunde"],
   },
   {
     id: "gesicht",
     name: "Gesicht",
     icon: faceIcon,
     options: ["Augen", "Ohren", "Nase", "Mund"],
+  },
+  {
+    id: "hals",
+    name: "Hals",
+    icon: backPainIcon,
+    options: ["Hals allgemein", "Rachen", "Mandeln", "Kehlkopf", "Schluckbeschwerden", "Schwellung"],
   },
   {
     id: "brust",
@@ -50,43 +71,79 @@ export const BODY_REGIONS: BodyRegion[] = [
     id: "ruecken",
     name: "Rücken",
     icon: backPainIcon,
-    options: ["Nacken", "Oberer Rücken", "Mittlerer Rücken", "Unterer Rücken", "Steißbein"],
+    options: ["Oberer Rücken", "Mittlerer Rücken", "Unterer Rücken", "Wirbelsäule", "Steißbein"],
   },
   {
     id: "huefte",
     name: "Hüfte",
     icon: hipPainIcon,
-    options: ["Leiste", "Gesäßschmerzen", "Hüfte", "Seitliche Hüfte"],
+    options: ["Hüfte allgemein", "Leiste", "Gesäßschmerzen", "Seitliche Hüfte"],
+  },
+  {
+    id: "genitalbereich",
+    name: "Genitalbereich",
+    icon: hipPainIcon,
+    options: ALL_GENITAL_OPTIONS,
   },
   {
     id: "oberarm",
     name: "Oberarm",
     icon: upperArmIcon,
-    options: ["Schulter", "Oberarm", "Ellenbogen"],
+    options: ["Schulter", "Oberarm", "Ellenbogen", "Bruch", "Verstauchung"],
   },
   {
     id: "unterarm",
     name: "Unterarm",
     icon: lowerArmIcon,
-    options: ["Unterarm", "Hand/Handgelenk", "Finger"],
+    options: ["Unterarm allgemein", "Unterarm innen", "Unterarm außen", "Bruch", "Verstauchung"],
+  },
+  {
+    id: "hand",
+    name: "Hände",
+    icon: lowerArmIcon,
+    options: ["Hand", "Handgelenk", "Finger"],
   },
   {
     id: "bauch",
     name: "Bauch",
     icon: stomachPainIcon,
-    options: ["Oberbauch", "Unterbauch", "Rechts oben", "Rechts unten", "Links oben", "Links unten"],
+    options: [
+      "Bauch allgemein",
+      "Oberbauch",
+      "Unterbauch",
+      "Bauchnabelbereich",
+      "Linker Bauch",
+      "Rechter Bauch",
+      "Linke Flanke",
+      "Rechte Flanke",
+      "Beidseitige Flanken",
+      "Blähbauch",
+      "Bauchkrämpfe",
+    ],
   },
   {
     id: "oberschenkel",
     name: "Oberschenkel",
     icon: upperLegIcon,
-    options: ["Hüfte", "Oberschenkel", "Knie"],
+    options: ["Oberschenkel allgemein", "Vorderer Oberschenkel", "Hinterer Oberschenkel", "Innenseite", "Außenseite", "Zerrung", "Prellung"],
+  },
+  {
+    id: "knie",
+    name: "Knie",
+    icon: upperLegIcon,
+    options: ["Vorderes Knie", "Hinteres Knie", "Knie innen", "Knie außen", "Schwellung", "Instabilität", "Blockade", "Verdrehung"],
   },
   {
     id: "unterschenkel",
     name: "Unterschenkel",
     icon: lowerLegIcon,
-    options: ["Wade", "Fuß/Knöchel", "Zehen"],
+    options: ["Unterschenkel allgemein", "Wade", "Schienbein", "Zerrung", "Prellung", "Schwellung"],
+  },
+  {
+    id: "fuss",
+    name: "Füße",
+    icon: lowerLegIcon,
+    options: ["Fuß allgemein", "Knöchel", "Zehen", "Ferse", "Fußsohle", "Bruch", "Verstauchung"],
   },
   {
     id: "verbrennung",
@@ -105,6 +162,12 @@ export const BODY_REGIONS: BodyRegion[] = [
     name: "Allgemein",
     icon: overallPainIcon,
     options: ["Fieber", "Übelkeit/Schwindel", "Schwäche", "Verwirrtheit"],
+  },
+  {
+    id: "haut",
+    name: "Haut",
+    icon: overallPainIcon,
+    options: ["Ausschlag", "Juckreiz", "Rötung", "Schwellung", "Bläschen", "Quaddeln"],
   },
   {
     id: "fieber",
@@ -152,29 +215,59 @@ export const EMERGENCY_SYMPTOM_OPTIONS = ["Suizidgedanken"];
 
 export const BODY_AREA_REGION_IDS: Record<BodyAreaCategory, string[]> = {
   head: ["kopf", "gesicht", "verbrennung", "schnittwunde"],
-  torso: ["brust", "bauch", "ruecken", "huefte", "verbrennung", "schnittwunde"],
+  neck: ["hals", "verbrennung", "schnittwunde"],
+  torso: ["brust", "bauch", "ruecken", "verbrennung", "schnittwunde"],
+  hips: ["huefte", "genitalbereich", "verbrennung", "schnittwunde"],
   arms: ["oberarm", "unterarm", "verbrennung", "schnittwunde"],
+  hands: ["hand", "verbrennung", "schnittwunde"],
   legs: ["oberschenkel", "unterschenkel", "verbrennung", "schnittwunde"],
-  mental: ["angst", "depression","halluzinationen", "suizidgedanken"],
-  general: ["fieber", "schwaeche", "uebelkeit", "verwirrtheit"],
+  knees: ["knie", "verbrennung", "schnittwunde"],
+  feet: ["fuss", "verbrennung", "schnittwunde"],
+  mental: ["angst", "depression", "halluzinationen", "suizidgedanken"],
+  general: ["fieber", "schwaeche", "uebelkeit", "verwirrtheit", "haut"],
 };
 
 export const BODY_AREA_LABELS: Record<BodyAreaCategory, string> = {
   head: "Kopf",
-  torso: "Torso und Hüfte",
+  neck: "Hals",
+  torso: "Torso",
+  hips: "Hüfte",
   arms: "Arme",
+  hands: "Hände",
   legs: "Beine",
+  knees: "Knie",
+  feet: "Füße",
   mental: "Psyche",
   general: "Allgemein",
 };
 
-export function getBodyRegionsForCategory(category?: string | null) {
+function getGenitalOptionsForGender(gender?: string | null) {
+  const normalizedGender = gender?.toLowerCase() ?? "";
+
+  if (normalizedGender.startsWith("männ")) {
+    return MALE_GENITAL_OPTIONS;
+  }
+
+  if (normalizedGender.startsWith("weib")) {
+    return FEMALE_GENITAL_OPTIONS;
+  }
+
+  return ALL_GENITAL_OPTIONS;
+}
+
+export function getBodyRegionsForCategory(category?: string | null, gender?: string | null) {
   if (!category || !(category in BODY_AREA_REGION_IDS)) {
     return BODY_REGIONS;
   }
 
   const regionIds = BODY_AREA_REGION_IDS[category as BodyAreaCategory];
-  return BODY_REGIONS.filter((region) => regionIds.includes(region.id));
+  return BODY_REGIONS
+    .filter((region) => regionIds.includes(region.id))
+    .map((region) =>
+      region.id === "genitalbereich"
+        ? { ...region, options: getGenitalOptionsForGender(gender) }
+        : region
+    );
 }
 
 export interface Duration {

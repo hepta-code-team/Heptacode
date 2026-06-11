@@ -183,7 +183,7 @@ export default function PainScaleSelector({ config, value, onValueChange }: Pain
         ))}
       </div>
 
-      <div className="grid grid-cols-4 text-center text-sm font-['DM_Sans:Bold',sans-serif] font-bold text-app-text-body">
+      <div className="grid grid-cols-4 text-center text-xs font-['DM_Sans:SemiBold',sans-serif] font-semibold text-app-text-subtle">
         <span>sehr leicht</span>
         <span>leicht</span>
         <span>mittel</span>

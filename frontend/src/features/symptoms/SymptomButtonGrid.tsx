@@ -91,7 +91,6 @@ export default function SymptomButtonGrid({
           icon: region.icon,
           parentName: region.name,
           option,
-          ...(region.id === "kopf" && option === "Gesicht" ? { options: ["Auge", "Ohr", "Kiefer"] } : {}),
           isInlineOption: true as const,
         }));
       })

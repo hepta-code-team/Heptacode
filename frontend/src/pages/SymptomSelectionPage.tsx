@@ -169,7 +169,19 @@ function AnatomyFigure({
 }) {
   const partFill = (category: BodyAreaCategory) => selectedCategory === category ? "#486284" : "#ffffff";
   const partStroke = (category: BodyAreaCategory) => selectedCategory === category ? "#486284" : "#d7dee7";
+  const overlayFill = (category: BodyAreaCategory) => selectedCategory === category ? "#486284" : "transparent";
   const labelFill = (category: BodyAreaCategory) => selectedCategory === category ? "#ffffff" : "#486284";
+  const detailLabelFill = (category: BodyAreaCategory, parent: BodyAreaCategory) =>
+    selectedCategory === category || selectedCategory === parent ? "#ffffff" : "#486284";
+  const detailStroke = (category: BodyAreaCategory, parent: BodyAreaCategory) =>
+    selectedCategory === parent ? "transparent" : partStroke(category);
+  const detailStrokeWidth = "2.25";
+  const showDetailLabel = (parent: BodyAreaCategory) => selectedCategory !== parent;
+  const labelStyle = {
+    fontFamily: "DM Sans, sans-serif",
+    fontWeight: 700,
+    pointerEvents: "none",
+  } as const;
 
   const activate = (category: BodyAreaCategory) => (event: KeyboardEvent<SVGGElement>) => {
     if (event.key === "Enter" || event.key === " ") {
@@ -216,8 +228,39 @@ function AnatomyFigure({
           strokeWidth="4"
           filter="url(#body-shadow)"
         />
-        <text x="54" y="168" textAnchor="middle" fill={labelFill("arms")} fontSize="13" fontWeight="700" transform="rotate(-86 54 168)">Arm</text>
-        <text x="166" y="168" textAnchor="middle" fill={labelFill("arms")} fontSize="13" fontWeight="700" transform="rotate(86 166 168)">Arm</text>
+        <text x="54" y="159" textAnchor="middle" dominantBaseline="middle" fill={labelFill("arms")} fontSize="12" style={labelStyle} transform="rotate(-86 54 159)">Arm</text>
+        <text x="166" y="159" textAnchor="middle" dominantBaseline="middle" fill={labelFill("arms")} fontSize="12" style={labelStyle} transform="rotate(86 166 159)">Arm</text>
+      </g>
+
+      <g
+        role="button"
+        tabIndex={0}
+        aria-label="Hände auswählen"
+        aria-pressed={selectedCategory === "hands"}
+        onClick={() => onSelect("hands")}
+        onKeyDown={activate("hands")}
+        className={interactiveClass}
+      >
+        <path
+          d="M39 187 C35 200 37 218 46 228 C53 235 64 231 70 220 C75 209 71 196 62 190 C55 185 46 184 39 187 Z"
+          fill={overlayFill("hands")}
+          stroke={detailStroke("hands", "arms")}
+          strokeWidth={detailStrokeWidth}
+          strokeLinejoin="round"
+        />
+        <path
+          d="M181 187 C185 200 183 218 174 228 C167 235 156 231 150 220 C145 209 149 196 158 190 C165 185 174 184 181 187 Z"
+          fill={overlayFill("hands")}
+          stroke={detailStroke("hands", "arms")}
+          strokeWidth={detailStrokeWidth}
+          strokeLinejoin="round"
+        />
+        {showDetailLabel("arms") && (
+          <>
+            <text x="53" y="215" textAnchor="middle" dominantBaseline="middle" fill={detailLabelFill("hands", "arms")} fontSize="9" style={labelStyle}>Hand</text>
+            <text x="167" y="215" textAnchor="middle" dominantBaseline="middle" fill={detailLabelFill("hands", "arms")} fontSize="9" style={labelStyle}>Hand</text>
+          </>
+        )}
       </g>
 
       <g
@@ -243,8 +286,70 @@ function AnatomyFigure({
           strokeWidth="4"
           filter="url(#body-shadow)"
         />
-        <text x="82" y="282" textAnchor="middle" fill={labelFill("legs")} fontSize="13" fontWeight="700" transform="rotate(-90 82 282)">Bein</text>
-        <text x="138" y="282" textAnchor="middle" fill={labelFill("legs")} fontSize="13" fontWeight="700" transform="rotate(90 138 282)">Bein</text>
+        <text x="81" y="289" textAnchor="middle" dominantBaseline="middle" fill={labelFill("legs")} fontSize="12" style={labelStyle} transform="rotate(-90 81 289)">Bein</text>
+        <text x="139" y="289" textAnchor="middle" dominantBaseline="middle" fill={labelFill("legs")} fontSize="12" style={labelStyle} transform="rotate(90 139 289)">Bein</text>
+      </g>
+
+      <g
+        role="button"
+        tabIndex={0}
+        aria-label="Knie auswählen"
+        aria-pressed={selectedCategory === "knees"}
+        onClick={() => onSelect("knees")}
+        onKeyDown={activate("knees")}
+        className={interactiveClass}
+      >
+        <path
+          d="M64 249 C73 245 94 245 103 249 L102 271 C93 274 73 274 64 271 Z"
+          fill={overlayFill("knees")}
+          stroke={detailStroke("knees", "legs")}
+          strokeWidth={detailStrokeWidth}
+          strokeLinejoin="round"
+        />
+        <path
+          d="M116 249 C125 245 146 245 155 249 L156 271 C147 274 127 274 118 271 Z"
+          fill={overlayFill("knees")}
+          stroke={detailStroke("knees", "legs")}
+          strokeWidth={detailStrokeWidth}
+          strokeLinejoin="round"
+        />
+        {showDetailLabel("legs") && (
+          <>
+            <text x="82" y="262" textAnchor="middle" dominantBaseline="middle" fill={detailLabelFill("knees", "legs")} fontSize="9" style={labelStyle}>Knie</text>
+            <text x="138" y="262" textAnchor="middle" dominantBaseline="middle" fill={detailLabelFill("knees", "legs")} fontSize="9" style={labelStyle}>Knie</text>
+          </>
+        )}
+      </g>
+
+      <g
+        role="button"
+        tabIndex={0}
+        aria-label="Füße auswählen"
+        aria-pressed={selectedCategory === "feet"}
+        onClick={() => onSelect("feet")}
+        onKeyDown={activate("feet")}
+        className={interactiveClass}
+      >
+        <path
+          d="M62 304 C72 310 91 310 102 304 L101 321 C101 335 92 343 80 343 C68 343 60 335 61 318 Z"
+          fill={overlayFill("feet")}
+          stroke={detailStroke("feet", "legs")}
+          strokeWidth={detailStrokeWidth}
+          strokeLinejoin="round"
+        />
+        <path
+          d="M118 304 C128 310 147 310 158 304 L159 318 C160 335 152 343 140 343 C128 343 119 335 119 321 Z"
+          fill={overlayFill("feet")}
+          stroke={detailStroke("feet", "legs")}
+          strokeWidth={detailStrokeWidth}
+          strokeLinejoin="round"
+        />
+        {showDetailLabel("legs") && (
+          <>
+            <text x="80" y="326" textAnchor="middle" dominantBaseline="middle" fill={detailLabelFill("feet", "legs")} fontSize="9" style={labelStyle}>Fuß</text>
+            <text x="140" y="326" textAnchor="middle" dominantBaseline="middle" fill={detailLabelFill("feet", "legs")} fontSize="9" style={labelStyle}>Fuß</text>
+          </>
+        )}
       </g>
 
       <g
@@ -263,11 +368,49 @@ function AnatomyFigure({
           strokeWidth="4"
           filter="url(#body-shadow)"
         />
-        <path d="M86 91 C97 96 123 96 134 91" fill="none" stroke="#d7dee7" strokeWidth="4" strokeLinecap="round" />
-        <text x="110" y="151" textAnchor="middle" fill={labelFill("torso")} fontSize="15" fontWeight="700">Torso</text>
+        <path d="M86 91 C97 96 123 96 134 91" fill="none" stroke="#d7dee7" strokeWidth={detailStrokeWidth} strokeLinecap="round" />
+        <text x="110" y="142" textAnchor="middle" dominantBaseline="middle" fill={labelFill("torso")} fontSize="14" style={labelStyle}>Torso</text>
       </g>
 
-      <path d="M96 74 C99 84 121 84 124 74 L124 91 C118 96 102 96 96 91 Z" fill="#dfe5ec" />
+      <g
+        role="button"
+        tabIndex={0}
+        aria-label="Hüfte auswählen"
+        aria-pressed={selectedCategory === "hips"}
+        onClick={() => onSelect("hips")}
+        onKeyDown={activate("hips")}
+        className={interactiveClass}
+      >
+        <path
+          d="M67 175 C78 188 92 194 110 194 C128 194 142 188 153 175 L154 208 C154 215 151 219 144 219 L76 219 C69 219 66 215 66 208 Z"
+          fill={overlayFill("hips")}
+          stroke={detailStroke("hips", "torso")}
+          strokeWidth={detailStrokeWidth}
+          strokeLinejoin="round"
+        />
+        {showDetailLabel("torso") && (
+          <text x="110" y="208" textAnchor="middle" dominantBaseline="middle" fill={detailLabelFill("hips", "torso")} fontSize="11" style={labelStyle}>Hüfte</text>
+        )}
+      </g>
+
+      <g
+        role="button"
+        tabIndex={0}
+        aria-label="Hals auswählen"
+        aria-pressed={selectedCategory === "neck"}
+        onClick={() => onSelect("neck")}
+        onKeyDown={activate("neck")}
+        className={interactiveClass}
+      >
+        <path
+          d="M94 72 C100 82 120 82 126 72 L128 94 C121 101 99 101 92 94 Z"
+          fill={partFill("neck")}
+          stroke={partStroke("neck")}
+          strokeWidth="3.5"
+          strokeLinejoin="round"
+        />
+        <text x="110" y="93" textAnchor="middle" dominantBaseline="middle" fill={labelFill("neck")} fontSize="9" style={labelStyle}>Hals</text>
+      </g>
 
       <g
         role="button"
@@ -285,7 +428,7 @@ function AnatomyFigure({
           strokeWidth="4"
           filter="url(#body-shadow)"
         />
-        <text x="110" y="34" textAnchor="middle" fill={labelFill("head")} fontSize="13" fontWeight="700">Kopf</text>
+        <text x="110" y="34" textAnchor="middle" dominantBaseline="middle" fill={labelFill("head")} fontSize="13" style={labelStyle}>Kopf</text>
       </g>
     </svg>
   );
@@ -298,6 +441,7 @@ export default function SymptomSelectionPage() {
     ? searchParams.get("category") as BodyAreaCategory
     : null;
   const {
+    patientData,
     selectedSymptoms: contextSymptoms,
     setSelectedSymptoms: setContextSymptoms,
     symptomText,
@@ -318,7 +462,10 @@ export default function SymptomSelectionPage() {
   const recordedTextRef = useRef("");
 
   const selectedCategoryLabel = selectedCategory ? BODY_AREA_LABELS[selectedCategory] : "";
-  const filteredRegions = useMemo(() => getBodyRegionsForCategory(selectedCategory), [selectedCategory]);
+  const filteredRegions = useMemo(
+    () => getBodyRegionsForCategory(selectedCategory, patientData?.gender),
+    [patientData?.gender, selectedCategory]
+  );
   const shouldShowInlineOptions = false;
   const symptomTextCharacterCount = useMemo(() => getCharacterCount(symptomText), [symptomText]);
   const formattedRecordingElapsed = formatRecordingDuration(recordingElapsedSeconds);
