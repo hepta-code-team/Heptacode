@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from "react-router";
 import { Edit3, PhoneCall } from "lucide-react";
 import PageShell from "../components/PageShell";
 import ResultCard from "../features/results/ResultCard";
+import NearbyPracticeSearch from "../features/results/NearbyPracticeSearch";
 import Button from "../components/Button";
 import {
   createSpecialtyConfig,
@@ -551,6 +552,13 @@ export default function ResultPage() {
       subtitle="Basierend auf Ihren Angaben haben wir folgende Empfehlung für Sie."
     >
       <ResultCard config={config} />
+
+      <NearbyPracticeSearch
+        careLevel={careLevel}
+        specialties={
+          assessmentResult?.recommendedSpecialties?.map((specialty) => specialty.specialty) ?? [recommendedSpecialty]
+        }
+      />
 
       <div className="bg-white border border-[#d8e0ea] rounded-[16px] p-5 md:p-6 mb-4">
         <p className="font-['DM_Sans:Bold',sans-serif] font-bold text-app-text-primary text-lg mb-3">
