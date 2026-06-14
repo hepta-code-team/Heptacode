@@ -370,6 +370,56 @@ describe('getTriageAiPlausibilityIssues', () => {
     expect(issues).toEqual([])
   })
 
+  /** Doctor responses should not contain specialist recommendations in their explanation text. */
+  it('markiert Doctor-Antworten mit fachaerztlicher Empfehlung im Text als unplausibel', () => {
+    const issues = getTriageAiPlausibilityIssues(
+      {
+        careLevel: 'doctor',
+        reasons: ['Die Beschwerden sollten kardiologisch abgeklart werden.'],
+        reviewSummary: {
+          plainLanguage: 'Bitte lassen Sie die Beschwerden kardiologisch abklaeren.',
+          professionalSummary: 'Care Level: doctor. Empfehlung zur Kardiologie.',
+        },
+      },
+      [
+        {
+          region: 'Brust',
+          measurementType: 'pain',
+          measurementValue: 4,
+          duration: 'days',
+        },
+      ],
+    )
+
+    expect(issues).toContain(
+      'Fachaerztliche Empfehlungen muessen als specialist mit Fachrichtung modelliert werden.',
+    )
+  })
+
+  /** Specialist responses should not name a different specialty than recommendedSpecialty. */
+  it('markiert Specialist-Antworten mit widerspruechlicher Fachrichtung als unplausibel', () => {
+    const issues = getTriageAiPlausibilityIssues(
+      {
+        careLevel: 'specialist',
+        recommendedSpecialty: 'cardiology',
+        reasons: ['Die Beschwerden sollten neurologisch abgeklart werden.'],
+        reviewSummary: {
+          plainLanguage: 'Bitte lassen Sie die Beschwerden neurologisch abklaeren.',
+          professionalSummary: 'Care Level: specialist. Empfohlene Fachrichtung: cardiology.',
+        },
+      },
+      [
+        {
+          region: 'Kopf',
+          measurementType: 'pain',
+          measurementValue: 5,
+        },
+      ],
+    )
+
+    expect(issues).toContain('Genannte Fachrichtung muss zur empfohlenen Fachrichtung passen.')
+  })
+
   /** Specialist responses without a specialty should fail plausibility even after schema-like shaping. */
   it('markiert Specialist-Antworten ohne Fachrichtung als unplausibel', () => {
     const issues = getTriageAiPlausibilityIssues(

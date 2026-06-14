@@ -134,6 +134,101 @@ describe('evaluateTriage', () => {
     expect(result.reasons).toHaveLength(2)
   })
 
+  /** Plausibility checks should reject unsafe self-care responses for warning symptoms. */
+  it('verwirft unplausible Selfcare-KI-Antworten bei Warnsymptomen', async () => {
+    requestStructuredAiResponseWithModelMock.mockResolvedValueOnce({
+      data: {
+        careLevel: 'selfcare',
+        reasons: ['Die Beschwerden koennen zunaechst beobachtet werden.'],
+        reviewSummary: {
+          plainLanguage: 'Die Beschwerden koennen zunaechst beobachtet werden.',
+          professionalSummary: 'Care Level: selfcare.',
+        },
+      },
+      model: 'test-model',
+    })
+
+    const result = await evaluateTriage(undefined, [
+      {
+        region: 'Brust',
+        details: 'Druckgefuehl mit Atemnot',
+        measurementType: 'pain',
+        measurementValue: 5,
+        duration: 'today',
+      },
+    ])
+
+    expect(result).toMatchObject({
+      careLevel: 'emergency',
+      recommendedSpecialty: 'emergency_medicine',
+      aiUnavailable: true,
+    })
+    expect(result).not.toHaveProperty('aiModel')
+    expect(result.reasons).toEqual(
+      expect.arrayContaining([
+        'Die KI-Antwort wurde verworfen, weil sie die Plausibilitaetspruefung nicht bestanden hat.',
+        'Warnsymptome duerfen nicht als selfcare eingestuft werden.',
+      ]),
+    )
+  })
+
+  /** Plausibility checks should reject emergency escalation for clearly mild symptoms. */
+  it('verwirft unplausible Emergency-KI-Antworten bei milden Beschwerden', async () => {
+    requestStructuredAiResponseWithModelMock.mockResolvedValueOnce({
+      data: {
+        careLevel: 'emergency',
+        reasons: ['Die Beschwerden werden als Notfall eingestuft.'],
+        reviewSummary: {
+          plainLanguage: 'Bitte suchen Sie sofort medizinische Hilfe.',
+          professionalSummary: 'Care Level: emergency.',
+        },
+      },
+      model: 'test-model',
+    })
+
+    const result = await evaluateTriage(undefined, [
+      { region: 'Kopf', measurementType: 'pain', measurementValue: 2, duration: 'today' },
+    ])
+
+    expect(result).toMatchObject({
+      careLevel: 'doctor',
+      recommendedSpecialty: 'general_practice',
+      aiUnavailable: true,
+    })
+    expect(result.reasons).toContain(
+      'Milde Beschwerden ohne Warnzeichen duerfen nicht als emergency eingestuft werden.',
+    )
+  })
+
+  /** Plausibility checks should reject doctor responses that recommend specialist care in text. */
+  it('verwirft Doctor-KI-Antworten mit fachaerztlicher Empfehlung im Text', async () => {
+    requestStructuredAiResponseWithModelMock.mockResolvedValueOnce({
+      data: {
+        careLevel: 'doctor',
+        reasons: ['Die Beschwerden sollten kardiologisch abgeklart werden.'],
+        reviewSummary: {
+          plainLanguage: 'Bitte lassen Sie die Beschwerden kardiologisch abklaeren.',
+          professionalSummary: 'Care Level: doctor. Empfehlung zur Kardiologie.',
+        },
+      },
+      model: 'test-model',
+    })
+
+    const result = await evaluateTriage(undefined, [
+      { region: 'Brust', measurementType: 'pain', measurementValue: 4, duration: 'days' },
+    ])
+
+    expect(result).toMatchObject({
+      careLevel: 'doctor',
+      recommendedSpecialty: 'general_practice',
+      aiUnavailable: true,
+    })
+    expect(result).not.toHaveProperty('aiModel')
+    expect(result.reasons).toContain(
+      'Fachaerztliche Empfehlungen muessen als specialist mit Fachrichtung modelliert werden.',
+    )
+  })
+
   /** Mental-health warning patterns should escalate in the local fallback path. */
   it('nutzt den Notfall-Fallback bei psychischen Warnmustern', async () => {
     requestStructuredAiResponseWithModelMock.mockRejectedValueOnce(new AiResponseError('timeout'))
