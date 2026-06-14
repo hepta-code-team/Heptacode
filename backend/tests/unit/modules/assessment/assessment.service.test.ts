@@ -10,6 +10,7 @@ vi.mock('../../../../src/modules/triage/triage.service.js', () => ({
 
 const evaluateTriageMock = vi.mocked(evaluateTriage)
 
+/** Complete assessment fixture used to exercise the service mapping layer. */
 function createPayload(): AssessmentPayload {
   return {
     patientData: {
@@ -52,6 +53,7 @@ describe('evaluateAssessmentWithAi', () => {
     vi.clearAllMocks()
   })
 
+  /** Triage output should be adapted to the assessment response shape with timestamps. */
   it('gibt ein gueltiges Triage-Ergebnis mit createdAt zurueck', async () => {
     evaluateTriageMock.mockResolvedValueOnce({
       careLevel: 'doctor',
@@ -90,6 +92,7 @@ describe('evaluateAssessmentWithAi', () => {
     )
   })
 
+  /** Missing triage summaries should be replaced with deterministic assessment summaries. */
   it('nutzt eine Fallback-Review-Summary, wenn die Triage keine Summary liefert', async () => {
     evaluateTriageMock.mockResolvedValueOnce({
       careLevel: 'doctor',
@@ -109,6 +112,7 @@ describe('evaluateAssessmentWithAi', () => {
     expect(result.reviewSummary.professionalSummary).toContain('Schmerzstaerke: 7/10')
   })
 
+  /** AI availability state should pass through from triage to assessment callers. */
   it('uebernimmt den aiUnavailable-Status aus der Triage', async () => {
     evaluateTriageMock.mockResolvedValueOnce({
       careLevel: 'doctor',
@@ -125,6 +129,7 @@ describe('evaluateAssessmentWithAi', () => {
     })
   })
 
+  /** Presentation defaults should fill empty triage fields required by the frontend. */
   it('fuellt Specialty, leere Reasons, aiModel und empfohlene Fachrichtungen auf', async () => {
     evaluateTriageMock.mockResolvedValueOnce({
       careLevel: 'emergency',
@@ -155,6 +160,7 @@ describe('evaluateAssessmentWithAi', () => {
     expect(result.reviewSummary.professionalSummary).toContain('Care Level: emergency.')
   })
 
+  /** Optional patient data should be represented in generated fallback summaries. */
   it('uebernimmt vorhandene Specialty und baut Fallback-Summary mit optionalen Patientendaten', async () => {
     const payload = createPayload()
     payload.patientData.isPregnant = true
@@ -189,6 +195,7 @@ describe('evaluateAssessmentWithAi', () => {
     expect(result.reviewSummary.professionalSummary).toContain('Details zu Vorerkrankungen: Asthma: Belastungsasthma')
   })
 
+  /** Unexpected triage failures should remain visible to callers. */
   it('reicht unerwartete Fehler weiter', async () => {
     evaluateTriageMock.mockRejectedValueOnce(new Error('boom'))
 

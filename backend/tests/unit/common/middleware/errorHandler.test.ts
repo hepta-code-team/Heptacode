@@ -5,6 +5,7 @@ import { ApiError } from '../../../../src/common/errors/ApiError.js'
 import { errorHandler } from '../../../../src/common/middleware/errorHandler.js'
 import { notFoundHandler } from '../../../../src/common/middleware/notFoundHandler.js'
 
+/** Minimal Fastify reply double for error middleware assertions. */
 function createReply() {
   return {
     code: vi.fn().mockReturnThis(),
@@ -12,6 +13,7 @@ function createReply() {
   }
 }
 
+/** Minimal request double with route context and logger hooks. */
 function createRequest() {
   return {
     method: 'GET',
@@ -23,6 +25,7 @@ function createRequest() {
 }
 
 describe('errorHandler', () => {
+  /** Zod errors should use the public validation-error response shape. */
   it('formatiert Zod-Fehler als Validierungsfehler', () => {
     const reply = createReply()
     const request = createRequest()
@@ -46,6 +49,7 @@ describe('errorHandler', () => {
     )
   })
 
+  /** ApiError instances should preserve status code, code, message, and details. */
   it('formatiert ApiError mit Statuscode und Details', () => {
     const reply = createReply()
     const request = createRequest()
@@ -67,6 +71,7 @@ describe('errorHandler', () => {
     })
   })
 
+  /** Unexpected errors should be logged and hidden behind the generic 500 response. */
   it('loggt unerwartete Fehler und antwortet mit 500', () => {
     const reply = createReply()
     const request = createRequest()
@@ -87,6 +92,7 @@ describe('errorHandler', () => {
 })
 
 describe('notFoundHandler', () => {
+  /** Unknown routes should include method and URL in the 404 response message. */
   it('antwortet mit 404 und Route-Kontext', () => {
     const reply = createReply()
     const request = createRequest()

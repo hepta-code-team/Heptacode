@@ -8,6 +8,7 @@ import {
 import { isAiAvailabilityError, isAiRequestError } from '../../../src/ai/timeout.js'
 
 describe('AI availability error detection', () => {
+  /** Connection failures should be eligible for controlled AI availability fallbacks. */
   it('erkennt Verbindungsfehler als AI-Request- und Availability-Fehler', () => {
     const error = new APIConnectionError({ message: 'connection failed' })
 
@@ -15,6 +16,7 @@ describe('AI availability error detection', () => {
     expect(isAiAvailabilityError(error)).toBe(true)
   })
 
+  /** Timeout failures should be eligible for controlled AI availability fallbacks. */
   it('erkennt Timeout-Fehler als AI-Request- und Availability-Fehler', () => {
     const error = new APIConnectionTimeoutError({ message: 'timeout' })
 
@@ -22,6 +24,7 @@ describe('AI availability error detection', () => {
     expect(isAiAvailabilityError(error)).toBe(true)
   })
 
+  /** Transient upstream pressure and server failures should count as availability issues. */
   it('erkennt Rate-Limits und Serverfehler als Availability-Fehler', () => {
     const headers = new Headers()
     const rateLimitError = APIError.generate(429, { error: { message: 'rate limited' } }, undefined, headers)
@@ -31,6 +34,7 @@ describe('AI availability error detection', () => {
     expect(isAiAvailabilityError(serverError)).toBe(true)
   })
 
+  /** Client-side and unknown errors should not be hidden behind availability fallbacks. */
   it('lehnt Clientfehler und unbekannte Fehler als Availability-Fehler ab', () => {
     const headers = new Headers()
     const badRequestError = APIError.generate(400, { error: { message: 'bad request' } }, undefined, headers)

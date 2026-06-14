@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { triageRequestSchema } from '../../../../src/modules/triage/triage.types.js'
 
 describe('triageRequestSchema', () => {
+  /** Free-text triage requests should be valid without structured symptoms. */
   it('akzeptiert Freitext ohne ausgewaehlte Symptome', () => {
     const result = triageRequestSchema.safeParse({
       text: 'Ich habe seit gestern Kopfschmerzen.',
@@ -12,6 +13,7 @@ describe('triageRequestSchema', () => {
     expect(result.success).toBe(true)
   })
 
+  /** Structured triage requests should allow the frontend maximum of three symptoms. */
   it('akzeptiert bis zu drei strukturierte Symptome', () => {
     const result = triageRequestSchema.safeParse({
       symptoms: [
@@ -24,12 +26,14 @@ describe('triageRequestSchema', () => {
     expect(result.success).toBe(true)
   })
 
+  /** Triage requests need either text, symptoms, or the explicit emergency shortcut. */
   it('lehnt Anfragen ohne Text und ohne Symptome ab', () => {
     const result = triageRequestSchema.safeParse({})
 
     expect(result.success).toBe(false)
   })
 
+  /** More than three symptoms should fail the public request contract. */
   it('lehnt mehr als drei Symptome ab', () => {
     const result = triageRequestSchema.safeParse({
       symptoms: [

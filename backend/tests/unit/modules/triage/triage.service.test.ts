@@ -16,6 +16,7 @@ vi.mock('../../../../src/modules/symptom-extraction/symptomExtraction.service.js
 const requestStructuredAiResponseWithModelMock = vi.mocked(requestStructuredAiResponseWithModel)
 const extractSymptomsMock = vi.mocked(extractSymptoms)
 
+/** Shared patient fixture for demographic plausibility checks. */
 const malePatientData = {
   birthMonth: '05',
   birthYear: '1988',
@@ -41,6 +42,7 @@ describe('evaluateTriage', () => {
     vi.clearAllMocks()
   })
 
+  /** Explicit emergency selection should bypass all model-dependent paths. */
   it('gibt bei Notfallauswahl direkt emergency zurueck', async () => {
     const result = await evaluateTriage(undefined, [], true)
 
@@ -52,6 +54,7 @@ describe('evaluateTriage', () => {
     expect(extractSymptomsMock).not.toHaveBeenCalled()
   })
 
+  /** Missing symptoms should resolve to the deterministic empty-input self-care response. */
   it('gibt ohne Symptome selfcare zurueck und ruft keine KI auf', async () => {
     const result = await evaluateTriage(undefined, undefined)
 
@@ -63,6 +66,7 @@ describe('evaluateTriage', () => {
     expect(extractSymptomsMock).not.toHaveBeenCalled()
   })
 
+  /** Valid AI triage responses should pass through with model metadata and prompt context. */
   it('uebernimmt eine gueltige KI-Triage mit Fachrichtung', async () => {
     requestStructuredAiResponseWithModelMock.mockResolvedValueOnce({
       data: {
@@ -115,6 +119,7 @@ describe('evaluateTriage', () => {
     )
   })
 
+  /** AI request availability failures should use the conservative local triage fallback. */
   it('nutzt den Fallback, wenn die KI-Anfrage fehlschlaegt', async () => {
     requestStructuredAiResponseWithModelMock.mockRejectedValueOnce(new AiResponseError('timeout'))
 
@@ -129,6 +134,7 @@ describe('evaluateTriage', () => {
     expect(result.reasons).toHaveLength(2)
   })
 
+  /** Mental-health warning patterns should escalate in the local fallback path. */
   it('nutzt den Notfall-Fallback bei psychischen Warnmustern', async () => {
     requestStructuredAiResponseWithModelMock.mockRejectedValueOnce(new AiResponseError('timeout'))
 
@@ -150,6 +156,7 @@ describe('evaluateTriage', () => {
     expect(result.reasons.join(' ')).toContain('Warnmuster')
   })
 
+  /** Confusion should escalate in the local fallback path. */
   it('nutzt den Notfall-Fallback bei Verwirrtheit', async () => {
     requestStructuredAiResponseWithModelMock.mockRejectedValueOnce(new AiResponseError('timeout'))
 
@@ -170,6 +177,7 @@ describe('evaluateTriage', () => {
     })
   })
 
+  /** Very high symptom intensity should escalate even without a named warning pattern. */
   it('nutzt den Notfall-Fallback bei sehr starken Beschwerden ohne spezielles Warnmuster', async () => {
     requestStructuredAiResponseWithModelMock.mockRejectedValueOnce(new AiResponseError('timeout'))
 
@@ -185,6 +193,7 @@ describe('evaluateTriage', () => {
     expect(result.reasons.join(' ')).toContain('sehr starken Beschwerden')
   })
 
+  /** Successful AI triage should not be locally promoted to specialist without a specialty. */
   it('eskaliert eine erfolgreiche KI-Triage nicht lokal zu specialist', async () => {
     requestStructuredAiResponseWithModelMock.mockResolvedValueOnce({
       data: {
@@ -213,6 +222,7 @@ describe('evaluateTriage', () => {
     })
   })
 
+  /** AI responses that include specialist disciplines should normalize to specialist care. */
   it('normalisiert widerspruechliche KI-Antworten mit Fachrichtung zu specialist', async () => {
     requestStructuredAiResponseWithModelMock.mockResolvedValueOnce({
       data: {
@@ -238,6 +248,7 @@ describe('evaluateTriage', () => {
     })
   })
 
+  /** Specialist AI decisions should remain authoritative for orthopedic cases. */
   it('uebernimmt die KI-Entscheidung fuer orthopaedische Beschwerden ohne lokale Facharztkorrektur', async () => {
     requestStructuredAiResponseWithModelMock.mockResolvedValueOnce({
       data: {
@@ -268,6 +279,7 @@ describe('evaluateTriage', () => {
     })
   })
 
+  /** Medium-intensity symptoms should use doctor-level fallback when AI is unavailable. */
   it('nutzt den Doctor-Fallback bei mittleren Beschwerden', async () => {
     requestStructuredAiResponseWithModelMock.mockRejectedValueOnce(new AiResponseError('timeout'))
 
@@ -281,6 +293,7 @@ describe('evaluateTriage', () => {
     })
   })
 
+  /** Invalid extracted free text should become a triage bad-request error. */
   it('wandelt ungueltigen Freitext in einen Bad-Request-Fehler um', async () => {
     extractSymptomsMock.mockResolvedValueOnce({
       text: 'Hallo',
@@ -298,6 +311,7 @@ describe('evaluateTriage', () => {
     })
   })
 
+  /** Demographic contradictions in free text should stop before extraction or triage. */
   it('bricht bei maennlichem Geschlecht und Schwangerschaftsangaben im Freitext ab', async () => {
     await expect(
       evaluateTriage(
@@ -315,6 +329,7 @@ describe('evaluateTriage', () => {
     expect(requestStructuredAiResponseWithModelMock).not.toHaveBeenCalled()
   })
 
+  /** Demographic contradictions in structured symptoms should stop before triage AI execution. */
   it('bricht bei maennlichem Geschlecht und Schwangerschaftsangaben in Symptomen ab', async () => {
     await expect(
       evaluateTriage(malePatientData, [
@@ -334,6 +349,7 @@ describe('evaluateTriage', () => {
     expect(requestStructuredAiResponseWithModelMock).not.toHaveBeenCalled()
   })
 
+  /** Extraction availability failures should return the text-extraction fallback triage result. */
   it('nutzt den Freitext-Fallback, wenn die Symptom-Extraktion nicht verfuegbar ist', async () => {
     extractSymptomsMock.mockResolvedValueOnce({
       text: 'Ich habe starke Schmerzen.',
@@ -356,6 +372,7 @@ describe('evaluateTriage', () => {
     expect(requestStructuredAiResponseWithModelMock).not.toHaveBeenCalled()
   })
 
+  /** Extracted symptoms should feed the shared AI triage path for free-text requests. */
   it('verwendet extrahierte Symptome fuer die KI-Triage', async () => {
     extractSymptomsMock.mockResolvedValueOnce({
       text: 'Ich habe seit Tagen Husten.',
@@ -395,6 +412,7 @@ describe('evaluateTriage', () => {
     expect(requestStructuredAiResponseWithModelMock).toHaveBeenCalledTimes(1)
   })
 
+  /** Empty extraction results should still receive a deterministic fallback if AI triage fails. */
   it('nutzt Selfcare-Fallback, wenn aus Freitext keine Symptome extrahiert wurden und die KI-Triage ausfaellt', async () => {
     extractSymptomsMock.mockResolvedValueOnce({
       text: 'Ich bin unsicher.',
@@ -412,6 +430,7 @@ describe('evaluateTriage', () => {
     })
   })
 
+  /** Unexpected triage model errors should remain visible to callers. */
   it('reicht unerwartete Fehler aus der KI-Triage weiter', async () => {
     requestStructuredAiResponseWithModelMock.mockRejectedValueOnce(new Error('boom'))
 
@@ -422,6 +441,7 @@ describe('evaluateTriage', () => {
     ).rejects.toThrow('boom')
   })
 
+  /** Unexpected extraction errors should remain visible to callers. */
   it('reicht unerwartete Fehler aus der Symptom-Extraktion weiter', async () => {
     extractSymptomsMock.mockRejectedValueOnce(new Error('boom'))
 

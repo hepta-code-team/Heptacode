@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import { getTriageAiPlausibilityIssues } from '../../../src/shared/triageAiPlausibility.js'
 
+/** Baseline doctor response used for symptoms without emergency contradictions. */
 const plausibleDoctorResponse = {
   careLevel: 'doctor' as const,
   reasons: ['Die Beschwerden sollten aerztlich eingeordnet werden.'],
@@ -11,6 +12,7 @@ const plausibleDoctorResponse = {
   },
 }
 
+/** Baseline emergency response used for explicit warning-pattern scenarios. */
 const plausibleEmergencyResponse = {
   careLevel: 'emergency' as const,
   reasons: ['Die Beschwerden enthalten Warnzeichen und sollten sofort abgeklärt werden.'],
@@ -21,6 +23,7 @@ const plausibleEmergencyResponse = {
 }
 
 describe('getTriageAiPlausibilityIssues', () => {
+  /** Chest pain with breathing-related context should not be accepted as self-care. */
   it('markiert Selfcare bei Brustschmerz mit Atembezug als unplausibel', () => {
     const issues = getTriageAiPlausibilityIssues(
       {
@@ -45,6 +48,7 @@ describe('getTriageAiPlausibilityIssues', () => {
     expect(issues).toContain('Warnsymptome duerfen nicht als selfcare eingestuft werden.')
   })
 
+  /** Chest pain with dyspnea should be caught as unsafe under-triage. */
   it('markiert Selfcare bei Brustschmerz mit Atemnot als unplausibel', () => {
     const issues = getTriageAiPlausibilityIssues(
       {
@@ -69,6 +73,7 @@ describe('getTriageAiPlausibilityIssues', () => {
     expect(issues).toContain('Warnsymptome duerfen nicht als selfcare eingestuft werden.')
   })
 
+  /** Possible stroke indicators should be caught as unsafe under-triage. */
   it('markiert Selfcare bei moeglichen Schlaganfallzeichen als unplausibel', () => {
     const issues = getTriageAiPlausibilityIssues(
       {
@@ -94,6 +99,7 @@ describe('getTriageAiPlausibilityIssues', () => {
     expect(issues).toContain('Warnsymptome duerfen nicht als selfcare eingestuft werden.')
   })
 
+  /** Suicidal ideation should not be accepted as self-care. */
   it('markiert Selfcare bei Suizidgedanken als unplausibel', () => {
     const issues = getTriageAiPlausibilityIssues(
       {
@@ -118,6 +124,7 @@ describe('getTriageAiPlausibilityIssues', () => {
     expect(issues).toContain('Warnsymptome duerfen nicht als selfcare eingestuft werden.')
   })
 
+  /** High fever with confusion should be treated as a warning-pattern contradiction. */
   it('markiert Selfcare bei hohem Fieber mit Verwirrtheit als unplausibel', () => {
     const issues = getTriageAiPlausibilityIssues(
       {
@@ -143,6 +150,7 @@ describe('getTriageAiPlausibilityIssues', () => {
     expect(issues).toContain('Warnsymptome duerfen nicht als selfcare eingestuft werden.')
   })
 
+  /** High fever alone should remain compatible with doctor-level escalation. */
   it('akzeptiert hohes Fieber ohne weitere Warnzeichen als Doctor-Fall', () => {
     const issues = getTriageAiPlausibilityIssues(
       plausibleDoctorResponse,
@@ -160,6 +168,7 @@ describe('getTriageAiPlausibilityIssues', () => {
     expect(issues).toEqual([])
   })
 
+  /** Moderate fever without warning signs should not be forced into emergency care. */
   it('akzeptiert moderates Fieber ohne weitere Warnzeichen als Doctor-Fall', () => {
     const issues = getTriageAiPlausibilityIssues(
       plausibleDoctorResponse,
@@ -177,6 +186,7 @@ describe('getTriageAiPlausibilityIssues', () => {
     expect(issues).toEqual([])
   })
 
+  /** Elevated fever below the emergency threshold should stay plausible as doctor care. */
   it('akzeptiert erhoehtes Fieber unterhalb der Notfallgrenze als Doctor-Fall', () => {
     const issues = getTriageAiPlausibilityIssues(
       plausibleDoctorResponse,
@@ -194,6 +204,7 @@ describe('getTriageAiPlausibilityIssues', () => {
     expect(issues).toEqual([])
   })
 
+  /** Missing measurements should not create emergency risk without warning text. */
   it('bewertet fehlende Messwerte ohne Warntext nicht automatisch als Notfall', () => {
     const issues = getTriageAiPlausibilityIssues(
       plausibleDoctorResponse,
@@ -208,6 +219,7 @@ describe('getTriageAiPlausibilityIssues', () => {
     expect(issues).toEqual([])
   })
 
+  /** Dyspnea should remain a warning sign even outside chest-pain cases. */
   it('markiert Selfcare bei Atemnot ausserhalb von Brustschmerz als unplausibel', () => {
     const issues = getTriageAiPlausibilityIssues(
       {
@@ -231,6 +243,7 @@ describe('getTriageAiPlausibilityIssues', () => {
     expect(issues).toContain('Warnsymptome duerfen nicht als selfcare eingestuft werden.')
   })
 
+  /** Strong bleeding descriptions should not be accepted as self-care. */
   it('markiert Selfcare bei starker Blutung als unplausibel', () => {
     const issues = getTriageAiPlausibilityIssues(
       {
@@ -254,6 +267,7 @@ describe('getTriageAiPlausibilityIssues', () => {
     expect(issues).toContain('Warnsymptome duerfen nicht als selfcare eingestuft werden.')
   })
 
+  /** Mild symptoms without warning signs should not be escalated to emergency care. */
   it('markiert Emergency bei milden Beschwerden ohne Warnzeichen als unplausibel', () => {
     const issues = getTriageAiPlausibilityIssues(
       {
@@ -279,6 +293,7 @@ describe('getTriageAiPlausibilityIssues', () => {
     )
   })
 
+  /** Emergency classification should be plausible for chest pain with dyspnea. */
   it('akzeptiert Emergency bei Brustschmerz mit Atemnot als plausibel', () => {
     const issues = getTriageAiPlausibilityIssues(
       plausibleEmergencyResponse,
@@ -296,6 +311,7 @@ describe('getTriageAiPlausibilityIssues', () => {
     expect(issues).toEqual([])
   })
 
+  /** Emergency classification should be plausible for suicidal ideation. */
   it('akzeptiert Emergency bei Suizidgedanken als plausibel', () => {
     const issues = getTriageAiPlausibilityIssues(
       plausibleEmergencyResponse,
@@ -312,6 +328,7 @@ describe('getTriageAiPlausibilityIssues', () => {
     expect(issues).toEqual([])
   })
 
+  /** Medium-intensity symptoms should remain compatible with doctor-level care. */
   it('akzeptiert plausible Doctor-Antworten bei mittleren Beschwerden', () => {
     const issues = getTriageAiPlausibilityIssues(
       plausibleDoctorResponse,
@@ -328,6 +345,7 @@ describe('getTriageAiPlausibilityIssues', () => {
     expect(issues).toEqual([])
   })
 
+  /** Specialist responses should be plausible when the specialty is present and coherent. */
   it('akzeptiert Specialist-Antworten mit passender Fachrichtung', () => {
     const issues = getTriageAiPlausibilityIssues(
       {
@@ -352,6 +370,7 @@ describe('getTriageAiPlausibilityIssues', () => {
     expect(issues).toEqual([])
   })
 
+  /** Specialist responses without a specialty should fail plausibility even after schema-like shaping. */
   it('markiert Specialist-Antworten ohne Fachrichtung als unplausibel', () => {
     const issues = getTriageAiPlausibilityIssues(
       {
@@ -374,6 +393,7 @@ describe('getTriageAiPlausibilityIssues', () => {
     expect(issues).toContain('Specialist-Antworten benoetigen eine passende Fachrichtung.')
   })
 
+  /** Mild headache without warning signs should remain compatible with self-care. */
   it('akzeptiert Selfcare bei sehr milden Kopfschmerzen ohne Warnzeichen', () => {
     const issues = getTriageAiPlausibilityIssues(
       {
@@ -397,6 +417,7 @@ describe('getTriageAiPlausibilityIssues', () => {
     expect(issues).toEqual([])
   })
 
+  /** Placeholder-style reasons and summaries should be rejected as insufficient content. */
   it('markiert sehr kurze Begruendungen und Summaries als unplausibel', () => {
     const issues = getTriageAiPlausibilityIssues(
       {

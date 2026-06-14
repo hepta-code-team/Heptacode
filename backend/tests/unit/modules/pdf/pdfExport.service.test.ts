@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { createPdfSummary } from '../../../../src/modules/pdf/pdfExport.service.js'
 
 describe('createPdfSummary', () => {
+  /** Complete clinical context should render a valid PDF summary with expected sections. */
   it('erstellt eine PDF-Zusammenfassung mit Patientendaten und Symptomen', async () => {
     const result = await createPdfSummary({
       reviewSummary: {
@@ -41,6 +42,7 @@ describe('createPdfSummary', () => {
     expect(pdfContent.startsWith('%PDF-')).toBe(true)
   })
 
+  /** Missing optional patient data should not prevent PDF generation. */
   it('erstellt auch ohne Patientendaten eine gueltige PDF', async () => {
     const result = await createPdfSummary({
       reviewSummary: {
@@ -55,6 +57,7 @@ describe('createPdfSummary', () => {
     expect(pdfContent.startsWith('%PDF-')).toBe(true)
   })
 
+  /** Professional summaries should be normalized into clean patient and complaint sections. */
   it('formatiert Patientendaten und Beschwerden fuer den PDF-Export sauber', async () => {
     const result = await createPdfSummary({
       reviewSummary: {
@@ -87,6 +90,7 @@ describe('createPdfSummary', () => {
     expect(result.sections[0]?.content).not.toContain('Ausgewählte Symptome:')
   })
 
+  /** Structured payload data should feed the medical overview when summary text is sparse. */
   it('formatiert Triage-Empfehlungen und optionale Symptominformationen im medizinischen Ueberblick', async () => {
     const result = await createPdfSummary({
       reviewSummary: {
@@ -146,6 +150,7 @@ describe('createPdfSummary', () => {
     expect(result.sections[0]?.content).toContain('empfohlen')
   })
 
+  /** Unknown care levels should still present the provided triage reasons safely. */
   it('nutzt die uebergebenen Gruende fuer unbekannte Care-Level', async () => {
     const result = await createPdfSummary({
       reviewSummary: {
@@ -163,6 +168,7 @@ describe('createPdfSummary', () => {
     )
   })
 
+  /** Travel metadata from patient data should be rendered in readable German date format. */
   it('formatiert Reisedetails in Patientendaten lesbar', async () => {
     const result = await createPdfSummary({
       reviewSummary: {
@@ -193,6 +199,7 @@ describe('createPdfSummary', () => {
     expect(result.sections[0]?.content).toContain('Reise ins Ausland: Kroatien, 01.06.2026 bis 14.06.2026')
   })
 
+  /** Travel metadata embedded in professional summaries should be normalized for the PDF. */
   it('normalisiert Reisedetails aus strukturierten Zusammenfassungen', async () => {
     const result = await createPdfSummary({
       reviewSummary: {
