@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { ClipboardEvent, FormEvent, KeyboardEvent } from "react";
+import type { ClipboardEvent, FormEvent, KeyboardEvent, ReactNode } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import { Brain, Check, Mic, MicOff, Sparkles, Trash2, X } from "lucide-react";
 import PageShell from "../components/PageShell";
@@ -101,6 +101,61 @@ function limitTextToMaxCharacters(text: string) {
 
 function exceedsSymptomTextLimit(text: string) {
   return getCharacterCount(text) > MAX_SYMPTOM_TEXT_CHARACTERS;
+}
+
+type VerticalProgressIconButtonProps = {
+  children: ReactNode;
+  onClick: () => void;
+  disabled?: boolean;
+  ariaLabel: string;
+  ariaPressed?: boolean;
+  title?: string;
+  className: string;
+  fillClassName?: string;
+  progress?: number;
+  showProgress?: boolean;
+};
+
+/**
+ * Circular icon button with a progress fill that grows from bottom to top.
+ *
+ * The fill mirrors the horizontal loading bar pattern used elsewhere, but is
+ * shaped for the compact dictation modal actions.
+ */
+function VerticalProgressIconButton({
+  children,
+  onClick,
+  disabled = false,
+  ariaLabel,
+  ariaPressed,
+  title,
+  className,
+  fillClassName = "bg-white/25",
+  progress = 0,
+  showProgress = false,
+}: VerticalProgressIconButtonProps) {
+  const clampedProgress = Math.min(100, Math.max(0, progress));
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      className={`relative flex h-16 w-16 items-center justify-center overflow-hidden rounded-full shadow-lg transition-all disabled:cursor-not-allowed ${className}`}
+      aria-label={ariaLabel}
+      aria-pressed={ariaPressed}
+      title={title}
+    >
+      <span
+        className={`absolute inset-x-0 bottom-0 transition-[height] duration-500 ease-out ${fillClassName}`}
+        style={{ height: showProgress ? `${clampedProgress}%` : "0%" }}
+        aria-hidden="true"
+      />
+      <span className="relative z-[1] flex items-center justify-center">
+        {children}
+      </span>
+    </button>
+  );
 }
 
 /**
@@ -343,7 +398,9 @@ export default function SymptomSelectionPage() {
   const [selectedCategory, setSelectedCategory] = useState<BodyAreaCategory | null>(initialCategory);
   const [selectedSymptoms, setSelectedSymptoms] = useState<SelectedSymptom[]>(contextSymptoms);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [symptomTextDraft, setSymptomTextDraft] = useState(symptomText);
   const [isExtractingSymptoms, setIsExtractingSymptoms] = useState(false);
+  const [symptomExtractionProgress, setSymptomExtractionProgress] = useState(0);
   const [isRecordingSymptoms, setIsRecordingSymptoms] = useState(false);
   const [recordingElapsedSeconds, setRecordingElapsedSeconds] = useState(0);
   const [symptomTextError, setSymptomTextError] = useState<string | null>(null);
@@ -351,14 +408,20 @@ export default function SymptomSelectionPage() {
   const speechRecognitionRef = useRef<BrowserSpeechRecognition | null>(null);
   const recordingTimeoutRef = useRef<number | null>(null);
   const recordingTimerIntervalRef = useRef<number | null>(null);
+  const symptomExtractionProgressIntervalRef = useRef<number | null>(null);
+  const symptomExtractionRequestVersionRef = useRef(0);
   const recordedTextRef = useRef("");
 
   const selectedCategoryLabel = selectedCategory ? BODY_AREA_LABELS[selectedCategory] : "";
   const filteredRegions = useMemo(() => getBodyRegionsForCategory(selectedCategory), [selectedCategory]);
   const shouldShowInlineOptions = false;
-  const symptomTextCharacterCount = useMemo(() => getCharacterCount(symptomText), [symptomText]);
+  const symptomTextCharacterCount = useMemo(() => getCharacterCount(symptomTextDraft), [symptomTextDraft]);
   const formattedRecordingElapsed = formatRecordingDuration(recordingElapsedSeconds);
   const formattedMaxRecordingDuration = formatRecordingDuration(MAX_RECORDING_DURATION_SECONDS);
+  const actionButtonProgress = symptomExtractionProgress;
+  const symptomTextAreaClassName = `w-full h-40 bg-[#eff2f6] rounded-[16px] p-4 resize-none border-none outline-none font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-body text-base disabled:cursor-not-allowed disabled:text-app-text-muted ${
+    isExtractingSymptoms ? "focus:ring-0" : "focus:ring-2 focus:ring-[#486284]"
+  }`;
 
   /**
    * Updates the free-text symptom description while enforcing the hard limit.
@@ -372,6 +435,7 @@ export default function SymptomSelectionPage() {
       return;
     }
 
+    setSymptomTextDraft(text);
     setSymptomText(text);
 
     if (symptomTextError === SYMPTOM_TEXT_CHARACTER_LIMIT_ERROR) {
@@ -415,7 +479,9 @@ export default function SymptomSelectionPage() {
 
     if (exceedsSymptomTextLimit(nextText)) {
       event.preventDefault();
-      setSymptomText(limitTextToMaxCharacters(nextText));
+      const limitedText = limitTextToMaxCharacters(nextText);
+      setSymptomTextDraft(limitedText);
+      setSymptomText(limitedText);
       setSymptomTextError(SYMPTOM_TEXT_CHARACTER_LIMIT_ERROR);
     }
   };
@@ -432,6 +498,20 @@ export default function SymptomSelectionPage() {
       window.clearInterval(recordingTimerIntervalRef.current);
       recordingTimerIntervalRef.current = null;
     }
+  };
+
+  const clearSymptomExtractionProgressInterval = () => {
+    if (symptomExtractionProgressIntervalRef.current !== null) {
+      window.clearInterval(symptomExtractionProgressIntervalRef.current);
+      symptomExtractionProgressIntervalRef.current = null;
+    }
+  };
+
+  const cancelSymptomExtraction = () => {
+    symptomExtractionRequestVersionRef.current += 1;
+    clearSymptomExtractionProgressInterval();
+    setIsExtractingSymptoms(false);
+    setSymptomExtractionProgress(0);
   };
 
   const resetRecordingTimer = () => {
@@ -496,7 +576,7 @@ export default function SymptomSelectionPage() {
     }
 
     const recognition = new SpeechRecognition();
-    recordedTextRef.current = symptomText.trim();
+    recordedTextRef.current = symptomTextDraft.trim();
     recognition.continuous = true;
     recognition.interimResults = true;
     recognition.lang = "de-DE";
@@ -528,6 +608,7 @@ export default function SymptomSelectionPage() {
       }
 
       const nextSymptomText = appendTranscript(recordedTextRef.current, interimTranscript);
+      setSymptomTextDraft(nextSymptomText);
       setSymptomText(nextSymptomText);
 
       if (getCharacterCount(nextSymptomText) >= MAX_SYMPTOM_TEXT_CHARACTERS && (finalTranscript || interimTranscript)) {
@@ -583,8 +664,10 @@ export default function SymptomSelectionPage() {
    */
   useEffect(() => {
     return () => {
+      symptomExtractionRequestVersionRef.current += 1;
       clearRecordingTimeout();
       clearRecordingTimerInterval();
+      clearSymptomExtractionProgressInterval();
       speechRecognitionRef.current?.abort();
     };
   }, []);
@@ -641,6 +724,20 @@ export default function SymptomSelectionPage() {
     setSelectedSymptoms(selectedSymptoms.filter((_, symptomIndex) => symptomIndex !== index));
   };
 
+  const openSymptomTextModal = () => {
+    setSymptomTextDraft(symptomText);
+    setSymptomTextError(null);
+    setIsModalOpen(true);
+  };
+
+  const handleCloseSymptomTextModal = () => {
+    stopSymptomRecording();
+    cancelSymptomExtraction();
+    setIsModalOpen(false);
+    setSymptomTextDraft(symptomText);
+    setSymptomTextError(null);
+  };
+
   const handleContinue = () => {
     setContextSymptoms(selectedSymptoms);
     setContextSymptomDetails([]);
@@ -651,6 +748,7 @@ export default function SymptomSelectionPage() {
     stopSymptomRecording();
     recordedTextRef.current = "";
     setSymptomText("");
+    setSymptomTextDraft("");
     setSymptomTextError(null);
   };
 
@@ -662,7 +760,7 @@ export default function SymptomSelectionPage() {
    */
   const handleApplySymptomText = async () => {
     stopSymptomRecording();
-    const trimmedSymptomText = symptomText.trim();
+    const trimmedSymptomText = symptomTextDraft.trim();
 
     if (!trimmedSymptomText) {
       setSymptomTextError("Bitte beschreiben Sie Ihre Symptome kurz.");
@@ -670,16 +768,31 @@ export default function SymptomSelectionPage() {
     }
 
     if (exceedsSymptomTextLimit(trimmedSymptomText)) {
-      setSymptomText(limitTextToMaxCharacters(trimmedSymptomText));
+      setSymptomTextDraft(limitTextToMaxCharacters(trimmedSymptomText));
       setSymptomTextError(SYMPTOM_TEXT_CHARACTER_LIMIT_ERROR);
       return;
     }
 
+    symptomExtractionRequestVersionRef.current += 1;
+    const requestVersion = symptomExtractionRequestVersionRef.current;
+
     setIsExtractingSymptoms(true);
+    setSymptomExtractionProgress(8);
     setSymptomTextError(null);
+
+    clearSymptomExtractionProgressInterval();
+    symptomExtractionProgressIntervalRef.current = window.setInterval(() => {
+      setSymptomExtractionProgress((currentProgress) =>
+        Math.min(currentProgress + Math.max(1, (92 - currentProgress) * 0.12), 92),
+      );
+    }, 400);
 
     try {
       const response = await extractSymptomsFromText(trimmedSymptomText, "text", patientData ?? undefined);
+
+      if (symptomExtractionRequestVersionRef.current !== requestVersion) {
+        return;
+      }
 
       // Keep the user in the modal when extraction fails so they can refine the same input.
       if (response.invalidInput || response.aiUnavailable) {
@@ -696,15 +809,23 @@ export default function SymptomSelectionPage() {
 
       const extractedSelection = extractedSymptoms.map(({ region, side }) => ({ region, side }));
 
+      setSymptomText(trimmedSymptomText);
       setSelectedSymptoms(extractedSelection);
       setContextSymptoms(extractedSelection);
       setContextSymptomDetails([]);
+      setSymptomExtractionProgress(100);
       setIsModalOpen(false);
       navigate("/symptom-details", { state: { extractedSymptoms } });
     } catch (error) {
-      setSymptomTextError(error instanceof Error ? error.message : "Die Beschreibung konnte nicht ausgewertet werden.");
+      if (symptomExtractionRequestVersionRef.current === requestVersion) {
+        setSymptomTextError(error instanceof Error ? error.message : "Die Beschreibung konnte nicht ausgewertet werden.");
+      }
     } finally {
-      setIsExtractingSymptoms(false);
+      if (symptomExtractionRequestVersionRef.current === requestVersion) {
+        clearSymptomExtractionProgressInterval();
+        setIsExtractingSymptoms(false);
+        setSymptomExtractionProgress(0);
+      }
     }
   };
 
@@ -771,36 +892,10 @@ export default function SymptomSelectionPage() {
               })}
             </div>
           </div>
-
-          <button
-            type="button"
-            onClick={() => setIsModalOpen(true)}
-            className="mt-3 w-full rounded-[16px] border border-[#d7dee7] bg-white p-4 text-left text-app-text-body shadow-sm transition-all hover:border-[#486284] hover:bg-[#f5f7fa]"
-          >
-            <div className="flex items-start gap-3">
-              <div className="flex size-11 flex-shrink-0 items-center justify-center rounded-full bg-[#486284] text-app-text-on-primary">
-                <Mic className="size-5" aria-hidden="true" />
-              </div>
-              <div>
-                <p
-                  className="font-['DM_Sans:Bold',sans-serif] font-bold text-app-text-primary text-sm"
-                  style={{ fontVariationSettings: "'opsz' 14" }}
-                >
-                  Symptome beschreiben
-                </p>
-                <p
-                  className="font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-primary text-xs leading-snug"
-                  style={{ fontVariationSettings: "'opsz' 14" }}
-                >
-                  Per Freitext oder Spracheingabe schildern
-                </p>
-              </div>
-            </div>
-          </button>
         </div>
 
         <div>
-          <div className="mb-4 rounded-[18px] bg-[#f5f7fa] p-3">
+          <div className={`mb-4 rounded-[18px] border-2 bg-[#f5f7fa] p-3 transition-all ${selectedSymptoms.length > 0 ? "border-[#486284]" : "border-transparent"}`}>
             <div className="mb-2 flex items-center justify-between">
               <p
                 className="font-['DM_Sans:Bold',sans-serif] font-bold text-app-text-primary text-sm"
@@ -858,6 +953,7 @@ export default function SymptomSelectionPage() {
             </div>
           </div>
 
+
           <div ref={symptomOptionsRef} className="scroll-mt-4" />
           {selectedCategory ? (
             <>
@@ -894,6 +990,34 @@ export default function SymptomSelectionPage() {
             </div>
           )}
 
+          <button
+            type="button"
+            onClick={openSymptomTextModal}
+            className={`mt-4 w-full rounded-[16px] border-2 bg-white p-4 text-left text-app-text-body shadow-sm transition-all hover:border-[#486284] hover:bg-[#f5f7fa] ${
+              symptomText.trim() ? "border-[#486284]" : "border-[#d7dee7]"
+            }`}
+          >
+            <div className="flex items-start gap-3">
+              <div className="flex size-11 flex-shrink-0 items-center justify-center rounded-full bg-[#486284] text-app-text-on-primary">
+                <Mic className="size-5" aria-hidden="true" />
+              </div>
+              <div>
+                <p
+                  className="font-['DM_Sans:Bold',sans-serif] font-bold text-app-text-primary text-sm"
+                  style={{ fontVariationSettings: "'opsz' 14" }}
+                >
+                  Symptome beschreiben
+                </p>
+                <p
+                  className="font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-primary text-xs leading-snug"
+                  style={{ fontVariationSettings: "'opsz' 14" }}
+                >
+                  Per Freitext oder Spracheingabe schildern
+                </p>
+              </div>
+            </div>
+          </button>
+
           <div className="mt-6 flex justify-end">
             <Button onClick={handleContinue} disabled={selectedSymptoms.length === 0}>
               <p
@@ -909,23 +1033,20 @@ export default function SymptomSelectionPage() {
 
       <Modal
         isOpen={isModalOpen}
-        onClose={() => {
-          stopSymptomRecording();
-          setIsModalOpen(false);
-          setSymptomTextError(null);
-        }}
+        onClose={handleCloseSymptomTextModal}
         title="Beschreiben Sie Ihre Symptome"
         subtitle="Bitte beschreiben Sie Ihre Symptome in 1-2 Sätzen. Nennen Sie dabei Symptom, Stärke und Dauer."
         showCloseButton
       >
         <textarea
-          value={symptomText}
+          value={symptomTextDraft}
           onBeforeInput={handleSymptomTextBeforeInput}
           onChange={(event) => handleSymptomTextChange(event.target.value)}
           onPaste={handleSymptomTextPaste}
+          disabled={isExtractingSymptoms}
           maxLength={MAX_SYMPTOM_TEXT_CHARACTERS}
           placeholder="z.B. Ich habe seit 3 Tagen starke Kopfschmerzen (7/10) und leichte Übelkeit."
-          className="w-full h-40 bg-[#eff2f6] rounded-[16px] p-4 resize-none border-none outline-none focus:ring-2 focus:ring-[#486284] font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-body text-base"
+          className={symptomTextAreaClassName}
           style={{ fontVariationSettings: "'opsz' 14" }}
         />
 
@@ -948,16 +1069,18 @@ export default function SymptomSelectionPage() {
 
         <div className="mt-6 grid grid-cols-3 items-start">
           <div className="relative flex h-16 w-16 items-center justify-center justify-self-start">
-            <button
-              type="button"
+            <VerticalProgressIconButton
               onClick={handleClearSymptomText}
-              disabled={isExtractingSymptoms || symptomText.length === 0}
-              className="flex h-16 w-16 items-center justify-center rounded-full bg-red-600 text-white shadow-lg transition-all hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60"
-              aria-label="Freitext löschen"
+              disabled={isExtractingSymptoms || symptomTextDraft.length === 0}
+              className="bg-red-600 text-white hover:bg-red-700 disabled:bg-red-600/35"
+              fillClassName="bg-red-600"
+              progress={0}
+              showProgress={false}
+              ariaLabel="Freitext löschen"
               title="Freitext löschen"
             >
               <Trash2 className="size-8" aria-hidden="true" />
-            </button>
+            </VerticalProgressIconButton>
             <span
               className="absolute left-1/2 top-[calc(100%+0.5rem)] min-h-4 w-24 -translate-x-1/2 text-center font-['DM_Sans:Medium',sans-serif] text-xs font-medium text-app-text-primary"
               style={{ fontVariationSettings: "'opsz' 14" }}
@@ -967,22 +1090,26 @@ export default function SymptomSelectionPage() {
           </div>
 
           <div className="relative flex h-16 w-16 items-center justify-center justify-self-center">
-            <button
-              type="button"
+            <VerticalProgressIconButton
               onClick={handleToggleSymptomRecording}
               disabled={isExtractingSymptoms}
-              className={`text-app-text-on-primary rounded-full w-16 h-16 transition-all shadow-lg flex items-center justify-center disabled:cursor-not-allowed disabled:opacity-60 ${
-                isRecordingSymptoms ? "bg-red-600 hover:bg-red-700 animate-pulse" : "bg-[#486284] hover:bg-[#3a4d68]"
+              className={`text-app-text-on-primary disabled:bg-[#486284]/25 ${
+                isRecordingSymptoms
+                  ? "bg-red-600 hover:bg-red-700 animate-pulse"
+                  : "bg-[#486284] hover:bg-[#3a4d68]"
               }`}
-              aria-label={isRecordingSymptoms ? "Spracheingabe stoppen" : "Symptom diktieren"}
-              aria-pressed={isRecordingSymptoms}
+              fillClassName="bg-[#486284]"
+              progress={0}
+              showProgress={false}
+              ariaLabel={isRecordingSymptoms ? "Spracheingabe stoppen" : "Symptom diktieren"}
+              ariaPressed={isRecordingSymptoms}
             >
               {isRecordingSymptoms ? (
                 <MicOff className="size-8" aria-hidden="true" />
               ) : (
                 <Mic className="size-8" aria-hidden="true" />
               )}
-            </button>
+            </VerticalProgressIconButton>
             <span
               className="absolute left-1/2 top-[calc(100%+0.5rem)] min-h-4 w-48 -translate-x-1/2 text-center font-['DM_Sans:Medium',sans-serif] text-xs font-medium text-app-text-primary"
               style={{ fontVariationSettings: "'opsz' 14" }}
@@ -992,24 +1119,30 @@ export default function SymptomSelectionPage() {
           </div>
 
           <div className="relative flex h-16 w-16 items-center justify-center justify-self-end">
-            <button
-              type="button"
+            <VerticalProgressIconButton
               onClick={handleApplySymptomText}
-              disabled={isExtractingSymptoms || symptomText.trim().length === 0}
-              className="flex h-16 w-16 items-center justify-center rounded-full bg-[#486284] text-app-text-on-primary shadow-lg transition-all hover:bg-[#3a4d68] disabled:cursor-not-allowed disabled:opacity-60"
-              aria-label="Symptombeschreibung übernehmen"
+              disabled={isExtractingSymptoms || symptomTextDraft.trim().length === 0}
+              className={`${
+                isExtractingSymptoms || symptomTextDraft.trim().length === 0
+                  ? "bg-[#486284]/25"
+                  : "bg-[#486284] hover:bg-[#3a4d68]"
+              } text-app-text-on-primary`}
+              fillClassName="bg-[#486284]"
+              progress={actionButtonProgress}
+              showProgress={false}
+              ariaLabel="Symptombeschreibung übernehmen"
             >
               {isExtractingSymptoms ? (
                 <span className="size-7 animate-spin rounded-full border-4 border-white/35 border-t-white" aria-hidden="true" />
               ) : (
                 <Check className="size-8" strokeWidth={3} aria-hidden="true" />
               )}
-            </button>
+            </VerticalProgressIconButton>
             <span
               className="absolute left-1/2 top-[calc(100%+0.5rem)] min-h-4 w-24 -translate-x-1/2 text-center font-['DM_Sans:Medium',sans-serif] text-xs font-medium text-app-text-primary"
               style={{ fontVariationSettings: "'opsz' 14" }}
             >
-              Bestätigen
+              {isExtractingSymptoms ? "Lädt..." : "Bestätigen"}
             </span>
           </div>
         </div>
