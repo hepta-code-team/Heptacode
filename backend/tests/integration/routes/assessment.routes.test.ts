@@ -12,12 +12,14 @@ vi.mock('../../../src/ai/llmAdapter.js', () => ({
 
 const requestStructuredAiResponseWithModelMock = vi.mocked(requestStructuredAiResponseWithModel)
 
+/** Creates an isolated Fastify instance for each route test. */
 async function createApp(): Promise<FastifyInstance> {
   const app = await buildApp()
   await app.ready()
   return app
 }
 
+/** Complete assessment fixture aligned with the frontend submission contract. */
 function createPayload(): AssessmentPayload {
   return {
     patientData: {
@@ -66,6 +68,7 @@ describe('POST /assessments', () => {
     await app.close()
   })
 
+  /** Valid assessment input should return the frontend-facing triage result shape. */
   it('bewertet ein gueltiges Assessment ueber die HTTP-Route', async () => {
     requestStructuredAiResponseWithModelMock.mockResolvedValueOnce({
       data: {
@@ -104,6 +107,7 @@ describe('POST /assessments', () => {
     )
   })
 
+  /** Invalid assessment input should stop before model execution. */
   it('antwortet mit 400 bei ungueltigem Assessment-Payload', async () => {
     const payload = createPayload()
 
@@ -127,6 +131,7 @@ describe('POST /assessments', () => {
     expect(requestStructuredAiResponseWithModelMock).not.toHaveBeenCalled()
   })
 
+  /** AI availability errors should preserve a controlled assessment response. */
   it('liefert den kontrollierten Assessment-Fallback bei KI-Ausfall', async () => {
     requestStructuredAiResponseWithModelMock.mockRejectedValueOnce(new AiResponseError('timeout'))
 
