@@ -9,10 +9,7 @@ import type {
   TriageSymptom,
 } from './triage.types.js'
 import { triageAiResponseSchema } from '../../shared/validation.js'
-import {
-  getTriageAiPlausibilityIssues,
-  hasEmergencyTriagePattern,
-} from '../../shared/triageAiPlausibility.js'
+import { getTriageAiPlausibilityIssues } from '../../shared/triageAiPlausibility.js'
 import type { SymptomInputType } from '../../../../shared/symptomExtraction.types.js'
 import { triageInstructions, createTriagePrompt } from '../prompt/triage.prompt.js'
 
@@ -248,10 +245,6 @@ function createFallbackTriage(symptoms: TriageSymptom[]): TriageResponse {
 
   // Mirror the most urgent local safety rules when the AI cannot classify the case.
   const hasEmergencyPattern = symptoms.some((symptom) => {
-    if (hasEmergencyTriagePattern(symptom)) {
-      return true
-    }
-
     const region = symptom.region.toLowerCase()
     const side = symptom.side?.toLowerCase() ?? ''
     const measurementValue = getComparableMeasurementValue(symptom)
@@ -277,18 +270,6 @@ function createFallbackTriage(symptoms: TriageSymptom[]): TriageResponse {
     return false
   })
 
-  if (strongestMeasurementValue >= 8) {
-    return {
-      careLevel: 'emergency',
-      recommendedSpecialty: 'emergency_medicine',
-      reasons: [
-        'Die KI-Auswertung ist aktuell nicht verfuegbar.',
-        'Aufgrund der sehr starken Beschwerden wird sicherheitshalber eine Notfallabklaerung empfohlen.',
-      ],
-      aiUnavailable: true,
-    }
-  }
-
   if (hasEmergencyPattern) {
     return {
       careLevel: 'emergency',
@@ -296,6 +277,18 @@ function createFallbackTriage(symptoms: TriageSymptom[]): TriageResponse {
       reasons: [
         'Die KI-Auswertung ist aktuell nicht verfuegbar.',
         'Die uebergebenen Beschwerden enthalten ein Warnmuster, das vorsichtshalber als Notfall eingestuft wird.',
+      ],
+      aiUnavailable: true,
+    }
+  }
+
+  if (strongestMeasurementValue >= 8) {
+    return {
+      careLevel: 'emergency',
+      recommendedSpecialty: 'emergency_medicine',
+      reasons: [
+        'Die KI-Auswertung ist aktuell nicht verfuegbar.',
+        'Aufgrund der sehr starken Beschwerden wird sicherheitshalber eine Notfallabklaerung empfohlen.',
       ],
       aiUnavailable: true,
     }
