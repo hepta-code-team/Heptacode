@@ -1,11 +1,72 @@
 import type { TriageSymptom } from '../modules/triage/triage.types.js'
+import type { MedicalSpecialty } from '../modules/triage/triage.types.js'
 import type { TriageAiResponse } from './validation.js'
+
+const SPECIALTY_KEYWORDS: Record<MedicalSpecialty, string[]> = {
+  home_care: [],
+  emergency_medicine: ['notfallmedizin', 'notaufnahme', 'rettungsdienst'],
+  general_practice: ['allgemeinmedizin', 'hausaerzt', 'hausarzt'],
+  internal_medicine: ['innere medizin', 'internist'],
+  cardiology: ['kardiolog'],
+  neurology: ['neurolog'],
+  orthopedics: ['orthopaed', 'orthopad'],
+  gastroenterology: ['gastroenterolog', 'magen-darm', 'verdauung'],
+  pulmonology: ['pneumolog', 'lungenfach'],
+  dermatology: ['dermatolog', 'hautarzt'],
+  urology: ['urolog'],
+  gynecology: ['gynaekolog', 'gynakolog', 'frauenarzt'],
+  psychiatry: ['psychiatr', 'psychotherapeut'],
+  pediatrics: ['paediatr', 'padiatr', 'kinderarzt', 'kinderheilkunde'],
+  dentistry: ['zahnarzt', 'zahnmedizin'],
+  ophthalmology: ['augenarzt', 'ophthalmolog'],
+  otolaryngology: ['hno', 'hals-nasen-ohren', 'otolaryngolog'],
+}
+
+const NON_SPECIALIST_SPECIALTIES: MedicalSpecialty[] = [
+  'home_care',
+  'emergency_medicine',
+  'general_practice',
+]
+
+const SPECIALIST_CARE_TERMS = ['fachaerzt', 'facharzt', 'spezialist']
 
 /**
  * Normalizes optional symptom text before keyword matching.
  */
 function normalizeText(value: string | undefined): string {
   return value?.trim().toLowerCase() ?? ''
+}
+
+function isSpecialistSpecialty(
+  specialty: MedicalSpecialty | undefined,
+): specialty is MedicalSpecialty {
+  return specialty !== undefined && !NON_SPECIALIST_SPECIALTIES.includes(specialty)
+}
+
+function getResponseText(response: TriageAiResponse): string {
+  return normalizeText([
+    ...response.reasons,
+    response.reviewSummary.plainLanguage,
+    response.reviewSummary.professionalSummary,
+  ].join(' '))
+}
+
+function findMentionedSpecialties(response: TriageAiResponse): MedicalSpecialty[] {
+  const responseText = getResponseText(response)
+
+  return Object.entries(SPECIALTY_KEYWORDS)
+    .filter(([specialty, keywords]) => {
+      return (
+        isSpecialistSpecialty(specialty as MedicalSpecialty) &&
+        keywords.some((keyword) => new RegExp(`(^|[^a-z])${keyword}`, 'i').test(responseText))
+      )
+    })
+    .map(([specialty]) => specialty as MedicalSpecialty)
+}
+
+function mentionsSpecialistCare(response: TriageAiResponse): boolean {
+  const responseText = getResponseText(response)
+  return SPECIALIST_CARE_TERMS.some((term) => responseText.includes(term))
 }
 
 /**
@@ -36,7 +97,7 @@ function getComparableMeasurementValue(symptom: TriageSymptom): number {
 /**
  * Detects high-risk symptom patterns that should not be classified as self-care.
  */
-function hasEmergencyPattern(symptom: TriageSymptom): boolean {
+export function hasEmergencyTriagePattern(symptom: TriageSymptom): boolean {
   const region = normalizeText(symptom.region)
   const side = normalizeText(symptom.side)
   const details = normalizeText(symptom.details)
@@ -91,7 +152,7 @@ function hasOnlyMildSymptoms(symptoms: TriageSymptom[]): boolean {
   return symptoms.length > 0 && symptoms.every((symptom) => {
     const measurementValue = getComparableMeasurementValue(symptom)
 
-    return measurementValue > 0 && measurementValue <= 3 && !hasEmergencyPattern(symptom)
+    return measurementValue > 0 && measurementValue <= 3 && !hasEmergencyTriagePattern(symptom)
   })
 }
 
@@ -106,7 +167,7 @@ export function getTriageAiPlausibilityIssues(
   symptoms: TriageSymptom[],
 ): string[] {
   const issues: string[] = []
-  const hasEmergencySymptom = symptoms.some(hasEmergencyPattern)
+  const hasEmergencySymptom = symptoms.some(hasEmergencyTriagePattern)
 
   if (hasEmergencySymptom && response.careLevel === 'selfcare') {
     issues.push('Warnsymptome duerfen nicht als selfcare eingestuft werden.')
@@ -118,6 +179,23 @@ export function getTriageAiPlausibilityIssues(
 
   if (response.careLevel === 'specialist' && !response.recommendedSpecialty) {
     issues.push('Specialist-Antworten benoetigen eine passende Fachrichtung.')
+  }
+
+  const mentionedSpecialties = findMentionedSpecialties(response)
+
+  if (
+    response.careLevel !== 'specialist' &&
+    (mentionedSpecialties.length > 0 || mentionsSpecialistCare(response))
+  ) {
+    issues.push('Fachaerztliche Empfehlungen muessen als specialist mit Fachrichtung modelliert werden.')
+  }
+
+  if (
+    response.careLevel === 'specialist' &&
+    response.recommendedSpecialty &&
+    mentionedSpecialties.some((specialty) => specialty !== response.recommendedSpecialty)
+  ) {
+    issues.push('Genannte Fachrichtung muss zur empfohlenen Fachrichtung passen.')
   }
 
   if (response.reasons.some((reason) => reason.trim().length < 8)) {
