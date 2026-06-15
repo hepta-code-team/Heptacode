@@ -876,9 +876,8 @@ export default function ResultPage() {
 
                       return (
                         <p key={`${label}-${symptom.measurementType}-${symptom.measurementValue}-${symptom.duration ?? ""}`}>
-                          {label}: {getMeasurementSummary(symptom)}{
-                        symptom.duration ? `, ${getDurationLabel(symptom.duration)}` : ""
-                      }
+                          {label}{details}: {getMeasurementSummary(symptom)}
+                          {symptom.duration ? `, ${getDurationLabel(symptom.duration)}` : ""}
                         </p>
                       );
                     })

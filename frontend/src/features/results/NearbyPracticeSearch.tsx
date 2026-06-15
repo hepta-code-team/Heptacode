@@ -58,15 +58,6 @@ type Coordinates = {
   longitude: number;
 };
 
-function createAppleMapsRouteUrl(facility: Facility) {
-  // Zielkoordinate fuer Apple Maps im Format "Breitengrad,Laengengrad" zusammensetzen.
-  const destination = `${facility.latitude},${facility.longitude}`;
-
-  // Apple Karten bestimmt den Startpunkt selbst aus dem aktuellen Standort.
-  // Das ist auf iPhone/macOS robuster als eine manuell gesetzte saddr-Koordinate.
-  return `https://maps.apple.com/?daddr=${destination}&dirflg=d`;
-}
-
 function createGoogleMapsRouteUrl(facility: Facility, origin: UserLocation) {
   // Ziel ist die gefundene Einrichtung.
   const destination = `${facility.latitude},${facility.longitude}`;
@@ -133,57 +124,6 @@ function localizeOpeningHoursPart(value: string) {
     .replace(/\s*-\s*/g, "-")
     // Fuehrende/abschliessende Leerzeichen entfernen.
     .trim();
-}
-
-function formatOpeningHoursForDisplay(openingHours: string) {
-  // Whitespace entfernen, damit Vergleiche und Splits stabil funktionieren.
-  const normalizedOpeningHours = openingHours.trim();
-
-  // OSM-Kurzform fuer durchgehend geoeffnet.
-  if (normalizedOpeningHours === "24/7") {
-    return ["Durchgehend geöffnet"];
-  }
-
-  // OSM speichert Oeffnungszeiten in technischen Kurzformen.
-  // Fuer die UI werden Wochentage lokalisiert und einzelne Regeln als Zeilen ausgegeben.
-  // Beispiel: "Mo off; We 14:00-22:00" wird zu mehreren lesbaren Zeilen.
-  return normalizedOpeningHours
-    // Mehrere OSM-Regeln werden mit Semikolon getrennt.
-    .split(";")
-    .map((rule) => {
-      // Einzelne Regel bereinigen.
-      const trimmedRule = rule.trim();
-      // "off" bedeutet geschlossen, z. B. "Mo off".
-      const offMatch = trimmedRule.match(/^(.*)\boff\b$/i);
-      // Zeitfenster erkennen, z. B. "09:00-22:00" oder mehrere Zeitfenster.
-      const timeMatch = trimmedRule.match(/\d{1,2}:\d{2}\s*-\s*\d{1,2}:\d{2}(?:\s*,\s*\d{1,2}:\d{2}\s*-\s*\d{1,2}:\d{2})*/);
-
-      // Geschlossene Tage werden als eigene Zeile angezeigt.
-      if (offMatch) {
-        // Alles vor "off" ist der Tagesausdruck.
-        const days = localizeOpeningHoursPart(offMatch[1].trim());
-
-        // Wenn ein Tag vorhanden ist: "Mo: Geschlossen", sonst nur "Geschlossen".
-        return days ? `${days}: Geschlossen` : "Geschlossen";
-      }
-
-      // Falls keine Zeit erkannt wurde, wird die Regel nur lokalisiert ausgegeben.
-      if (!timeMatch) {
-        return localizeOpeningHoursPart(trimmedRule);
-      }
-
-      // Text vor dem Zeitfenster sind die Tage.
-      const days = localizeOpeningHoursPart(trimmedRule.slice(0, timeMatch.index).trim());
-      // Das gefundene Zeitfenster wird ebenfalls normalisiert.
-      const times = localizeOpeningHoursPart(timeMatch[0]);
-
-      // Ausgabe mit Doppelpunkt, z. B. "Mi: 14:00-22:00".
-      return days ? `${days}: ${times}` : times;
-    })
-    // Leere Regeln ausfiltern.
-    .filter(Boolean)
-    // Doppelte Zeilen entfernen, falls OSM identische Regeln mehrfach liefert.
-    .filter((rule, index, rules) => rules.indexOf(rule) === index);
 }
 
 function getFacilityType(careLevel: CareLevel, specialties: MedicalSpecialty[]) {
@@ -273,35 +213,88 @@ function dayMatches(ruleDays: string | undefined, currentDay: number) {
   });
 }
 
-function timeMatches(ruleTimes: string, currentMinutes: number) {
-  // Eine Regel kann mehrere Zeitfenster haben, getrennt durch Komma.
-  return ruleTimes.split(",").some((timePart) => {
-    // Einzelnes Zeitfenster erkennen.
-    const timeMatch = timePart.trim().match(/^(\d{1,2}:\d{2})-(\d{1,2}:\d{2})$/);
+type OpeningHoursDisplay = {
+  hoursLabel: string;
+  statusLabel: "Geöffnet" | "Schließt bald";
+  statusColor: string;
+};
 
-    // Wenn kein Zeitfenster erkannt wird, ist dieser Teil kein Treffer.
-    if (!timeMatch) {
-      return false;
+function getOpeningHoursDisplay(openingHours: string, now = new Date()): OpeningHoursDisplay {
+  const normalizedOpeningHours = openingHours.trim();
+
+  if (normalizedOpeningHours === "24/7") {
+    return {
+      hoursLabel: "Heute: Durchgehend geöffnet",
+      statusLabel: "Geöffnet",
+      statusColor: "#65A30D",
+    };
+  }
+
+  const currentDay = now.getDay();
+  const previousDay = (currentDay + 6) % 7;
+  const currentMinutes = now.getHours() * 60 + now.getMinutes();
+  const currentDayKey = Object.keys(WEEKDAY_INDEX).find((day) => WEEKDAY_INDEX[day] === currentDay) ?? "";
+  const todayLabel = OSM_DAY_LABELS[currentDayKey] ?? "Heute";
+  const todaysTimes: string[] = [];
+  let activeTimes: string | null = null;
+  let minutesUntilClosing: number | null = null;
+
+  normalizedOpeningHours.split(";").forEach((rule) => {
+    const trimmedRule = rule.trim();
+    const timeMatch = trimmedRule.match(/\d{1,2}:\d{2}\s*-\s*\d{1,2}:\d{2}(?:\s*,\s*\d{1,2}:\d{2}\s*-\s*\d{1,2}:\d{2})*/);
+
+    if (!timeMatch || /\boff\b/i.test(trimmedRule)) {
+      return;
     }
 
-    // Startzeit in Minuten umrechnen.
-    const startMinutes = parseTimeToMinutes(timeMatch[1]);
-    // Endzeit in Minuten umrechnen.
-    const endMinutes = parseTimeToMinutes(timeMatch[2]);
+    const dayExpression = trimmedRule.slice(0, timeMatch.index).trim();
+    const ruleTimes = timeMatch[0].replace(/\s/g, "");
 
-    // Ungueltige Zeiten koennen nicht ausgewertet werden.
-    if (startMinutes === null || endMinutes === null) {
-      return false;
+    if (dayMatches(dayExpression || undefined, currentDay)) {
+      todaysTimes.push(localizeOpeningHoursPart(ruleTimes));
     }
 
-    // Normales Zeitfenster am selben Tag.
-    if (startMinutes <= endMinutes) {
-      return currentMinutes >= startMinutes && currentMinutes <= endMinutes;
-    }
+    ruleTimes.split(",").forEach((timePart) => {
+      const intervalMatch = timePart.match(/^(\d{1,2}:\d{2})-(\d{1,2}:\d{2})$/);
 
-    // Zeitfenster ueber Mitternacht, z. B. "20:00-06:00".
-    return currentMinutes >= startMinutes || currentMinutes <= endMinutes;
+      if (!intervalMatch) {
+        return;
+      }
+
+      const startMinutes = parseTimeToMinutes(intervalMatch[1]);
+      const endMinutes = parseTimeToMinutes(intervalMatch[2]);
+
+      if (startMinutes === null || endMinutes === null) {
+        return;
+      }
+
+      const startsToday = dayMatches(dayExpression || undefined, currentDay);
+      const startedYesterday = dayMatches(dayExpression || undefined, previousDay);
+      const isOvernight = startMinutes > endMinutes;
+      const isActiveToday = startsToday && !isOvernight && currentMinutes >= startMinutes && currentMinutes <= endMinutes;
+      const isActiveBeforeMidnight = startsToday && isOvernight && currentMinutes >= startMinutes;
+      const isActiveAfterMidnight = startedYesterday && isOvernight && currentMinutes <= endMinutes;
+
+      if (!isActiveToday && !isActiveBeforeMidnight && !isActiveAfterMidnight) {
+        return;
+      }
+
+      activeTimes = localizeOpeningHoursPart(ruleTimes);
+      minutesUntilClosing = isActiveBeforeMidnight
+        ? 24 * 60 - currentMinutes + endMinutes
+        : endMinutes - currentMinutes;
+    });
   });
+
+  const uniqueTodaysTimes = todaysTimes.filter((times, index) => todaysTimes.indexOf(times) === index);
+  const displayTimes = uniqueTodaysTimes.length > 0 ? uniqueTodaysTimes : activeTimes ? [activeTimes] : [];
+  const closesSoon = minutesUntilClosing !== null && minutesUntilClosing <= 60;
+
+  return {
+    hoursLabel: `${todayLabel}: ${displayTimes.join(", ") || "Geöffnet"}`,
+    statusLabel: closesSoon ? "Schließt bald" : "Geöffnet",
+    statusColor: closesSoon ? "#EAB308" : "#65A30D",
+  };
 }
 
 function isOpenNow(openingHours: string | undefined, now = new Date()) {
@@ -318,6 +311,7 @@ function isOpenNow(openingHours: string | undefined, now = new Date()) {
   }
 
   const currentDay = now.getDay();
+  const previousDay = (currentDay + 6) % 7;
   const currentMinutes = now.getHours() * 60 + now.getMinutes();
 
   // Unterstuetzt die wichtigsten OSM-Formate wie "Mo-Fr 08:00-18:00; Sa 09:00-12:00".
@@ -344,8 +338,33 @@ function isOpenNow(openingHours: string | undefined, now = new Date()) {
     // Alles vor dem Zeitfenster ist der Tagesausdruck.
     const dayExpression = trimmedRule.slice(0, trimmedRule.length - match[3].length).trim();
 
-    // Ein Treffer braucht passenden Tag und passende Uhrzeit.
-    return dayMatches(dayExpression || undefined, currentDay) && timeMatches(match[3], currentMinutes);
+    return match[3].split(",").some((timePart) => {
+      const timeMatch = timePart.match(/^(\d{1,2}:\d{2})-(\d{1,2}:\d{2})$/);
+
+      if (!timeMatch) {
+        return false;
+      }
+
+      const startMinutes = parseTimeToMinutes(timeMatch[1]);
+      const endMinutes = parseTimeToMinutes(timeMatch[2]);
+
+      if (startMinutes === null || endMinutes === null) {
+        return false;
+      }
+
+      if (startMinutes <= endMinutes) {
+        return (
+          dayMatches(dayExpression || undefined, currentDay) &&
+          currentMinutes >= startMinutes &&
+          currentMinutes <= endMinutes
+        );
+      }
+
+      return (
+        (dayMatches(dayExpression || undefined, currentDay) && currentMinutes >= startMinutes) ||
+        (dayMatches(dayExpression || undefined, previousDay) && currentMinutes <= endMinutes)
+      );
+    });
   });
 }
 
@@ -946,59 +965,60 @@ export default function NearbyPracticeSearch({
       {/* Vor erfolgreicher Suche wird der Freigabe-Button mit passenden Statusmeldungen angezeigt. */}
       {locationStatus !== "ready" ? (
         <>
-          {/* Button fuer praezise Browser-Standortfreigabe */}
-          <button
-            type="button"
-            onClick={handleLocationRequest}
-            disabled={isRequestingLocation}
-            className="mx-auto flex min-h-[48px] items-center justify-center gap-2 rounded-[14px] bg-[#486284] px-5 py-3 text-white transition-all hover:bg-[#3a4d68] disabled:bg-gray-300 disabled:text-gray-500"
-          >
-            <LocateFixed className="size-5" aria-hidden="true" />
-            <span className="font-['DM_Sans:Bold',sans-serif] font-bold text-sm">
-              {isRequestingLocation ? statusLabel : "Standort freigeben"}
-            </span>
-          </button>
+          <div className="flex flex-col gap-3 md:flex-row md:items-end">
+            {/* Button fuer praezise Browser-Standortfreigabe */}
+            <button
+              type="button"
+              onClick={handleLocationRequest}
+              disabled={isRequestingLocation}
+              className="flex min-h-[48px] shrink-0 items-center justify-center gap-2 rounded-[14px] bg-[#486284] px-5 py-3 text-white transition-all hover:bg-[#3a4d68] disabled:bg-gray-300 disabled:text-gray-500"
+            >
+              <LocateFixed className="size-5" aria-hidden="true" />
+              <span className="font-['DM_Sans:Bold',sans-serif] font-bold text-sm">
+                {isRequestingLocation ? statusLabel : "Standort freigeben"}
+              </span>
+            </button>
+
+            <div className="hidden h-12 w-px shrink-0 bg-[#9aabc0] md:block" aria-hidden="true" />
+
+            {/* Alternative Suche per PLZ oder Adresse */}
+            <form
+              onSubmit={handleManualLocationSearch}
+              className="min-w-0 flex-1"
+            >
+              <label
+                htmlFor="manual-location-query"
+                className="mb-2 block text-sm font-bold text-[#486284]"
+              >
+                PLZ oder Adresse
+              </label>
+              <div className="flex flex-col gap-2 sm:flex-row">
+                <input
+                  id="manual-location-query"
+                  type="search"
+                  value={manualLocationQuery}
+                  onChange={(event) => setManualLocationQuery(event.target.value)}
+                  placeholder="z. B. 68163 Mannheim"
+                  disabled={isRequestingLocation}
+                  className="min-h-[48px] min-w-0 flex-1 rounded-[10px] border border-[#c8d2dc] bg-white px-3 py-2 text-sm font-medium text-[#3e3e3e] outline-none transition-all placeholder:text-[#7b8a8d] focus:border-[#486284] focus:ring-2 focus:ring-[#486284]/20 disabled:bg-gray-100 disabled:text-gray-500"
+                />
+                <button
+                  type="submit"
+                  disabled={isRequestingLocation || !manualLocationQuery.trim()}
+                  className="inline-flex min-h-[48px] items-center justify-center gap-2 rounded-[10px] bg-white px-4 py-2 text-sm font-bold text-[#486284] ring-1 ring-[#c8d2dc] transition-all hover:bg-[#dde3ea] disabled:bg-gray-100 disabled:text-gray-400"
+                >
+                  <Search className="size-4" aria-hidden="true" />
+                  Suchen
+                </button>
+              </div>
+            </form>
+          </div>
 
           {/* Hinweistext zur freiwilligen Standortnutzung */}
           <div className="mt-5 rounded-[12px] border border-dashed border-[#c8d2dc] bg-white px-4 py-3 text-sm font-medium leading-relaxed text-[#3e3e3e]">
             Geben Sie freiwillig Ihren Standort frei, um passende offene Einrichtungen in Ihrer Nähe anzuzeigen.
             {shouldSuggestNightPharmacies ? " Nachts werden bei Nicht-Notfällen zusätzlich Nacht-Apotheken berücksichtigt." : ""} Die Entfernung wird nur für die Sortierung der Liste genutzt.
           </div>
-
-          {/* Alternative Suche per PLZ oder Adresse */}
-          <form
-            onSubmit={handleManualLocationSearch}
-            className="mt-3 rounded-[12px] bg-white px-4 py-3"
-          >
-            {/* Label des manuellen Suchfelds */}
-            <label
-              htmlFor="manual-location-query"
-              className="mb-2 block text-sm font-bold text-[#486284]"
-            >
-              PLZ oder Adresse
-            </label>
-            <div className="flex flex-col gap-2 sm:flex-row">
-              {/* Kontrolliertes Eingabefeld fuer PLZ/Adresse */}
-              <input
-                id="manual-location-query"
-                type="search"
-                value={manualLocationQuery}
-                onChange={(event) => setManualLocationQuery(event.target.value)}
-                placeholder="z. B. 68163 Mannheim"
-                disabled={isRequestingLocation}
-                className="min-h-[44px] min-w-0 flex-1 rounded-[10px] border border-[#c8d2dc] bg-white px-3 py-2 text-sm font-medium text-[#3e3e3e] outline-none transition-all placeholder:text-[#7b8a8d] focus:border-[#486284] focus:ring-2 focus:ring-[#486284]/20 disabled:bg-gray-100 disabled:text-gray-500"
-              />
-              {/* Startet die manuelle Geocoding- und Einrichtungssuche */}
-              <button
-                type="submit"
-                disabled={isRequestingLocation || !manualLocationQuery.trim()}
-                className="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-[10px] bg-white px-4 py-2 text-sm font-bold text-[#486284] ring-1 ring-[#c8d2dc] transition-all hover:bg-[#dde3ea] disabled:bg-gray-100 disabled:text-gray-400"
-              >
-                <Search className="size-4" aria-hidden="true" />
-                Suchen
-              </button>
-            </div>
-          </form>
 
           {/* Fehlermeldung, wenn Nutzer Browser-Standort abgelehnt hat */}
           {locationStatus === "denied" && (
@@ -1047,27 +1067,21 @@ export default function NearbyPracticeSearch({
 
           {/* Ergebnisliste */}
           <div className="grid grid-cols-1 gap-3">
-            {facilities.map((facility) => (
-              // Einzelne Einrichtungskarte.
-              <div
-                key={facility.id}
-                className="rounded-[8px] bg-white p-4"
-              >
+            {facilities.map((facility) => {
+              const openingHoursDisplay = getOpeningHoursDisplay(facility.openingHours);
+
+              return (
+                // Einzelne Einrichtungskarte.
+                <div
+                  key={facility.id}
+                  className="rounded-[8px] bg-white p-4"
+                >
                 {/* Oberer Kartenbereich: Name, Kategorie, Entfernung, Adresse */}
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
-                    <div className="flex flex-wrap items-center gap-2">
-                      {/* Anzeigename der Einrichtung */}
-                      <p className="font-['DM_Sans:Bold',sans-serif] font-bold text-[#3e3e3e] text-sm">
-                        {facility.hasKnownName ? facility.name : `${facility.type} (Name nicht verfügbar)`}
-                      </p>
-                      {/* Nur Hauptempfehlungen bekommen das Empfehlungs-Badge */}
-                      {facility.priority === "recommended" && (
-                        <span className="rounded-full bg-[#D1FAE5] px-2 py-0.5 text-[11px] font-bold text-[#047857]">
-                          Empfohlen
-                        </span>
-                      )}
-                    </div>
+                    <p className="font-['DM_Sans:Bold',sans-serif] font-bold text-[#3e3e3e] text-sm">
+                      {facility.hasKnownName ? facility.name : `${facility.type} (Name nicht verfügbar)`}
+                    </p>
                     <p className="mt-1 font-['DM_Sans:Medium',sans-serif] font-medium text-[#486284] text-xs">
                       {facility.type} · {formatDistance(facility.distanceMeters)} entfernt
                     </p>
@@ -1080,32 +1094,24 @@ export default function NearbyPracticeSearch({
                 {/* Oeffnungszeitenblock */}
                 <div className="mt-3 flex min-w-0 items-start gap-2 text-xs font-medium text-[#3e3e3e]">
                   <Clock className="mt-0.5 size-4 flex-shrink-0 text-[#486284]" aria-hidden="true" />
-                  <div className="min-w-0 space-y-1">
-                    {/* Jede formatierte Oeffnungszeitenregel wird als eigene Zeile gerendert */}
-                    {formatOpeningHoursForDisplay(facility.openingHours).map((openingHoursLine) => (
-                      <p key={openingHoursLine} className="min-w-0 break-words">
-                        {openingHoursLine}
-                      </p>
-                    ))}
+                  <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1">
+                    <p className="min-w-0 break-words">{openingHoursDisplay.hoursLabel}</p>
+                    <span className="inline-flex items-center gap-1.5 font-bold">
+                      <span
+                        className="size-2 rounded-full"
+                        style={{ backgroundColor: openingHoursDisplay.statusColor }}
+                        aria-hidden="true"
+                      />
+                      {openingHoursDisplay.statusLabel}
+                    </span>
                   </div>
                 </div>
 
                 {/* Routenlinks werden nur angezeigt, wenn ein Suchmittelpunkt existiert */}
                 {userLocation && (
                   <div className="mt-3 rounded-[8px] bg-[#f4f7fa] px-3 py-2">
-                    {/* Der Nutzer waehlt bewusst, welche Karten-App die Route oeffnen soll. */}
-                    <p className="mb-2 text-xs font-bold text-[#486284]">Route öffnen mit:</p>
+                    <p className="mb-2 text-xs font-bold text-[#486284]">Route öffnen:</p>
                     <div className="flex flex-wrap gap-2">
-                      <a
-                        href={createAppleMapsRouteUrl(facility)}
-                        target="_blank"
-                        rel="noreferrer"
-                        aria-label={`Route zu ${facility.name} mit Apple Karten öffnen`}
-                        className="inline-flex min-h-[36px] items-center gap-2 rounded-[8px] bg-white px-3 py-2 text-xs font-bold text-[#486284] transition-all hover:bg-[#dde3ea]"
-                      >
-                        <Navigation className="size-4 flex-shrink-0" aria-hidden="true" />
-                        Apple Karten
-                      </a>
                       <a
                         href={createGoogleMapsRouteUrl(facility, userLocation)}
                         target="_blank"
@@ -1119,8 +1125,9 @@ export default function NearbyPracticeSearch({
                     </div>
                   </div>
                 )}
-              </div>
-            ))}
+                </div>
+              );
+            })}
           </div>
         </div>
       )}
