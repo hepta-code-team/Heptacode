@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from "react-router";
 import { Check, ChevronDown, Download, Edit3, PhoneCall, X } from "lucide-react";
 import PageShell from "../components/PageShell";
 import ResultCard from "../features/results/ResultCard";
+import NearbyPracticeSearch from "../features/results/NearbyPracticeSearch";
 import Button from "../components/Button";
 import {
   createSpecialtyConfig,
@@ -581,6 +582,13 @@ export default function ResultPage() {
             <span className="sr-only">{callAction.description}</span>
           </a>
       )}
+      <NearbyPracticeSearch
+        careLevel={careLevel}
+        specialties={
+          assessmentResult?.recommendedSpecialties?.map((specialty) => specialty.specialty) ?? [recommendedSpecialty]
+        }
+      />
+
       <div className="bg-white border border-[#d8e0ea] rounded-[16px] p-5 md:p-6 mb-4">
         <p className="font-['DM_Sans:Bold',sans-serif] font-bold text-app-text-primary text-lg mb-3">
           Ihre Einschätzung
@@ -937,9 +945,8 @@ export default function ResultPage() {
 
                       return (
                         <p key={`${label}-${symptom.measurementType}-${symptom.measurementValue}-${symptom.duration ?? ""}`}>
-                          {label}: {getMeasurementSummary(symptom)}{
-                        symptom.duration ? `, ${getDurationLabel(symptom.duration)}` : ""
-                      }
+                          {label}{details}: {getMeasurementSummary(symptom)}
+                          {symptom.duration ? `, ${getDurationLabel(symptom.duration)}` : ""}
                         </p>
                       );
                     })
