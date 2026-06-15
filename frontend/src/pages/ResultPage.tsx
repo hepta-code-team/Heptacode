@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router";
-import { Check, ChevronDown, Edit3, PhoneCall, X } from "lucide-react";
+import { Check, ChevronDown, Download, Edit3, PhoneCall, X } from "lucide-react";
 import PageShell from "../components/PageShell";
 import ResultCard from "../features/results/ResultCard";
 import Button from "../components/Button";
@@ -682,8 +682,9 @@ export default function ResultPage() {
                 type="button"
                 onClick={handlePdfDownload}
                 aria-label="download-summary"
-                className="bg-[#486284] text-app-text-on-primary rounded-[10px] px-4 py-2 hover:bg-[#3a4d68] transition-all"
+                className="inline-flex items-center justify-center gap-2 bg-[#486284] text-app-text-on-primary rounded-[10px] px-4 py-2 hover:bg-[#3a4d68] transition-all"
               >
+                <Download className="size-4" aria-hidden="true" />
                 PDF
               </button>
             )}
