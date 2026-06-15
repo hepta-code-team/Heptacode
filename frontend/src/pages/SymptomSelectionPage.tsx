@@ -777,7 +777,6 @@ export default function SymptomSelectionPage() {
       const nextSymptoms = selectedSymptoms.filter((symptom) => getSymptomKey(symptom) !== symptomKey);
       setSelectedSymptoms(nextSymptoms);
       setContextSymptoms(nextSymptoms);
-      setContextSymptomDetails([]);
       return;
     }
 
@@ -785,7 +784,6 @@ export default function SymptomSelectionPage() {
       const nextSymptoms = [...selectedSymptoms, { region: regionName, side }];
       setSelectedSymptoms(nextSymptoms);
       setContextSymptoms(nextSymptoms);
-      setContextSymptomDetails([]);
     }
   };
 
@@ -793,7 +791,6 @@ export default function SymptomSelectionPage() {
     const nextSymptoms = selectedSymptoms.filter((_, symptomIndex) => symptomIndex !== index);
     setSelectedSymptoms(nextSymptoms);
     setContextSymptoms(nextSymptoms);
-    setContextSymptomDetails([]);
   };
 
   const openSymptomTextModal = () => {
@@ -811,14 +808,7 @@ export default function SymptomSelectionPage() {
   };
 
   const handleContinue = () => {
-    const hasSelectionChanged = JSON.stringify(contextSymptoms) !== JSON.stringify(selectedSymptoms);
-
     setContextSymptoms(selectedSymptoms);
-
-    if (hasSelectionChanged) {
-      setContextSymptomDetails([]);
-    }
-
     navigate("/symptom-details");
   };
 

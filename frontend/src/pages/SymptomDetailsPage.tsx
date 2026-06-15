@@ -33,6 +33,9 @@ export default function SymptomDetailsPage() {
     submitAssessment,
   } = useAssessment();
 
+  const getSymptomKey = (symptom: { region: string; side?: string }) =>
+    symptom.side ? `${symptom.region} (${symptom.side})` : symptom.region;
+
   const createSymptomDetails = (region: string, side: string | undefined, index: number): SymptomDraft => {
     const measurementConfig = getMeasurementConfig(region);
 
@@ -79,12 +82,23 @@ export default function SymptomDetailsPage() {
   };
 
   const buildInitialSymptomDetails = (): SymptomDraft[] => {
-    const activeSymptoms =
-      routeState?.extractedSymptoms && routeState.extractedSymptoms.length > 0
-        ? routeState.extractedSymptoms.map((symptom, index) => normalizeSymptom(symptom, index, true))
-        : contextDetails.length > 0
-          ? contextDetails.map((symptom, index) => normalizeSymptom(symptom, index))
-          : selectedSymptoms.map((symptom, index) => normalizeSymptom(symptom, index));
+    const activeSymptoms = (() => {
+      if (routeState?.extractedSymptoms && routeState.extractedSymptoms.length > 0) {
+        return routeState.extractedSymptoms.map((symptom, index) => normalizeSymptom(symptom, index, true));
+      }
+
+      if (selectedSymptoms.length === 0) {
+        return contextDetails.map((symptom, index) => normalizeSymptom(symptom, index));
+      }
+
+      return selectedSymptoms.map((selectedSymptom, index) => {
+        const persistedSymptom = contextDetails.find(
+          (symptom) => getSymptomKey(symptom) === getSymptomKey(selectedSymptom),
+        );
+
+        return normalizeSymptom(persistedSymptom ?? selectedSymptom, index);
+      });
+    })();
 
     const placeholders = Array.from(
       { length: Math.max(0, MAX_SYMPTOMS - activeSymptoms.length) },
