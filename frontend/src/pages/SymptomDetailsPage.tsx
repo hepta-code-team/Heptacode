@@ -29,6 +29,7 @@ export default function SymptomDetailsPage() {
     selectedSymptoms,
     symptomDetails: contextDetails,
     setSymptomDetails,
+    setSelectedSymptoms,
     isEvaluating,
     submitAssessment,
   } = useAssessment();
@@ -115,8 +116,12 @@ export default function SymptomDetailsPage() {
   const [submitError, setSubmitError] = useState<string | null>(null);
 
   useEffect(() => {
-    setSymptomDetails(symptomDetails.filter((symptom) => symptom.active) as Symptom[]);
-  }, [symptomDetails, setSymptomDetails]);
+    const activeSymptoms = symptomDetails.filter((symptom) => symptom.active && symptom.region.trim()) as Symptom[];
+    const selectedActiveSymptoms = activeSymptoms.map(({ region, side }) => ({ region, side }));
+
+    setSymptomDetails(activeSymptoms);
+    setSelectedSymptoms(selectedActiveSymptoms);
+  }, [symptomDetails, setSelectedSymptoms, setSymptomDetails]);
 
   useEffect(() => {
     if (selectedSymptoms.length === 0 && contextDetails.length === 0 && !hasRouteExtractedSymptoms) {

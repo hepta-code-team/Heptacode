@@ -721,6 +721,13 @@ export default function SymptomSelectionPage() {
   };
 
   /**
+   * Keeps the local button state in sync with symptoms changed on the detail page.
+   */
+  useEffect(() => {
+    setSelectedSymptoms(contextSymptoms);
+  }, [contextSymptoms]);
+
+  /**
    * Cleans up timers and active speech recognition when the page unmounts.
    * Browser speech APIs can continue firing callbacks after navigation unless
    * they are explicitly stopped and dereferenced.
