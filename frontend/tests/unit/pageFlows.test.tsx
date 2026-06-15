@@ -8,7 +8,7 @@ import PatientDataPage from '../../src/pages/PatientDataPage';
 import ResultPage from '../../src/pages/ResultPage';
 import SymptomDetailsPage from '../../src/pages/SymptomDetailsPage';
 import SymptomSelectionPage from '../../src/pages/SymptomSelectionPage';
-import { extractSymptomsFromText, validateSymptomInput } from '../../src/lib/symptomExtractionApi';
+import { extractSymptomsFromText, validateSymptomDetailInput, validateSymptomInput } from '../../src/lib/symptomExtractionApi';
 import type { PatientData } from '../../src/types/assessment';
 
 const navigateMock = vi.fn();
@@ -82,6 +82,7 @@ vi.mock('react-router', () => ({
 
 vi.mock('../../src/lib/symptomExtractionApi', () => ({
   extractSymptomsFromText: vi.fn(),
+  validateSymptomDetailInput: vi.fn(),
   validateSymptomInput: vi.fn(),
 }));
 
@@ -101,6 +102,7 @@ vi.mock('../../src/lib/AssessmentContext', () => ({
 }));
 
 const extractSymptomsFromTextMock = vi.mocked(extractSymptomsFromText);
+const validateSymptomDetailInputMock = vi.mocked(validateSymptomDetailInput);
 const validateSymptomInputMock = vi.mocked(validateSymptomInput);
 
 describe('page-level user flows', () => {
@@ -114,6 +116,11 @@ describe('page-level user flows', () => {
     assessmentState.symptomText = '';
     locationState.current = null;
     validateSymptomInputMock.mockResolvedValue({
+      text: 'Kopf',
+      inputType: 'text',
+      isValidMedicalInput: true,
+    });
+    validateSymptomDetailInputMock.mockResolvedValue({
       text: 'Kopf',
       inputType: 'text',
       isValidMedicalInput: true,

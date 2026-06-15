@@ -32,6 +32,7 @@ export default function SymptomDetailsPage() {
     setSelectedSymptoms,
     isEvaluating,
     submitAssessment,
+    symptomText,
   } = useAssessment();
 
   const getSymptomKey = (symptom: { region: string; side?: string }) =>
@@ -79,6 +80,12 @@ export default function SymptomDetailsPage() {
         ? symptom.measurementValue
         : measurementConfig.defaultValue,
       isNameEditable,
+      ...(isNameEditable ? {
+        sourceText: symptomText.trim(),
+        originalRegion: symptom.region,
+        originalSide: symptom.side,
+        originalDetails: symptom.details,
+      } : {}),
     };
   };
 

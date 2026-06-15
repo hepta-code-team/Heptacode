@@ -1,13 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { handleSubmitAssessment } from '../../src/features/symptoms/handleSubmitAssessment';
-import { validateSymptomInput } from '../../src/lib/symptomExtractionApi';
+import { validateSymptomDetailInput } from '../../src/lib/symptomExtractionApi';
 import type { SymptomDraft } from '../../src/types/assessment';
 
 vi.mock('../../src/lib/symptomExtractionApi', () => ({
-  validateSymptomInput: vi.fn(),
+  validateSymptomDetailInput: vi.fn(),
 }));
 
-const validateSymptomInputMock = vi.mocked(validateSymptomInput);
+const validateSymptomDetailInputMock = vi.mocked(validateSymptomDetailInput);
 
 function createSetters() {
   return {
@@ -93,7 +93,7 @@ describe('handleSubmitAssessment', () => {
   it('validates editable AI-extracted symptoms before submitting', async () => {
     const setters = createSetters();
     const submitAssessment = vi.fn().mockResolvedValue({});
-    validateSymptomInputMock.mockResolvedValue({
+    validateSymptomDetailInputMock.mockResolvedValue({
       text: 'Kopfschmerzen',
       inputType: 'text',
       isValidMedicalInput: true,
@@ -110,17 +110,54 @@ describe('handleSubmitAssessment', () => {
       ...setters,
     });
 
-    expect(validateSymptomInputMock).toHaveBeenCalledTimes(2);
-    expect(validateSymptomInputMock).toHaveBeenNthCalledWith(1, 'Kopfschmerzen', 'text', undefined);
-    expect(validateSymptomInputMock).toHaveBeenNthCalledWith(2, 'starker Druck', 'text', undefined);
+    expect(validateSymptomDetailInputMock).toHaveBeenCalledTimes(2);
+    expect(validateSymptomDetailInputMock).toHaveBeenNthCalledWith(1, 'Kopfschmerzen', 'text', undefined);
+    expect(validateSymptomDetailInputMock).toHaveBeenNthCalledWith(2, 'starker Druck', 'text', undefined);
     expect(submitAssessment).toHaveBeenCalledTimes(1);
+    expect(setters.navigate).toHaveBeenCalledWith('/result');
+  });
+
+  it('validates unchanged AI-extracted symptom labels with their original free-text context', async () => {
+    const setters = createSetters();
+    const submitAssessment = vi.fn().mockResolvedValue({});
+    validateSymptomDetailInputMock.mockResolvedValue({
+      text: 'Ich habe seit Tagen Schwindel und mir ist uebel.\nSymptom: Allgemein',
+      inputType: 'text',
+      isValidMedicalInput: true,
+    });
+
+    await handleSubmitAssessment({
+      symptomDetails: [
+        createSymptomDraft({
+          region: 'Allgemein',
+          isNameEditable: true,
+          sourceText: 'Ich habe seit Tagen Schwindel und mir ist uebel.',
+          originalRegion: 'Allgemein',
+        }),
+      ],
+      submitAssessment,
+      ...setters,
+    });
+
+    expect(validateSymptomDetailInputMock).toHaveBeenCalledTimes(1);
+    expect(validateSymptomDetailInputMock).toHaveBeenCalledWith(
+      'Ich habe seit Tagen Schwindel und mir ist uebel.\nSymptom: Allgemein',
+      'text',
+      undefined,
+    );
+    expect(submitAssessment).toHaveBeenCalledWith([
+      expect.objectContaining({
+        region: 'Allgemein',
+        active: true,
+      }),
+    ]);
     expect(setters.navigate).toHaveBeenCalledWith('/result');
   });
 
   it('shows an error and stays on the current page when editable symptom validation fails', async () => {
     const setters = createSetters();
     const submitAssessment = vi.fn();
-    validateSymptomInputMock.mockResolvedValue({
+    validateSymptomDetailInputMock.mockResolvedValue({
       text: 'kein medizinischer Kontext',
       inputType: 'text',
       isValidMedicalInput: false,
@@ -139,4 +176,3 @@ describe('handleSubmitAssessment', () => {
     expect(setters.setIsSubmitting).toHaveBeenLastCalledWith(false);
   });
 });
-
