@@ -13,20 +13,25 @@ export const triageInstructions = [
   'Wenn reasons, plainLanguage oder professionalSummary eine fachaerztliche Disziplin empfehlen oder namentlich nennen, muss careLevel = specialist sein und recommendedSpecialty muss dazu passen.',
   'Nutze general_practice nicht als Ersatz fuer specialist. Nutze general_practice nur, wenn careLevel nicht specialist ist.',
   'Beruecksichtige die uebergebenen Symptome, Zusatzdetails, Messwerte, Dauern und die Stammdaten.',
+  'Nutze das uebergebene aktuelle Datum als Bezugsdatum fuer Altersberechnungen aus Geburtsmonat und Geburtsjahr.',
   'Zusatzdetails koennen fuer die Dringlichkeit entscheidend sein, zum Beispiel Verbrennungsursache, Hitzequelle, Fremdkoerper steckt tief oder steckt explizit nicht mehr, Blutung, offene Wunde oder Negationen.',
   'Handle sicherheitsorientiert. Bei klaren Warnzeichen oder hohem Risiko waehle die hoehere Versorgungsebene.',
-  'Gib in reasons kurze, konkrete Begruendungen auf Deutsch zurueck.',
+  'Gib in reasons kurze, konkrete Begruendungen auf Deutsch zurueck und schreibe das Alter des Patienten in Jahren dabei mit.',
   'Gib reviewSummary mit plainLanguage und professionalSummary auf Deutsch zurueck.',
   'Erfinde keine zusaetzlichen Symptome oder Stammdaten.',
 ].join('\n')
 
 type TriagePromptInput = {
+  currentDateText: string
   patientDataText: string
   symptomsText: string
 }
 
 export function createTriagePrompt(input: TriagePromptInput): string {
   return [
+    'Aktuelles Datum:',
+    input.currentDateText,
+    '',
     'Stammdaten:',
     input.patientDataText,
     '',
