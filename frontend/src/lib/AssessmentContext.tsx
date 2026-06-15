@@ -57,7 +57,6 @@ function normalizeAssessmentSymptomDetails(symptomDetails: Symptom[]): Symptom[]
 function normalizePersistedAssessmentState(state: PersistedAssessmentState): PersistedAssessmentState {
   return {
     ...state,
-    patientData: omitMoodFromPatientData(state.patientData),
     symptomDetails: normalizeAssessmentSymptomDetails(state.symptomDetails),
   };
 }
@@ -171,12 +170,11 @@ export function AssessmentProvider({ children }: { children: ReactNode }) {
   };
 
   const setPatientData = (data: PatientData) => {
-    const nextPatientData = omitMoodFromPatientData(data);
-    const hasChanged = JSON.stringify(patientData) !== JSON.stringify(nextPatientData);
+    const hasChanged = JSON.stringify(patientData) !== JSON.stringify(data);
 
-    if (hasChanged && nextPatientData) {
+    if (hasChanged) {
       invalidateAssessmentResult();
-      setPatientDataState(nextPatientData);
+      setPatientDataState(data);
     }
   };
 
@@ -214,7 +212,7 @@ export function AssessmentProvider({ children }: { children: ReactNode }) {
     }
 
     const payload: AssessmentPayload = {
-      patientData,
+      patientData: omitMoodFromPatientData(patientData) as PatientData,
       selectedSymptoms,
       symptomDetails: details,
     };

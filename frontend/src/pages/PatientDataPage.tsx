@@ -104,7 +104,6 @@ export default function PatientDataPage() {
   const birthYearMin = currentYear - MAX_PATIENT_AGE_YEARS;
 
   const [formData, setFormData] = useState<PatientData>(() => createInitialPatientData(patientData ?? undefined));
-  const [mood, setMood] = useState("");
   const [showValidationErrors, setShowValidationErrors] = useState(false);
 
   /**
@@ -437,7 +436,7 @@ export default function PatientDataPage() {
         </div>
       </div>
 
-      <div className={getRequiredFieldCardClass(Boolean(mood), "mt-3")}>
+      <div className={getRequiredFieldCardClass(Boolean(formData.mood), "mt-3")}>
         <div className="mb-2">
           <p
             className="font-['DM_Sans:Bold',sans-serif] font-bold text-app-text-body text-base"
@@ -449,13 +448,13 @@ export default function PatientDataPage() {
 
         <div className="flex flex-wrap justify-center gap-1.5 sm:grid sm:grid-cols-5">
           {MOOD_OPTIONS.map(({ label, icon: Icon, color, bgColor }) => {
-            const isSelected = mood === label;
+            const isSelected = formData.mood === label;
 
             return (
               <button
                 key={label}
                 type="button"
-                onClick={() => setMood(isSelected ? "" : label)}
+                onClick={() => setFormData({ ...formData, mood: isSelected ? "" : label })}
                 className="flex min-h-11 w-[calc((100%-0.75rem)/3)] items-center justify-center gap-1 rounded-[10px] border px-1.5 py-2 text-center text-app-text-body transition-all hover:opacity-90 sm:w-auto sm:gap-1.5 sm:px-2"
                 style={{
                   backgroundColor: isSelected ? bgColor : "#ffffff",
