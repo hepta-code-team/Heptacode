@@ -29,9 +29,13 @@ export default function SymptomDetailsPage() {
     selectedSymptoms,
     symptomDetails: contextDetails,
     setSymptomDetails,
+    setSelectedSymptoms,
     isEvaluating,
     submitAssessment,
   } = useAssessment();
+
+  const getSymptomKey = (symptom: { region: string; side?: string }) =>
+    symptom.side ? `${symptom.region} (${symptom.side})` : symptom.region;
 
   const createSymptomDetails = (region: string, side: string | undefined, index: number): SymptomDraft => {
     const measurementConfig = getMeasurementConfig(region);
@@ -79,12 +83,23 @@ export default function SymptomDetailsPage() {
   };
 
   const buildInitialSymptomDetails = (): SymptomDraft[] => {
-    const activeSymptoms =
-      routeState?.extractedSymptoms && routeState.extractedSymptoms.length > 0
-        ? routeState.extractedSymptoms.map((symptom, index) => normalizeSymptom(symptom, index, true))
-        : contextDetails.length > 0
-          ? contextDetails.map((symptom, index) => normalizeSymptom(symptom, index))
-          : selectedSymptoms.map((symptom, index) => normalizeSymptom(symptom, index));
+    const activeSymptoms = (() => {
+      if (routeState?.extractedSymptoms && routeState.extractedSymptoms.length > 0) {
+        return routeState.extractedSymptoms.map((symptom, index) => normalizeSymptom(symptom, index, true));
+      }
+
+      if (selectedSymptoms.length === 0) {
+        return contextDetails.map((symptom, index) => normalizeSymptom(symptom, index));
+      }
+
+      return selectedSymptoms.map((selectedSymptom, index) => {
+        const persistedSymptom = contextDetails.find(
+          (symptom) => getSymptomKey(symptom) === getSymptomKey(selectedSymptom),
+        );
+
+        return normalizeSymptom(persistedSymptom ?? selectedSymptom, index);
+      });
+    })();
 
     const placeholders = Array.from(
       { length: Math.max(0, MAX_SYMPTOMS - activeSymptoms.length) },
@@ -99,6 +114,14 @@ export default function SymptomDetailsPage() {
   const [showValidationErrors, setShowValidationErrors] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const activeSymptoms = symptomDetails.filter((symptom) => symptom.active && symptom.region.trim()) as Symptom[];
+    const selectedActiveSymptoms = activeSymptoms.map(({ region, side }) => ({ region, side }));
+
+    setSymptomDetails(activeSymptoms);
+    setSelectedSymptoms(selectedActiveSymptoms);
+  }, [symptomDetails, setSelectedSymptoms, setSymptomDetails]);
 
   useEffect(() => {
     if (selectedSymptoms.length === 0 && contextDetails.length === 0 && !hasRouteExtractedSymptoms) {

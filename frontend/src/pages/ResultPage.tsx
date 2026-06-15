@@ -422,8 +422,8 @@ export default function ResultPage() {
   };
 
   const handleReset = () => {
+    navigate("/", { replace: true, flushSync: true });
     resetAssessment();
-    navigate("/");
   };
 
   const handleStartSummaryEdit = () => {
