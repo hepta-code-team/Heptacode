@@ -631,7 +631,7 @@ export default function ResultPage() {
               {assessmentResult?.aiModel && (
                 <li className="font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-body text-sm leading-relaxed">
                   • Die Einschätzung wurde mit dem KI-Modell{" "}
-                  <strong>{assessmentResult.aiModel}</strong> durchgeführt.
+                  <strong>{assessmentResult.aiModel}</strong> durchgeführt. KI kann Fehler machen.
                 </li>
               )}
             </ul>
