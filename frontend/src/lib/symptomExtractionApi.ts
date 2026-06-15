@@ -57,3 +57,15 @@ export async function validateSymptomInput(
     patientData: omitMoodFromPatientData(patientData),
   });
 }
+
+export async function validateSymptomDetailInput(
+  symptomText: string,
+  inputType: SymptomInputType = "text",
+  patientData?: PatientData,
+): Promise<SymptomInputValidationResponse> {
+  return apiClient.post<SymptomInputValidationResponse>("/api/v1/symptoms/detail-validation", {
+    symptomText,
+    inputType,
+    patientData,
+  });
+}

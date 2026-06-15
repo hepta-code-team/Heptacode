@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { Navigate, createBrowserRouter, useLocation } from "react-router";
 import type { ReactElement } from "react";
 import LandingPage from "../pages/LandingPage";
@@ -8,6 +9,16 @@ import SymptomDetailsPage from "../pages/SymptomDetailsPage";
 import ResultPage from "../pages/ResultPage";
 import { useAssessment } from "../lib/AssessmentContext";
 import { isValidPatientData } from "../lib/assessmentValidation";
+
+function PageRoute({ children }: { children: ReactElement }) {
+  const { pathname, search } = useLocation();
+
+  useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+  }, [pathname, search]);
+
+  return children;
+}
 
 function PatientDataRequiredRoute({ children }: { children: ReactElement }) {
   const location = useLocation();
@@ -25,17 +36,27 @@ function PatientDataRequiredRoute({ children }: { children: ReactElement }) {
 export const router = createBrowserRouter([
   {
     path: "/",
-    element: <LandingPage />,
+    element: (
+      <PageRoute>
+        <LandingPage />
+      </PageRoute>
+    ),
   },
   {
     path: "/patient-data",
-    element: <PatientDataPage />,
+    element: (
+      <PageRoute>
+        <PatientDataPage />
+      </PageRoute>
+    ),
   },
   {
     path: "/medical-data",
     element: (
       <PatientDataRequiredRoute>
-        <MedicalDataPage />
+        <PageRoute>
+          <MedicalDataPage />
+        </PageRoute>
       </PatientDataRequiredRoute>
     ),
   },
@@ -43,7 +64,9 @@ export const router = createBrowserRouter([
     path: "/symptom-selection",
     element: (
       <PatientDataRequiredRoute>
-        <SymptomSelectionPage />
+        <PageRoute>
+          <SymptomSelectionPage />
+        </PageRoute>
       </PatientDataRequiredRoute>
     ),
   },
@@ -51,7 +74,9 @@ export const router = createBrowserRouter([
     path: "/symptom-details",
     element: (
       <PatientDataRequiredRoute>
-        <SymptomDetailsPage />
+        <PageRoute>
+          <SymptomDetailsPage />
+        </PageRoute>
       </PatientDataRequiredRoute>
     ),
   },
@@ -59,7 +84,9 @@ export const router = createBrowserRouter([
     path: "/result",
     element: (
       <PatientDataRequiredRoute>
-        <ResultPage />
+        <PageRoute>
+          <ResultPage />
+        </PageRoute>
       </PatientDataRequiredRoute>
     ),
   },

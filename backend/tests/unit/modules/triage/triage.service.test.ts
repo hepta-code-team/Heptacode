@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { AiResponseError } from '../../../../src/ai/timeout.js'
 import { requestStructuredAiResponseWithModel } from '../../../../src/ai/llmAdapter.js'
@@ -39,6 +39,10 @@ const malePatientData = {
 describe('evaluateTriage', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
   })
 
   it('gibt bei Notfallauswahl direkt emergency zurueck', async () => {
@@ -109,6 +113,45 @@ describe('evaluateTriage', () => {
           expect.objectContaining({
             role: 'user',
             content: expect.stringContaining('Details: Kochendes Wasser ueber Arm geschuettet'),
+          }),
+        ]),
+      }),
+    )
+  })
+
+  it('uebergibt das aktuelle Datum als Bezugsdatum fuer Altersberechnungen an die KI', async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date(2026, 5, 15, 12, 0, 0))
+    requestStructuredAiResponseWithModelMock.mockResolvedValueOnce({
+      data: {
+        careLevel: 'doctor',
+        reasons: ['Die Beschwerden sollten aerztlich abgeklart werden.'],
+        reviewSummary: {
+          plainLanguage: 'Bitte lassen Sie die Beschwerden aerztlich abklaeren.',
+          professionalSummary: 'Care Level: doctor.',
+        },
+      },
+      model: 'test-model',
+    })
+
+    await evaluateTriage({
+      ...malePatientData,
+      birthMonth: '05',
+      birthYear: '2004',
+    }, [
+      { region: 'Kopf', measurementType: 'pain', measurementValue: 5, duration: 'days' },
+    ])
+
+    expect(requestStructuredAiResponseWithModelMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        messages: expect.arrayContaining([
+          expect.objectContaining({
+            role: 'system',
+            content: expect.stringContaining('Bezugsdatum fuer Altersberechnungen'),
+          }),
+          expect.objectContaining({
+            role: 'user',
+            content: expect.stringContaining('Aktuelles Datum:\n2026-06-15'),
           }),
         ]),
       }),
