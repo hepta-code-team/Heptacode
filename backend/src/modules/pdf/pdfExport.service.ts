@@ -1,16 +1,11 @@
 import PDFDocument from 'pdfkit'
-import { Buffer } from 'node:buffer'
-import { existsSync } from 'node:fs'
-import { join } from 'node:path'
+import {Buffer} from 'node:buffer'
+import {existsSync} from 'node:fs'
+import {join} from 'node:path'
 
-import type { PatientData } from '../../../../shared/patientData.types.js'
-import type { TriageSymptom } from '../../../../shared/symptom.types.js'
-import type {
-  PdfExportRequest,
-  PdfExportResult,
-  PdfSection,
-  PdfTriageResult,
-} from './pdf.types.js'
+import type {PatientData} from '../../../../shared/patientData.types.js'
+import type {TriageSymptom} from '../../../../shared/symptom.types.js'
+import type {PdfExportRequest, PdfExportResult, PdfSection, PdfTriageResult,} from './pdf.types.js'
 
 type PdfDoc = InstanceType<typeof PDFDocument>
 
@@ -516,33 +511,18 @@ function cleanStructuredProfessionalSummary(summary: string): string {
   ].join('\n')
 }
 
-/**
- * Creates the recommendation rationale shown below the medical overview.
- *
- * Known care levels use carefully worded patient-facing explanations, while
- * unknown values fall back to the raw reasons provided in the request.
- */
-function summarizeCareReason(triage?: PdfTriageResult): string {
-  if (!triage) {
+function summarizeCareReason(request: PdfExportRequest): string {
+  const plainLanguageSummary = normalizeGermanText(request.reviewSummary.plainLanguage).trim()
+
+  if (plainLanguageSummary.length > 0) {
+    return `Begründung der Empfehlung: \n${plainLanguageSummary}`
+  }
+
+  if (!request.triage) {
     return 'Begründung der Empfehlung: Keine Begründung vorhanden.'
   }
 
-  switch (triage.careLevel) {
-    case 'emergency':
-      return 'Begründung der Empfehlung: \nIhre ausgewählten Symptome deuten auf einen Notfall hin. Weitere Informationen finden Sie unter gesund.bund.de.'
-
-    case 'doctor':
-      return 'Begründung der Empfehlung: \nIhre Angaben sprechen für Beschwerden, die ärztlich abgeklärt werden sollten. Deshalb wird eine hausärztliche Abklärung empfohlen.'
-
-    case 'specialist':
-      return 'Begründung der Empfehlung: \nIhre Angaben sprechen für Beschwerden, die fachärztlich abgeklärt werden sollten. Deshalb wird eine fachärztliche Versorgung empfohlen.'
-
-    case 'selfcare':
-      return 'Begründung der Empfehlung: \nIhre Angaben sprechen derzeit eher für eine Selbstversorgung. Beobachten Sie Ihre Beschwerden weiter. Bei Verschlechterung, starken Beschwerden oder Unsicherheit sollten Sie medizinische Hilfe suchen.'
-
-    default:
-      return `Begründung der Empfehlung: ${formatReasons(triage.reasons)}`
-  }
+  return `Begründung der Empfehlung: ${formatReasons(request.triage.reasons)}`
 }
 
 /**
@@ -567,7 +547,7 @@ function summarizeMedicalOverview(request: PdfExportRequest): string {
       'Beschwerden:',
       extractComplaintsFromStructuredSummary(rawProfessionalSummary),
       '',
-      summarizeCareReason(request.triage),
+      summarizeCareReason(request),
     ].join('\n')
   }
 
@@ -578,7 +558,7 @@ function summarizeMedicalOverview(request: PdfExportRequest): string {
     'Beschwerden:',
     summarizeSymptoms(request.symptoms),
     '',
-    summarizeCareReason(request.triage),
+    summarizeCareReason(request),
   ].join('\n')
 }
 
@@ -977,9 +957,7 @@ function addSectionCard(
   doc.fillColor(THEME.text).font('Helvetica').fontSize(10)
 
   const contentX = x + padding
-  const contentY = y + padding + titleHeight + 8
-
-  doc.y = contentY
+  doc.y = y + padding + titleHeight + 8
 
   section.content.split('\n').forEach((line) => {
     if (line.trim().length === 0) {
