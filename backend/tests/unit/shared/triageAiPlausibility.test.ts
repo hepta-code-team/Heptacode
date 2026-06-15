@@ -243,6 +243,28 @@ describe('getTriageAiPlausibilityIssues', () => {
     expect(issues).toContain('Warnsymptome duerfen nicht als selfcare eingestuft werden.')
   })
 
+  /** Warning text should be enough to reject self-care even without a measurement value. */
+  it('markiert Selfcare bei Atemnot ohne Messwert als unplausibel', () => {
+    const issues = getTriageAiPlausibilityIssues(
+      {
+        careLevel: 'selfcare',
+        reasons: ['Die Beschwerden koennen zunaechst beobachtet werden.'],
+        reviewSummary: {
+          plainLanguage: 'Die Beschwerden koennen zunaechst beobachtet werden.',
+          professionalSummary: 'Care Level: selfcare.',
+        },
+      },
+      [
+        {
+          region: 'Allgemein',
+          details: 'Atemnot in Ruhe',
+        },
+      ],
+    )
+
+    expect(issues).toContain('Warnsymptome duerfen nicht als selfcare eingestuft werden.')
+  })
+
   /** Strong bleeding descriptions should not be accepted as self-care. */
   it('markiert Selfcare bei starker Blutung als unplausibel', () => {
     const issues = getTriageAiPlausibilityIssues(
@@ -328,6 +350,40 @@ describe('getTriageAiPlausibilityIssues', () => {
     expect(issues).toEqual([])
   })
 
+  /** Pain below the emergency threshold should remain compatible with doctor-level care. */
+  it('akzeptiert Doctor bei Schmerzstaerke 7 ohne Warnzeichen als plausibel', () => {
+    const issues = getTriageAiPlausibilityIssues(
+      plausibleDoctorResponse,
+      [
+        {
+          region: 'Ruecken',
+          measurementType: 'pain',
+          measurementValue: 7,
+          duration: 'today',
+        },
+      ],
+    )
+
+    expect(issues).toEqual([])
+  })
+
+  /** Severe pain without additional warning text should remain compatible with emergency care. */
+  it('akzeptiert Emergency bei sehr starken Schmerzen als plausibel', () => {
+    const issues = getTriageAiPlausibilityIssues(
+      plausibleEmergencyResponse,
+      [
+        {
+          region: 'Ruecken',
+          measurementType: 'pain',
+          measurementValue: 8,
+          duration: 'today',
+        },
+      ],
+    )
+
+    expect(issues).toEqual([])
+  })
+
   /** Medium-intensity symptoms should remain compatible with doctor-level care. */
   it('akzeptiert plausible Doctor-Antworten bei mittleren Beschwerden', () => {
     const issues = getTriageAiPlausibilityIssues(
@@ -370,6 +426,56 @@ describe('getTriageAiPlausibilityIssues', () => {
     expect(issues).toEqual([])
   })
 
+  /** Specialist responses may use specialist wording when the specialty is modeled correctly. */
+  it('akzeptiert Specialist-Antworten mit passender Fachrichtung und Facharzt-Text', () => {
+    const issues = getTriageAiPlausibilityIssues(
+      {
+        careLevel: 'specialist',
+        recommendedSpecialty: 'cardiology',
+        reasons: ['Die Beschwerden sollten fachaerztlich kardiologisch abgeklart werden.'],
+        reviewSummary: {
+          plainLanguage: 'Bitte vereinbaren Sie eine kardiologische Facharztabklaerung.',
+          professionalSummary: 'Care Level: specialist. Empfohlene Fachrichtung: cardiology.',
+        },
+      },
+      [
+        {
+          region: 'Brust',
+          measurementType: 'pain',
+          measurementValue: 4,
+          duration: 'days',
+        },
+      ],
+    )
+
+    expect(issues).toEqual([])
+  })
+
+  /** Specialist responses do not have to repeat the specialty in every explanation text. */
+  it('akzeptiert Specialist-Antworten mit Fachrichtung ohne Fachrichtungs-Text', () => {
+    const issues = getTriageAiPlausibilityIssues(
+      {
+        careLevel: 'specialist',
+        recommendedSpecialty: 'cardiology',
+        reasons: ['Eine fachaerztliche Abklaerung ist sinnvoll.'],
+        reviewSummary: {
+          plainLanguage: 'Bitte lassen Sie die Beschwerden fachaerztlich abklaeren.',
+          professionalSummary: 'Care Level: specialist. Empfohlene Fachrichtung: cardiology.',
+        },
+      },
+      [
+        {
+          region: 'Brust',
+          measurementType: 'pain',
+          measurementValue: 4,
+          duration: 'days',
+        },
+      ],
+    )
+
+    expect(issues).toEqual([])
+  })
+
   /** Doctor responses should not contain specialist recommendations in their explanation text. */
   it('markiert Doctor-Antworten mit fachaerztlicher Empfehlung im Text als unplausibel', () => {
     const issues = getTriageAiPlausibilityIssues(
@@ -387,6 +493,56 @@ describe('getTriageAiPlausibilityIssues', () => {
           measurementType: 'pain',
           measurementValue: 4,
           duration: 'days',
+        },
+      ],
+    )
+
+    expect(issues).toContain(
+      'Fachaerztliche Empfehlungen muessen als specialist mit Fachrichtung modelliert werden.',
+    )
+  })
+
+  /** General-practice wording should not be treated like specialist escalation. */
+  it('akzeptiert Doctor-Antworten mit Hausarzt-Empfehlung als plausibel', () => {
+    const issues = getTriageAiPlausibilityIssues(
+      {
+        careLevel: 'doctor',
+        reasons: ['Bitte stellen Sie sich bei Ihrem Hausarzt vor.'],
+        reviewSummary: {
+          plainLanguage: 'Bitte lassen Sie die Beschwerden hausarztlich einordnen.',
+          professionalSummary: 'Care Level: doctor. Empfehlung zur hausarztlichen Abklaerung.',
+        },
+      },
+      [
+        {
+          region: 'Bauch',
+          measurementType: 'pain',
+          measurementValue: 4,
+          duration: 'days',
+        },
+      ],
+    )
+
+    expect(issues).toEqual([])
+  })
+
+  /** Doctor responses should not hide specialist escalation behind generic specialist wording. */
+  it('markiert Doctor-Antworten mit Facharzt-Empfehlung als unplausibel', () => {
+    const issues = getTriageAiPlausibilityIssues(
+      {
+        careLevel: 'doctor',
+        reasons: ['Bitte stellen Sie sich bei einem Facharzt vor.'],
+        reviewSummary: {
+          plainLanguage: 'Bitte lassen Sie die Beschwerden durch einen Facharzt abklaeren.',
+          professionalSummary: 'Care Level: doctor. Facharzt-Empfehlung.',
+        },
+      },
+      [
+        {
+          region: 'Knie',
+          measurementType: 'pain',
+          measurementValue: 4,
+          duration: 'weeks',
         },
       ],
     )
@@ -418,6 +574,30 @@ describe('getTriageAiPlausibilityIssues', () => {
     )
 
     expect(issues).toContain('Genannte Fachrichtung muss zur empfohlenen Fachrichtung passen.')
+  })
+
+  /** Neurology wording should not be misread as urology because of substring overlap. */
+  it('verwechselt neurologische Empfehlungen nicht mit Urologie', () => {
+    const issues = getTriageAiPlausibilityIssues(
+      {
+        careLevel: 'specialist',
+        recommendedSpecialty: 'neurology',
+        reasons: ['Die Beschwerden sollten neurologisch abgeklart werden.'],
+        reviewSummary: {
+          plainLanguage: 'Bitte lassen Sie die Beschwerden neurologisch abklaeren.',
+          professionalSummary: 'Care Level: specialist. Empfohlene Fachrichtung: neurology.',
+        },
+      },
+      [
+        {
+          region: 'Kopf',
+          measurementType: 'pain',
+          measurementValue: 5,
+        },
+      ],
+    )
+
+    expect(issues).toEqual([])
   })
 
   /** Specialist responses without a specialty should fail plausibility even after schema-like shaping. */
@@ -465,6 +645,56 @@ describe('getTriageAiPlausibilityIssues', () => {
     )
 
     expect(issues).toEqual([])
+  })
+
+  /** Independent contradictions should be reported together instead of stopping at the first issue. */
+  it('meldet mehrere Plausibilitaetsprobleme gemeinsam', () => {
+    const issues = getTriageAiPlausibilityIssues(
+      {
+        careLevel: 'selfcare',
+        reasons: ['ok'],
+        reviewSummary: {
+          plainLanguage: 'Kurz',
+          professionalSummary: 'Kurz',
+        },
+      },
+      [
+        {
+          region: 'Brust',
+          details: 'Druckgefuehl und Atemnot',
+          measurementType: 'pain',
+          measurementValue: 6,
+          duration: 'today',
+        },
+      ],
+    )
+
+    expect(issues).toEqual(
+      expect.arrayContaining([
+        'Warnsymptome duerfen nicht als selfcare eingestuft werden.',
+        'Begruendungen muessen nachvollziehbar und nicht nur Platzhalter sein.',
+        'Review-Summary muss in beiden Feldern ausreichend aussagekraeftig sein.',
+      ]),
+    )
+  })
+
+  /** Empty symptom input should not be treated as mild symptoms. */
+  it('markiert Emergency ohne Symptome nicht als milde-Beschwerden-Widerspruch', () => {
+    const issues = getTriageAiPlausibilityIssues(
+      {
+        careLevel: 'emergency',
+        reasons: ['Ohne strukturierte Symptome wird vorsichtig eskaliert.'],
+        reviewSummary: {
+          plainLanguage: 'Bitte lassen Sie die Situation medizinisch einschaetzen.',
+          professionalSummary: 'Care Level: emergency without structured symptoms.',
+        },
+      },
+      [],
+    )
+
+    expect(issues).not.toContain(
+      'Milde Beschwerden ohne Warnzeichen duerfen nicht als emergency eingestuft werden.',
+    )
   })
 
   /** Placeholder-style reasons and summaries should be rejected as insufficient content. */
