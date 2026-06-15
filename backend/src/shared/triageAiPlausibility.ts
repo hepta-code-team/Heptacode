@@ -32,7 +32,12 @@ const NON_SPECIALIST_SPECIALTIES: MedicalSpecialty[] = [
  * Normalizes optional symptom text before keyword matching.
  */
 function normalizeText(value: string | undefined): string {
-  return value?.trim().toLowerCase() ?? ''
+  return value
+    ?.trim()
+    .toLowerCase()
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/\u00df/g, 'ss') ?? ''
 }
 
 function isSpecialistSpecialty(

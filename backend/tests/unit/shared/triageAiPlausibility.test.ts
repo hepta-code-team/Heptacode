@@ -502,6 +502,37 @@ describe('getTriageAiPlausibilityIssues', () => {
     )
   })
 
+  /** Specialty wording with German umlauts should be normalized before matching. */
+  it.each([
+    ['orthopaedische', 'orthopädisch'],
+    ['gynaekologische', 'gynäkologisch'],
+    ['paediatrische', 'pädiatrisch'],
+    ['zahnaerztliche', 'zahnärztlich'],
+  ])('markiert Doctor-Antworten mit %s Umlaut-Schreibweise als unplausibel', (_label, wording) => {
+    const issues = getTriageAiPlausibilityIssues(
+      {
+        careLevel: 'doctor',
+        reasons: [`Die Beschwerden sollten ${wording} abgeklart werden.`],
+        reviewSummary: {
+          plainLanguage: `Bitte lassen Sie die Beschwerden ${wording} abklaeren.`,
+          professionalSummary: 'Care Level: doctor.',
+        },
+      },
+      [
+        {
+          region: 'Beschwerden',
+          measurementType: 'pain',
+          measurementValue: 4,
+          duration: 'days',
+        },
+      ],
+    )
+
+    expect(issues).toContain(
+      'Wenn eine Fachrichtung genannt wird, muss diese auch als Empfehlung eingestuft werden.',
+    )
+  })
+
   /** General-practice wording should not be treated like specialist escalation. */
   it('akzeptiert Doctor-Antworten mit Hausarzt-Empfehlung als plausibel', () => {
     const issues = getTriageAiPlausibilityIssues(
