@@ -103,7 +103,6 @@ const createInitialPatientData = (patientData?: Partial<PatientData>): PatientDa
   height: "",
   weight: "",
   gender: "",
-  mood: "",
   isPregnant: false,
   isBreastfeeding: false,
   allergies: "",
@@ -251,6 +250,10 @@ export default function MedicalDataPage() {
     document.addEventListener("pointerdown", handlePointerDown);
     return () => document.removeEventListener("pointerdown", handlePointerDown);
   }, []);
+
+  useEffect(() => {
+    setPatientData(formData);
+  }, [formData, setPatientData]);
 
 
   const toggleMedicalSection = (section: MedicalSection) => {

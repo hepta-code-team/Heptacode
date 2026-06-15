@@ -25,6 +25,15 @@ export interface SymptomInputValidationResponse {
   message?: string;
 }
 
+function omitMoodFromPatientData(patientData: PatientData | undefined): PatientData | undefined {
+  if (!patientData) {
+    return undefined;
+  }
+
+  const { mood: _mood, ...patientDataWithoutMood } = patientData;
+  return patientDataWithoutMood;
+}
+
 export async function extractSymptomsFromText(
   symptomText: string,
   inputType: SymptomInputType = "text",
@@ -33,7 +42,7 @@ export async function extractSymptomsFromText(
   return apiClient.post<SymptomExtractionResponse>("/api/v1/symptoms/extraction", {
     symptomText,
     inputType,
-    patientData,
+    patientData: omitMoodFromPatientData(patientData),
   });
 }
 
@@ -45,7 +54,7 @@ export async function validateSymptomInput(
   return apiClient.post<SymptomInputValidationResponse>("/api/v1/symptoms/validation", {
     symptomText,
     inputType,
-    patientData,
+    patientData: omitMoodFromPatientData(patientData),
   });
 }
 

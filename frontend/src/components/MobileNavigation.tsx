@@ -1,5 +1,6 @@
 import { useNavigate, useLocation } from "react-router";
 import { useAssessment } from "../lib/AssessmentContext";
+import { isValidPatientData } from "../lib/assessmentValidation";
 
 const pages = [
   { path: "/", name: "Symptome wählen" },
@@ -13,14 +14,24 @@ const pages = [
 export default function MobileNavigation() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { assessmentResult, selectedSymptoms } = useAssessment();
+  const { assessmentResult, patientData, selectedSymptoms } = useAssessment();
   const activePath = location.pathname === "/body-area" ? "/symptom-selection" : location.pathname;
   const currentIndex = pages.findIndex((p) => p.path === activePath);
   const isEmergencyResult =
     activePath === "/result" && new URLSearchParams(location.search).get("emergency") === "true";
 
-  const canNavigateTo = (path: string | undefined) =>
-    path !== "/symptom-details" || selectedSymptoms.length > 0;
+  const hasValidPatientData = isValidPatientData(patientData);
+  const canNavigateTo = (path: string | undefined) => {
+    if (!path) {
+      return false;
+    }
+
+    if (path !== "/" && path !== "/patient-data" && !hasValidPatientData) {
+      return false;
+    }
+
+    return path !== "/symptom-details" || selectedSymptoms.length > 0;
+  };
   const previousPage = isEmergencyResult ? pages[0] : pages[currentIndex - 1];
   const nextPage = isEmergencyResult ? undefined : pages[currentIndex + 1];
   const canGoBack = isEmergencyResult || (currentIndex > 0 && canNavigateTo(previousPage?.path));

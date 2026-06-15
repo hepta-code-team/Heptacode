@@ -721,6 +721,13 @@ export default function SymptomSelectionPage() {
   };
 
   /**
+   * Keeps the local button state in sync with symptoms changed on the detail page.
+   */
+  useEffect(() => {
+    setSelectedSymptoms(contextSymptoms);
+  }, [contextSymptoms]);
+
+  /**
    * Cleans up timers and active speech recognition when the page unmounts.
    * Browser speech APIs can continue firing callbacks after navigation unless
    * they are explicitly stopped and dereferenced.
@@ -774,17 +781,23 @@ export default function SymptomSelectionPage() {
     const alreadySelected = selectedSymptoms.some((symptom) => getSymptomKey(symptom) === symptomKey);
 
     if (alreadySelected) {
-      setSelectedSymptoms((symptoms) => symptoms.filter((symptom) => getSymptomKey(symptom) !== symptomKey));
+      const nextSymptoms = selectedSymptoms.filter((symptom) => getSymptomKey(symptom) !== symptomKey);
+      setSelectedSymptoms(nextSymptoms);
+      setContextSymptoms(nextSymptoms);
       return;
     }
 
     if (selectedSymptoms.length < MAX_SYMPTOMS) {
-      setSelectedSymptoms([...selectedSymptoms, { region: regionName, side }]);
+      const nextSymptoms = [...selectedSymptoms, { region: regionName, side }];
+      setSelectedSymptoms(nextSymptoms);
+      setContextSymptoms(nextSymptoms);
     }
   };
 
   const removeSymptom = (index: number) => {
-    setSelectedSymptoms(selectedSymptoms.filter((_, symptomIndex) => symptomIndex !== index));
+    const nextSymptoms = selectedSymptoms.filter((_, symptomIndex) => symptomIndex !== index);
+    setSelectedSymptoms(nextSymptoms);
+    setContextSymptoms(nextSymptoms);
   };
 
   const openSymptomTextModal = () => {
@@ -803,7 +816,6 @@ export default function SymptomSelectionPage() {
 
   const handleContinue = () => {
     setContextSymptoms(selectedSymptoms);
-    setContextSymptomDetails([]);
     navigate("/symptom-details");
   };
 
