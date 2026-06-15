@@ -34,6 +34,15 @@ function hasText(value: string | undefined): value is string {
   return Boolean(value && value.trim().length > 0)
 }
 
+function formatConditionDetail({ detail, duration }: PatientData['conditionDetails'][string]): string | null {
+  const parts = [
+    hasText(detail) ? detail.trim() : null,
+    hasText(duration) ? `Dauer: ${duration.trim()}` : null,
+  ].filter((part): part is string => part !== null)
+
+  return parts.length > 0 ? parts.join(', ') : null
+}
+
 function assertPatientDataIsPlausible(
   patientData: PatientData | undefined,
   text: string | undefined,
@@ -58,8 +67,11 @@ function buildPatientDataLines(patientData?: PatientData): string[] {
   }
 
   const conditionDetails = Object.entries(patientData.conditionDetails)
-    .filter(([, detail]) => hasText(detail))
-    .map(([condition, detail]) => `${condition}: ${detail.trim()}`)
+    .map(([condition, detail]) => {
+      const formattedDetail = formatConditionDetail(detail)
+      return formattedDetail ? `${condition}: ${formattedDetail}` : null
+    })
+    .filter((detail): detail is string => detail !== null)
 
   return [
     `Geburtsmonat: ${patientData.birthMonth}`,
