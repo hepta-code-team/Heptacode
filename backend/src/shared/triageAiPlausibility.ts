@@ -178,7 +178,7 @@ export function getTriageAiPlausibilityIssues(
   }
 
   if (response.careLevel === 'specialist' && !response.recommendedSpecialty) {
-    issues.push('Specialist-Antworten benoetigen eine passende Fachrichtung.')
+    issues.push('Empfehlungen zu Fachrichtungen benoetigen eine genaue Angabe der Fachrichtung.')
   }
 
   const mentionedSpecialties = findMentionedSpecialties(response)
@@ -187,7 +187,7 @@ export function getTriageAiPlausibilityIssues(
     response.careLevel !== 'specialist' &&
     (mentionedSpecialties.length > 0 || mentionsSpecialistCare(response))
   ) {
-    issues.push('Fachaerztliche Empfehlungen muessen als specialist mit Fachrichtung modelliert werden.')
+    issues.push('Wenn eine Fachrichtung genannt wird, muss diese auch als Empfehlung eingestuft werden.')
   }
 
   if (

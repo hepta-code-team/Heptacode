@@ -498,7 +498,7 @@ describe('getTriageAiPlausibilityIssues', () => {
     )
 
     expect(issues).toContain(
-      'Fachaerztliche Empfehlungen muessen als specialist mit Fachrichtung modelliert werden.',
+      'Wenn eine Fachrichtung genannt wird, muss diese auch als Empfehlung eingestuft werden.',
     )
   })
 
@@ -548,7 +548,7 @@ describe('getTriageAiPlausibilityIssues', () => {
     )
 
     expect(issues).toContain(
-      'Fachaerztliche Empfehlungen muessen als specialist mit Fachrichtung modelliert werden.',
+      'Wenn eine Fachrichtung genannt wird, muss diese auch als Empfehlung eingestuft werden.',
     )
   })
 
@@ -620,7 +620,9 @@ describe('getTriageAiPlausibilityIssues', () => {
       ],
     )
 
-    expect(issues).toContain('Specialist-Antworten benoetigen eine passende Fachrichtung.')
+    expect(issues).toContain(
+      'Empfehlungen zu Fachrichtungen benoetigen eine genaue Angabe der Fachrichtung.',
+    )
   })
 
   /** Mild headache without warning signs should remain compatible with self-care. */

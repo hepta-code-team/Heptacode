@@ -225,7 +225,7 @@ describe('evaluateTriage', () => {
     })
     expect(result).not.toHaveProperty('aiModel')
     expect(result.reasons).toContain(
-      'Fachaerztliche Empfehlungen muessen als specialist mit Fachrichtung modelliert werden.',
+      'Wenn eine Fachrichtung genannt wird, muss diese auch als Empfehlung eingestuft werden.',
     )
   })
 
