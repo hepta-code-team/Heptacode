@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router";
-import { Edit3, PhoneCall } from "lucide-react";
+import { ChevronDown, Edit3, PhoneCall } from "lucide-react";
 import PageShell from "../components/PageShell";
 import ResultCard from "../features/results/ResultCard";
 import Button from "../components/Button";
@@ -273,6 +273,7 @@ export default function ResultPage() {
   const [travelStartDateDraft, setTravelStartDateDraft] = useState("");
   const [travelEndDateDraft, setTravelEndDateDraft] = useState("");
   const [editableProfessionalSummary, setEditableProfessionalSummary] = useState("");
+  const [isExplanationOpen, setIsExplanationOpen] = useState(false);
   const [professionalSummaryDraft, setProfessionalSummaryDraft] = useState<MedicalSummarySections>(
     EMPTY_MEDICAL_SUMMARY_SECTIONS,
   );
@@ -293,11 +294,13 @@ export default function ResultPage() {
       : TRIAGE_CONFIGS[careLevel === "specialist" ? "doctor" : careLevel];
 
   const callAction =
-    careLevel === "emergency"
-      ? { href: "tel:112", label: "112 anrufen", description: "Notruf" }
-      : careLevel === "doctor"
-        ? { href: "tel:116117", label: "116 117 anrufen", description: "Ärztlicher Bereitschaftsdienst" }
-        : null;
+      careLevel === "emergency"
+          ? {href: "tel:112", label: "112 anrufen", description: "Notruf"}
+          : careLevel === "doctor"
+              ? {href: "tel:116117", label: "Ärztlicher Bereitschaftsdienst (116 117)", description: "Ärztlicher Bereitschaftsdienst"}
+              : recommendedSpecialty === "psychiatry"
+                  ? {href: "tel:0800 1110111", label: "Telefonseelsorge (0800 1110111)", description: "Telefonseelsorge"}
+                  : null;
 
   const explanationReasons = assessmentResult?.reasons?.length
     ? assessmentResult.reasons
@@ -550,8 +553,22 @@ export default function ResultPage() {
       title="Ihre Auswertung"
       subtitle="Basierend auf Ihren Angaben haben wir folgende Empfehlung für Sie."
     >
-      <ResultCard config={config} />
+      <ResultCard config={config} careLevel={careLevel} recommendedSpecialty={recommendedSpecialty} />
 
+      {callAction && (
+          <a
+              href={callAction.href}
+              className="md:hidden mb-4 flex min-h-[56px] w-full items-center justify-center gap-3 rounded-[14px] px-5 py-3 text-app-text-on-primary shadow-sm transition-all hover:opacity-90"
+              style={{ backgroundColor: config.color }}
+              aria-label={callAction.label}
+          >
+            <PhoneCall className="size-5 flex-shrink-0" aria-hidden="true" />
+            <span className="font-['DM_Sans:Bold',sans-serif] font-bold text-base">
+            {callAction.label}
+          </span>
+            <span className="sr-only">{callAction.description}</span>
+          </a>
+      )}
       <div className="bg-white border border-[#d8e0ea] rounded-[16px] p-5 md:p-6 mb-4">
         <p className="font-['DM_Sans:Bold',sans-serif] font-bold text-app-text-primary text-lg mb-3">
           Ihre Einschätzung
@@ -565,35 +582,52 @@ export default function ResultPage() {
             deshalb mit einem vorsichtigen medizinischen Fallback erzeugt.
           </p>
         )}
-      </div>
 
-      {callAction && (
-        <a
-          href={callAction.href}
-          className="md:hidden mb-4 flex min-h-[56px] w-full items-center justify-center gap-3 rounded-[14px] px-5 py-3 text-app-text-on-primary shadow-sm transition-all hover:opacity-90"
-          style={{ backgroundColor: config.color }}
-          aria-label={callAction.label}
+
+
+        <button
+          type="button"
+          onClick={() => setIsExplanationOpen((isOpen) => !isOpen)}
+          className="mt-5 inline-flex items-center gap-2 rounded-[10px] border border-[#d8e0ea] px-4 py-2 text-app-text-primary transition-all hover:border-[#486284] hover:bg-[#eff2f6]"
+          aria-expanded={isExplanationOpen}
         >
-          <PhoneCall className="size-5 flex-shrink-0" aria-hidden="true" />
-          <span className="font-['DM_Sans:Bold',sans-serif] font-bold text-base">
-            {callAction.label}
+          <span className="font-['DM_Sans:Bold',sans-serif] font-bold text-sm">
+            {isExplanationOpen ? "KI-Begründung ausblenden" : "KI-Begründung anzeigen"}
           </span>
-          <span className="sr-only">{callAction.description}</span>
-        </a>
-      )}
+          <ChevronDown
+            className={`size-4 flex-shrink-0 text-app-text-primary transition-transform ${
+              isExplanationOpen ? "rotate-180" : ""
+            }`}
+            aria-hidden="true"
+          />
+        </button>
 
-      <div className="bg-[#eff2f6] rounded-[16px] p-5 md:p-6 mb-4">
-        <p className="font-['DM_Sans:Bold',sans-serif] font-bold text-app-text-primary text-lg mb-3">
-          Begründung
-        </p>
-        <ul className="space-y-1.5">
-          {explanationReasons.map((reason) => (
-            <li key={reason} className="font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-body text-sm leading-relaxed">
-              • {reason}
-            </li>
-          ))}
-        </ul>
+        {isExplanationOpen && (
+          <div className="mt-4">
+            <p className="font-['DM_Sans:Bold',sans-serif] font-bold text-app-text-primary text-sm mb-2">
+              KI-Begründung
+            </p>
+            <ul className="space-y-1.5">
+              {explanationReasons.map((reason) => (
+                <li
+                  key={reason}
+                  className="font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-body text-sm leading-relaxed"
+                >
+                  • {reason}
+                </li>
+              ))}
+              {assessmentResult?.aiModel && (
+                <li className="font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-body text-sm leading-relaxed">
+                  • Die Einschätzung wurde mit dem KI-Modell{" "}
+                  <strong>{assessmentResult.aiModel}</strong> durchgeführt.
+                </li>
+              )}
+            </ul>
+          </div>
+        )}
       </div>
+
+
 
       <div className="bg-white border-2 border-[#486284] rounded-[16px] p-5 md:p-6 mb-4">
         <div className="flex flex-col gap-3 mb-4 sm:flex-row sm:items-center sm:justify-between">
@@ -864,7 +898,6 @@ export default function ResultPage() {
                       const label = symptom.side
                         ? `${symptom.region} (${symptom.side})`
                         : symptom.region;
-                      const details = symptom.details ? `, Details: ${symptom.details}` : "";
 
                       return (
                         <p key={`${label}-${symptom.measurementType}-${symptom.measurementValue}-${symptom.duration ?? ""}`}>
