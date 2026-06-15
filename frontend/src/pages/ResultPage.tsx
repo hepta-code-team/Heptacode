@@ -942,9 +942,10 @@ export default function ResultPage() {
                       const label = symptom.side
                         ? `${symptom.region} (${symptom.side})`
                         : symptom.region;
+                      const details = symptom.details ? `, Details: ${symptom.details}` : "";
 
                       return (
-                        <p key={`${label}-${symptom.measurementType}-${symptom.measurementValue}-${symptom.duration ?? ""}`}>
+                        <p key={`${label}-${symptom.details ?? ""}-${symptom.measurementType}-${symptom.measurementValue}-${symptom.duration ?? ""}`}>
                           {label}{details}: {getMeasurementSummary(symptom)}
                           {symptom.duration ? `, ${getDurationLabel(symptom.duration)}` : ""}
                         </p>
