@@ -623,31 +623,31 @@ export default function ResultPage() {
         </button>
 
         {isExplanationOpen && (
-          <div className="mt-4">
+          <div className="mt-4 border-l-2 border-[#486284]/30 pl-4">
             <p className="font-['DM_Sans:Bold',sans-serif] font-bold text-app-text-primary text-base mb-2">
               KI-Begründung
             </p>
             {symptomText?.trim() && (
-                <p className="font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-body text-sm leading-relaxed">
+                <p className="mb-3 font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-body text-sm leading-relaxed">
                   Ihre Eingabe: <span className="italic">„{symptomText.trim()}“</span>
                 </p>
             )}
-            <ul className="space-y-1.5">
+            <div className="space-y-1.5">
               {explanationReasons.map((reason) => (
-                <li
+                <p
                   key={reason}
                   className="font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-body text-sm leading-relaxed"
                 >
-                  • {reason}
-                </li>
+                  {reason}
+                </p>
               ))}
               {assessmentResult?.aiModel && (
-                <li className="font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-body text-sm leading-relaxed">
-                  • Die Einschätzung wurde mit dem KI-Modell{" "}
+                <p className="font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-body text-sm leading-relaxed">
+                  Die Einschätzung wurde mit dem KI-Modell{" "}
                   <strong>{assessmentResult.aiModel}</strong> durchgeführt. KI kann Fehler machen.
-                </li>
+                </p>
               )}
-            </ul>
+            </div>
           </div>
         )}
       </div>
