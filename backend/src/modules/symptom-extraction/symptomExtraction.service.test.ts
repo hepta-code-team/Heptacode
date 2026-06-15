@@ -2,7 +2,11 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { requestStructuredAiResponse } from '../../ai/llmAdapter.js'
 import { AiResponseError } from '../../ai/timeout.js'
-import { extractSymptoms, validateSymptomInput } from './symptomExtraction.service.js'
+import {
+  extractSymptoms,
+  validateSymptomDetailInput,
+  validateSymptomInput,
+} from './symptomExtraction.service.js'
 
 vi.mock('../../ai/llmAdapter.js', () => ({
   requestStructuredAiResponse: vi.fn(),
@@ -338,6 +342,63 @@ describe('validateSymptomInput', () => {
       text: 'BlaBla',
       inputType: 'text',
       isValidMedicalInput: false,
+    })
+    expect(requestStructuredAiResponseMock).not.toHaveBeenCalled()
+  })
+})
+
+describe('validateSymptomDetailInput', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('validiert kurze Details ueber das lockere Fallback-Modell', async () => {
+    requestStructuredAiResponseMock.mockResolvedValueOnce({
+      isValidMedicalInput: true,
+      reason: 'Kurzes medizinisches Detail erkannt.',
+    })
+
+    const result = await validateSymptomDetailInput('links')
+
+    expect(result).toEqual({
+      text: 'links',
+      inputType: 'text',
+      isValidMedicalInput: true,
+    })
+    expect(requestStructuredAiResponseMock).toHaveBeenCalledTimes(1)
+    expect(requestStructuredAiResponseMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        schemaName: 'symptom_detail_validation_result',
+        modelStrategy: 'fallback-only',
+      }),
+    )
+  })
+
+  it('laesst Zufallstext durch das Fallback-Modell ablehnen', async () => {
+    requestStructuredAiResponseMock.mockResolvedValueOnce({
+      isValidMedicalInput: false,
+      reason: 'Die Angabe wirkt wie Buchstabensalat.',
+    })
+
+    const result = await validateSymptomDetailInput('fesijfbi')
+
+    expect(result).toEqual({
+      text: 'fesijfbi',
+      inputType: 'text',
+      isValidMedicalInput: false,
+      message: 'Die Angabe wirkt wie Buchstabensalat.',
+    })
+    expect(requestStructuredAiResponseMock).toHaveBeenCalledTimes(1)
+  })
+
+  it('faengt leere Detailangaben ohne KI-Aufruf ab', async () => {
+    const result = await validateSymptomDetailInput('   ')
+
+    expect(result).toEqual({
+      text: '   ',
+      inputType: 'text',
+      isValidMedicalInput: false,
+      message: 'Bitte geben Sie eine Angabe ein.',
     })
     expect(requestStructuredAiResponseMock).not.toHaveBeenCalled()
   })

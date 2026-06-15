@@ -11,8 +11,10 @@ import {
 } from './symptomExtraction.types.js'
 import {
   createSymptomExtractionPrompt,
+  createSymptomDetailValidationPrompt,
   createSymptomValidationPrompt,
   symptomExtractionInstructions,
+  symptomDetailValidationInstructions,
   symptomValidationInstructions,
 } from '../prompt/symptomExtraction.prompt.js'
 
@@ -92,6 +94,22 @@ async function requestInputValidationFromAi(text: string, inputType: SymptomInpu
   })
 }
 
+async function requestDetailValidationFromAi(text: string, inputType: SymptomInputType) {
+  return requestStructuredAiResponse({
+    messages: [
+      { role: 'system', content: symptomDetailValidationInstructions },
+      {
+        role: 'user',
+        content: createSymptomDetailValidationPrompt({ text, inputType }),
+      },
+    ],
+    schema: symptomInputValidationAiResultSchema,
+    schemaName: 'symptom_detail_validation_result',
+    temperature: 0,
+    modelStrategy: 'fallback-only',
+  })
+}
+
 export async function validateSymptomInput(
   text: string,
   inputType: SymptomInputType = 'text',
@@ -121,6 +139,55 @@ export async function validateSymptomInput(
 
   try {
     const validationResult = await requestInputValidationFromAi(text, inputType)
+
+    return {
+      text,
+      inputType,
+      isValidMedicalInput: validationResult.isValidMedicalInput,
+      message: validationResult.isValidMedicalInput ? undefined : validationResult.reason,
+    }
+  } catch (error) {
+    if (!isAiRequestError(error)) {
+      throw error
+    }
+
+    return {
+      text,
+      inputType,
+      isValidMedicalInput: false,
+      aiUnavailable: true,
+      message: 'Die medizinische Kontextprüfung ist aktuell nicht verfügbar. Bitte versuchen Sie es erneut.',
+    }
+  }
+}
+
+export async function validateSymptomDetailInput(
+  text: string,
+  inputType: SymptomInputType = 'text',
+  patientData?: PatientData,
+): Promise<SymptomInputValidationResponse> {
+  const plausibilityError = getPatientPlausibilityError(patientData, text, undefined)
+
+  if (plausibilityError) {
+    return {
+      text,
+      inputType,
+      isValidMedicalInput: false,
+      message: plausibilityError,
+    }
+  }
+
+  if (!text.trim()) {
+    return {
+      text,
+      inputType,
+      isValidMedicalInput: false,
+      message: 'Bitte geben Sie eine Angabe ein.',
+    }
+  }
+
+  try {
+    const validationResult = await requestDetailValidationFromAi(text, inputType)
 
     return {
       text,
