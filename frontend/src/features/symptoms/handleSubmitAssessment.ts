@@ -1,4 +1,4 @@
-import { validateSymptomInput } from "../../lib/symptomExtractionApi";
+import { validateSymptomDetailInput } from "../../lib/symptomExtractionApi";
 import type { PatientData, SymptomDetailPayload, SymptomDraft } from "../../types/assessment";
 
 type CompleteSymptomDraft = SymptomDraft & {
@@ -9,7 +9,7 @@ function hasDuration(symptom: SymptomDraft): symptom is CompleteSymptomDraft {
   return symptom.duration !== undefined;
 }
 
-function validateEditableSymptomNames(symptoms: SymptomDraft[]) {
+async function validateEditableSymptomInputs(symptoms: SymptomDraft[], patientData?: PatientData) {
   for (const symptom of symptoms) {
     if (!symptom.isNameEditable) {
       continue;
@@ -20,41 +20,31 @@ function validateEditableSymptomNames(symptoms: SymptomDraft[]) {
     if (!symptomName) {
       throw new Error("Bitte geben Sie für jedes erkannte Symptom einen Namen ein.");
     }
-  }
-}
 
-async function validateEditableSymptomMedicalContext(
-  symptoms: SymptomDraft[],
-  patientData?: PatientData,
-) {
-  for (const symptom of symptoms) {
-    if (!symptom.isNameEditable) {
-      continue;
-    }
-
-    const symptomName = symptom.region.trim();
-    const symptomNameResult = await validateSymptomInput(symptomName, "text", patientData);
+    const symptomNameResult = await validateSymptomDetailInput(symptomName, "text", patientData);
 
     if (!symptomNameResult.isValidMedicalInput) {
       throw new Error(
         symptomNameResult.message ??
-          "Bitte prüfen Sie den bearbeiteten Symptomnamen. Er muss weiterhin einen medizinischen Kontext beschreiben.",
+          "Bitte geben Sie ein sinnvolles Symptom oder medizinisches Stichwort ein.",
       );
     }
 
-    const details = symptom.details?.trim();
+    if (symptom.details !== undefined) {
+      const details = symptom.details.trim();
 
-    if (!details) {
-      continue;
-    }
+      if (!details) {
+        continue;
+      }
 
-    const detailsResult = await validateSymptomInput(details, "text", patientData);
+      const detailsResult = await validateSymptomDetailInput(details, "text", patientData);
 
-    if (!detailsResult.isValidMedicalInput) {
-      throw new Error(
-        detailsResult.message ??
-          "Bitte prüfen Sie die bearbeiteten Zusatzdetails. Sie müssen weiterhin einen medizinischen Kontext beschreiben.",
-      );
+      if (!detailsResult.isValidMedicalInput) {
+        throw new Error(
+          detailsResult.message ??
+            "Bitte geben Sie sinnvolle medizinische Zusatzdetails ein.",
+        );
+      }
     }
   }
 }
@@ -102,8 +92,7 @@ export async function handleSubmitAssessment({
   setIsSubmitting(true);
 
   try {
-    validateEditableSymptomNames(completeSymptoms);
-    await validateEditableSymptomMedicalContext(completeSymptoms, patientData);
+    await validateEditableSymptomInputs(completeSymptoms, patientData);
     await submitAssessment(payloadSymptoms);
     navigate("/result");
   } catch (error) {

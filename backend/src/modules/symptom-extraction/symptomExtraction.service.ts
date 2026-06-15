@@ -11,8 +11,10 @@ import {
 } from './symptomExtraction.types.js'
 import {
   createSymptomExtractionPrompt,
+  createSymptomDetailValidationPrompt,
   createSymptomValidationPrompt,
   symptomExtractionInstructions,
+  symptomDetailValidationInstructions,
   symptomValidationInstructions,
 } from '../prompt/symptomExtraction.prompt.js'
 
@@ -43,21 +45,21 @@ function detectHeuristicInvalidInput(text: string): string | null {
   const words = splitWords(text)
   const lettersOnlyText = normalizeText(text).replace(/[^a-z]/g, '')
   const uniqueLetters = new Set(lettersOnlyText.split(''))
-  const hasMedicalCue = /(schmerz|weh|fieber|uebel|übel|atem|husten|kopf|bauch|brust|ruecken|rücken|angst|schwindel|krank|verletz|wunde|blut|nagel|getreten|stich|schnitt|biss|bruch|gebroch|verbrenn|verbrueh|verbrüh|haut|ausschlag|juck|geschwoll|taub|erbrech|durchfall|verloren|abgetrennt|amput|fremdkoerper|fremdkörper|verschluckt|vergift)/i.test(text)
+
 
   if (trimmedText.length < 6) {
     return 'Bitte beschreiben Sie Ihre Beschwerden etwas genauer.'
   }
 
-  if (words.length < 2 && !hasMedicalCue) {
+  if (words.length < 2) {
     return 'Bitte geben Sie einen zusammenhängenden medizinischen Freitext ein.'
   }
 
-  if (lettersOnlyText.length >= 12 && uniqueLetters.size <= 5 && !hasMedicalCue) {
+  if (lettersOnlyText.length >= 12 && uniqueLetters.size <= 5) {
     return 'Der Text wirkt nicht wie eine verständliche Beschreibung von Beschwerden.'
   }
 
-  if (words.length === 1 && words[0] && words[0].length >= 12 && !hasMedicalCue) {
+  if (words.length === 1 && words[0] && words[0].length >= 12) {
     return 'Der Text wirkt nicht wie eine verständliche Beschreibung von Beschwerden.'
   }
 
@@ -92,6 +94,22 @@ async function requestInputValidationFromAi(text: string, inputType: SymptomInpu
   })
 }
 
+async function requestDetailValidationFromAi(text: string, inputType: SymptomInputType) {
+  return requestStructuredAiResponse({
+    messages: [
+      { role: 'system', content: symptomDetailValidationInstructions },
+      {
+        role: 'user',
+        content: createSymptomDetailValidationPrompt({ text, inputType }),
+      },
+    ],
+    schema: symptomInputValidationAiResultSchema,
+    schemaName: 'symptom_detail_validation_result',
+    temperature: 0,
+    modelStrategy: 'fallback-only',
+  })
+}
+
 export async function validateSymptomInput(
   text: string,
   inputType: SymptomInputType = 'text',
@@ -121,6 +139,55 @@ export async function validateSymptomInput(
 
   try {
     const validationResult = await requestInputValidationFromAi(text, inputType)
+
+    return {
+      text,
+      inputType,
+      isValidMedicalInput: validationResult.isValidMedicalInput,
+      message: validationResult.isValidMedicalInput ? undefined : validationResult.reason,
+    }
+  } catch (error) {
+    if (!isAiRequestError(error)) {
+      throw error
+    }
+
+    return {
+      text,
+      inputType,
+      isValidMedicalInput: false,
+      aiUnavailable: true,
+      message: 'Die medizinische Kontextprüfung ist aktuell nicht verfügbar. Bitte versuchen Sie es erneut.',
+    }
+  }
+}
+
+export async function validateSymptomDetailInput(
+  text: string,
+  inputType: SymptomInputType = 'text',
+  patientData?: PatientData,
+): Promise<SymptomInputValidationResponse> {
+  const plausibilityError = getPatientPlausibilityError(patientData, text, undefined)
+
+  if (plausibilityError) {
+    return {
+      text,
+      inputType,
+      isValidMedicalInput: false,
+      message: plausibilityError,
+    }
+  }
+
+  if (!text.trim()) {
+    return {
+      text,
+      inputType,
+      isValidMedicalInput: false,
+      message: 'Bitte geben Sie eine Angabe ein.',
+    }
+  }
+
+  try {
+    const validationResult = await requestDetailValidationFromAi(text, inputType)
 
     return {
       text,

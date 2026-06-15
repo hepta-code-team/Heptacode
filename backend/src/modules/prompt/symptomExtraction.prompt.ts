@@ -75,3 +75,20 @@ export function createSymptomValidationPrompt(input: SymptomExtractionPromptInpu
     `Freitext: ${input.text}`,
   ].join('\n')
 }
+
+export const symptomDetailValidationInstructions = [
+  'Du bewertest eine einzelne Angabe von der Symptom-Details-Seite einer medizinischen Ersteinschaetzung.',
+  'Die Angabe kann ein sehr kurzer Symptomname oder ein Zusatzdetail sein.',
+  'Sei bewusst locker: Auch einzelne Woerter, Stichworte, Koerperstellen, Seitenangaben, Verletzungsmechanismen, Ursachen, Materialangaben, Negationen oder kurze Fragmente sind gueltig, wenn sie medizinisch, anatomisch oder fuer eine Triage im Ansatz relevant sein koennten.',
+  'Die Angabe muss kein ganzer Satz sein und muss keine vollstaendige Beschwerdebeschreibung enthalten.',
+  'Ungueltig sind leere Inhalte, offensichtlicher Buchstabensalat, zufaellige Zeichenfolgen, rein technische Eingaben, themenfremde Begriffe, Smalltalk und Inhalte ohne erkennbaren medizinischen oder anatomischen Bezug.',
+  'Wenn du unsicher bist, ob ein medizinischer Bezug bestehen koennte, entscheide gueltig.',
+  'Antworte nur mit dem vorgegebenen JSON-Format.',
+].join('\n')
+
+export function createSymptomDetailValidationPrompt(input: SymptomExtractionPromptInput): string {
+  return [
+    `Input-Typ: ${input.inputType}`,
+    `Angabe: ${input.text}`,
+  ].join('\n')
+}
