@@ -28,8 +28,6 @@ const NON_SPECIALIST_SPECIALTIES: MedicalSpecialty[] = [
   'general_practice',
 ]
 
-const SPECIALIST_CARE_TERMS = ['fachaerzt', 'facharzt', 'spezialist']
-
 /**
  * Normalizes optional symptom text before keyword matching.
  */
@@ -62,11 +60,6 @@ function findMentionedSpecialties(response: TriageAiResponse): MedicalSpecialty[
       )
     })
     .map(([specialty]) => specialty as MedicalSpecialty)
-}
-
-function mentionsSpecialistCare(response: TriageAiResponse): boolean {
-  const responseText = getResponseText(response)
-  return SPECIALIST_CARE_TERMS.some((term) => responseText.includes(term))
 }
 
 /**
@@ -185,7 +178,7 @@ export function getTriageAiPlausibilityIssues(
 
   if (
     response.careLevel !== 'specialist' &&
-    (mentionedSpecialties.length > 0 || mentionsSpecialistCare(response))
+    mentionedSpecialties.length > 0
   ) {
     issues.push('Wenn eine Fachrichtung genannt wird, muss diese auch als Empfehlung eingestuft werden.')
   }

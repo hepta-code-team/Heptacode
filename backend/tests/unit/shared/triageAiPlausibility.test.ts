@@ -526,8 +526,8 @@ describe('getTriageAiPlausibilityIssues', () => {
     expect(issues).toEqual([])
   })
 
-  /** Doctor responses should not hide specialist escalation behind generic specialist wording. */
-  it('markiert Doctor-Antworten mit Facharzt-Empfehlung als unplausibel', () => {
+  /** Generic specialist wording should not be treated like a concrete specialty recommendation. */
+  it('akzeptiert Doctor-Antworten mit allgemeiner Facharzt-Empfehlung als plausibel', () => {
     const issues = getTriageAiPlausibilityIssues(
       {
         careLevel: 'doctor',
@@ -547,9 +547,31 @@ describe('getTriageAiPlausibilityIssues', () => {
       ],
     )
 
-    expect(issues).toContain(
-      'Wenn eine Fachrichtung genannt wird, muss diese auch als Empfehlung eingestuft werden.',
+    expect(issues).toEqual([])
+  })
+
+  /** General medical-help wording should not be mistaken for a specialty recommendation. */
+  it('akzeptiert Doctor-Antworten mit allgemeinem medizinische-Hilfe-Text als plausibel', () => {
+    const issues = getTriageAiPlausibilityIssues(
+      {
+        careLevel: 'doctor',
+        reasons: ['Bitte suchen Sie bei Verschlechterung medizinische Hilfe.'],
+        reviewSummary: {
+          plainLanguage: 'Bitte lassen Sie die Beschwerden bei Bedarf medizinisch einschaetzen.',
+          professionalSummary: 'Care Level: doctor. Medizinische Hilfe bei Verschlechterung.',
+        },
+      },
+      [
+        {
+          region: 'Bauch',
+          measurementType: 'pain',
+          measurementValue: 4,
+          duration: 'days',
+        },
+      ],
     )
+
+    expect(issues).toEqual([])
   })
 
   /** Specialist responses should not name a different specialty than recommendedSpecialty. */
