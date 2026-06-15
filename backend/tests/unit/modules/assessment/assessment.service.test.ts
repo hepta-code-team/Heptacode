@@ -173,7 +173,13 @@ describe('evaluateAssessmentWithAi', () => {
     payload.patientData.isSmoker = true
     payload.patientData.smokingSinceYears = '5'
     payload.patientData.cigarettesPerDay = '10'
-    payload.patientData.conditionDetails = { Asthma: 'Belastungsasthma' }
+    payload.patientData.conditionDetails = {
+      Asthma: {
+        condition: 'Asthma',
+        detail: 'Belastungsasthma',
+        duration: '',
+      },
+    }
 
     evaluateTriageMock.mockResolvedValueOnce({
       careLevel: 'selfcare',

@@ -10,7 +10,7 @@ export const BIRTH_MONTH_MAX = 12;
 export const MAX_PATIENT_AGE_YEARS = 125;
 
 const MEASUREMENT_RANGES: Record<SymptomMeasurementType, { min: number; max: number }> = {
-  pain: { min: 1, max: 10 },
+  pain: { min: 0, max: 10 },
   temperature: { min: 38, max: 42.5 },
   feeling: { min: 1, max: 10 },
   severity: { min: 1, max: 10 },

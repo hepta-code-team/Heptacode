@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { KeyboardEvent, PointerEvent } from "react";
 import { useNavigate } from "react-router";
 import { Annoyed, Frown, Laugh, Mars, Meh, Smile, Transgender, Venus, type LucideIcon } from "lucide-react";
@@ -82,7 +82,6 @@ const createInitialPatientData = (patientData?: Partial<PatientData>): PatientDa
   height: "",
   weight: "",
   gender: "",
-  mood: "",
   isPregnant: false,
   isBreastfeeding: false,
   allergies: "",
@@ -105,7 +104,6 @@ export default function PatientDataPage() {
   const birthYearMin = currentYear - MAX_PATIENT_AGE_YEARS;
 
   const [formData, setFormData] = useState<PatientData>(() => createInitialPatientData(patientData ?? undefined));
-  const [mood, setMood] = useState(formData.mood ?? "");
   const [showValidationErrors, setShowValidationErrors] = useState(false);
 
   /**
@@ -139,6 +137,10 @@ export default function PatientDataPage() {
     isNumberInRange(formData.height, HEIGHT_MIN, HEIGHT_MAX) &&
     isNumberInRange(formData.weight, WEIGHT_MIN, WEIGHT_MAX);
   const isGenderComplete = Boolean(formData.gender);
+
+  useEffect(() => {
+    setPatientData(formData);
+  }, [formData, setPatientData]);
 
   const setEmptyNumberStepValue = (
     field: "birthYear" | "height" | "weight",
@@ -211,7 +213,7 @@ export default function PatientDataPage() {
       return;
     }
 
-    setPatientData({ ...formData, mood });
+    setPatientData(formData);
     navigate("/medical-data");
   };
 
@@ -434,7 +436,7 @@ export default function PatientDataPage() {
         </div>
       </div>
 
-      <div className={getRequiredFieldCardClass(Boolean(mood), "mt-3")}>
+      <div className={getRequiredFieldCardClass(Boolean(formData.mood), "mt-3")}>
         <div className="mb-2">
           <p
             className="font-['DM_Sans:Bold',sans-serif] font-bold text-app-text-body text-base"
@@ -446,13 +448,13 @@ export default function PatientDataPage() {
 
         <div className="flex flex-wrap justify-center gap-1.5 sm:grid sm:grid-cols-5">
           {MOOD_OPTIONS.map(({ label, icon: Icon, color, bgColor }) => {
-            const isSelected = mood === label;
+            const isSelected = formData.mood === label;
 
             return (
               <button
                 key={label}
                 type="button"
-                onClick={() => setMood(isSelected ? "" : label)}
+                onClick={() => setFormData({ ...formData, mood: isSelected ? "" : label })}
                 className="flex min-h-11 w-[calc((100%-0.75rem)/3)] items-center justify-center gap-1 rounded-[10px] border px-1.5 py-2 text-center text-app-text-body transition-all hover:opacity-90 sm:w-auto sm:gap-1.5 sm:px-2"
                 style={{
                   backgroundColor: isSelected ? bgColor : "#ffffff",

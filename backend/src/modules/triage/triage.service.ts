@@ -35,6 +35,15 @@ function hasText(value: string | undefined): value is string {
   return Boolean(value && value.trim().length > 0)
 }
 
+function formatConditionDetail({ detail, duration }: PatientData['conditionDetails'][string]): string | null {
+  const parts = [
+    hasText(detail) ? detail.trim() : null,
+    hasText(duration) ? `Dauer: ${duration.trim()}` : null,
+  ].filter((part): part is string => part !== null)
+
+  return parts.length > 0 ? parts.join(', ') : null
+}
+
 function assertPatientDataIsPlausible(
   patientData: PatientData | undefined,
   text: string | undefined,
@@ -59,8 +68,11 @@ function buildPatientDataLines(patientData?: PatientData): string[] {
   }
 
   const conditionDetails = Object.entries(patientData.conditionDetails)
-    .filter(([, detail]) => hasText(detail))
-    .map(([condition, detail]) => `${condition}: ${detail.trim()}`)
+    .map(([condition, detail]) => {
+      const formattedDetail = formatConditionDetail(detail)
+      return formattedDetail ? `${condition}: ${formattedDetail}` : null
+    })
+    .filter((detail): detail is string => detail !== null)
 
   return [
     `Geburtsmonat: ${patientData.birthMonth}`,
@@ -92,6 +104,14 @@ function buildPatientDataLines(patientData?: PatientData): string[] {
       ? `Details zu Vorerkrankungen: ${conditionDetails.join('; ')}`
       : null,
   ].filter((line): line is string => line !== null)
+}
+
+function formatLocalDate(date: Date = new Date()): string {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+
+  return `${year}-${month}-${day}`
 }
 
 function formatPatientData(patientData?: PatientData): string {
@@ -208,9 +228,10 @@ async function requestTriageFromAi(
       {
         role: 'user',
         content: createTriagePrompt({
-        patientDataText: formatPatientData(patientData),
-        symptomsText: formatSymptoms(symptoms),
-      }),
+          currentDateText: formatLocalDate(),
+          patientDataText: formatPatientData(patientData),
+          symptomsText: formatSymptoms(symptoms),
+        }),
       },
     ],
     schema: triageAiResponseSchema,

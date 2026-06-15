@@ -64,6 +64,12 @@ export const reviewSummarySchema = z.object({
   professionalSummary: z.string().min(1),
 })
 
+export const conditionDetailSchema = z.object({
+  condition: z.string(),
+  detail: z.string(),
+  duration: z.string(),
+})
+
 export const patientDataSchema = z.object({
   birthMonth: z.string(),
   birthYear: z.string(),
@@ -81,7 +87,7 @@ export const patientDataSchema = z.object({
   isSmoker: z.boolean(),
   smokingSinceYears: z.string(),
   cigarettesPerDay: z.string(),
-  conditionDetails: z.record(z.string(), z.string()),
+  conditionDetails: z.record(z.string(), conditionDetailSchema),
 })
 
 export const triageSymptomSchema = z.object({

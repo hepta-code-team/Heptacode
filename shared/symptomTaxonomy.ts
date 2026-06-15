@@ -5,6 +5,10 @@ export const SYMPTOM_REGIONS = [
     options: ['Stirn', 'Schläfen', 'Hinterkopf', 'Gesicht'],
   },
   {
+    name: 'Hals',
+    options: ['Hals', 'Rachen', 'Schluckbeschwerden', 'Nacken'],
+  },
+  {
     name: 'Brust',
     options: ['Brustmitte', 'Linksseitig', 'Rechtsseitig', 'Rippen', 'Atemabhängig'],
   },

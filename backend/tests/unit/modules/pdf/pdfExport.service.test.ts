@@ -7,7 +7,7 @@ describe('createPdfSummary', () => {
   it('erstellt eine PDF-Zusammenfassung mit Patientendaten und Symptomen', async () => {
     const result = await createPdfSummary({
       reviewSummary: {
-        plainLanguage: 'Die Beschwerden wurden zusammengefasst.',
+        plainLanguage: 'Ihre Angaben sprechen für eine hausärztliche Abklärung.',
         professionalSummary: 'Strukturierte medizinische Zusammenfassung.',
       },
       patientData: {
@@ -94,7 +94,7 @@ describe('createPdfSummary', () => {
   it('formatiert Triage-Empfehlungen und optionale Symptominformationen im medizinischen Ueberblick', async () => {
     const result = await createPdfSummary({
       reviewSummary: {
-        plainLanguage: 'Die Beschwerden wurden zusammengefasst.',
+        plainLanguage: 'Ihre Angaben sprechen für eine hausärztliche Abklärung.',
         professionalSummary: '',
       },
       patientData: {
@@ -115,7 +115,11 @@ describe('createPdfSummary', () => {
         smokingSinceYears: '12',
         cigarettesPerDay: '8',
         conditionDetails: {
-          Sonstige: 'Sonstige: Herzrhythmusstoerungen',
+          Sonstige: {
+            condition: 'Sonstige',
+            detail: 'Sonstige: Herzrhythmusstoerungen',
+            duration: '',
+          },
         },
       },
       symptoms: [
@@ -147,14 +151,14 @@ describe('createPdfSummary', () => {
     expect(result.sections[0]?.content).toContain('8/10')
     expect(result.sections[0]?.content).toContain('Dauer: Seit einer Woche')
     expect(result.sections[0]?.content).toContain('Dauer: Seit mehreren Wochen')
-    expect(result.sections[0]?.content).toContain('empfohlen')
+    expect(result.sections[0]?.content).toContain('Ihre Angaben sprechen für eine hausärztliche Abklärung.')
   })
 
-  /** Unknown care levels should still present the provided triage reasons safely. */
-  it('nutzt die uebergebenen Gruende fuer unbekannte Care-Level', async () => {
+  /** Plain-language summaries should be used as the recommendation rationale when present. */
+  it('nutzt die Plain-Language-Zusammenfassung als Begruendung der Empfehlung', async () => {
     const result = await createPdfSummary({
       reviewSummary: {
-        plainLanguage: 'Die Beschwerden wurden zusammengefasst.',
+        plainLanguage: 'Bitte lassen Sie die Beschwerden zeitnah ärztlich abklären.',
         professionalSummary: '',
       },
       triage: {
@@ -163,9 +167,10 @@ describe('createPdfSummary', () => {
       },
     })
 
-    expect(result.sections[0]?.content).toMatch(
-      /Begr.ndung der Empfehlung: Begr.ndung mit Satzzeichen\. zweiter Grund\./,
+    expect(result.sections[0]?.content).toContain(
+      'Begründung der Empfehlung: \nBitte lassen Sie die Beschwerden zeitnah ärztlich abklären.',
     )
+    expect(result.sections[0]?.content).not.toContain('zweiter Grund')
   })
 
   /** Travel metadata from patient data should be rendered in readable German date format. */

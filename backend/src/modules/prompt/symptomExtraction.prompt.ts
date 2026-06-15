@@ -19,7 +19,7 @@ export const symptomExtractionInstructions = [
   'Wenn ein Problem auf eine vorhandene Region gemappt wird, darf details trotzdem die konkrete Freitextinformation enthalten.',
   'Schreibe in details keine Dauer und keine Beschwerde- oder Schmerzstaerke, weil duration, measurementType und measurementValue dafuer eigene Felder sind.',
   'Wenn ein Text nur Symptom, Dauer und Staerke enthaelt, lasse details weg. Beispiel: "Ich habe mittelstarke Bauchschmerzen schon seit ein paar Tagen" -> region "Bauch", measurementType "pain", measurementValue 5, duration "days", keine details.',
-  'Erkenne selbstständig, ob pro Beschwerde eine Schmerzintensität genannt wird. Wenn ja, gib measurementType als pain und measurementValue mit einer ganzen Zahl von 1 bis 10 zurück.',
+  'Erkenne selbstständig, ob pro Beschwerde eine Schmerzintensität genannt wird. Wenn ja, gib measurementType als pain und measurementValue mit einer ganzen Zahl von 0 bis 10 zurück.',
   'Wenn im Text Fieber oder eine gemessene Koerpertemperatur genannt wird, gib measurementType als temperature und measurementValue als Temperaturwert zurück.',
   'Nutze measurementType temperature nur fuer Fieber oder gemessene Koerpertemperatur. Heisse Ursachen wie kochendes Wasser, heisser Tee, Dampf, Feuer oder Verbrennungen sind keine Temperaturmessung; nutze dafuer pain oder severity.',
   'Wenn im Text eine seelische Intensität genannt wird, gib measurementType als feeling und measurementValue mit einer Zahl von 1 bis 10 zurück.',
@@ -32,6 +32,7 @@ export const symptomExtractionInstructions = [
   'Wenn keine Dauer genannt wird oder sie nicht sicher zuordenbar ist, lasse duration weg.',
   'Vorhandene Regionen und Unteroptionen:',
   'Kopf: Stirn, Schläfen, Hinterkopf, Gesicht.',
+  'Hals: Hals, Rachen, Schluckbeschwerden, Heiserkeit, Nacken.',
   'Brust: Brustmitte, Linksseitig, Rechtsseitig, Rippen, Atemabhängig.',
   'Rücken: Nacken, Oberer Rücken, Mittlerer Rücken, Unterer Rücken, Steißbein.',
   'Arme: Schulter, Oberarm, Ellenbogen, Unterarm, Hand/Handgelenk, Finger.',
@@ -72,5 +73,22 @@ export function createSymptomValidationPrompt(input: SymptomExtractionPromptInpu
   return [
     `Input-Typ: ${input.inputType}`,
     `Freitext: ${input.text}`,
+  ].join('\n')
+}
+
+export const symptomDetailValidationInstructions = [
+  'Du bewertest eine einzelne Angabe von der Symptom-Details-Seite einer medizinischen Ersteinschaetzung.',
+  'Die Angabe kann ein sehr kurzer Symptomname oder ein Zusatzdetail sein.',
+  'Sei bewusst locker: Auch einzelne Woerter, Stichworte, Koerperstellen, Seitenangaben, Verletzungsmechanismen, Ursachen, Materialangaben, Negationen oder kurze Fragmente sind gueltig, wenn sie medizinisch, anatomisch oder fuer eine Triage im Ansatz relevant sein koennten.',
+  'Die Angabe muss kein ganzer Satz sein und muss keine vollstaendige Beschwerdebeschreibung enthalten.',
+  'Ungueltig sind leere Inhalte, offensichtlicher Buchstabensalat, zufaellige Zeichenfolgen, rein technische Eingaben, themenfremde Begriffe, Smalltalk und Inhalte ohne erkennbaren medizinischen oder anatomischen Bezug.',
+  'Wenn du unsicher bist, ob ein medizinischer Bezug bestehen koennte, entscheide gueltig.',
+  'Antworte nur mit dem vorgegebenen JSON-Format.',
+].join('\n')
+
+export function createSymptomDetailValidationPrompt(input: SymptomExtractionPromptInput): string {
+  return [
+    `Input-Typ: ${input.inputType}`,
+    `Angabe: ${input.text}`,
   ].join('\n')
 }

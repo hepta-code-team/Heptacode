@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router";
-import { ChevronDown, Edit3, PhoneCall } from "lucide-react";
+import { Check, ChevronDown, Download, Edit3, PhoneCall, X } from "lucide-react";
 import PageShell from "../components/PageShell";
 import ResultCard from "../features/results/ResultCard";
+import NearbyPracticeSearch from "../features/results/NearbyPracticeSearch";
 import Button from "../components/Button";
 import {
   createSpecialtyConfig,
@@ -357,10 +358,22 @@ export default function ResultPage() {
   const professionalSummary =
     assessmentResult?.reviewSummary?.professionalSummary?.trim() || buildProfessionalSummaryFallback();
 
+  const formatConditionDetail = (detail: PatientData["conditionDetails"][string]) => {
+    const parts = [
+      detail.detail.trim() ? detail.detail.trim() : null,
+      detail.duration.trim() ? `Dauer: ${detail.duration.trim()}` : null,
+    ].filter((part): part is string => part !== null);
+
+    return parts.join(", ");
+  };
+
   const conditionDetails = patientData
     ? Object.entries(patientData.conditionDetails)
-        .filter(([, detail]) => detail.trim().length > 0)
-        .map(([condition, detail]) => `${condition}: ${detail}`)
+        .map(([condition, detail]) => {
+          const formattedDetail = formatConditionDetail(detail);
+          return formattedDetail ? `${condition}: ${formattedDetail}` : null;
+        })
+        .filter((detail): detail is string => detail !== null)
     : [];
 
   const patientDataRows = patientData
@@ -410,8 +423,8 @@ export default function ResultPage() {
   };
 
   const handleReset = () => {
+    navigate("/", { replace: true, flushSync: true });
     resetAssessment();
-    navigate("/");
   };
 
   const handleStartSummaryEdit = () => {
@@ -569,6 +582,13 @@ export default function ResultPage() {
             <span className="sr-only">{callAction.description}</span>
           </a>
       )}
+      <NearbyPracticeSearch
+        careLevel={careLevel}
+        specialties={
+          assessmentResult?.recommendedSpecialties?.map((specialty) => specialty.specialty) ?? [recommendedSpecialty]
+        }
+      />
+
       <div className="bg-white border border-[#d8e0ea] rounded-[16px] p-5 md:p-6 mb-4">
         <p className="font-['DM_Sans:Bold',sans-serif] font-bold text-app-text-primary text-lg mb-3">
           Ihre Einschätzung
@@ -619,7 +639,7 @@ export default function ResultPage() {
               {assessmentResult?.aiModel && (
                 <li className="font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-body text-sm leading-relaxed">
                   • Die Einschätzung wurde mit dem KI-Modell{" "}
-                  <strong>{assessmentResult.aiModel}</strong> durchgeführt.
+                  <strong>{assessmentResult.aiModel}</strong> durchgeführt. KI kann Fehler machen.
                 </li>
               )}
             </ul>
@@ -635,23 +655,47 @@ export default function ResultPage() {
             Ihre Angaben
           </p>
           <div className="flex flex-wrap gap-2">
-            <button
-              type="button"
-              onClick={handleStartSummaryEdit}
-              aria-label="medical-summary-bearbeiten"
-              className="inline-flex items-center justify-center gap-2 rounded-[10px] border border-[#486284] px-4 py-2 text-sm font-bold text-[#486284] transition-all hover:bg-[#eff2f6]"
-            >
-              <Edit3 className="size-4" aria-hidden="true" />
-              Bearbeiten
-            </button>
-            <button
-              type="button"
-              onClick={handlePdfDownload}
-              aria-label="download-summary"
-              className="bg-[#486284] text-app-text-on-primary rounded-[10px] px-4 py-2 hover:bg-[#3a4d68] transition-all"
-            >
-              PDF
-            </button>
+            {isEditingSummary ? (
+              <>
+                <button
+                  type="button"
+                  onClick={handleCancelSummaryEdit}
+                  className="inline-flex items-center justify-center gap-2 rounded-[10px] border border-[#d8e0ea] bg-white px-4 py-2 text-sm font-bold text-app-text-body transition-all hover:bg-[#eff2f6]"
+                >
+                  <X className="size-4 text-red-600" aria-hidden="true" />
+                  Abbrechen
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSaveSummaryEdit}
+                  className="inline-flex items-center justify-center gap-2 rounded-[10px] bg-[#486284] px-4 py-2 text-sm font-bold text-app-text-on-primary transition-all hover:bg-[#3a4d68]"
+                >
+                  <Check className="size-4" aria-hidden="true" />
+                  Speichern
+                </button>
+              </>
+            ) : (
+              <button
+                type="button"
+                onClick={handleStartSummaryEdit}
+                aria-label="medical-summary-bearbeiten"
+                className="inline-flex items-center justify-center gap-2 rounded-[10px] border border-[#486284] px-4 py-2 text-sm font-bold text-[#486284] transition-all hover:bg-[#eff2f6]"
+              >
+                <Edit3 className="size-4" aria-hidden="true" />
+                Bearbeiten
+              </button>
+            )}
+            {!isEditingSummary && (
+              <button
+                type="button"
+                onClick={handlePdfDownload}
+                aria-label="download-summary"
+                className="inline-flex items-center justify-center gap-2 bg-[#486284] text-app-text-on-primary rounded-[10px] px-4 py-2 hover:bg-[#3a4d68] transition-all"
+              >
+                <Download className="size-4" aria-hidden="true" />
+                PDF
+              </button>
+            )}
           </div>
         </div>
 
@@ -898,12 +942,12 @@ export default function ResultPage() {
                       const label = symptom.side
                         ? `${symptom.region} (${symptom.side})`
                         : symptom.region;
+                      const details = symptom.details ? `, Details: ${symptom.details}` : "";
 
                       return (
-                        <p key={`${label}-${symptom.measurementType}-${symptom.measurementValue}-${symptom.duration ?? ""}`}>
-                          {label}: {getMeasurementSummary(symptom)}{
-                        symptom.duration ? `, ${getDurationLabel(symptom.duration)}` : ""
-                      }
+                        <p key={`${label}-${symptom.details ?? ""}-${symptom.measurementType}-${symptom.measurementValue}-${symptom.duration ?? ""}`}>
+                          {label}{details}: {getMeasurementSummary(symptom)}
+                          {symptom.duration ? `, ${getDurationLabel(symptom.duration)}` : ""}
                         </p>
                       );
                     })
@@ -913,24 +957,6 @@ export default function ResultPage() {
             </div>
           </div>
 
-          {isEditingSummary && (
-            <div className="flex justify-end gap-2 pt-1">
-              <button
-                type="button"
-                onClick={handleCancelSummaryEdit}
-                className="rounded-[10px] border border-[#d8e0ea] bg-white px-4 py-2 text-sm font-bold text-app-text-body transition-all hover:bg-[#eff2f6]"
-              >
-                Abbrechen
-              </button>
-              <button
-                type="button"
-                onClick={handleSaveSummaryEdit}
-                className="rounded-[10px] bg-[#486284] px-4 py-2 text-sm font-bold text-app-text-on-primary transition-all hover:bg-[#3a4d68]"
-              >
-                Speichern
-              </button>
-            </div>
-          )}
         </div>
 
         <div className="bg-white rounded-[12px] p-4 border border-[#d8e0ea] mb-4">

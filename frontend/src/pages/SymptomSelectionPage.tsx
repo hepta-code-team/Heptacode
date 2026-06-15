@@ -273,7 +273,7 @@ function AnatomyFigure({
   return (
     <svg
       viewBox="0 0 220 350"
-      className="mx-auto h-[330px] w-[210px] md:h-[390px] md:w-[245px]"
+      className="mx-auto h-[360px] w-[230px] sm:h-[330px] sm:w-[210px] md:h-[390px] md:w-[245px]"
       role="img"
       aria-label="Klickbare Körperauswahl"
     >
@@ -357,7 +357,70 @@ function AnatomyFigure({
         <text x="110" y="151" textAnchor="middle" fill={labelFill("torso")} fontSize="15" fontWeight="700">Torso</text>
       </g>
 
-      <path d="M96 74 C99 84 121 84 124 74 L124 91 C118 96 102 96 96 91 Z" fill="#dfe5ec" />
+      <g
+        role="button"
+        tabIndex={0}
+        aria-label="Hüfte auswählen"
+        aria-pressed={selectedCategory === "hips"}
+        onClick={() => onSelect("hips")}
+        onKeyDown={activate("hips")}
+        className={interactiveClass}
+      >
+        <path
+          d="M65.5 174.5 C77 188 91.5 194.5 110 194.5 C128.5 194.5 143 188 154.5 174.5 L156 208 C156 216 152 220 144 220 L76 220 C68 220 64 216 64 208 Z"
+          fill={partFill("hips")}
+          stroke={partStroke("hips")}
+          strokeWidth="3.5"
+          strokeLinejoin="round"
+        />
+        <text x="110" y="208" textAnchor="middle" dominantBaseline="middle" fill={labelFill("hips")} fontSize="13" fontWeight="700">Hüfte</text>
+      </g>
+
+      <g
+        role="button"
+        tabIndex={0}
+        aria-label="Kopf und Hals auswählen"
+        aria-pressed={selectedCategory === "headNeck"}
+        onClick={() => onSelect("headNeck")}
+        onKeyDown={activate("headNeck")}
+        className={`${interactiveClass} sm:hidden`}
+      >
+        <path
+          d="M80 42 C80 20 94 7 110 7 C126 7 140 20 140 42 C140 64 127 78 110 78 C93 78 80 64 80 42 Z"
+          fill={partFill("headNeck")}
+          stroke={partStroke("headNeck")}
+          strokeWidth="4"
+          filter="url(#body-shadow)"
+        />
+        <path
+          d="M92 72 C99 84 121 84 128 72 L130 96 C122 104 98 104 90 96 Z"
+          fill={partFill("headNeck")}
+          stroke={partStroke("headNeck")}
+          strokeWidth="3.5"
+          strokeLinejoin="round"
+        />
+        <text x="110" y="38" textAnchor="middle" fill={labelFill("headNeck")} fontSize="13" fontWeight="700">Kopf +</text>
+        <text x="110" y="55" textAnchor="middle" fill={labelFill("headNeck")} fontSize="13" fontWeight="700">Hals</text>
+      </g>
+
+      <g
+        role="button"
+        tabIndex={0}
+        aria-label="Hals auswählen"
+        aria-pressed={selectedCategory === "neck"}
+        onClick={() => onSelect("neck")}
+        onKeyDown={activate("neck")}
+        className={`${interactiveClass} hidden sm:block`}
+      >
+        <path
+          d="M94 72 C100 82 120 82 126 72 L128 94 C121 101 99 101 92 94 Z"
+          fill={partFill("neck")}
+          stroke={partStroke("neck")}
+          strokeWidth="3.5"
+          strokeLinejoin="round"
+        />
+        <text x="110" y="89" textAnchor="middle" dominantBaseline="middle" fill={labelFill("neck")} fontSize="13" fontWeight="700">Hals</text>
+      </g>
 
       <g
         role="button"
@@ -366,7 +429,7 @@ function AnatomyFigure({
         aria-pressed={selectedCategory === "head"}
         onClick={() => onSelect("head")}
         onKeyDown={activate("head")}
-        className={interactiveClass}
+        className={`${interactiveClass} hidden sm:block`}
       >
         <path
           d="M80 42 C80 20 94 7 110 7 C126 7 140 20 140 42 C140 64 127 78 110 78 C93 78 80 64 80 42 Z"
@@ -658,6 +721,13 @@ export default function SymptomSelectionPage() {
   };
 
   /**
+   * Keeps the local button state in sync with symptoms changed on the detail page.
+   */
+  useEffect(() => {
+    setSelectedSymptoms(contextSymptoms);
+  }, [contextSymptoms]);
+
+  /**
    * Cleans up timers and active speech recognition when the page unmounts.
    * Browser speech APIs can continue firing callbacks after navigation unless
    * they are explicitly stopped and dereferenced.
@@ -711,17 +781,23 @@ export default function SymptomSelectionPage() {
     const alreadySelected = selectedSymptoms.some((symptom) => getSymptomKey(symptom) === symptomKey);
 
     if (alreadySelected) {
-      setSelectedSymptoms((symptoms) => symptoms.filter((symptom) => getSymptomKey(symptom) !== symptomKey));
+      const nextSymptoms = selectedSymptoms.filter((symptom) => getSymptomKey(symptom) !== symptomKey);
+      setSelectedSymptoms(nextSymptoms);
+      setContextSymptoms(nextSymptoms);
       return;
     }
 
     if (selectedSymptoms.length < MAX_SYMPTOMS) {
-      setSelectedSymptoms([...selectedSymptoms, { region: regionName, side }]);
+      const nextSymptoms = [...selectedSymptoms, { region: regionName, side }];
+      setSelectedSymptoms(nextSymptoms);
+      setContextSymptoms(nextSymptoms);
     }
   };
 
   const removeSymptom = (index: number) => {
-    setSelectedSymptoms(selectedSymptoms.filter((_, symptomIndex) => symptomIndex !== index));
+    const nextSymptoms = selectedSymptoms.filter((_, symptomIndex) => symptomIndex !== index);
+    setSelectedSymptoms(nextSymptoms);
+    setContextSymptoms(nextSymptoms);
   };
 
   const openSymptomTextModal = () => {
@@ -740,7 +816,6 @@ export default function SymptomSelectionPage() {
 
   const handleContinue = () => {
     setContextSymptoms(selectedSymptoms);
-    setContextSymptomDetails([]);
     navigate("/symptom-details");
   };
 
@@ -829,6 +904,36 @@ export default function SymptomSelectionPage() {
     }
   };
 
+  const renderSymptomTextButton = (className = "") => (
+    <button
+      type="button"
+      onClick={openSymptomTextModal}
+      className={`${className} w-full rounded-[16px] border-2 bg-white p-4 text-left text-app-text-body shadow-sm transition-all hover:border-[#486284] hover:bg-[#f5f7fa] ${
+        symptomText.trim() ? "border-[#486284]" : "border-[#d7dee7]"
+      }`}
+    >
+      <div className="flex items-start gap-3">
+        <div className="flex size-11 flex-shrink-0 items-center justify-center rounded-full bg-[#486284] text-app-text-on-primary">
+          <Mic className="size-5" aria-hidden="true" />
+        </div>
+        <div>
+          <p
+            className="font-['DM_Sans:Bold',sans-serif] font-bold text-app-text-primary text-sm"
+            style={{ fontVariationSettings: "'opsz' 14" }}
+          >
+            Symptome beschreiben
+          </p>
+          <p
+            className="font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-primary text-xs leading-snug"
+            style={{ fontVariationSettings: "'opsz' 14" }}
+          >
+            Per Freitext oder Spracheingabe schildern
+          </p>
+        </div>
+      </div>
+    </button>
+  );
+
   return (
     <PageShell
       title="Wo haben Sie Beschwerden?"
@@ -892,6 +997,7 @@ export default function SymptomSelectionPage() {
               })}
             </div>
           </div>
+          {renderSymptomTextButton("mt-3 lg:hidden")}
         </div>
 
         <div>
@@ -990,33 +1096,7 @@ export default function SymptomSelectionPage() {
             </div>
           )}
 
-          <button
-            type="button"
-            onClick={openSymptomTextModal}
-            className={`mt-4 w-full rounded-[16px] border-2 bg-white p-4 text-left text-app-text-body shadow-sm transition-all hover:border-[#486284] hover:bg-[#f5f7fa] ${
-              symptomText.trim() ? "border-[#486284]" : "border-[#d7dee7]"
-            }`}
-          >
-            <div className="flex items-start gap-3">
-              <div className="flex size-11 flex-shrink-0 items-center justify-center rounded-full bg-[#486284] text-app-text-on-primary">
-                <Mic className="size-5" aria-hidden="true" />
-              </div>
-              <div>
-                <p
-                  className="font-['DM_Sans:Bold',sans-serif] font-bold text-app-text-primary text-sm"
-                  style={{ fontVariationSettings: "'opsz' 14" }}
-                >
-                  Symptome beschreiben
-                </p>
-                <p
-                  className="font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-primary text-xs leading-snug"
-                  style={{ fontVariationSettings: "'opsz' 14" }}
-                >
-                  Per Freitext oder Spracheingabe schildern
-                </p>
-              </div>
-            </div>
-          </button>
+          {renderSymptomTextButton("mt-4 hidden lg:block")}
 
           <div className="mt-6 flex justify-end">
             <Button onClick={handleContinue} disabled={selectedSymptoms.length === 0}>
