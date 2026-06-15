@@ -20,9 +20,9 @@ import type { SelectedSymptom } from "../../../shared/symptom.types";
 import type { TriageSymptom } from "../../../shared/symptom.types";
 
 
-const MAX_RECORDING_DURATION_MS = 120_000;
+const MAX_RECORDING_DURATION_MS = 60_000;
 const MAX_RECORDING_DURATION_SECONDS = MAX_RECORDING_DURATION_MS / 1000;
-const MAX_SYMPTOM_TEXT_CHARACTERS = 500;
+const MAX_SYMPTOM_TEXT_CHARACTERS = 300;
 const SYMPTOM_TEXT_CHARACTER_LIMIT_ERROR = `Bitte beschreiben Sie Ihre Symptome mit maximal ${MAX_SYMPTOM_TEXT_CHARACTERS} Zeichen.`;
 
 type BrowserSpeechRecognitionAlternative = {
