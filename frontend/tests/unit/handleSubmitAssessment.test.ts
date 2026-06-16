@@ -154,6 +154,61 @@ describe('handleSubmitAssessment', () => {
     expect(setters.navigate).toHaveBeenCalledWith('/result');
   });
 
+  it('blocks clearly contradictory edited AI-extracted region and detail combinations', async () => {
+    const setters = createSetters();
+    const submitAssessment = vi.fn();
+
+    await handleSubmitAssessment({
+      symptomDetails: [
+        createSymptomDraft({
+          region: 'Bein',
+          details: 'Schnittwunde in Hand',
+          isNameEditable: true,
+          sourceText: 'Ich hab mir in die Hand geschnitten',
+          originalRegion: 'Hand',
+          originalDetails: 'Schnittwunde in Hand',
+        }),
+      ],
+      submitAssessment,
+      ...setters,
+    });
+
+    expect(validateSymptomDetailInputMock).not.toHaveBeenCalled();
+    expect(submitAssessment).not.toHaveBeenCalled();
+    expect(setters.navigate).not.toHaveBeenCalled();
+    expect(setters.setSubmitError).toHaveBeenCalledWith(
+      'Bitte prüfen Sie Region und Zusatzdetails. Die Angaben widersprechen sich eindeutig.',
+    );
+  });
+
+  it('allows edited AI-extracted symptoms when there is no clear region-detail contradiction', async () => {
+    const setters = createSetters();
+    const submitAssessment = vi.fn().mockResolvedValue({});
+    validateSymptomDetailInputMock.mockResolvedValue({
+      text: 'Schnittwunde',
+      inputType: 'text',
+      isValidMedicalInput: true,
+    });
+
+    await handleSubmitAssessment({
+      symptomDetails: [
+        createSymptomDraft({
+          region: 'Schnittwunde',
+          details: 'Schnittwunde in Hand',
+          isNameEditable: true,
+          sourceText: 'Ich hab mir in die Hand geschnitten',
+          originalRegion: 'Hand',
+          originalDetails: 'Schnittwunde in Hand',
+        }),
+      ],
+      submitAssessment,
+      ...setters,
+    });
+
+    expect(submitAssessment).toHaveBeenCalledTimes(1);
+    expect(setters.navigate).toHaveBeenCalledWith('/result');
+  });
+
   it('shows an error and stays on the current page when editable symptom validation fails', async () => {
     const setters = createSetters();
     const submitAssessment = vi.fn();
