@@ -9,6 +9,34 @@ function hasDuration(symptom: SymptomDraft): symptom is CompleteSymptomDraft {
   return symptom.duration !== undefined;
 }
 
+function normalizeOptionalText(value: string | undefined) {
+  return value?.trim() ?? "";
+}
+
+function hasSymptomNameChanged(symptom: SymptomDraft) {
+  return symptom.region.trim() !== normalizeOptionalText(symptom.originalRegion) ||
+    normalizeOptionalText(symptom.side) !== normalizeOptionalText(symptom.originalSide);
+}
+
+function hasSymptomDetailsChanged(symptom: SymptomDraft) {
+  return normalizeOptionalText(symptom.details) !== normalizeOptionalText(symptom.originalDetails);
+}
+
+function buildExtractedSymptomValidationText(symptom: SymptomDraft) {
+  const symptomParts = [
+    symptom.region.trim(),
+    symptom.side?.trim(),
+    symptom.details?.trim(),
+  ].filter(Boolean);
+
+  return [
+    symptom.sourceText?.trim(),
+    `Symptom: ${symptomParts.join(", ")}`,
+  ]
+    .filter(Boolean)
+    .join("\n");
+}
+
 async function validateEditableSymptomInputs(symptoms: SymptomDraft[], patientData?: PatientData) {
   for (const symptom of symptoms) {
     if (!symptom.isNameEditable) {
@@ -21,16 +49,28 @@ async function validateEditableSymptomInputs(symptoms: SymptomDraft[], patientDa
       throw new Error("Bitte geben Sie für jedes erkannte Symptom einen Namen ein.");
     }
 
-    const symptomNameResult = await validateSymptomDetailInput(symptomName, "text", patientData);
+    if (hasSymptomNameChanged(symptom)) {
+      const symptomNameResult = await validateSymptomDetailInput(symptomName, "text", patientData);
 
-    if (!symptomNameResult.isValidMedicalInput) {
-      throw new Error(
-        symptomNameResult.message ??
-          "Bitte geben Sie ein sinnvolles Symptom oder medizinisches Stichwort ein.",
-      );
+      if (!symptomNameResult.isValidMedicalInput) {
+        throw new Error(
+          symptomNameResult.message ??
+            "Bitte geben Sie ein sinnvolles Symptom oder medizinisches Stichwort ein.",
+        );
+      }
+    } else {
+      const symptomContext = buildExtractedSymptomValidationText(symptom);
+      const symptomContextResult = await validateSymptomDetailInput(symptomContext, "text", patientData);
+
+      if (!symptomContextResult.isValidMedicalInput) {
+        throw new Error(
+          symptomContextResult.message ??
+            "Bitte geben Sie ein sinnvolles Symptom oder medizinisches Stichwort ein.",
+        );
+      }
     }
 
-    if (symptom.details !== undefined) {
+    if (symptom.details !== undefined && hasSymptomDetailsChanged(symptom)) {
       const details = symptom.details.trim();
 
       if (!details) {
