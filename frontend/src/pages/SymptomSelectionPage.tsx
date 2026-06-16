@@ -456,6 +456,7 @@ export default function SymptomSelectionPage() {
     patientData,
     symptomText,
     setSymptomText,
+    symptomDetails: contextSymptomDetails,
     setSymptomDetails: setContextSymptomDetails,
   } = useAssessment();
   const [selectedCategory, setSelectedCategory] = useState<BodyAreaCategory | null>(initialCategory);
@@ -784,6 +785,9 @@ export default function SymptomSelectionPage() {
       const nextSymptoms = selectedSymptoms.filter((symptom) => getSymptomKey(symptom) !== symptomKey);
       setSelectedSymptoms(nextSymptoms);
       setContextSymptoms(nextSymptoms);
+      setContextSymptomDetails(
+        contextSymptomDetails.filter((symptom) => getSymptomKey(symptom) !== symptomKey),
+      );
       return;
     }
 
@@ -795,9 +799,17 @@ export default function SymptomSelectionPage() {
   };
 
   const removeSymptom = (index: number) => {
+    const removedSymptom = selectedSymptoms[index];
     const nextSymptoms = selectedSymptoms.filter((_, symptomIndex) => symptomIndex !== index);
     setSelectedSymptoms(nextSymptoms);
     setContextSymptoms(nextSymptoms);
+
+    if (removedSymptom) {
+      const removedSymptomKey = getSymptomKey(removedSymptom);
+      setContextSymptomDetails(
+        contextSymptomDetails.filter((symptom) => getSymptomKey(symptom) !== removedSymptomKey),
+      );
+    }
   };
 
   const openSymptomTextModal = () => {
