@@ -341,6 +341,18 @@ function AcuteEmergencySummaryFlow({
         </p>
       </div>
 
+      <a
+        href="tel:112"
+        className="md:hidden mb-4 flex min-h-[56px] w-full items-center justify-center gap-3 rounded-[14px] px-5 py-3 text-app-text-on-primary shadow-sm transition-all hover:opacity-90"
+        style={{ backgroundColor: emergencyConfig.color }}
+        aria-label="112 anrufen"
+      >
+        <PhoneCall className="size-5 flex-shrink-0" aria-hidden="true" />
+        <span className="font-['DM_Sans:Bold',sans-serif] font-bold text-base">
+          112 anrufen
+        </span>
+      </a>
+
       <NearbyPracticeSearch
         careLevel="emergency"
         specialties={["emergency_medicine"]}
