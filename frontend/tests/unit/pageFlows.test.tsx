@@ -370,6 +370,26 @@ describe('page-level user flows', () => {
     expect(navigateMock).toHaveBeenCalledWith('/result');
   });
 
+  it('blocks contradictory edited symptom region and details on the details page', async () => {
+    const user = userEvent.setup();
+    submitAssessmentMock.mockResolvedValue({});
+    locationState.current = {
+      extractedSymptoms: [{ region: 'Unterarm', side: 'Hand/Handgelenk', details: 'Schnittwunde in der Hand' }],
+    };
+
+    render(<SymptomDetailsPage />);
+
+    await user.click(screen.getByRole('button', { name: 'Symptomname bearbeiten' }));
+    await user.clear(screen.getByLabelText('Symptomname bearbeiten'));
+    await user.type(screen.getByLabelText('Symptomname bearbeiten'), 'Bein');
+    await user.click(screen.getByRole('button', { name: 'Seit heute' }));
+    await user.click(screen.getAllByRole('button', { name: 'Weiter' }).at(-1)!);
+
+    expect(await screen.findByText('Bitte prüfen Sie Region und Zusatzdetails. Die Angaben widersprechen sich eindeutig.')).toBeInTheDocument();
+    expect(submitAssessmentMock).not.toHaveBeenCalled();
+    expect(navigateMock).not.toHaveBeenCalledWith('/result');
+  });
+
   it('opens result explanations, edits the medical summary and exports PDF payloads', async () => {
     const user = userEvent.setup();
     const createObjectUrlMock = vi.fn(() => 'blob:pdf');

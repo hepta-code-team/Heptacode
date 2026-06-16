@@ -88,6 +88,18 @@ function buildRegionTermGroups() {
 }
 
 const REGION_TERM_GROUPS = buildRegionTermGroups();
+const KNOWN_SYMPTOM_TERMS = (() => {
+  const terms = new Set<string>();
+
+  Object.values(BODY_AREA_LABELS).forEach((label) => addTermVariants(terms, label));
+
+  BODY_REGIONS.forEach((region) => {
+    addTermVariants(terms, region.name);
+    region.options?.forEach((option) => addTermVariants(terms, option));
+  });
+
+  return Array.from(terms);
+})();
 
 function escapeRegex(value: string) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -103,6 +115,17 @@ function findRegionTermGroups(text: string) {
   return REGION_TERM_GROUPS
     .map((terms, index) => terms.some((term) => textContainsRegionTerm(normalizedText, term)) ? index : -1)
     .filter((index) => index !== -1);
+}
+
+function textContainsKnownSymptomTerm(text: string, term: string) {
+  const normalizedText = normalizeForRegionMatch(text);
+
+  return textContainsRegionTerm(normalizedText, term) ||
+    (term.length >= 4 && normalizedText.includes(term));
+}
+
+function hasKnownSymptomReference(text: string) {
+  return KNOWN_SYMPTOM_TERMS.some((term) => textContainsKnownSymptomTerm(text, term));
 }
 
 function hasClearRegionDetailContradiction(symptom: SymptomDraft) {
@@ -136,18 +159,22 @@ function buildExtractedSymptomValidationText(symptom: SymptomDraft) {
 
 async function validateEditableSymptomInputs(symptoms: SymptomDraft[], patientData?: PatientData) {
   for (const symptom of symptoms) {
-    if (!symptom.isNameEditable) {
-      continue;
-    }
-
     const symptomName = symptom.region.trim();
 
     if (!symptomName) {
       throw new Error("Bitte geben Sie für jedes erkannte Symptom einen Namen ein.");
     }
 
+    if (!hasKnownSymptomReference(symptomName)) {
+      throw new Error("Bitte prüfen Sie die Symptom- oder Regionsangabe. Die Angabe wirkt nicht medizinisch sinnvoll.");
+    }
+
     if (symptom.details?.trim() && hasClearRegionDetailContradiction(symptom)) {
       throw new Error("Bitte prüfen Sie Region und Zusatzdetails. Die Angaben widersprechen sich eindeutig.");
+    }
+
+    if (!symptom.isNameEditable) {
+      continue;
     }
 
     if (hasSymptomNameChanged(symptom)) {

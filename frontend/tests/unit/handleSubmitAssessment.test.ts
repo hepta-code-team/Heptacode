@@ -181,6 +181,54 @@ describe('handleSubmitAssessment', () => {
     );
   });
 
+  it('blocks clear region-detail contradictions even when editable metadata is missing', async () => {
+    const setters = createSetters();
+    const submitAssessment = vi.fn();
+
+    await handleSubmitAssessment({
+      symptomDetails: [
+        createSymptomDraft({
+          region: 'Bein',
+          details: 'Schnittwunde in der Hand',
+          isNameEditable: undefined,
+        }),
+      ],
+      submitAssessment,
+      ...setters,
+    });
+
+    expect(validateSymptomDetailInputMock).not.toHaveBeenCalled();
+    expect(submitAssessment).not.toHaveBeenCalled();
+    expect(setters.navigate).not.toHaveBeenCalled();
+    expect(setters.setSubmitError).toHaveBeenCalledWith(
+      'Bitte prüfen Sie Region und Zusatzdetails. Die Angaben widersprechen sich eindeutig.',
+    );
+  });
+
+  it('blocks non-medical symptom names even when the details look medical', async () => {
+    const setters = createSetters();
+    const submitAssessment = vi.fn();
+
+    await handleSubmitAssessment({
+      symptomDetails: [
+        createSymptomDraft({
+          region: 'Besen',
+          details: 'Schnittwunde in der Hand',
+          isNameEditable: true,
+        }),
+      ],
+      submitAssessment,
+      ...setters,
+    });
+
+    expect(validateSymptomDetailInputMock).not.toHaveBeenCalled();
+    expect(submitAssessment).not.toHaveBeenCalled();
+    expect(setters.navigate).not.toHaveBeenCalled();
+    expect(setters.setSubmitError).toHaveBeenCalledWith(
+      'Bitte prüfen Sie die Symptom- oder Regionsangabe. Die Angabe wirkt nicht medizinisch sinnvoll.',
+    );
+  });
+
   it('allows edited AI-extracted symptoms when there is no clear region-detail contradiction', async () => {
     const setters = createSetters();
     const submitAssessment = vi.fn().mockResolvedValue({});
