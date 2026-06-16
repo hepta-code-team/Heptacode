@@ -7,6 +7,8 @@ import {
   Brain,
   Check,
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
   Cigarette,
   CircleAlert,
   CircleHelp,
@@ -45,7 +47,10 @@ const conditionIcons = {
   Sonstige: CircleHelp,
 };
 
-const CONDITION_DETAIL_CONFIGS: Record<string, { label: string; options: string[] }> = {
+const CONDITION_DETAIL_CONFIGS: Record<
+  string,
+  { label: string; options: string[] }
+> = {
   Diabetes: {
     label: "Diabetes-Typ",
     options: ["Typ 1", "Typ 2", "Schwangerschaftsdiabetes", "Unklar"],
@@ -56,7 +61,13 @@ const CONDITION_DETAIL_CONFIGS: Record<string, { label: string; options: string[
   },
   Herzerkrankungen: {
     label: "Art der Herzerkrankung",
-    options: ["Koronare Herzkrankheit", "Herzrhythmusstörung", "Herzinsuffizienz", "Herzinfarkt früher", "Unklar"],
+    options: [
+      "Koronare Herzkrankheit",
+      "Herzrhythmusstörung",
+      "Herzinsuffizienz",
+      "Herzinfarkt früher",
+      "Unklar",
+    ],
   },
   "Asthma/COPD": {
     label: "Art der Lungenerkrankung",
@@ -64,21 +75,45 @@ const CONDITION_DETAIL_CONFIGS: Record<string, { label: string; options: string[
   },
   Nierenerkrankungen: {
     label: "Art der Nierenerkrankung",
-    options: ["Chronische Nierenerkrankung", "Dialyse", "Nierensteine", "Wiederkehrende Infekte", "Unklar"],
+    options: [
+      "Chronische Nierenerkrankung",
+      "Dialyse",
+      "Nierensteine",
+      "Wiederkehrende Infekte",
+      "Unklar",
+    ],
   },
   Lebererkrankungen: {
     label: "Art der Lebererkrankung",
-    options: ["Fettleber", "Hepatitis", "Leberzirrhose", "Erhöhte Leberwerte", "Unklar"],
+    options: [
+      "Fettleber",
+      "Hepatitis",
+      "Leberzirrhose",
+      "Erhöhte Leberwerte",
+      "Unklar",
+    ],
   },
   Epilepsie: {
     label: "Letzter Anfall",
-    options: ["In den letzten 24 Stunden", "In den letzten 4 Wochen", "Länger her", "Unklar"],
+    options: [
+      "In den letzten 24 Stunden",
+      "In den letzten 4 Wochen",
+      "Länger her",
+      "Unklar",
+    ],
   },
   "Psychische Erkrankung": {
     label: "Art der Erkrankung",
-    options: ["Depressionen", "Angststörung", "Suchterkrankung", "Zwangsstörung"],
+    options: [
+      "Depressionen",
+      "Angststörung",
+      "Suchterkrankung",
+      "Zwangsstörung",
+    ],
   },
 };
+
+const UNKNOWN_CONDITION_DURATION = "Ich weiß es nicht";
 
 const CONDITION_DURATION_LABELS: Record<string, string> = {
   Diabetes: "Seit wann ist der Diabetes bekannt?",
@@ -89,6 +124,7 @@ const CONDITION_DURATION_LABELS: Record<string, string> = {
   Lebererkrankungen: "Seit wann besteht die Lebererkrankung?",
   Epilepsie: "Seit wann ist die Epilepsie bekannt?",
   "Psychische Erkrankung": "Seit wann besteht die Erkrankung?",
+  Sonstige: "Seit wann besteht diese Vorerkrankung?",
 };
 
 /**
@@ -97,7 +133,9 @@ const CONDITION_DURATION_LABELS: Record<string, string> = {
  * The defaults keep every optional field controlled from the first render, which
  * avoids null checks throughout the large medical questionnaire.
  */
-const createInitialPatientData = (patientData?: Partial<PatientData>): PatientData => ({
+const createInitialPatientData = (
+  patientData?: Partial<PatientData>,
+): PatientData => ({
   birthMonth: "",
   birthYear: "",
   height: "",
@@ -144,7 +182,9 @@ function MedicalAccordionPanel({
   return (
     <div
       className={`rounded-[14px] border-2 p-3 transition-all ${
-        isCompleted ? "border-[#486284] bg-[#eff2f6]" : "border-transparent bg-[#eff2f6]"
+        isCompleted
+          ? "border-[#486284] bg-[#eff2f6]"
+          : "border-transparent bg-[#eff2f6]"
       }`}
     >
       <button
@@ -207,7 +247,9 @@ function OptionButton({
       type="button"
       onClick={onClick}
       className={`p-2 rounded-[10px] text-left transition-all flex items-center gap-2 ${
-        selected ? "bg-[#486284] text-white" : "bg-white text-app-text-body hover:bg-[#dde3ea]"
+        selected
+          ? "bg-[#486284] text-white"
+          : "bg-white text-app-text-body hover:bg-[#dde3ea]"
       }`}
     >
       <span
@@ -225,15 +267,26 @@ export default function MedicalDataPage() {
   const navigate = useNavigate();
   const { patientData, setPatientData } = useAssessment();
   const conditionsGridRef = useRef<HTMLDivElement | null>(null);
-  const [formData, setFormData] = useState<PatientData>(() => createInitialPatientData(patientData ?? undefined));
-  const [smokingStatus, setSmokingStatus] = useState<SmokingStatus>(() => (patientData?.isSmoker ? "Ja" : "Nein"));
-  const [expandedMedicalSections, setExpandedMedicalSections] = useState<Record<MedicalSection, boolean>>({
+  const [formData, setFormData] = useState<PatientData>(() =>
+    createInitialPatientData(patientData ?? undefined),
+  );
+  const [smokingStatus, setSmokingStatus] = useState<SmokingStatus>(() =>
+    patientData?.isSmoker ? "Ja" : "Nein",
+  );
+  const [expandedMedicalSections, setExpandedMedicalSections] = useState<
+    Record<MedicalSection, boolean>
+  >({
     allergies: false,
     medications: false,
     substance: false,
     abroad: false,
   });
-  const [expandedConditionDetails, setExpandedConditionDetails] = useState<Record<string, boolean>>({});
+  const [expandedConditionDetails, setExpandedConditionDetails] = useState<
+    Record<string, boolean>
+  >({});
+  const [activeConditionDetailIndex, setActiveConditionDetailIndex] =
+    useState(0);
+  const conditionDetailTouchStartX = useRef<number | null>(null);
 
   /**
    * Closes condition-detail dropdowns when the user clicks outside the grid.
@@ -255,7 +308,6 @@ export default function MedicalDataPage() {
     setPatientData(formData);
   }, [formData, setPatientData]);
 
-
   const toggleMedicalSection = (section: MedicalSection) => {
     setExpandedMedicalSections((sections) => ({
       ...sections,
@@ -265,7 +317,6 @@ export default function MedicalDataPage() {
 
   const toggleConditionDropdown = (condition: string) => {
     setExpandedConditionDetails((sections) => ({
-      ...sections,
       [condition]: !sections[condition],
     }));
   };
@@ -281,11 +332,14 @@ export default function MedicalDataPage() {
 
   const clearOtherConditionSelection = () => {
     setFormData((prev) => {
-      const { Sonstige: _removedDetail, ...nextConditionDetails } = prev.conditionDetails ?? {};
+      const { Sonstige: _removedDetail, ...nextConditionDetails } =
+        prev.conditionDetails ?? {};
 
       return {
         ...prev,
-        conditions: prev.conditions.filter((condition) => condition !== "Sonstige"),
+        conditions: prev.conditions.filter(
+          (condition) => condition !== "Sonstige",
+        ),
         conditionDetails: nextConditionDetails,
       };
     });
@@ -293,18 +347,18 @@ export default function MedicalDataPage() {
 
   const clearConditionSelection = (condition: string) => {
     setFormData((prev) => {
-      const { [condition]: _removedDetail, ...nextConditionDetails } = prev.conditionDetails ?? {};
+      const { [condition]: _removedDetail, ...nextConditionDetails } =
+        prev.conditionDetails ?? {};
 
       return {
         ...prev,
-        conditions: prev.conditions.filter((selectedCondition) => selectedCondition !== condition),
+        conditions: prev.conditions.filter(
+          (selectedCondition) => selectedCondition !== condition,
+        ),
         conditionDetails: nextConditionDetails,
       };
     });
-    setExpandedConditionDetails((sections) => ({
-      ...sections,
-      [condition]: false,
-    }));
+    setExpandedConditionDetails({});
   };
 
   const toggleConditionSelection = (condition: string) => {
@@ -325,7 +379,9 @@ export default function MedicalDataPage() {
   const selectConditionDetail = (condition: string, value: string) => {
     setFormData((prev) => ({
       ...prev,
-      conditions: prev.conditions.includes(condition) ? prev.conditions : [...prev.conditions, condition],
+      conditions: prev.conditions.includes(condition)
+        ? prev.conditions
+        : [...prev.conditions, condition],
       conditionDetails: {
         ...(prev.conditionDetails ?? {}),
         [condition]: {
@@ -335,10 +391,7 @@ export default function MedicalDataPage() {
         },
       },
     }));
-    setExpandedConditionDetails((sections) => ({
-      ...sections,
-      [condition]: false,
-    }));
+    setExpandedConditionDetails({});
   };
 
   /**
@@ -391,9 +444,119 @@ export default function MedicalDataPage() {
   };
 
   const selectedConditionDetails = formData.conditions
-    .filter((condition) => condition !== "Sonstige")
     .map((condition) => formData.conditionDetails?.[condition])
-    .filter((detail): detail is NonNullable<typeof detail> => Boolean(detail?.detail.trim()));
+    .filter((detail): detail is NonNullable<typeof detail> =>
+      Boolean(detail?.detail.trim()),
+    );
+  const hasMultipleConditionDetails = selectedConditionDetails.length > 1;
+  const activeConditionDetail =
+    selectedConditionDetails[activeConditionDetailIndex] ??
+    selectedConditionDetails[0];
+
+  useEffect(() => {
+    setActiveConditionDetailIndex((currentIndex) => {
+      if (selectedConditionDetails.length === 0) return 0;
+      return Math.min(currentIndex, selectedConditionDetails.length - 1);
+    });
+  }, [selectedConditionDetails.length]);
+
+  const showPreviousConditionDetail = () => {
+    setActiveConditionDetailIndex((currentIndex) =>
+      currentIndex === 0
+        ? selectedConditionDetails.length - 1
+        : currentIndex - 1,
+    );
+  };
+
+  const showNextConditionDetail = () => {
+    setActiveConditionDetailIndex((currentIndex) =>
+      currentIndex === selectedConditionDetails.length - 1
+        ? 0
+        : currentIndex + 1,
+    );
+  };
+
+  const handleConditionDetailTouchEnd = (clientX: number) => {
+    if (
+      !hasMultipleConditionDetails ||
+      conditionDetailTouchStartX.current === null
+    )
+      return;
+
+    const swipeDistance = conditionDetailTouchStartX.current - clientX;
+    conditionDetailTouchStartX.current = null;
+
+    if (Math.abs(swipeDistance) < 40) return;
+    if (swipeDistance > 0) {
+      showNextConditionDetail();
+    } else {
+      showPreviousConditionDetail();
+    }
+  };
+
+  const renderConditionDurationCard = (
+    detail: NonNullable<typeof activeConditionDetail>,
+  ) => {
+    const hasDurationValue = detail.duration.trim().length > 0;
+    const isUnknownDuration = detail.duration === UNKNOWN_CONDITION_DURATION;
+
+    return (
+      <div
+        key={detail.condition}
+        className={`rounded-[12px] border-2 bg-[#eff2f6] p-3 transition-all ${
+          hasDurationValue ? "border-[#486284]" : "border-transparent"
+        }`}
+      >
+        <div className="mb-2 flex flex-wrap items-baseline gap-1.5">
+          <p
+            className="font-['DM_Sans:Bold',sans-serif] font-bold text-app-text-body text-sm"
+            style={{ fontVariationSettings: "'opsz' 14" }}
+          >
+            {detail.condition}
+          </p>
+          <p className="text-xs font-medium text-app-text-primary">–</p>
+          <p className="text-xs font-semibold text-app-text-primary">
+            {detail.detail}
+          </p>
+        </div>
+        <Label
+          htmlFor={`conditionDuration-${detail.condition}`}
+          className="mb-1 block text-xs font-semibold text-app-text-primary"
+        >
+          {CONDITION_DURATION_LABELS[detail.condition] ??
+            "Seit wann besteht die Erkrankung?"}
+        </Label>
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+          <Input
+            id={`conditionDuration-${detail.condition}`}
+            value={detail.duration}
+            onChange={(event) =>
+              updateConditionDuration(detail.condition, event.target.value)
+            }
+            placeholder="z. B. 2019, seit 6 Monaten"
+            className="h-10 border-[#d8dee6] bg-white text-sm"
+          />
+          <button
+            type="button"
+            onClick={() =>
+              updateConditionDuration(
+                detail.condition,
+                isUnknownDuration ? "" : UNKNOWN_CONDITION_DURATION,
+              )
+            }
+            className={`inline-flex h-10 w-fit shrink-0 items-center justify-center rounded-[10px] px-3 text-xs font-bold transition-all ${
+              isUnknownDuration
+                ? "bg-[#486284] text-white"
+                : "bg-white text-app-text-primary hover:bg-[#dde3ea]"
+            }`}
+            aria-pressed={isUnknownDuration}
+          >
+            {UNKNOWN_CONDITION_DURATION}
+          </button>
+        </div>
+      </div>
+    );
+  };
 
   const handleContinue = () => {
     setPatientData(formData);
@@ -414,7 +577,9 @@ export default function MedicalDataPage() {
       {(formData.gender === "Weiblich" || formData.gender === "Divers") && (
         <div
           className={`rounded-[14px] border-2 bg-[#eff2f6] p-3 transition-all ${
-            formData.isPregnant || formData.isBreastfeeding ? "border-[#486284]" : "border-transparent"
+            formData.isPregnant || formData.isBreastfeeding
+              ? "border-[#486284]"
+              : "border-transparent"
           }`}
         >
           <p
@@ -426,7 +591,11 @@ export default function MedicalDataPage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
             {[
               { key: "isPregnant", label: "Derzeit schwanger", icon: Baby },
-              { key: "isBreastfeeding", label: "Derzeit stillend", icon: HeartPulse },
+              {
+                key: "isBreastfeeding",
+                label: "Derzeit stillend",
+                icon: HeartPulse,
+              },
             ].map((item) => {
               const key = item.key as "isPregnant" | "isBreastfeeding";
               const Icon = item.icon;
@@ -436,7 +605,9 @@ export default function MedicalDataPage() {
                 <button
                   key={item.key}
                   type="button"
-                  onClick={() => setFormData({ ...formData, [key]: !formData[key] })}
+                  onClick={() =>
+                    setFormData({ ...formData, [key]: !formData[key] })
+                  }
                   className={`w-full p-3 rounded-[12px] text-left transition-all flex items-center gap-3 ${
                     isSelected
                       ? "bg-[#486284] text-white"
@@ -477,7 +648,9 @@ export default function MedicalDataPage() {
             <textarea
               id="allergies"
               value={formData.allergies}
-              onChange={(event) => setFormData({ ...formData, allergies: event.target.value })}
+              onChange={(event) =>
+                setFormData({ ...formData, allergies: event.target.value })
+              }
               placeholder="z.B. Penicillin, Nüsse, Latex"
               className="w-full min-h-[82px] resize-none rounded-[10px] bg-white p-3 text-sm outline-none focus:ring-2 focus:ring-[#486284]/30"
             />
@@ -497,7 +670,9 @@ export default function MedicalDataPage() {
             <textarea
               id="medications"
               value={formData.medications}
-              onChange={(event) => setFormData({ ...formData, medications: event.target.value })}
+              onChange={(event) =>
+                setFormData({ ...formData, medications: event.target.value })
+              }
               placeholder="z.B. Blutdruckmittel, Schmerzmittel, Pille"
               className="w-full min-h-[82px] resize-none rounded-[10px] bg-white p-3 text-sm outline-none focus:ring-2 focus:ring-[#486284]/30"
             />
@@ -508,7 +683,11 @@ export default function MedicalDataPage() {
             icon={Wine}
             isOpen={expandedMedicalSections.substance}
             onToggle={() => toggleMedicalSection("substance")}
-            summary={formData.substanceInfluence === "Nein" ? "Nein ausgewählt" : formData.substanceInfluence}
+            summary={
+              formData.substanceInfluence === "Nein"
+                ? "Nein ausgewählt"
+                : formData.substanceInfluence
+            }
             isCompleted={formData.substanceInfluence !== "Nein"}
           >
             <div className="grid grid-cols-2 gap-2">
@@ -520,7 +699,9 @@ export default function MedicalDataPage() {
                     key={option}
                     label={option}
                     selected={isSelected}
-                    onClick={() => setFormData({ ...formData, substanceInfluence: option })}
+                    onClick={() =>
+                      setFormData({ ...formData, substanceInfluence: option })
+                    }
                   />
                 );
               })}
@@ -532,7 +713,11 @@ export default function MedicalDataPage() {
             icon={Globe2}
             isOpen={expandedMedicalSections.abroad}
             onToggle={() => toggleMedicalSection("abroad")}
-            summary={formData.recentAbroad ? formData.recentAbroadDetails || "Ja ausgewählt" : "Nein ausgewählt"}
+            summary={
+              formData.recentAbroad
+                ? formData.recentAbroadDetails || "Ja ausgewählt"
+                : "Nein ausgewählt"
+            }
             isCompleted={formData.recentAbroad}
           >
             <div className="grid grid-cols-2 gap-2 mb-2">
@@ -551,7 +736,9 @@ export default function MedicalDataPage() {
                       setFormData({
                         ...formData,
                         recentAbroad: option.value,
-                        recentAbroadDetails: option.value ? formData.recentAbroadDetails : "",
+                        recentAbroadDetails: option.value
+                          ? formData.recentAbroadDetails
+                          : "",
                       })
                     }
                   />
@@ -562,7 +749,12 @@ export default function MedicalDataPage() {
               <Input
                 id="recentAbroadDetails"
                 value={formData.recentAbroadDetails}
-                onChange={(event) => setFormData({ ...formData, recentAbroadDetails: event.target.value })}
+                onChange={(event) =>
+                  setFormData({
+                    ...formData,
+                    recentAbroadDetails: event.target.value,
+                  })
+                }
                 placeholder="Land / Region, falls bekannt"
                 className="bg-white border-none text-xs h-9"
               />
@@ -604,8 +796,10 @@ export default function MedicalDataPage() {
                 setFormData({
                   ...formData,
                   isSmoker: status !== "Nein",
-                  smokingSinceYears: status === "Nein" ? "" : formData.smokingSinceYears,
-                  cigarettesPerDay: status === "Nein" ? "" : formData.cigarettesPerDay,
+                  smokingSinceYears:
+                    status === "Nein" ? "" : formData.smokingSinceYears,
+                  cigarettesPerDay:
+                    status === "Nein" ? "" : formData.cigarettesPerDay,
                 });
               }}
             />
@@ -615,7 +809,10 @@ export default function MedicalDataPage() {
         {smokingStatus !== "Nein" && (
           <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2">
             <div>
-              <Label htmlFor="smokingSinceYears" className="mb-1 block text-xs font-bold text-app-text-body">
+              <Label
+                htmlFor="smokingSinceYears"
+                className="mb-1 block text-xs font-bold text-app-text-body"
+              >
                 Seit wann? (Jahre)
               </Label>
               <div className="flex h-9 overflow-hidden rounded-[10px] bg-white">
@@ -624,7 +821,12 @@ export default function MedicalDataPage() {
                   onClick={() =>
                     setFormData({
                       ...formData,
-                      smokingSinceYears: String(Math.max(Number(formData.smokingSinceYears || 0) - 1, 0)),
+                      smokingSinceYears: String(
+                        Math.max(
+                          Number(formData.smokingSinceYears || 0) - 1,
+                          0,
+                        ),
+                      ),
                     })
                   }
                   className="w-10 border-r border-[#eff2f6] text-base font-bold text-app-text-primary hover:bg-[#dde3ea]"
@@ -638,7 +840,12 @@ export default function MedicalDataPage() {
                   min="0"
                   step="1"
                   value={formData.smokingSinceYears ?? ""}
-                  onChange={(event) => setFormData({ ...formData, smokingSinceYears: event.target.value })}
+                  onChange={(event) =>
+                    setFormData({
+                      ...formData,
+                      smokingSinceYears: event.target.value,
+                    })
+                  }
                   placeholder="0"
                   className="min-w-0 flex-1 bg-white px-3 text-center text-sm font-semibold outline-none"
                 />
@@ -647,7 +854,9 @@ export default function MedicalDataPage() {
                   onClick={() =>
                     setFormData({
                       ...formData,
-                      smokingSinceYears: String(Number(formData.smokingSinceYears || 0) + 1),
+                      smokingSinceYears: String(
+                        Number(formData.smokingSinceYears || 0) + 1,
+                      ),
                     })
                   }
                   className="w-10 border-l border-[#eff2f6] text-base font-bold text-app-text-primary hover:bg-[#dde3ea]"
@@ -658,7 +867,10 @@ export default function MedicalDataPage() {
               </div>
             </div>
             <div>
-              <Label htmlFor="cigarettesPerDay" className="mb-1 block text-xs font-bold text-app-text-body">
+              <Label
+                htmlFor="cigarettesPerDay"
+                className="mb-1 block text-xs font-bold text-app-text-body"
+              >
                 Menge pro Tag
               </Label>
               <div className="flex h-9 overflow-hidden rounded-[10px] bg-white">
@@ -667,7 +879,9 @@ export default function MedicalDataPage() {
                   onClick={() =>
                     setFormData({
                       ...formData,
-                      cigarettesPerDay: String(Math.max(Number(formData.cigarettesPerDay || 0) - 1, 0)),
+                      cigarettesPerDay: String(
+                        Math.max(Number(formData.cigarettesPerDay || 0) - 1, 0),
+                      ),
                     })
                   }
                   className="w-10 border-r border-[#eff2f6] text-base font-bold text-app-text-primary hover:bg-[#dde3ea]"
@@ -681,7 +895,12 @@ export default function MedicalDataPage() {
                   min="0"
                   step="1"
                   value={formData.cigarettesPerDay ?? ""}
-                  onChange={(event) => setFormData({ ...formData, cigarettesPerDay: event.target.value })}
+                  onChange={(event) =>
+                    setFormData({
+                      ...formData,
+                      cigarettesPerDay: event.target.value,
+                    })
+                  }
                   placeholder="0"
                   className="min-w-0 flex-1 bg-white px-3 text-center text-sm font-semibold outline-none"
                 />
@@ -690,7 +909,9 @@ export default function MedicalDataPage() {
                   onClick={() =>
                     setFormData({
                       ...formData,
-                      cigarettesPerDay: String(Number(formData.cigarettesPerDay || 0) + 1),
+                      cigarettesPerDay: String(
+                        Number(formData.cigarettesPerDay || 0) + 1,
+                      ),
                     })
                   }
                   className="w-10 border-l border-[#eff2f6] text-base font-bold text-app-text-primary hover:bg-[#dde3ea]"
@@ -724,14 +945,21 @@ export default function MedicalDataPage() {
           </button>
         </div>
 
-        <div ref={conditionsGridRef} className="grid grid-cols-2 md:grid-cols-3 gap-2">
-          {PRE_EXISTING_CONDITIONS.map((condition) => {
-            const Icon = conditionIcons[condition as keyof typeof conditionIcons] ?? CircleHelp;
+        <div
+          ref={conditionsGridRef}
+          className="grid grid-cols-2 md:grid-cols-3 gap-2"
+        >
+          {PRE_EXISTING_CONDITIONS.map((condition, index) => {
+            const Icon =
+              conditionIcons[condition as keyof typeof conditionIcons] ??
+              CircleHelp;
             const isSelected = formData.conditions.includes(condition);
-            const otherValue = formData.conditionDetails?.Sonstige?.detail ?? "";
+            const otherValue =
+              formData.conditionDetails?.Sonstige?.detail ?? "";
             const config = CONDITION_DETAIL_CONFIGS[condition];
             const detail = formData.conditionDetails?.[condition]?.detail ?? "";
             const isOpen = expandedConditionDetails[condition] ?? false;
+            const opensUpward = index >= PRE_EXISTING_CONDITIONS.length - 3;
 
             if (condition === "Sonstige") {
               return (
@@ -759,7 +987,9 @@ export default function MedicalDataPage() {
                     <Input
                       id="otherCondition"
                       value={otherValue}
-                      onChange={(event) => updateOtherCondition(event.target.value)}
+                      onChange={(event) =>
+                        updateOtherCondition(event.target.value)
+                      }
                       placeholder="Freitext"
                       className="h-8 border-none bg-white pr-8 text-xs"
                     />
@@ -814,7 +1044,11 @@ export default function MedicalDataPage() {
                 </button>
 
                 {isOpen && config && (
-                  <div className="absolute z-10 top-full left-0 right-0 mt-1 bg-white border-2 border-[#486284] rounded-[12px] shadow-lg overflow-hidden">
+                  <div
+                    className={`absolute z-10 left-0 right-0 max-h-[calc(100dvh-12rem)] overflow-y-auto bg-white border-2 border-[#486284] rounded-[12px] shadow-lg ${
+                      opensUpward ? "bottom-full mb-1" : "top-full mt-1"
+                    }`}
+                  >
                     {config.options.map((option) => (
                       <button
                         key={option}
@@ -834,52 +1068,61 @@ export default function MedicalDataPage() {
           })}
         </div>
 
-        {selectedConditionDetails.length > 0 && (
-          <div className="mt-3 max-h-[132px] space-y-2 overflow-y-auto pr-1">
-            {selectedConditionDetails.map((detail) => (
-              <div
-                key={detail.condition}
-                className="rounded-[12px] border border-[#d8dee6] bg-white p-3"
-              >
-                  <div className="mb-2 flex flex-wrap items-baseline gap-1.5">
-                    <p
-                      className="font-['DM_Sans:Bold',sans-serif] font-bold text-app-text-body text-sm"
-                      style={{ fontVariationSettings: "'opsz' 14" }}
-                    >
-                      {detail.condition}
-                    </p>
-                    <p className="text-xs font-medium text-app-text-primary">
-                      –
-                    </p>
-                    <p className="text-xs font-semibold text-app-text-primary">
-                      {detail.detail}
-                    </p>
-                  </div>
-                  <Label
-                    htmlFor={`conditionDuration-${detail.condition}`}
-                    className="mb-1 block text-xs font-semibold text-app-text-primary"
+        {activeConditionDetail && (
+          <div
+            className="mt-3"
+            onTouchStart={(event) => {
+              conditionDetailTouchStartX.current =
+                event.touches[0]?.clientX ?? null;
+            }}
+            onTouchEnd={(event) =>
+              handleConditionDetailTouchEnd(
+                event.changedTouches[0]?.clientX ?? 0,
+              )
+            }
+          >
+            {hasMultipleConditionDetails ? (
+              <div className="rounded-[14px] bg-white/60 p-2">
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={showPreviousConditionDetail}
+                    className="flex size-9 shrink-0 items-center justify-center rounded-full bg-[#eff2f6] text-app-text-primary transition-all hover:bg-[#dde3ea]"
+                    aria-label="Vorheriges Dauerfeld anzeigen"
                   >
-                    {CONDITION_DURATION_LABELS[detail.condition] ?? "Seit wann besteht die Erkrankung?"}
-                  </Label>
-                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-                    <Input
-                      id={`conditionDuration-${detail.condition}`}
-                      value={detail.duration}
-                      onChange={(event) => updateConditionDuration(detail.condition, event.target.value)}
-                      placeholder="z. B. 2019, seit 6 Monaten"
-                      className="h-10 border-[#d8dee6] bg-[#f8fafc] text-sm"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => updateConditionDuration(detail.condition, "")}
-                      className="inline-flex h-10 w-fit shrink-0 items-center justify-center gap-1.5 rounded-[10px] bg-[#eff2f6] px-3 text-xs font-bold text-app-text-primary transition-all hover:bg-[#dde3ea]"
-                    >
-                      <X className="size-5 text-red-600" aria-hidden="true" />
-                      Ich weiß es nicht
-                    </button>
+                    <ChevronLeft className="size-5" aria-hidden="true" />
+                  </button>
+                  <div className="min-w-0 flex-1">
+                    {renderConditionDurationCard(activeConditionDetail)}
                   </div>
+                  <button
+                    type="button"
+                    onClick={showNextConditionDetail}
+                    className="flex size-9 shrink-0 items-center justify-center rounded-full bg-[#eff2f6] text-app-text-primary transition-all hover:bg-[#dde3ea]"
+                    aria-label="Nächstes Dauerfeld anzeigen"
+                  >
+                    <ChevronRight className="size-5" aria-hidden="true" />
+                  </button>
+                </div>
+                <div
+                  className="mt-2 flex justify-center gap-1.5"
+                  aria-label="Dauerfeld-Auswahl"
+                >
+                  {selectedConditionDetails.map((detail, index) => (
+                    <span
+                      key={detail.condition}
+                      className={`h-1.5 rounded-full transition-all ${
+                        index === activeConditionDetailIndex
+                          ? "w-1.5 bg-[#486284]"
+                          : "w-1.5 bg-[#c8d0da]"
+                      }`}
+                    />
+                  ))}
+                </div>
               </div>
-            ))}
+            ) : (
+              renderConditionDurationCard(activeConditionDetail)
+            )}
           </div>
         )}
       </div>
