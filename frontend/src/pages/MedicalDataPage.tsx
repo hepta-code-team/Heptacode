@@ -253,7 +253,7 @@ function OptionButton({
       }`}
     >
       <span
-        className="font-['DM_Sans:SemiBold',sans-serif] font-semibold text-sm flex-1"
+        className="min-w-0 flex-1 whitespace-normal break-words font-['DM_Sans:SemiBold',sans-serif] font-semibold text-sm leading-snug"
         style={{ fontVariationSettings: "'opsz' 14" }}
       >
         {label}
@@ -534,7 +534,7 @@ export default function MedicalDataPage() {
               updateConditionDuration(detail.condition, event.target.value)
             }
             placeholder="z. B. 2019, seit 6 Monaten"
-            className="h-10 border-[#d8dee6] bg-white text-sm"
+            className="h-10 border-none bg-white text-sm"
           />
           <button
             type="button"
@@ -619,7 +619,7 @@ export default function MedicalDataPage() {
                     aria-hidden="true"
                   />
                   <span
-                    className="font-['DM_Sans:SemiBold',sans-serif] font-semibold text-sm flex-1"
+                    className="min-w-0 flex-1 whitespace-normal break-words font-['DM_Sans:SemiBold',sans-serif] font-semibold text-sm leading-snug"
                     style={{ fontVariationSettings: "'opsz' 14" }}
                   >
                     {item.label}
@@ -965,7 +965,7 @@ export default function MedicalDataPage() {
               return (
                 <div
                   key={condition}
-                  className={`bg-[#eff2f6] rounded-[10px] p-2.5 h-[82px] flex flex-col justify-center gap-1.5 transition-all ${
+                  className={`bg-[#eff2f6] rounded-[10px] p-2.5 min-h-[88px] flex flex-col justify-center gap-1.5 transition-all ${
                     otherValue.trim() ? "ring-2 ring-[#486284]" : ""
                   }`}
                 >
@@ -1014,7 +1014,7 @@ export default function MedicalDataPage() {
                 <button
                   type="button"
                   onClick={() => toggleConditionSelection(condition)}
-                  className={`bg-[#eff2f6] rounded-[10px] p-3 h-[82px] w-full flex flex-col items-center justify-center gap-1.5 overflow-hidden text-center transition-all ${
+                  className={`bg-[#eff2f6] rounded-[10px] p-3 min-h-[88px] w-full flex flex-col items-center justify-center gap-1.5 text-center transition-all ${
                     isSelected ? "ring-2 ring-[#486284]" : "hover:bg-[#dde3ea]"
                   }`}
                   aria-expanded={isOpen}
@@ -1037,7 +1037,7 @@ export default function MedicalDataPage() {
                     {condition}
                   </p>
                   {detail && (
-                    <p className="max-w-full truncate text-xs font-medium text-app-text-primary">
+                    <p className="max-w-full whitespace-normal break-words text-xs font-medium leading-snug text-app-text-primary">
                       {detail}
                     </p>
                   )}
