@@ -123,6 +123,15 @@ export function hasEmergencyTriagePattern(symptom: TriageSymptom): boolean {
     return true
   }
 
+  if (
+    combinedText.includes('anaphylax') ||
+    combinedText.includes('allergische reaktion') ||
+    ((combinedText.includes('zunge') || combinedText.includes('hals') || combinedText.includes('gesicht')) &&
+      (combinedText.includes('schwell') || combinedText.includes('schwill') || combinedText.includes('zugeschwollen')))
+  ) {
+    return true
+  }
+
   if (region === 'brust') {
     return (
       measurementValue >= 5 ||
@@ -140,7 +149,16 @@ export function hasEmergencyTriagePattern(symptom: TriageSymptom): boolean {
     combinedText.includes('luftnot') ||
     combinedText.includes('bewusstlos') ||
     combinedText.includes('starke blutung') ||
-    combinedText.includes('blutet stark')
+    combinedText.includes('blutet stark') ||
+    combinedText.includes('viel blut') ||
+    combinedText.includes('starker blutverlust') ||
+    combinedText.includes('blutiges erbrechen') ||
+    combinedText.includes('bluterbrechen') ||
+    combinedText.includes('kaffeesatz') ||
+    combinedText.includes('bluthusten') ||
+    combinedText.includes('blutiger auswurf') ||
+    combinedText.includes('schwarzer stuhl') ||
+    combinedText.includes('teerstuhl')
   )
 }
 

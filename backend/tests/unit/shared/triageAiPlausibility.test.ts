@@ -265,6 +265,54 @@ describe('getTriageAiPlausibilityIssues', () => {
     expect(issues).toContain('Warnsymptome dürfen nicht als selfcare eingestuft werden.')
   })
 
+  /** Airway-related allergic swelling should not be accepted as self-care. */
+  it('markiert Selfcare bei allergischer Atemwegs-Schwellung als unplausibel', () => {
+    const issues = getTriageAiPlausibilityIssues(
+      {
+        careLevel: 'selfcare',
+        reasons: ['Die Beschwerden koennen zunaechst beobachtet werden.'],
+        reviewSummary: {
+          plainLanguage: 'Die Beschwerden koennen zunaechst beobachtet werden.',
+          professionalSummary: 'Care Level: selfcare.',
+        },
+      },
+      [
+        {
+          region: 'Allgemein',
+          details: 'Allergische Reaktion, Zunge schwillt an und Hals zugeschwollen',
+          measurementType: 'severity',
+          measurementValue: 4,
+        },
+      ],
+    )
+
+    expect(issues).toContainEqual(expect.stringContaining('selfcare'))
+  })
+
+  /** Local swelling without airway context should not become a warning pattern by itself. */
+  it('akzeptiert Selfcare bei lokaler Schwellung ohne Atemwegsbezug als plausibel', () => {
+    const issues = getTriageAiPlausibilityIssues(
+      {
+        careLevel: 'selfcare',
+        reasons: ['Die Beschwerden sind mild und ohne erkennbare Warnzeichen.'],
+        reviewSummary: {
+          plainLanguage: 'Die Beschwerden koennen zunaechst beobachtet werden.',
+          professionalSummary: 'Care Level: selfcare.',
+        },
+      },
+      [
+        {
+          region: 'Knie',
+          details: 'Leicht geschwollen nach Belastung',
+          measurementType: 'pain',
+          measurementValue: 2,
+        },
+      ],
+    )
+
+    expect(issues).toEqual([])
+  })
+
   /** Strong bleeding descriptions should not be accepted as self-care. */
   it('markiert Selfcare bei starker Blutung als unplausibel', () => {
     const issues = getTriageAiPlausibilityIssues(
@@ -287,6 +335,34 @@ describe('getTriageAiPlausibilityIssues', () => {
     )
 
     expect(issues).toContain('Warnsymptome dürfen nicht als selfcare eingestuft werden.')
+  })
+
+  /** Critical blood-related descriptions should not be accepted as self-care. */
+  it.each([
+    'Blutiges Erbrechen seit heute',
+    'Bluthusten mit blutigem Auswurf',
+    'Schwarzer Stuhl wie Teerstuhl',
+  ])('markiert Selfcare bei "%s" als unplausibel', (details) => {
+    const issues = getTriageAiPlausibilityIssues(
+      {
+        careLevel: 'selfcare',
+        reasons: ['Die Beschwerden koennen zunaechst beobachtet werden.'],
+        reviewSummary: {
+          plainLanguage: 'Die Beschwerden koennen zunaechst beobachtet werden.',
+          professionalSummary: 'Care Level: selfcare.',
+        },
+      },
+      [
+        {
+          region: 'Allgemein',
+          details,
+          measurementType: 'severity',
+          measurementValue: 4,
+        },
+      ],
+    )
+
+    expect(issues).toContainEqual(expect.stringContaining('selfcare'))
   })
 
   /** Mild symptoms without warning signs should not be escalated to emergency care. */
