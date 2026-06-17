@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import { Check, ChevronDown, Download, Edit3, PhoneCall, X } from "lucide-react";
 import PageShell from "../components/PageShell";
-import ResultCard from "../features/results/ResultCard";
 import NearbyPracticeSearch from "../features/results/NearbyPracticeSearch";
 import Button from "../components/Button";
 import {
@@ -263,6 +262,113 @@ function formatTravelDisplay(value: string) {
   return country || startDate || endDate || value;
 }
 
+function AcuteEmergencySummaryFlow({
+  acuteSymptomName,
+  acuteSymptomDescription,
+  onReset,
+}: {
+  acuteSymptomName?: string;
+  acuteSymptomDescription?: string;
+  onReset: () => void;
+}) {
+  const emergencyConfig = TRIAGE_CONFIGS.emergency;
+
+  return (
+    <PageShell
+      title="Notfallversorgung"
+      subtitle="Sie sollten sich umgehend in die Notaufnahme begeben oder wahlen sie die 112."
+    >
+      <div
+        className="rounded-[16px] p-5 md:p-6 mb-4"
+        style={{ backgroundColor: emergencyConfig.bgColor }}
+      >
+        <div className="flex items-center gap-3 mb-3">
+          <div
+            className="w-14 h-14 rounded-full flex items-center justify-center flex-shrink-0"
+            style={{ backgroundColor: emergencyConfig.color }}
+          >
+            <p
+              className="font-['DM_Sans:Bold',sans-serif] font-bold text-app-text-on-primary text-xl"
+              style={{ fontVariationSettings: "'opsz' 14" }}
+            >
+              !
+            </p>
+          </div>
+          <p
+            className="font-['DM_Sans:Bold',sans-serif] font-bold text-xl md:text-2xl"
+            style={{ fontVariationSettings: "'opsz' 14", color: emergencyConfig.color }}
+          >
+            {emergencyConfig.title}
+          </p>
+        </div>
+
+        <p
+          className="font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-body text-sm md:text-base leading-relaxed"
+          style={{ fontVariationSettings: "'opsz' 14" }}
+        >
+          {emergencyConfig.description}
+        </p>
+
+        <div className="my-6 border-t border-[#FF2546]/20" />
+
+        <p className="font-['DM_Sans:Bold',sans-serif] font-bold text-app-text-primary text-lg mb-3">
+          Ihre Einschätzung
+        </p>
+
+        <p className="font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-body text-sm md:text-base leading-relaxed">
+          {acuteSymptomName ? (
+            <>
+              Sie haben <strong>{acuteSymptomName}</strong> ausgewählt.{" "}
+            </>
+          ) : (
+            "Sie haben ein akutes Notfallsymptom ausgewählt. "
+          )}
+          {acuteSymptomDescription ||
+            "Dieses Symptom kann auf einen medizinischen Notfall hinweisen und sollte sofort abgeklärt werden."}
+        </p>
+
+        <p className="mt-3 font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-body text-sm leading-relaxed">
+          Weitere Informationen zu Notruf und Notaufnahme finden Sie bei{" "}
+          <a
+            href="https://gesund.bund.de/wege-im-gesundheitswesen/erwachsenenleben/alter/notfaelle/notruf-und-notaufnahme"
+            target="_blank"
+            rel="noreferrer"
+            className="font-bold text-[#486284] underline hover:no-underline"
+          >
+            gesund.bund.de
+          </a>
+          .
+        </p>
+      </div>
+
+      <a
+        href="tel:112"
+        className="md:hidden mb-4 flex min-h-[56px] w-full items-center justify-center gap-3 rounded-[14px] px-5 py-3 text-app-text-on-primary shadow-sm transition-all hover:opacity-90"
+        style={{ backgroundColor: emergencyConfig.color }}
+        aria-label="112 anrufen"
+      >
+        <PhoneCall className="size-5 flex-shrink-0" aria-hidden="true" />
+        <span className="font-['DM_Sans:Bold',sans-serif] font-bold text-base">
+          112 anrufen
+        </span>
+      </a>
+
+      <NearbyPracticeSearch
+        careLevel="emergency"
+        specialties={["emergency_medicine"]}
+      />
+
+      <div className="mt-6 mb-6">
+        <Button onClick={onReset}>
+          <p className="font-['DM_Sans:Bold',sans-serif] font-bold text-base">
+            Neue Bewertung starten
+          </p>
+        </Button>
+      </div>
+    </PageShell>
+  );
+}
+
 export default function ResultPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -279,8 +385,8 @@ export default function ResultPage() {
     EMPTY_MEDICAL_SUMMARY_SECTIONS,
   );
 
-  const isEmergency = searchParams.get("emergency") === "true";
-  const fallbackCareLevel: CareLevel = isEmergency ? "emergency" : "selfcare";
+  const isAcuteEmergencyFlow = searchParams.get("emergency") === "true";
+  const fallbackCareLevel: CareLevel = isAcuteEmergencyFlow ? "emergency" : "selfcare";
   const careLevel = assessmentResult?.careLevel ?? fallbackCareLevel;
   const specialtyParam = searchParams.get("specialty");
   const recommendedSpecialty = isValidMedicalSpecialty(assessmentResult?.recommendedSpecialty)
@@ -560,36 +666,73 @@ export default function ResultPage() {
       alert("Das PDF konnte nicht heruntergeladen werden.");
     }
   };
-
+  
+  if (isAcuteEmergencyFlow) {
+    return (
+      <AcuteEmergencySummaryFlow
+        acuteSymptomName={searchParams.get("acuteSymptom") ?? undefined}
+        acuteSymptomDescription={searchParams.get("acuteSymptomDescription") ?? undefined}
+        onReset={handleReset}
+      />
+    );
+  }
   return (
     <PageShell
       title="Ihre Auswertung"
       subtitle="Basierend auf Ihren Angaben haben wir folgende Empfehlung für Sie."
     >
-      <ResultCard config={config} careLevel={careLevel} recommendedSpecialty={recommendedSpecialty} />
-
-      {callAction && (
-          <a
-              href={callAction.href}
-              className="md:hidden mb-4 flex min-h-[56px] w-full items-center justify-center gap-3 rounded-[14px] px-5 py-3 text-app-text-on-primary shadow-sm transition-all hover:opacity-90"
-              style={{ backgroundColor: config.color }}
-              aria-label={callAction.label}
+      <div
+        className="rounded-[16px] p-5 md:p-6 mb-4"
+        style={{ backgroundColor: config.bgColor }}
+      >
+        <div className="flex items-center gap-3 mb-3">
+          <div
+            className="w-14 h-14 rounded-full flex items-center justify-center flex-shrink-0"
+            style={{ backgroundColor: config.color }}
           >
-            <PhoneCall className="size-5 flex-shrink-0" aria-hidden="true" />
-            <span className="font-['DM_Sans:Bold',sans-serif] font-bold text-base">
-            {callAction.label}
-          </span>
-            <span className="sr-only">{callAction.description}</span>
-          </a>
-      )}
-      <NearbyPracticeSearch
-        careLevel={careLevel}
-        specialties={
-          assessmentResult?.recommendedSpecialties?.map((specialty) => specialty.specialty) ?? [recommendedSpecialty]
-        }
-      />
+            <p
+              className="font-['DM_Sans:Bold',sans-serif] font-bold text-app-text-on-primary text-xl"
+              style={{ fontVariationSettings: "'opsz' 14" }}
+            >
+              !
+            </p>
+          </div>
+          <p
+            className="font-['DM_Sans:Bold',sans-serif] font-bold text-xl md:text-2xl"
+            style={{ fontVariationSettings: "'opsz' 14", color: config.color }}
+          >
+            {config.title}
+            {config.titleSupplement && (
+              <span className="block font-['DM_Sans:Medium',sans-serif] font-light">
+                {" "}({config.titleSupplement})
+              </span>
+            )}
+          </p>
+        </div>
 
-      <div className="bg-white border border-[#d8e0ea] rounded-[16px] p-5 md:p-6 mb-4">
+        <p
+          className="font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-body text-sm md:text-base leading-relaxed"
+          style={{ fontVariationSettings: "'opsz' 14" }}
+        >
+          {config.description}
+          {careLevel === "doctor" && (
+            <span className="hidden md:inline">
+              {" "}
+              Bei weiteren Fragen oder Unsicherheiten kontaktieren Sie die{" "}
+              <strong>116 117</strong>.
+            </span>
+          )}
+          {recommendedSpecialty === "psychiatry" && (
+            <span className="hidden md:inline">
+              {" "}
+              Bei akuten Sorgen erreichen Sie die Telefonseelsorge unter{" "}
+              <strong>0800 1110111</strong>.
+            </span>
+          )}
+        </p>
+
+        <div className="my-6 border-t border-black/10" />
+
         <p className="font-['DM_Sans:Bold',sans-serif] font-bold text-app-text-primary text-lg mb-3">
           Ihre Einschätzung
         </p>
@@ -603,12 +746,10 @@ export default function ResultPage() {
           </p>
         )}
 
-
-
         <button
           type="button"
           onClick={() => setIsExplanationOpen((isOpen) => !isOpen)}
-          className="mt-5 inline-flex items-center gap-2 rounded-[10px] border border-[#d8e0ea] px-4 py-2 text-app-text-primary transition-all hover:border-[#486284] hover:bg-[#eff2f6]"
+          className="mt-5 inline-flex items-center gap-2 rounded-[10px] border border-[#d8e0ea] bg-white/40 px-4 py-2 text-app-text-primary transition-all hover:border-[#486284] hover:bg-white/60"
           aria-expanded={isExplanationOpen}
         >
           <span className="font-['DM_Sans:Bold',sans-serif] font-bold text-sm">
@@ -633,12 +774,12 @@ export default function ResultPage() {
                   key={reason}
                   className="font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-body text-sm leading-relaxed"
                 >
-                  • {reason}
+                  - {reason}
                 </li>
               ))}
               {assessmentResult?.aiModel && (
                 <li className="font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-body text-sm leading-relaxed">
-                  • Die Einschätzung wurde mit dem KI-Modell{" "}
+                  - Die Einschätzung wurde mit dem KI-Modell{" "}
                   <strong>{assessmentResult.aiModel}</strong> durchgeführt. KI kann Fehler machen.
                 </li>
               )}
@@ -647,6 +788,26 @@ export default function ResultPage() {
         )}
       </div>
 
+      {callAction && (
+          <a
+              href={callAction.href}
+              className="md:hidden mb-4 flex min-h-[56px] w-full items-center justify-center gap-3 rounded-[14px] px-5 py-3 text-app-text-on-primary shadow-sm transition-all hover:opacity-90"
+              style={{ backgroundColor: config.color }}
+              aria-label={callAction.label}
+          >
+            <PhoneCall className="size-5 flex-shrink-0" aria-hidden="true" />
+            <span className="font-['DM_Sans:Bold',sans-serif] font-bold text-base">
+            {callAction.label}
+          </span>
+            <span className="sr-only">{callAction.description}</span>
+          </a>
+      )}
+      <NearbyPracticeSearch
+        careLevel={careLevel}
+        specialties={
+          assessmentResult?.recommendedSpecialties?.map((specialty) => specialty.specialty) ?? [recommendedSpecialty]
+        }
+      />
 
 
       <div className="bg-white border-2 border-[#486284] rounded-[16px] p-5 md:p-6 mb-4">
