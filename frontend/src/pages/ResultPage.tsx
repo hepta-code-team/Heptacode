@@ -533,6 +533,8 @@ export default function ResultPage() {
     resetAssessment();
   };
 
+  const {symptomText} = useAssessment();
+
   const handleStartSummaryEdit = () => {
     const summaryDraft = parseMedicalSummarySections(displayedProfessionalSummary);
     const travelDetails = splitTravelDetails(patientData?.recentAbroadDetails ?? "");
@@ -764,26 +766,31 @@ export default function ResultPage() {
         </button>
 
         {isExplanationOpen && (
-          <div className="mt-4">
-            <p className="font-['DM_Sans:Bold',sans-serif] font-bold text-app-text-primary text-sm mb-2">
+          <div className="mt-4 border-l-2 border-[#486284]/30 pl-4">
+            <p className="font-['DM_Sans:Bold',sans-serif] font-bold text-app-text-primary text-base mb-2">
               KI-Begründung
             </p>
-            <ul className="space-y-1.5">
+            {symptomText?.trim() && (
+                <p className="mb-3 font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-body text-sm leading-relaxed">
+                  Ihre Eingabe: <span className="italic">„{symptomText.trim()}“</span>
+                </p>
+            )}
+            <div className="space-y-1.5">
               {explanationReasons.map((reason) => (
-                <li
+                <p
                   key={reason}
                   className="font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-body text-sm leading-relaxed"
                 >
-                  - {reason}
-                </li>
+                  {reason}
+                </p>
               ))}
               {assessmentResult?.aiModel && (
-                <li className="font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-body text-sm leading-relaxed">
-                  - Die Einschätzung wurde mit dem KI-Modell{" "}
-                  <strong>{assessmentResult.aiModel}</strong> durchgeführt. KI kann Fehler machen.
-                </li>
+                  <p className="font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-body text-sm leading-relaxed">
+                    Die Einschätzung wurde mit dem KI-Modell{" "}
+                    <strong>{assessmentResult.aiModel}</strong> durchgeführt. KI kann Fehler machen.
+                  </p>
               )}
-            </ul>
+            </div>
           </div>
         )}
       </div>
@@ -1167,22 +1174,6 @@ export default function ResultPage() {
         </div>
       </div>
 
-      <div className="bg-[#FEF3C7] border-l-4 border-[#F59E0B] rounded-[16px] p-5 md:p-6 mt-4">
-        <p className="font-['DM_Sans:Bold',sans-serif] font-bold text-app-text-warning-strong text-base mb-2">
-          Wichtiger Hinweis
-        </p>
-        <p className="font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-warning-strong text-sm leading-relaxed">
-          Diese Einschätzung ist <strong>keine medizinische Diagnose</strong> und ersetzt nicht den Besuch bei einem Arzt.
-          KI-Systeme können Fehler machen. Bei Unsicherheit oder Verschlechterung Ihres Zustands suchen Sie bitte
-          umgehend medizinische Hilfe.
-          {assessmentResult?.aiModel && (
-            <>
-              {" "}
-              Die Triage wurde mit dem KI-Modell <strong>{assessmentResult.aiModel}</strong> durchgeführt.
-            </>
-          )}
-        </p>
-      </div>
 
       <div className="mt-6 mb-6">
         <Button onClick={handleReset}>
