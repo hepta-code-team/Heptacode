@@ -105,7 +105,8 @@ export function hasEmergencyTriagePattern(symptom: TriageSymptom): boolean {
   if (
     combinedText.includes('suizid') ||
     combinedText.includes('selbstverletz') ||
-    combinedText.includes('selbsttoet')
+    combinedText.includes('selbsttoet') ||
+    combinedText.includes('selbsttot')
   ) {
     return true
   }
@@ -114,10 +115,10 @@ export function hasEmergencyTriagePattern(symptom: TriageSymptom): boolean {
     combinedText.includes('verwirr') ||
     combinedText.includes('sprach') ||
     combinedText.includes('laehmung') ||
-    combinedText.includes('lähmung') ||
+    combinedText.includes('lahmung') ||
     combinedText.includes('halbseit') ||
     combinedText.includes('schwaeche') ||
-    combinedText.includes('schwäche')
+    combinedText.includes('schwache')
   ) {
     return true
   }
@@ -168,15 +169,15 @@ export function getTriageAiPlausibilityIssues(
   const hasEmergencySymptom = symptoms.some(hasEmergencyTriagePattern)
 
   if (hasEmergencySymptom && response.careLevel === 'selfcare') {
-    issues.push('Warnsymptome duerfen nicht als selfcare eingestuft werden.')
+    issues.push('Warnsymptome dürfen nicht als selfcare eingestuft werden.')
   }
 
   if (hasOnlyMildSymptoms(symptoms) && response.careLevel === 'emergency') {
-    issues.push('Milde Beschwerden ohne Warnzeichen duerfen nicht als emergency eingestuft werden.')
+    issues.push('Milde Beschwerden ohne Warnzeichen dürfen nicht als emergency eingestuft werden.')
   }
 
   if (response.careLevel === 'specialist' && !response.recommendedSpecialty) {
-    issues.push('Empfehlungen zu Fachrichtungen benoetigen eine genaue Angabe der Fachrichtung.')
+    issues.push('Empfehlungen zu Fachrichtungen benötigen eine genaue Angabe der Fachrichtung.')
   }
 
   const mentionedSpecialties = findMentionedSpecialties(response)
@@ -197,14 +198,14 @@ export function getTriageAiPlausibilityIssues(
   }
 
   if (response.reasons.some((reason) => reason.trim().length < 8)) {
-    issues.push('Begruendungen muessen nachvollziehbar und nicht nur Platzhalter sein.')
+    issues.push('Begründungen müssen nachvollziehbar und nicht nur Platzhalter sein.')
   }
 
   if (
     response.reviewSummary.plainLanguage.trim().length < 12 ||
     response.reviewSummary.professionalSummary.trim().length < 12
   ) {
-    issues.push('Review-Summary muss in beiden Feldern ausreichend aussagekraeftig sein.')
+    issues.push('Review-Summary muss in beiden Feldern ausreichend aussagekräftig sein.')
   }
 
   return issues
