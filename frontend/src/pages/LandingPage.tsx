@@ -6,16 +6,27 @@ import Modal from "../components/Modal";
 import EmergencySymptomGrid from "../features/emergency/EmergencySymptomGrid";
 import { useAssessment } from "../lib/AssessmentContext";
 
+type EmergencySymptomSelection = {
+    name: string;
+    descLong: string;
+};
+
 export default function LandingPage() {
     const navigate = useNavigate();
     const { resetAssessment } = useAssessment();
     const [isDisclaimerOpen, setIsDisclaimerOpen] = useState(true);
     const [isEmergencyInfoOpen, setIsEmergencyInfoOpen] = useState(false);
 
-    const handleEmergencySymptom = () => {
+    const handleEmergencySymptom = (symptom: EmergencySymptomSelection) => {
         // Red Flag symptoms always lead to emergency
         resetAssessment();
-        navigate("/result?emergency=true");
+        const params = new URLSearchParams({
+            emergency: "true",
+            acuteSymptom: symptom.name,
+            acuteSymptomDescription: symptom.descLong,
+        });
+
+        navigate(`/result?${params.toString()}`);
     };
 
     const handleContinue = () => {

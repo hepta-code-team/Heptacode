@@ -239,6 +239,7 @@ function summarizePatient(data?: PatientData): string {
     `Stillzeit: ${data.isBreastfeeding ? 'Ja' : 'Nein'}`,
     `Allergien: ${data.allergies || '-'}`,
     `Medikamente: ${data.medications || '-'}`,
+    `Einahmedauer Medikamente: ${data.medicationDuration || '-'}`,
     `Substanzbeeinflussung: ${data.substanceInfluence || 'Nein'}`,
     `Reise ins Ausland: ${formatRecentAbroad(data)}`,
     data.conditions.length > 0

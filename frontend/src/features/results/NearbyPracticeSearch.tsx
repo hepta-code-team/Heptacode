@@ -1,7 +1,7 @@
 import { useState } from "react";
 import type { FormEvent } from "react";
 import { Clock, LocateFixed, MapPin, Navigation, Search } from "lucide-react";
-import { MEDICAL_SPECIALTY_LABELS } from "../../types/triage";
+import { MEDICAL_SPECIALTY_LABELS } from "./result.config";
 import type { CareLevel, MedicalSpecialty } from "../../types/triage";
 
 // Gesamtlogik dieser Komponente:
@@ -1012,12 +1012,6 @@ export default function NearbyPracticeSearch({
                 </button>
               </div>
             </form>
-          </div>
-
-          {/* Hinweistext zur freiwilligen Standortnutzung */}
-          <div className="mt-5 rounded-[12px] border border-dashed border-[#c8d2dc] bg-white px-4 py-3 text-sm font-medium leading-relaxed text-[#3e3e3e]">
-            Geben Sie freiwillig Ihren Standort frei, um passende offene Einrichtungen in Ihrer Nähe anzuzeigen.
-            {shouldSuggestNightPharmacies ? " Nachts werden bei Nicht-Notfällen zusätzlich Nacht-Apotheken berücksichtigt." : ""} Die Entfernung wird nur für die Sortierung der Liste genutzt.
           </div>
 
           {/* Fehlermeldung, wenn Nutzer Browser-Standort abgelehnt hat */}

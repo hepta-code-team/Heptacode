@@ -84,6 +84,7 @@ function buildPatientDataLines(patientData?: PatientData): string[] {
     patientData.isBreastfeeding ? 'Stillend: Ja' : null,
     hasText(patientData.allergies) ? `Allergien: ${patientData.allergies.trim()}` : null,
     hasText(patientData.medications) ? `Medikamente: ${patientData.medications.trim()}` : null,
+    hasText(patientData.medicationDuration) ? `Einahmedauer Medikamente: ${patientData.medicationDuration.trim()}` : null,
     hasText(patientData.substanceInfluence) && patientData.substanceInfluence.trim() !== 'Nein'
       ? `Substanzbeeinflussung: ${patientData.substanceInfluence.trim()}`
       : null,

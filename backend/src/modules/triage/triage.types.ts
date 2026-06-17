@@ -80,6 +80,7 @@ export const patientDataSchema = z.object({
   isBreastfeeding: z.boolean(),
   allergies: z.string(),
   medications: z.string(),
+  medicationDuration: z.string().optional().default(""),
   substanceInfluence: z.string(),
   recentAbroad: z.boolean(),
   recentAbroadDetails: z.string(),

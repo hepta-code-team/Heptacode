@@ -107,6 +107,7 @@ const createInitialPatientData = (patientData?: Partial<PatientData>): PatientDa
   isBreastfeeding: false,
   allergies: "",
   medications: "",
+  medicationDuration: "",
   substanceInfluence: "Nein",
   recentAbroad: false,
   recentAbroadDetails: "",
@@ -501,6 +502,20 @@ export default function MedicalDataPage() {
               placeholder="z.B. Blutdruckmittel, Schmerzmittel, Pille"
               className="w-full min-h-[82px] resize-none rounded-[10px] bg-white p-3 text-sm outline-none focus:ring-2 focus:ring-[#486284]/30"
             />
+            <div className="mt-3 space-y-1.5">
+              <label htmlFor="medicationDuration" className="text-xs font-medium text-app-text-subtle">
+                Seit wenn nehmen Sie diese Medikamente?
+              </label>
+              <Input
+                id="medicationDuration"
+                value={formData.medicationDuration}
+                onChange={(event) => 
+                  setFormData({ ...formData, medicationDuration: event.target.value})
+                }
+                placeholder="z.b.B seit 2021, seit 3 Wochen, unbekannt"
+                className="!bg-white"
+              />
+            </div>
           </MedicalAccordionPanel>
 
           <MedicalAccordionPanel
