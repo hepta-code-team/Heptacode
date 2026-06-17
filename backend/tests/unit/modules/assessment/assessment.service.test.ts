@@ -160,6 +160,27 @@ describe('evaluateAssessmentWithAi', () => {
     expect(result.reviewSummary.professionalSummary).toContain('Care Level: emergency.')
   })
 
+  /** Specialist triage without an explicit specialty should still provide a stable frontend default. */
+  it('setzt Internal Medicine als Fallback-Specialty fuer Specialist-Ergebnisse', async () => {
+    evaluateTriageMock.mockResolvedValueOnce({
+      careLevel: 'specialist',
+      reasons: ['Eine fachaerztliche Abklaerung ist sinnvoll.'],
+      reviewSummary: {
+        plainLanguage: 'Bitte vereinbaren Sie einen fachaerztlichen Termin.',
+        professionalSummary: 'Care Level: specialist.',
+      },
+    })
+
+    const result = await evaluateAssessmentWithAi(createPayload())
+
+    expect(result).toMatchObject({
+      careLevel: 'specialist',
+      recommendedSpecialty: 'internal_medicine',
+      reasons: ['Eine fachaerztliche Abklaerung ist sinnvoll.'],
+      summary: 'Bitte vereinbaren Sie einen fachaerztlichen Termin.',
+    })
+  })
+
   /** Optional patient data should be represented in generated fallback summaries. */
   it('uebernimmt vorhandene Specialty und baut Fallback-Summary mit optionalen Patientendaten', async () => {
     const payload = createPayload()

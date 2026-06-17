@@ -469,4 +469,26 @@ describe('validateSymptomDetailInput', () => {
     })
     expect(requestStructuredAiResponseMock).not.toHaveBeenCalled()
   })
+
+  /** Detail validation availability failures should return the controlled aiUnavailable contract. */
+  it('meldet kontrolliert, wenn die Detail-Validierungs-KI nicht verfuegbar ist', async () => {
+    requestStructuredAiResponseMock.mockRejectedValueOnce(new AiResponseError('detail validation timeout'))
+
+    const result = await validateSymptomDetailInput('links')
+
+    expect(result).toMatchObject({
+      text: 'links',
+      inputType: 'text',
+      isValidMedicalInput: false,
+      aiUnavailable: true,
+    })
+    expect(result.message).toContain('Kontext')
+  })
+
+  /** Unexpected detail-validation errors should remain visible to callers. */
+  it('reicht unerwartete Detail-Validierungsfehler weiter', async () => {
+    requestStructuredAiResponseMock.mockRejectedValueOnce(new Error('boom'))
+
+    await expect(validateSymptomDetailInput('links')).rejects.toThrow('boom')
+  })
 })

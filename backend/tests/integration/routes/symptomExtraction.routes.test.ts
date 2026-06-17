@@ -303,4 +303,54 @@ describe('POST /api/v1/symptoms/extraction', () => {
       message: 'Der Text beschreibt keine gesundheitlichen Beschwerden.',
     })
   })
+
+  /** Symptom detail validation should use the dedicated detail-validation route contract. */
+  it('validiert kurze Symptomdetails ueber die Detail-Validierungsroute', async () => {
+    requestStructuredAiResponseMock.mockResolvedValueOnce({
+      isValidMedicalInput: true,
+      reason: 'Kurzes medizinisches Detail erkannt.',
+    })
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/v1/symptoms/detail-validation',
+      payload: {
+        text: 'links',
+      },
+    })
+
+    expect(response.statusCode).toBe(200)
+    expect(response.json()).toEqual({
+      text: 'links',
+      inputType: 'text',
+      isValidMedicalInput: true,
+    })
+    expect(requestStructuredAiResponseMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        schemaName: 'symptom_detail_validation_result',
+        modelStrategy: 'fallback-only',
+      }),
+    )
+  })
+
+  /** Empty symptom details should fail at the request-validation boundary. */
+  it('antwortet mit 400 bei leerer Detailangabe', async () => {
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/v1/symptoms/detail-validation',
+      payload: {
+        text: '   ',
+      },
+    })
+
+    expect(response.statusCode).toBe(400)
+    expect(response.json()).toMatchObject({
+      success: false,
+      error: {
+        code: 'VALIDATION_ERROR',
+        message: 'Request body is invalid',
+      },
+    })
+    expect(requestStructuredAiResponseMock).not.toHaveBeenCalled()
+  })
 })

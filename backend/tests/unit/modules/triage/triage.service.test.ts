@@ -213,7 +213,7 @@ describe('evaluateTriage', () => {
     expect(result.reasons).toEqual(
       expect.arrayContaining([
         'Die KI-Antwort wurde verworfen, weil sie die Plausibilitaetspruefung nicht bestanden hat.',
-        'Warnsymptome duerfen nicht als selfcare eingestuft werden.',
+        'Warnsymptome dürfen nicht als selfcare eingestuft werden.',
       ]),
     )
   })
@@ -242,7 +242,7 @@ describe('evaluateTriage', () => {
       aiUnavailable: true,
     })
     expect(result.reasons).toContain(
-      'Milde Beschwerden ohne Warnzeichen duerfen nicht als emergency eingestuft werden.',
+      'Milde Beschwerden ohne Warnzeichen dürfen nicht als emergency eingestuft werden.',
     )
   })
 
@@ -332,6 +332,49 @@ describe('evaluateTriage', () => {
       aiUnavailable: true,
     })
     expect(result.reasons.join(' ')).toContain('sehr starken Beschwerden')
+  })
+
+  /** Very high fever should use the emergency fallback when AI triage is unavailable. */
+  it('nutzt den Notfall-Fallback bei sehr hohem Fieber', async () => {
+    requestStructuredAiResponseWithModelMock.mockRejectedValueOnce(new AiResponseError('timeout'))
+
+    const result = await evaluateTriage(undefined, [
+      {
+        region: 'Allgemein',
+        side: 'Fieber',
+        measurementType: 'temperature',
+        measurementValue: 40,
+        duration: 'today',
+      },
+    ])
+
+    expect(result).toMatchObject({
+      careLevel: 'emergency',
+      recommendedSpecialty: 'emergency_medicine',
+      aiUnavailable: true,
+    })
+    expect(result.reasons.join(' ')).toContain('sehr starken Beschwerden')
+  })
+
+  /** Moderate fever should stay at doctor-level fallback when no warning pattern is present. */
+  it('nutzt den Doctor-Fallback bei moderatem Fieber ohne Warnmuster', async () => {
+    requestStructuredAiResponseWithModelMock.mockRejectedValueOnce(new AiResponseError('timeout'))
+
+    const result = await evaluateTriage(undefined, [
+      {
+        region: 'Allgemein',
+        side: 'Fieber',
+        measurementType: 'temperature',
+        measurementValue: 39,
+        duration: 'days',
+      },
+    ])
+
+    expect(result).toMatchObject({
+      careLevel: 'doctor',
+      recommendedSpecialty: 'general_practice',
+      aiUnavailable: true,
+    })
   })
 
   /** Successful AI triage should not be locally promoted to specialist without a specialty. */
