@@ -373,6 +373,12 @@ describe('page-level user flows', () => {
   it('blocks contradictory edited symptom region and details on the details page', async () => {
     const user = userEvent.setup();
     submitAssessmentMock.mockResolvedValue({});
+    validateSymptomDetailInputMock.mockResolvedValue({
+      text: 'Symptom/Region: Bein\nDetails: Schnittwunde in der Hand',
+      inputType: 'text',
+      isValidMedicalInput: false,
+      message: 'Bitte prüfen Sie Region und Zusatzdetails. Die Angaben widersprechen sich eindeutig.',
+    });
     locationState.current = {
       extractedSymptoms: [{ region: 'Unterarm', side: 'Hand/Handgelenk', details: 'Schnittwunde in der Hand' }],
     };
@@ -385,6 +391,11 @@ describe('page-level user flows', () => {
     await user.click(screen.getByRole('button', { name: 'Seit heute' }));
     await user.click(screen.getAllByRole('button', { name: 'Weiter' }).at(-1)!);
 
+    expect(validateSymptomDetailInputMock).toHaveBeenCalledWith(
+      'Symptom/Region: Bein\nDetails: Schnittwunde in der Hand',
+      'text',
+      undefined,
+    );
     expect(await screen.findByText('Bitte prüfen Sie Region und Zusatzdetails. Die Angaben widersprechen sich eindeutig.')).toBeInTheDocument();
     expect(submitAssessmentMock).not.toHaveBeenCalled();
     expect(navigateMock).not.toHaveBeenCalledWith('/result');

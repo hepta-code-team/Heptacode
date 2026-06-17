@@ -419,6 +419,42 @@ describe('validateSymptomDetailInput', () => {
     )
   })
 
+  it('weist das Fallback-Modell an, unspezifische Koerperregionen zu akzeptieren', async () => {
+    requestStructuredAiResponseMock.mockResolvedValueOnce({
+      isValidMedicalInput: true,
+      reason: 'Allgemeine Koerperregion ist anatomisch relevant.',
+    })
+
+    const result = await validateSymptomDetailInput('Symptom/Region: Bein\nDetails: keine')
+
+    expect(result).toEqual({
+      text: 'Symptom/Region: Bein\nDetails: keine',
+      inputType: 'text',
+      isValidMedicalInput: true,
+    })
+    expect(requestStructuredAiResponseMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        schemaName: 'symptom_detail_validation_result',
+        modelStrategy: 'fallback-only',
+        messages: expect.arrayContaining([
+          expect.objectContaining({
+            role: 'system',
+            content: expect.stringContaining('Unspezifische anatomische Koerperregionen sind gueltig'),
+          }),
+        ]),
+      }),
+    )
+    expect(requestStructuredAiResponseMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        messages: expect.arrayContaining([
+          expect.objectContaining({
+            content: expect.stringContaining('Bein, Beine, Arm, Arme'),
+          }),
+        ]),
+      }),
+    )
+  })
+
   it('laesst Zufallstext durch das Fallback-Modell ablehnen', async () => {
     requestStructuredAiResponseMock.mockResolvedValueOnce({
       isValidMedicalInput: false,

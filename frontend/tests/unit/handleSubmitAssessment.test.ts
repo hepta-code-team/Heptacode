@@ -55,6 +55,11 @@ describe('handleSubmitAssessment', () => {
   it('submits normalized active symptoms and navigates to the result page', async () => {
     const setters = createSetters();
     const submitAssessment = vi.fn().mockResolvedValue({});
+    validateSymptomDetailInputMock.mockResolvedValue({
+      text: 'Symptom/Region: Kopfschmerzen\nDetails: seit dem Aufwachen',
+      inputType: 'text',
+      isValidMedicalInput: true,
+    });
 
     await handleSubmitAssessment({
       symptomDetails: [
@@ -110,9 +115,15 @@ describe('handleSubmitAssessment', () => {
       ...setters,
     });
 
-    expect(validateSymptomDetailInputMock).toHaveBeenCalledTimes(2);
-    expect(validateSymptomDetailInputMock).toHaveBeenNthCalledWith(1, 'Kopfschmerzen', 'text', undefined);
-    expect(validateSymptomDetailInputMock).toHaveBeenNthCalledWith(2, 'starker Druck', 'text', undefined);
+    expect(validateSymptomDetailInputMock).toHaveBeenCalledTimes(3);
+    expect(validateSymptomDetailInputMock).toHaveBeenNthCalledWith(
+      1,
+      'Symptom/Region: Kopfschmerzen\nDetails: starker Druck',
+      'text',
+      undefined,
+    );
+    expect(validateSymptomDetailInputMock).toHaveBeenNthCalledWith(2, 'Kopfschmerzen', 'text', undefined);
+    expect(validateSymptomDetailInputMock).toHaveBeenNthCalledWith(3, 'starker Druck', 'text', undefined);
     expect(submitAssessment).toHaveBeenCalledTimes(1);
     expect(setters.navigate).toHaveBeenCalledWith('/result');
   });
@@ -139,8 +150,15 @@ describe('handleSubmitAssessment', () => {
       ...setters,
     });
 
-    expect(validateSymptomDetailInputMock).toHaveBeenCalledTimes(1);
-    expect(validateSymptomDetailInputMock).toHaveBeenCalledWith(
+    expect(validateSymptomDetailInputMock).toHaveBeenCalledTimes(2);
+    expect(validateSymptomDetailInputMock).toHaveBeenNthCalledWith(
+      1,
+      'Symptom/Region: Allgemein\nDetails: keine',
+      'text',
+      undefined,
+    );
+    expect(validateSymptomDetailInputMock).toHaveBeenNthCalledWith(
+      2,
       'Ich habe seit Tagen Schwindel und mir ist uebel.\nSymptom: Allgemein',
       'text',
       undefined,
@@ -157,6 +175,12 @@ describe('handleSubmitAssessment', () => {
   it('blocks clearly contradictory edited AI-extracted region and detail combinations', async () => {
     const setters = createSetters();
     const submitAssessment = vi.fn();
+    validateSymptomDetailInputMock.mockResolvedValue({
+      text: 'Symptom/Region: Bein\nDetails: Schnittwunde in Hand',
+      inputType: 'text',
+      isValidMedicalInput: false,
+      message: 'Bitte prüfen Sie Region und Zusatzdetails. Die Angaben widersprechen sich eindeutig.',
+    });
 
     await handleSubmitAssessment({
       symptomDetails: [
@@ -173,7 +197,11 @@ describe('handleSubmitAssessment', () => {
       ...setters,
     });
 
-    expect(validateSymptomDetailInputMock).not.toHaveBeenCalled();
+    expect(validateSymptomDetailInputMock).toHaveBeenCalledWith(
+      'Symptom/Region: Bein\nDetails: Schnittwunde in Hand',
+      'text',
+      undefined,
+    );
     expect(submitAssessment).not.toHaveBeenCalled();
     expect(setters.navigate).not.toHaveBeenCalled();
     expect(setters.setSubmitError).toHaveBeenCalledWith(
@@ -184,6 +212,12 @@ describe('handleSubmitAssessment', () => {
   it('blocks clear region-detail contradictions even when editable metadata is missing', async () => {
     const setters = createSetters();
     const submitAssessment = vi.fn();
+    validateSymptomDetailInputMock.mockResolvedValue({
+      text: 'Symptom/Region: Bein\nDetails: Schnittwunde in der Hand',
+      inputType: 'text',
+      isValidMedicalInput: false,
+      message: 'Bitte prüfen Sie Region und Zusatzdetails. Die Angaben widersprechen sich eindeutig.',
+    });
 
     await handleSubmitAssessment({
       symptomDetails: [
@@ -197,7 +231,11 @@ describe('handleSubmitAssessment', () => {
       ...setters,
     });
 
-    expect(validateSymptomDetailInputMock).not.toHaveBeenCalled();
+    expect(validateSymptomDetailInputMock).toHaveBeenCalledWith(
+      'Symptom/Region: Bein\nDetails: Schnittwunde in der Hand',
+      'text',
+      undefined,
+    );
     expect(submitAssessment).not.toHaveBeenCalled();
     expect(setters.navigate).not.toHaveBeenCalled();
     expect(setters.setSubmitError).toHaveBeenCalledWith(
@@ -208,6 +246,12 @@ describe('handleSubmitAssessment', () => {
   it('blocks non-medical symptom names even when the details look medical', async () => {
     const setters = createSetters();
     const submitAssessment = vi.fn();
+    validateSymptomDetailInputMock.mockResolvedValue({
+      text: 'Symptom/Region: Besen\nDetails: Schnittwunde in der Hand',
+      inputType: 'text',
+      isValidMedicalInput: false,
+      message: 'Bitte prüfen Sie die Symptom- oder Regionsangabe. Die Angabe wirkt nicht medizinisch sinnvoll.',
+    });
 
     await handleSubmitAssessment({
       symptomDetails: [
@@ -221,7 +265,11 @@ describe('handleSubmitAssessment', () => {
       ...setters,
     });
 
-    expect(validateSymptomDetailInputMock).not.toHaveBeenCalled();
+    expect(validateSymptomDetailInputMock).toHaveBeenCalledWith(
+      'Symptom/Region: Besen\nDetails: Schnittwunde in der Hand',
+      'text',
+      undefined,
+    );
     expect(submitAssessment).not.toHaveBeenCalled();
     expect(setters.navigate).not.toHaveBeenCalled();
     expect(setters.setSubmitError).toHaveBeenCalledWith(

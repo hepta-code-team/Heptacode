@@ -78,10 +78,16 @@ export function createSymptomValidationPrompt(input: SymptomExtractionPromptInpu
 
 export const symptomDetailValidationInstructions = [
   'Du bewertest eine einzelne Angabe von der Symptom-Details-Seite einer medizinischen Ersteinschaetzung.',
-  'Die Angabe kann ein sehr kurzer Symptomname oder ein Zusatzdetail sein.',
+  'Die Angabe kann ein sehr kurzer Symptomname, ein Zusatzdetail oder ein strukturierter Block mit "Symptom/Region", optional "Unterangabe" und "Details" sein.',
   'Sei bewusst locker: Auch einzelne Woerter, Stichworte, Koerperstellen, Seitenangaben, Verletzungsmechanismen, Ursachen, Materialangaben, Negationen oder kurze Fragmente sind gueltig, wenn sie medizinisch, anatomisch oder fuer eine Triage im Ansatz relevant sein koennten.',
+  'Unspezifische anatomische Koerperregionen sind gueltig und duerfen nicht wegen fehlender Spezifitaet abgelehnt werden.',
+  'Beispiele fuer gueltige unspezifische Koerperregionen: Bein, Beine, Arm, Arme, Hand, Fuss, Kopf, Hals, Brust, Bauch, Ruecken, Huefte.',
   'Die Angabe muss kein ganzer Satz sein und muss keine vollstaendige Beschwerdebeschreibung enthalten.',
   'Ungueltig sind leere Inhalte, offensichtlicher Buchstabensalat, zufaellige Zeichenfolgen, rein technische Eingaben, themenfremde Begriffe, Smalltalk und Inhalte ohne erkennbaren medizinischen oder anatomischen Bezug.',
+  'Wenn ein strukturierter Block mit Symptom/Region und Details vorliegt, pruefe die Angaben gemeinsam.',
+  'Lehne nur ab, wenn Symptom/Region und Details eindeutig widerspruechlich sind oder wenn Symptom/Region offensichtlich keinen medizinischen, anatomischen oder triagerelevanten Bezug hat.',
+  'Ein eindeutiger Widerspruch liegt zum Beispiel vor bei Symptom/Region "Bein" und Details "Schnittwunde in der Hand".',
+  'Kein eindeutiger Widerspruch liegt vor, wenn die Details eine Verletzungsart, Ursache, Dauer, Staerke, unklare Lokalisation oder eine allgemein passende Zusatzinformation enthalten.',
   'Wenn du unsicher bist, ob ein medizinischer Bezug bestehen koennte, entscheide gueltig.',
   'Antworte nur mit dem vorgegebenen JSON-Format.',
 ].join('\n')

@@ -1,11 +1,5 @@
 import { validateSymptomDetailInput } from "../../lib/symptomExtractionApi";
 import type { PatientData, SymptomDetailPayload, SymptomDraft } from "../../types/assessment";
-import {
-  BODY_AREA_LABELS,
-  BODY_AREA_REGION_IDS,
-  BODY_REGIONS,
-  type BodyAreaCategory,
-} from "./symptoms.constants";
 
 type CompleteSymptomDraft = SymptomDraft & {
   duration: NonNullable<SymptomDraft["duration"]>;
@@ -28,120 +22,6 @@ function hasSymptomDetailsChanged(symptom: SymptomDraft) {
   return normalizeOptionalText(symptom.details) !== normalizeOptionalText(symptom.originalDetails);
 }
 
-const ANATOMICAL_BODY_AREAS: BodyAreaCategory[] = ["head", "neck", "torso", "hips", "arms", "legs"];
-const NON_ANATOMICAL_REGION_IDS = new Set(["verbrennung", "schnittwunde"]);
-
-function normalizeForRegionMatch(value: string) {
-  return value.toLocaleLowerCase("de-DE");
-}
-
-function addGermanAsciiVariants(terms: Set<string>, term: string) {
-  terms.add(term);
-  terms.add(
-    term
-      .replaceAll("ä", "ae")
-      .replaceAll("ö", "oe")
-      .replaceAll("ü", "ue")
-      .replaceAll("ß", "ss"),
-  );
-}
-
-function addTermVariants(terms: Set<string>, value: string) {
-  const normalizedValue = normalizeForRegionMatch(value.trim());
-
-  if (!normalizedValue) {
-    return;
-  }
-
-  addGermanAsciiVariants(terms, normalizedValue);
-
-  normalizedValue
-    .split(/[^A-Za-zÄÖÜäöüß]+/)
-    .filter((part) => part.length > 2)
-    .forEach((part) => {
-      addGermanAsciiVariants(terms, part);
-
-      if (part.endsWith("e") && part.length > 4) {
-        addGermanAsciiVariants(terms, part.slice(0, -1));
-      }
-    });
-}
-
-function buildRegionTermGroups() {
-  return ANATOMICAL_BODY_AREAS.map((category) => {
-    const terms = new Set<string>();
-
-    addTermVariants(terms, BODY_AREA_LABELS[category]);
-
-    BODY_REGIONS
-      .filter((region) =>
-        BODY_AREA_REGION_IDS[category].includes(region.id) &&
-        !NON_ANATOMICAL_REGION_IDS.has(region.id),
-      )
-      .forEach((region) => {
-        addTermVariants(terms, region.name);
-        region.options?.forEach((option) => addTermVariants(terms, option));
-      });
-
-    return Array.from(terms);
-  });
-}
-
-const REGION_TERM_GROUPS = buildRegionTermGroups();
-const KNOWN_SYMPTOM_TERMS = (() => {
-  const terms = new Set<string>();
-
-  Object.values(BODY_AREA_LABELS).forEach((label) => addTermVariants(terms, label));
-
-  BODY_REGIONS.forEach((region) => {
-    addTermVariants(terms, region.name);
-    region.options?.forEach((option) => addTermVariants(terms, option));
-  });
-
-  return Array.from(terms);
-})();
-
-function escapeRegex(value: string) {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
-
-function textContainsRegionTerm(text: string, term: string) {
-  return new RegExp(`(^|[^\\p{L}])${escapeRegex(term)}([^\\p{L}]|$)`, "iu").test(text);
-}
-
-function findRegionTermGroups(text: string) {
-  const normalizedText = normalizeForRegionMatch(text);
-
-  return REGION_TERM_GROUPS
-    .map((terms, index) => terms.some((term) => textContainsRegionTerm(normalizedText, term)) ? index : -1)
-    .filter((index) => index !== -1);
-}
-
-function textContainsKnownSymptomTerm(text: string, term: string) {
-  const normalizedText = normalizeForRegionMatch(text);
-
-  return textContainsRegionTerm(normalizedText, term) ||
-    (term.length >= 4 && normalizedText.includes(term));
-}
-
-function hasKnownSymptomReference(text: string) {
-  return KNOWN_SYMPTOM_TERMS.some((term) => textContainsKnownSymptomTerm(text, term));
-}
-
-function hasClearRegionDetailContradiction(symptom: SymptomDraft) {
-  const currentRegionGroups = findRegionTermGroups([
-    symptom.region,
-    symptom.side,
-  ].filter(Boolean).join(" "));
-  const detailGroups = findRegionTermGroups(symptom.details?.trim() ?? "");
-
-  if (currentRegionGroups.length === 0 || detailGroups.length === 0) {
-    return false;
-  }
-
-  return detailGroups.every((detailGroup) => !currentRegionGroups.includes(detailGroup));
-}
-
 function buildExtractedSymptomValidationText(symptom: SymptomDraft) {
   const symptomParts = [
     symptom.region.trim(),
@@ -157,6 +37,16 @@ function buildExtractedSymptomValidationText(symptom: SymptomDraft) {
     .join("\n");
 }
 
+function buildSymptomRegionDetailValidationText(symptom: SymptomDraft) {
+  return [
+    `Symptom/Region: ${symptom.region.trim()}`,
+    symptom.side?.trim() ? `Unterangabe: ${symptom.side.trim()}` : null,
+    symptom.details?.trim() ? `Details: ${symptom.details.trim()}` : "Details: keine",
+  ]
+    .filter(Boolean)
+    .join("\n");
+}
+
 async function validateEditableSymptomInputs(symptoms: SymptomDraft[], patientData?: PatientData) {
   for (const symptom of symptoms) {
     const symptomName = symptom.region.trim();
@@ -165,12 +55,17 @@ async function validateEditableSymptomInputs(symptoms: SymptomDraft[], patientDa
       throw new Error("Bitte geben Sie für jedes erkannte Symptom einen Namen ein.");
     }
 
-    if (!hasKnownSymptomReference(symptomName)) {
-      throw new Error("Bitte prüfen Sie die Symptom- oder Regionsangabe. Die Angabe wirkt nicht medizinisch sinnvoll.");
-    }
+    const regionDetailResult = await validateSymptomDetailInput(
+      buildSymptomRegionDetailValidationText(symptom),
+      "text",
+      patientData,
+    );
 
-    if (symptom.details?.trim() && hasClearRegionDetailContradiction(symptom)) {
-      throw new Error("Bitte prüfen Sie Region und Zusatzdetails. Die Angaben widersprechen sich eindeutig.");
+    if (!regionDetailResult.isValidMedicalInput) {
+      throw new Error(
+        regionDetailResult.message ??
+          "Bitte prüfen Sie Symptom/Region und Zusatzdetails. Die Angaben passen nicht zusammen.",
+      );
     }
 
     if (!symptom.isNameEditable) {
