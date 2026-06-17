@@ -491,6 +491,7 @@ export default function ResultPage() {
         { label: "Stillzeit", value: patientData.isBreastfeeding ? "Ja" : "Nein" },
         { label: "Allergien", value: formatOptionalValue(patientData.allergies) },
         { label: "Medikamente", value: formatOptionalValue(patientData.medications) },
+        { label: "Medikamente seit", value: formatOptionalValue(patientData.medicationDuration) },
         { label: "Substanzbeeinflussung", value: formatOptionalValue(patientData.substanceInfluence || "Nein") },
         {
           label: "Auslandsreise",
