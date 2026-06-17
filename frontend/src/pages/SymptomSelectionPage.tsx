@@ -773,7 +773,14 @@ export default function SymptomSelectionPage() {
   const handleRegionSelect = (regionName: string, side?: string) => {
     // Red-flag suboptions bypass the normal selection flow and route straight to emergency.
     if (side && EMERGENCY_SYMPTOM_OPTIONS.includes(side)) {
-      navigate("/result?emergency=true");
+      const params = new URLSearchParams({
+        emergency: "true",
+        acuteSymptom: side,
+        acuteSymptomDescription:
+          "Dieses Warnsymptom kann auf einen medizinischen Notfall hinweisen und sollte sofort abgeklärt werden.",
+      });
+
+      navigate(`/result?${params.toString()}`);
       return;
     }
 
