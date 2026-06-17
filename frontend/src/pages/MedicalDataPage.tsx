@@ -1069,25 +1069,36 @@ export default function MedicalDataPage() {
         </div>
 
         {activeConditionDetail && (
-          <div
-            className="mt-3"
-            onTouchStart={(event) => {
-              conditionDetailTouchStartX.current =
-                event.touches[0]?.clientX ?? null;
-            }}
-            onTouchEnd={(event) =>
-              handleConditionDetailTouchEnd(
-                event.changedTouches[0]?.clientX ?? 0,
-              )
-            }
+          <section
+            className="mt-4"
+            aria-labelledby="condition-duration-heading"
           >
-            {hasMultipleConditionDetails ? (
-              <div className="rounded-[14px] bg-white/60 p-2">
-                <div className="flex items-center gap-2">
+            <h3
+              id="condition-duration-heading"
+              className="mb-2 font-['DM_Sans:Bold',sans-serif] font-bold text-app-text-body text-lg"
+              style={{ fontVariationSettings: "'opsz' 14" }}
+            >
+              Dauer
+            </h3>
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+              <div className="w-full max-w-[760px]">
+                <div
+                  className="flex items-stretch gap-3"
+                  onTouchStart={(event) => {
+                    conditionDetailTouchStartX.current =
+                      event.touches[0]?.clientX ?? null;
+                  }}
+                  onTouchEnd={(event) =>
+                    handleConditionDetailTouchEnd(
+                      event.changedTouches[0]?.clientX ?? 0,
+                    )
+                  }
+                >
                   <button
                     type="button"
                     onClick={showPreviousConditionDetail}
-                    className="flex size-9 shrink-0 items-center justify-center rounded-full bg-[#eff2f6] text-app-text-primary transition-all hover:bg-[#dde3ea]"
+                    disabled={!hasMultipleConditionDetails}
+                    className="flex w-10 shrink-0 items-center justify-center rounded-[14px] bg-[#eff2f6] text-app-text-primary transition-all hover:bg-[#dde3ea] disabled:cursor-not-allowed disabled:opacity-45 disabled:hover:bg-[#eff2f6]"
                     aria-label="Vorheriges Dauerfeld anzeigen"
                   >
                     <ChevronLeft className="size-5" aria-hidden="true" />
@@ -1098,45 +1109,59 @@ export default function MedicalDataPage() {
                   <button
                     type="button"
                     onClick={showNextConditionDetail}
-                    className="flex size-9 shrink-0 items-center justify-center rounded-full bg-[#eff2f6] text-app-text-primary transition-all hover:bg-[#dde3ea]"
+                    disabled={!hasMultipleConditionDetails}
+                    className="flex w-10 shrink-0 items-center justify-center rounded-[14px] bg-[#eff2f6] text-app-text-primary transition-all hover:bg-[#dde3ea] disabled:cursor-not-allowed disabled:opacity-45 disabled:hover:bg-[#eff2f6]"
                     aria-label="Nächstes Dauerfeld anzeigen"
                   >
                     <ChevronRight className="size-5" aria-hidden="true" />
                   </button>
                 </div>
-                <div
-                  className="mt-2 flex justify-center gap-1.5"
-                  aria-label="Dauerfeld-Auswahl"
-                >
-                  {selectedConditionDetails.map((detail, index) => (
-                    <span
-                      key={detail.condition}
-                      className={`h-1.5 rounded-full transition-all ${
-                        index === activeConditionDetailIndex
-                          ? "w-1.5 bg-[#486284]"
-                          : "w-1.5 bg-[#c8d0da]"
-                      }`}
-                    />
-                  ))}
-                </div>
+                {hasMultipleConditionDetails && (
+                  <div
+                    className="mt-2 flex justify-center gap-1.5"
+                    aria-label="Dauerfeld-Auswahl"
+                  >
+                    {selectedConditionDetails.map((detail, index) => (
+                      <span
+                        key={detail.condition}
+                        className={`h-1.5 rounded-full transition-all ${
+                          index === activeConditionDetailIndex
+                            ? "w-1.5 bg-[#486284]"
+                            : "w-1.5 bg-[#c8d0da]"
+                        }`}
+                      />
+                    ))}
+                  </div>
+                )}
               </div>
-            ) : (
-              renderConditionDurationCard(activeConditionDetail)
-            )}
-          </div>
+              <Button
+                onClick={handleContinue}
+                className="self-center lg:shrink-0"
+              >
+                <p
+                  className="font-['DM_Sans:Bold',sans-serif] font-bold text-base"
+                  style={{ fontVariationSettings: "'opsz' 14" }}
+                >
+                  Weiter
+                </p>
+              </Button>
+            </div>
+          </section>
         )}
       </div>
 
-      <div className="mt-4 mb-5 flex justify-end">
-        <Button onClick={handleContinue}>
-          <p
-            className="font-['DM_Sans:Bold',sans-serif] font-bold text-base"
-            style={{ fontVariationSettings: "'opsz' 14" }}
-          >
-            Weiter
-          </p>
-        </Button>
-      </div>
+      {!activeConditionDetail && (
+        <div className="mt-4 mb-5 flex justify-end">
+          <Button onClick={handleContinue}>
+            <p
+              className="font-['DM_Sans:Bold',sans-serif] font-bold text-base"
+              style={{ fontVariationSettings: "'opsz' 14" }}
+            >
+              Weiter
+            </p>
+          </Button>
+        </div>
+      )}
     </PageShell>
   );
 }
