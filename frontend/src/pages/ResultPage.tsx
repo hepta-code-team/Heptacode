@@ -533,6 +533,8 @@ export default function ResultPage() {
     resetAssessment();
   };
 
+  const {symptomText} = useAssessment();
+
   const handleStartSummaryEdit = () => {
     const summaryDraft = parseMedicalSummarySections(displayedProfessionalSummary);
     const travelDetails = splitTravelDetails(patientData?.recentAbroadDetails ?? "");
@@ -779,14 +781,14 @@ export default function ResultPage() {
                   key={reason}
                   className="font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-body text-sm leading-relaxed"
                 >
-                  - {reason}
-                </li>
+                  {reason}
+                </p>
               ))}
               {assessmentResult?.aiModel && (
-                <li className="font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-body text-sm leading-relaxed">
-                  - Die Einschätzung wurde mit dem KI-Modell{" "}
-                  <strong>{assessmentResult.aiModel}</strong> durchgeführt. KI kann Fehler machen.
-                </p>
+                  <p className="font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-body text-sm leading-relaxed">
+                    Die Einschätzung wurde mit dem KI-Modell{" "}
+                    <strong>{assessmentResult.aiModel}</strong> durchgeführt. KI kann Fehler machen.
+                  </p>
               )}
             </div>
           </div>
