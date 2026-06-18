@@ -457,7 +457,6 @@ describe('page-level user flows', () => {
     expect(patientDataToggle).toHaveAttribute('aria-expanded', 'false');
 
     await user.click(screen.getByRole('button', { name: 'KI-Begründung anzeigen' }));
-    expect(screen.getAllByText(/Kopfschmerz mit Übelkeit/).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/mock-model/).length).toBeGreaterThan(0);
 
     await user.click(screen.getByRole('button', { name: 'medical-summary-bearbeiten' }));

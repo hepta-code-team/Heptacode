@@ -28,6 +28,7 @@ describe('createPdfSummary', () => {
         smokingSinceYears: '',
         cigarettesPerDay: '',
         conditionDetails: {},
+        medicationDuration: ''
       },
       symptoms: [{ region: 'Kopf', measurementType: 'pain', measurementValue: 6, duration: 'days' }],
     })
@@ -118,6 +119,7 @@ describe('createPdfSummary', () => {
             duration: '',
           },
         },
+        medicationDuration: ''
       },
       symptoms: [
         {
@@ -209,6 +211,7 @@ describe('createPdfSummary', () => {
         smokingSinceYears: '',
         cigarettesPerDay: '',
         conditionDetails: {},
+        medicationDuration: ''
       },
     })
 
