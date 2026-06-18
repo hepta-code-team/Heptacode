@@ -767,35 +767,22 @@ function ensureSpace(doc: PdfDoc, neededHeight: number): void {
   }
 }
 
-function addIntroBox(doc: PdfDoc): void {
+function addIntroText(doc: PdfDoc): void {
   const x = PAGE.marginX
   const width = doc.page.width - PAGE.marginX * 2
   const y = doc.y
-  const boxHeight = 48
-
-  doc.roundedRect(x, y, width, boxHeight, 12).fill(THEME.cardAlt)
-
-  doc
-    .roundedRect(x, y, width, boxHeight, 12)
-    .strokeColor(THEME.border)
-    .lineWidth(0.9)
-    .stroke()
+  const text =
+    'Dieses Dokument fasst Ihre eingegebenen Daten und die empfohlene Versorgung zusammen.'
 
   doc
     .fillColor(THEME.text)
     .font('Helvetica')
     .fontSize(9.5)
-    .text(
-      'Dieses Dokument fasst Ihre eingegebenen Daten und die empfohlene Versorgung zusammen.',
-      x + 16,
-      y + 15,
-      {
-        width: width - 32,
-        lineGap: 3,
-      },
-    )
+    .text(text, x, y, {
+      width,
+    })
 
-  doc.y = y + boxHeight + 16
+  doc.y += 16
 }
 
 /**
@@ -1049,7 +1036,7 @@ function addPdfContent(
 
   doc.y = 154
 
-  addIntroBox(doc)
+  addIntroText(doc)
 
   sections.forEach((section) => {
     const isWarning = section.title === 'Wichtiger Hinweis'
