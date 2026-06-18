@@ -4,6 +4,7 @@ import {existsSync} from 'node:fs'
 import {join} from 'node:path'
 
 import type {PatientData} from '../../../../shared/patientData.types.js'
+import type {MedicalSpecialty} from '../../../../shared/result.types.js'
 import type {TriageSymptom} from '../../../../shared/symptom.types.js'
 import type {PdfExportRequest, PdfExportResult, PdfSection, PdfTriageResult,} from './pdf.types.js'
 
@@ -72,6 +73,36 @@ function formatCareLevel(careLevel: PdfTriageResult['careLevel']): string {
     default:
       return careLevel
   }
+}
+
+const MEDICAL_SPECIALTY_LABELS: Record<MedicalSpecialty, string> = {
+  home_care: 'Häusliche Versorgung',
+  emergency_medicine: 'Notfallmedizin',
+  general_practice: 'Allgemeinmedizin',
+  internal_medicine: 'Innere Medizin',
+  cardiology: 'Kardiologie',
+  neurology: 'Neurologie',
+  orthopedics: 'Orthopädie',
+  gastroenterology: 'Gastroenterologie',
+  pulmonology: 'Pneumologie',
+  dermatology: 'Dermatologie',
+  urology: 'Urologie',
+  gynecology: 'Gynäkologie',
+  psychiatry: 'Psychiatrie',
+  pediatrics: 'Pädiatrie',
+  dentistry: 'Zahnmedizin',
+  ophthalmology: 'Augenheilkunde',
+  otolaryngology: 'Hals-Nasen-Ohren-Heilkunde',
+}
+
+function formatCareRecommendation(triage: PdfTriageResult): string {
+  const careLevel = formatCareLevel(triage.careLevel)
+
+  if (!triage.recommendedSpecialty) {
+    return careLevel
+  }
+
+  return `${careLevel} – ${MEDICAL_SPECIALTY_LABELS[triage.recommendedSpecialty]}`
 }
 
 function symptomLabel(symptom: TriageSymptom): string {
@@ -514,16 +545,19 @@ function cleanStructuredProfessionalSummary(summary: string): string {
 
 function summarizeCareReason(request: PdfExportRequest): string {
   const plainLanguageSummary = normalizeGermanText(request.reviewSummary.plainLanguage).trim()
+  const specialtyLine = request.triage?.recommendedSpecialty
+    ? `Empfohlene Fachrichtung: ${MEDICAL_SPECIALTY_LABELS[request.triage.recommendedSpecialty]}\n`
+    : ''
 
   if (plainLanguageSummary.length > 0) {
-    return `Begründung der Empfehlung: \n${plainLanguageSummary}`
+    return `${specialtyLine}Begründung der Empfehlung: \n${plainLanguageSummary}`
   }
 
   if (!request.triage) {
     return 'Begründung der Empfehlung: Keine Begründung vorhanden.'
   }
 
-  return `Begründung der Empfehlung: ${formatReasons(request.triage.reasons)}`
+  return `${specialtyLine}Begründung der Empfehlung: ${formatReasons(request.triage.reasons)}`
 }
 
 /**
@@ -665,7 +699,7 @@ function addHeader(
       .fillColor(THEME.darkBlue)
       .font('Helvetica-Bold')
       .fontSize(13)
-      .text(formatCareLevel(triage.careLevel), PAGE.marginX, 107)
+      .text(formatCareRecommendation(triage), PAGE.marginX, 107)
   }
 
   if (existsSync(TEAM_LOGO_PATH)) {
