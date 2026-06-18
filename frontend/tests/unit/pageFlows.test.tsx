@@ -466,7 +466,7 @@ describe('page-level user flows', () => {
       triage: {
         careLevel: 'doctor',
         recommendedSpecialty: 'general_practice',
-        reasons: ['Ärztliche Abklärung sinnvoll.'],
+        reasons: ['Geänderte Beschwerden.'],
       },
       symptoms: [
         {
