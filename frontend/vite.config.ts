@@ -30,7 +30,7 @@ export default defineConfig({
     setupFiles: './tests/setup/vitest.setup.ts',
     include: ['tests/unit/**/*.test.ts', 'tests/unit/**/*.test.tsx'],
     coverage: {
-      reporter: ['text', 'html'],
+      reporter: ['text'],
       include: ['src/**/*.{ts,tsx}'],
       exclude: ['src/main.tsx', 'src/vite-env.d.ts'],
     },

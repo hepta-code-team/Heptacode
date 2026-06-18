@@ -18,6 +18,7 @@ function mockGeolocation(
 describe('result and shared UI components', () => {
   afterEach(() => {
     vi.restoreAllMocks();
+    vi.unstubAllGlobals();
   });
 
   it('renders doctor and psychiatry guidance in result cards', () => {
@@ -43,27 +44,69 @@ describe('result and shared UI components', () => {
   it('requests location and shows sorted nearby facilities when permission succeeds', async () => {
     const user = userEvent.setup();
     const getCurrentPosition = vi.fn<Geolocation['getCurrentPosition']>((success) => {
-      success({} as GeolocationPosition);
+      success({
+        coords: {
+          latitude: 49.487,
+          longitude: 8.46,
+          accuracy: 20,
+        },
+      } as GeolocationPosition);
     });
     mockGeolocation(getCurrentPosition);
+    vi.stubGlobal('fetch', vi.fn<typeof fetch>().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        elements: [
+          {
+            type: 'node',
+            id: 1,
+            lat: 49.487,
+            lon: 8.466,
+            tags: {
+              name: 'Praxis Kardiologie am Stadtpark',
+              healthcare: 'doctor',
+              opening_hours: '24/7',
+              'addr:street': 'Parkstraße',
+              'addr:housenumber': '1',
+              'addr:postcode': '68161',
+              'addr:city': 'Mannheim',
+            },
+          },
+          {
+            type: 'node',
+            id: 2,
+            lat: 49.49,
+            lon: 8.47,
+            tags: {
+              name: 'Kardiologie Zentrum',
+              healthcare: 'doctor',
+              opening_hours: '24/7',
+              'addr:street': 'Hauptstraße',
+              'addr:housenumber': '2',
+              'addr:postcode': '68159',
+              'addr:city': 'Mannheim',
+            },
+          },
+        ],
+      }),
+    } as Response));
 
     render(<NearbyPracticeSearch careLevel="specialist" specialties={['cardiology']} />);
 
     await user.click(screen.getByRole('button', { name: /Standort freigeben/ }));
 
     await waitFor(() => {
-      expect(screen.getByText(/Standort freigegeben/)).toBeInTheDocument();
+      expect(screen.getByText(/2 offene Einrichtungen gefunden/)).toBeInTheDocument();
     });
 
     expect(screen.getByText('Praxis Kardiologie am Stadtpark')).toBeInTheDocument();
-    expect(screen.getByText(/420 m entfernt/)).toBeInTheDocument();
     expect(screen.getAllByRole('link')[0]).toHaveAttribute(
       'href',
       expect.stringContaining('google.com/maps/dir'),
     );
   });
 
-  it('falls back to mock facilities when geolocation is unavailable or denied', async () => {
+  it('shows a helpful message when geolocation is unavailable', async () => {
     const user = userEvent.setup();
     mockGeolocation(undefined);
 
@@ -71,8 +114,7 @@ describe('result and shared UI components', () => {
 
     await user.click(screen.getByRole('button', { name: /Standort freigeben/ }));
 
-    expect(await screen.findByText('Apotheke am Park')).toBeInTheDocument();
-    expect(screen.queryByText(/Standort freigegeben/)).not.toBeInTheDocument();
+    expect(screen.getByText('Ihr Browser unterstützt keine Standortfreigabe.')).toBeInTheDocument();
   });
 
   it('closes modal via backdrop and close button', async () => {
@@ -103,4 +145,3 @@ describe('result and shared UI components', () => {
     expect(onClose).toHaveBeenCalledTimes(2);
   });
 });
-

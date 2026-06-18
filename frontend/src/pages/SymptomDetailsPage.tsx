@@ -84,7 +84,7 @@ export default function SymptomDetailsPage() {
         sourceText: symptomText.trim(),
         originalRegion: symptom.region,
         originalSide: symptom.side,
-        originalDetails: symptom.details,
+        originalDetails: "details" in symptom ? symptom.details : undefined,
       } : {}),
     };
   };
