@@ -38,5 +38,3 @@ npm test -- --run        # Alle Tests einmal ausführen
 npm run test:coverage -- --run
 npm run check            # TypeScript prüfen
 ```
-
-Der HTML-Coverage-Bericht liegt danach unter `frontend/coverage/index.html`.
