@@ -423,6 +423,13 @@ export default function MedicalDataPage() {
     });
   };
 
+  const collapseConditionDropdown = (condition: string) => {
+    setExpandedConditionDetails((sections) => ({
+      ...sections,
+      [condition]: false,
+    }));
+  };
+
   const renderConditionDurationField = (
     condition: string,
     options: { showLabel?: boolean } = {},
@@ -452,6 +459,12 @@ export default function MedicalDataPage() {
             onChange={(event) =>
               updateConditionDuration(condition, event.target.value)
             }
+            onKeyDown={(event) => {
+              if (event.key !== "Enter") return;
+              event.preventDefault();
+              event.stopPropagation();
+              collapseConditionDropdown(condition);
+            }}
             placeholder={
               hasSelectedDetail
                 ? "z. B. 2019, seit 6 Monaten"
@@ -461,11 +474,18 @@ export default function MedicalDataPage() {
             className="h-8 border-none bg-white pr-8 text-xs disabled:cursor-not-allowed disabled:bg-white disabled:text-app-text-muted disabled:opacity-70"
           />
           {detail?.duration.trim() && (
-            <Check
-              className="absolute right-3 top-1/2 size-4 -translate-y-1/2 text-app-text-primary"
-              strokeWidth={3}
-              aria-hidden="true"
-            />
+            <button
+              type="button"
+              onClick={(event) => {
+                event.stopPropagation();
+                collapseConditionDropdown(condition);
+              }}
+              className="absolute right-1 top-1/2 flex size-7 -translate-y-1/2 items-center justify-center rounded-[8px] text-app-text-primary transition-all hover:bg-[#eff2f6]"
+              aria-label={`${condition}-Liste zuklappen`}
+              title={`${condition}-Liste zuklappen`}
+            >
+              <Check className="size-4" strokeWidth={3} aria-hidden="true" />
+            </button>
           )}
         </div>
       </div>
