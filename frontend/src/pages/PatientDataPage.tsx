@@ -86,6 +86,7 @@ const createInitialPatientData = (patientData?: Partial<PatientData>): PatientDa
   isBreastfeeding: false,
   allergies: "",
   medications: "",
+  medicationDuration: "",
   substanceInfluence: "Nein",
   recentAbroad: false,
   recentAbroadDetails: "",
