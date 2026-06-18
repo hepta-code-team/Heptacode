@@ -23,6 +23,7 @@ function createPayload(): AssessmentPayload {
       isBreastfeeding: false,
       allergies: '',
       medications: '',
+      medicationDuration: '',
       substanceInfluence: '',
       recentAbroad: false,
       recentAbroadDetails: '',
@@ -134,7 +135,20 @@ describe('evaluateAssessmentWithAi', () => {
     evaluateTriageMock.mockResolvedValueOnce({
       careLevel: 'emergency',
       reasons: [],
-      recommendedSpecialties: ['emergency_medicine', 'internal_medicine'],
+      recommendedSpecialties: [
+        {
+          specialty: 'emergency_medicine',
+          label: 'Notfallmedizin',
+          reason: 'Dringende medizinische Abklärung erforderlich.',
+          priority: 1,
+        },
+        {
+          specialty: 'internal_medicine',
+          label: 'Innere Medizin',
+          reason: 'Weitere internistische Abklärung empfohlen.',
+          priority: 2,
+        },
+      ],
       aiModel: 'test-model',
       reviewSummary: {
         plainLanguage: 'Bitte nehmen Sie dringend medizinische Hilfe in Anspruch.',
@@ -150,7 +164,20 @@ describe('evaluateAssessmentWithAi', () => {
     expect(result).toMatchObject({
       careLevel: 'emergency',
       recommendedSpecialty: 'emergency_medicine',
-      recommendedSpecialties: ['emergency_medicine', 'internal_medicine'],
+      recommendedSpecialties: [
+        {
+          specialty: 'emergency_medicine',
+          label: 'Notfallmedizin',
+          reason: 'Dringende medizinische Abklärung erforderlich.',
+          priority: 1,
+        },
+        {
+          specialty: 'internal_medicine',
+          label: 'Innere Medizin',
+          reason: 'Weitere internistische Abklärung empfohlen.',
+          priority: 2,
+        },
+      ],
       reasons: [
         'Die Angaben wurden ausgewertet. Bei Verschlechterung bitte erneut medizinisch vorstellen.',
       ],

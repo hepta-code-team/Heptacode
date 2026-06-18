@@ -32,6 +32,7 @@ function createPayload(): AssessmentPayload {
       isBreastfeeding: false,
       allergies: '',
       medications: '',
+      medicationDuration: '',
       substanceInfluence: '',
       recentAbroad: false,
       recentAbroadDetails: '',

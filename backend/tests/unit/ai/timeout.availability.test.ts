@@ -26,7 +26,7 @@ describe('AI availability error detection', () => {
 
   /** Transient upstream pressure and server failures should count as availability issues. */
   it('erkennt Rate-Limits und Serverfehler als Availability-Fehler', () => {
-    const headers = new Headers()
+    const headers = {}
     const rateLimitError = APIError.generate(429, { error: { message: 'rate limited' } }, undefined, headers)
     const serverError = APIError.generate(503, { error: { message: 'unavailable' } }, undefined, headers)
 
@@ -36,7 +36,7 @@ describe('AI availability error detection', () => {
 
   /** Client-side and unknown errors should not be hidden behind availability fallbacks. */
   it('lehnt Clientfehler und unbekannte Fehler als Availability-Fehler ab', () => {
-    const headers = new Headers()
+    const headers = {}
     const badRequestError = APIError.generate(400, { error: { message: 'bad request' } }, undefined, headers)
 
     expect(isAiAvailabilityError(badRequestError)).toBe(false)
