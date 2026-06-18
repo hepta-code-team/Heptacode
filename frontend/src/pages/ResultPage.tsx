@@ -631,6 +631,7 @@ export default function ResultPage() {
           plainLanguage: plainLanguageSummary,
           professionalSummary: displayedProfessionalSummary,
         },
+        ...(assessmentResult?.aiModel ? { aiModel: assessmentResult.aiModel } : {}),
         triage: {
           careLevel: safeCareLevel,
           recommendedSpecialty: safeRecommendedSpecialty,

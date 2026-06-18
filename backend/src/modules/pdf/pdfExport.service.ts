@@ -767,20 +767,38 @@ function ensureSpace(doc: PdfDoc, neededHeight: number): void {
   }
 }
 
-function addIntroText(doc: PdfDoc): void {
+function addIntroText(doc: PdfDoc, aiModel?: string): void {
   const x = PAGE.marginX
   const width = doc.page.width - PAGE.marginX * 2
   const y = doc.y
-  const text =
-    'Dieses Dokument fasst Ihre eingegebenen Daten und die empfohlene Versorgung zusammen.'
 
   doc
     .fillColor(THEME.text)
     .font('Helvetica')
     .fontSize(9.5)
-    .text(text, x, y, {
-      width,
-    })
+    .text(
+      'Dieses Dokument fasst Ihre eingegebenen Daten und die empfohlene Versorgung zusammen.',
+      x,
+      y,
+      { width },
+    )
+
+  if (aiModel) {
+    doc
+      .moveDown(0.25)
+      .font('Helvetica')
+      .text('Die Einschätzung wurde mit dem KI-Modell ', x, doc.y, {
+        continued: true,
+      })
+      .font('Helvetica-Bold')
+      .text(aiModel, {
+        continued: true,
+      })
+      .font('Helvetica')
+      .text(' durchgeführt.', {
+        width,
+      })
+  }
 
   doc.y += 16
 }
@@ -934,12 +952,16 @@ function addSectionCard(
     backgroundColor?: string
     borderColor?: string
     titleColor?: string
+    compact?: boolean
   },
 ): void {
   const x = PAGE.marginX
   const width = doc.page.width - PAGE.marginX * 2
-  const padding = 16
-  const titleHeight = 18
+  const padding = options?.compact ? 12 : 16
+  const titleHeight = options?.compact ? 16 : 18
+  const titleGap = options?.compact ? 6 : 8
+  const bottomExtra = options?.compact ? 2 : 8
+  const cardGap = options?.compact ? 10 : 14
   const contentWidth = width - padding * 2
 
   const displayContent = removeMarkdownLinkUrls(section.content)
@@ -951,9 +973,10 @@ function addSectionCard(
     lineGap: 4,
   })
 
-  const cardHeight = padding + titleHeight + 8 + contentHeight + padding + 8
+  const cardHeight =
+    padding + titleHeight + titleGap + contentHeight + padding + bottomExtra
 
-  ensureSpace(doc, cardHeight + 14)
+  ensureSpace(doc, cardHeight + cardGap)
 
   const y = doc.y
   const backgroundColor = options?.backgroundColor ?? THEME.card
@@ -979,7 +1002,7 @@ function addSectionCard(
   doc.fillColor(THEME.text).font('Helvetica').fontSize(10)
 
   const contentX = x + padding
-  doc.y = y + padding + titleHeight + 8
+  doc.y = y + padding + titleHeight + titleGap
 
   section.content.split('\n').forEach((line) => {
     if (line.trim().length === 0) {
@@ -1016,7 +1039,7 @@ function addSectionCard(
     renderTextWithLinks(doc, line, contentX, contentWidth)
   })
 
-  doc.y = y + cardHeight + 14
+  doc.y = y + cardHeight + cardGap
 }
 
 /**
@@ -1036,15 +1059,20 @@ function addPdfContent(
 
   doc.y = 154
 
-  addIntroText(doc)
+  addIntroText(doc, request.aiModel)
 
   sections.forEach((section) => {
     const isWarning = section.title === 'Wichtiger Hinweis'
+
+    if (isWarning) {
+      doc.y -= 6
+    }
 
     addSectionCard(doc, section, {
       backgroundColor: isWarning ? THEME.warningLight : THEME.card,
       borderColor: isWarning ? THEME.warningBorder : THEME.border,
       titleColor: isWarning ? THEME.warning : THEME.darkBlue,
+      compact: isWarning,
     })
   })
 }

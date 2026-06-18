@@ -9,6 +9,7 @@ describe('createPdfSummary', () => {
         plainLanguage: 'Ihre Angaben sprechen für eine hausärztliche Abklärung.',
         professionalSummary: 'Strukturierte medizinische Zusammenfassung.',
       },
+      aiModel: 'test-model',
       patientData: {
         birthMonth: '01',
         birthYear: '1990',

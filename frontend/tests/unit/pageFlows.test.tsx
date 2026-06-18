@@ -492,6 +492,7 @@ describe('page-level user flows', () => {
       reviewSummary: {
         plainLanguage: 'Bitte ärztlich abklären lassen.',
       },
+      aiModel: 'mock-model',
       triage: {
         careLevel: 'doctor',
         recommendedSpecialty: 'general_practice',
