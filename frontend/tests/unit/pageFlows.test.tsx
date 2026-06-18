@@ -445,11 +445,23 @@ describe('page-level user flows', () => {
 
     render(<ResultPage />);
 
+    const patientDataToggle = screen.getByRole('button', { name: 'Patientendaten' });
+    expect(patientDataToggle).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.queryByText('Geburtsdatum')).not.toBeInTheDocument();
+
+    await user.click(patientDataToggle);
+    expect(patientDataToggle).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.getByText('Geburtsdatum')).toBeInTheDocument();
+
+    await user.click(patientDataToggle);
+    expect(patientDataToggle).toHaveAttribute('aria-expanded', 'false');
+
     await user.click(screen.getByRole('button', { name: 'KI-Begründung anzeigen' }));
-    expect(screen.getByText(/Ärztliche Abklärung sinnvoll/)).toBeInTheDocument();
+    expect(screen.getAllByText(/Kopfschmerz mit Übelkeit/).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/mock-model/).length).toBeGreaterThan(0);
 
     await user.click(screen.getByRole('button', { name: 'medical-summary-bearbeiten' }));
+    expect(patientDataToggle).toHaveAttribute('aria-expanded', 'true');
     await user.clear(screen.getByDisplayValue('1990'));
     await user.type(screen.getByLabelText('Geburtsjahr'), '1988');
     await user.clear(screen.getByLabelText('Beschwerden bearbeiten'));
