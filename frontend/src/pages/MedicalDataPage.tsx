@@ -7,8 +7,6 @@ import {
   Brain,
   Check,
   ChevronDown,
-  ChevronLeft,
-  ChevronRight,
   Cigarette,
   CircleAlert,
   CircleHelp,
@@ -16,9 +14,9 @@ import {
   Globe2,
   HeartPulse,
   Pill,
+  RotateCcw,
   ShieldAlert,
   Stethoscope,
-  RotateCcw,
   Wind,
   Wine,
   X,
@@ -111,20 +109,6 @@ const CONDITION_DETAIL_CONFIGS: Record<
       "Zwangsstörung",
     ],
   },
-};
-
-const UNKNOWN_CONDITION_DURATION = "Ich weiß es nicht";
-
-const CONDITION_DURATION_LABELS: Record<string, string> = {
-  Diabetes: "Seit wann ist der Diabetes bekannt?",
-  Bluthochdruck: "Seit wann besteht der Bluthochdruck?",
-  Herzerkrankungen: "Seit wann besteht die Herzerkrankung?",
-  "Asthma/COPD": "Seit wann besteht die Lungenerkrankung?",
-  Nierenerkrankungen: "Seit wann besteht die Nierenerkrankung?",
-  Lebererkrankungen: "Seit wann besteht die Lebererkrankung?",
-  Epilepsie: "Seit wann ist die Epilepsie bekannt?",
-  "Psychische Erkrankung": "Seit wann besteht die Erkrankung?",
-  Sonstige: "Seit wann besteht diese Vorerkrankung?",
 };
 
 /**
@@ -285,9 +269,6 @@ export default function MedicalDataPage() {
   const [expandedConditionDetails, setExpandedConditionDetails] = useState<
     Record<string, boolean>
   >({});
-  const [activeConditionDetailIndex, setActiveConditionDetailIndex] =
-    useState(0);
-  const conditionDetailTouchStartX = useRef<number | null>(null);
 
   /**
    * Closes condition-detail dropdowns when the user clicks outside the grid.
@@ -344,6 +325,7 @@ export default function MedicalDataPage() {
         conditionDetails: nextConditionDetails,
       };
     });
+    setExpandedConditionDetails({});
   };
 
   const clearConditionSelection = (condition: string) => {
@@ -363,11 +345,6 @@ export default function MedicalDataPage() {
   };
 
   const toggleConditionSelection = (condition: string) => {
-    if (formData.conditions.includes(condition)) {
-      clearConditionSelection(condition);
-      return;
-    }
-
     toggleConditionDropdown(condition);
   };
 
@@ -392,7 +369,7 @@ export default function MedicalDataPage() {
         },
       },
     }));
-    setExpandedConditionDetails({});
+    setExpandedConditionDetails({ [condition]: true });
   };
 
   /**
@@ -403,6 +380,8 @@ export default function MedicalDataPage() {
    */
   const updateOtherCondition = (value: string) => {
     const trimmedValue = value.trim();
+
+    setExpandedConditionDetails(trimmedValue ? { Sonstige: true } : {});
 
     setFormData((prev) => {
       const nextConditions = trimmedValue
@@ -444,116 +423,50 @@ export default function MedicalDataPage() {
     });
   };
 
-  const selectedConditionDetails = formData.conditions
-    .map((condition) => formData.conditionDetails?.[condition])
-    .filter((detail): detail is NonNullable<typeof detail> =>
-      Boolean(detail?.detail.trim()),
-    );
-  const hasMultipleConditionDetails = selectedConditionDetails.length > 1;
-  const activeConditionDetail =
-    selectedConditionDetails[activeConditionDetailIndex] ??
-    selectedConditionDetails[0];
-
-  useEffect(() => {
-    setActiveConditionDetailIndex((currentIndex) => {
-      if (selectedConditionDetails.length === 0) return 0;
-      return Math.min(currentIndex, selectedConditionDetails.length - 1);
-    });
-  }, [selectedConditionDetails.length]);
-
-  const showPreviousConditionDetail = () => {
-    setActiveConditionDetailIndex((currentIndex) =>
-      currentIndex === 0
-        ? selectedConditionDetails.length - 1
-        : currentIndex - 1,
-    );
-  };
-
-  const showNextConditionDetail = () => {
-    setActiveConditionDetailIndex((currentIndex) =>
-      currentIndex === selectedConditionDetails.length - 1
-        ? 0
-        : currentIndex + 1,
-    );
-  };
-
-  const handleConditionDetailTouchEnd = (clientX: number) => {
-    if (
-      !hasMultipleConditionDetails ||
-      conditionDetailTouchStartX.current === null
-    )
-      return;
-
-    const swipeDistance = conditionDetailTouchStartX.current - clientX;
-    conditionDetailTouchStartX.current = null;
-
-    if (Math.abs(swipeDistance) < 40) return;
-    if (swipeDistance > 0) {
-      showNextConditionDetail();
-    } else {
-      showPreviousConditionDetail();
-    }
-  };
-
-  const renderConditionDurationCard = (
-    detail: NonNullable<typeof activeConditionDetail>,
+  const renderConditionDurationField = (
+    condition: string,
+    options: { showLabel?: boolean } = {},
   ) => {
-    const hasDurationValue = detail.duration.trim().length > 0;
-    const isUnknownDuration = detail.duration === UNKNOWN_CONDITION_DURATION;
+    const detail = formData.conditionDetails?.[condition];
+    const hasSelectedDetail = Boolean(detail?.detail.trim());
+    const showLabel = options.showLabel ?? true;
 
     return (
       <div
-        key={detail.condition}
-        className={`rounded-[12px] border-2 bg-[#eff2f6] p-3 transition-all ${
-          hasDurationValue ? "border-[#486284]" : "border-transparent"
-        }`}
+        className="border-t border-gray-200 bg-[#eff2f6] p-3"
+        onClick={(event) => event.stopPropagation()}
       >
-        <div className="mb-2 flex flex-wrap items-baseline gap-1.5">
-          <p
-            className="font-['DM_Sans:Bold',sans-serif] font-bold text-app-text-body text-sm"
+        {showLabel && (
+          <Label
+            htmlFor={`conditionDuration-${condition}`}
+            className="mb-1 block font-['DM_Sans:Bold',sans-serif] font-bold text-app-text-body text-xs leading-tight"
             style={{ fontVariationSettings: "'opsz' 14" }}
           >
-            {detail.condition}
-          </p>
-          <p className="text-xs font-medium text-app-text-primary">–</p>
-          <p className="text-xs font-semibold text-app-text-primary">
-            {detail.detail}
-          </p>
-        </div>
-        <Label
-          htmlFor={`conditionDuration-${detail.condition}`}
-          className="mb-1 block text-xs font-semibold text-app-text-primary"
-        >
-          {CONDITION_DURATION_LABELS[detail.condition] ??
-            "Seit wann besteht die Erkrankung?"}
-        </Label>
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+            Seit wann?
+          </Label>
+        )}
+        <div className="relative">
           <Input
-            id={`conditionDuration-${detail.condition}`}
-            value={detail.duration}
+            id={`conditionDuration-${condition}`}
+            value={detail?.duration ?? ""}
             onChange={(event) =>
-              updateConditionDuration(detail.condition, event.target.value)
+              updateConditionDuration(condition, event.target.value)
             }
-            placeholder="z. B. 2019, seit 6 Monaten"
-            className="h-10 border-none bg-white text-sm"
+            placeholder={
+              hasSelectedDetail
+                ? "z. B. 2019, seit 6 Monaten"
+                : "Bitte erst auswählen"
+            }
+            disabled={!hasSelectedDetail}
+            className="h-8 border-none bg-white pr-8 text-xs disabled:cursor-not-allowed disabled:bg-white disabled:text-app-text-muted disabled:opacity-70"
           />
-          <button
-            type="button"
-            onClick={() =>
-              updateConditionDuration(
-                detail.condition,
-                isUnknownDuration ? "" : UNKNOWN_CONDITION_DURATION,
-              )
-            }
-            className={`inline-flex h-10 w-fit shrink-0 items-center justify-center rounded-[10px] px-3 text-xs font-bold transition-all ${
-              isUnknownDuration
-                ? "bg-[#486284] text-white"
-                : "bg-white text-app-text-primary hover:bg-[#dde3ea]"
-            }`}
-            aria-pressed={isUnknownDuration}
-          >
-            {UNKNOWN_CONDITION_DURATION}
-          </button>
+          {detail?.duration.trim() && (
+            <Check
+              className="absolute right-3 top-1/2 size-4 -translate-y-1/2 text-app-text-primary"
+              strokeWidth={3}
+              aria-hidden="true"
+            />
+          )}
         </div>
       </div>
     );
@@ -974,58 +887,122 @@ export default function MedicalDataPage() {
             const config = CONDITION_DETAIL_CONFIGS[condition];
             const detail = formData.conditionDetails?.[condition]?.detail ?? "";
             const isOpen = expandedConditionDetails[condition] ?? false;
-            const opensUpward = index >= PRE_EXISTING_CONDITIONS.length - 3;
+            const opensUpward = true;
 
             if (condition === "Sonstige") {
+              const isOtherOpen =
+                expandedConditionDetails.Sonstige ?? false;
+
               return (
-                <div
-                  key={condition}
-                  className={`bg-[#eff2f6] rounded-[10px] p-2.5 min-h-[88px] flex flex-col justify-center gap-1.5 transition-all ${
-                    otherValue.trim() ? "ring-2 ring-[#486284]" : ""
-                  }`}
-                >
-                  <div className="flex items-center gap-2">
-                    <Icon
-                      className={`size-5 ${otherValue.trim() ? "text-app-text-primary" : "text-app-text-muted"}`}
-                      strokeWidth={2.2}
+                <div key={condition} className="relative">
+                  <div
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => {
+                      if (otherValue.trim()) toggleConditionDropdown(condition);
+                    }}
+                    onKeyDown={(event) => {
+                      if (
+                        !otherValue.trim() ||
+                        (event.key !== "Enter" && event.key !== " ")
+                      ) {
+                        return;
+                      }
+                      event.preventDefault();
+                      toggleConditionDropdown(condition);
+                    }}
+                    className={`bg-[#eff2f6] rounded-[10px] p-2.5 min-h-[88px] flex flex-col justify-center gap-1.5 transition-all ${
+                      otherValue.trim() ? "ring-2 ring-[#486284]" : ""
+                    }`}
+                    aria-expanded={otherValue.trim() ? isOtherOpen : undefined}
+                  >
+                    <ChevronDown
+                      className={`absolute right-3 top-3 size-4 text-app-text-primary/60 transition-transform ${
+                        isOtherOpen ? "rotate-180" : ""
+                      } ${otherValue.trim() ? "" : "opacity-0"}`}
                       aria-hidden="true"
                     />
-                    <Label
-                      htmlFor="otherCondition"
-                      className="font-['DM_Sans:Bold',sans-serif] font-bold text-app-text-body text-xs leading-tight"
-                      style={{ fontVariationSettings: "'opsz' 14" }}
-                    >
-                      Sonstige
-                    </Label>
-                  </div>
-                  <div className="relative">
-                    <Input
-                      id="otherCondition"
-                      value={otherValue}
-                      onChange={(event) =>
-                        updateOtherCondition(event.target.value)
-                      }
-                      placeholder="Freitext"
-                      className="h-8 border-none bg-white pr-8 text-xs"
-                    />
-                    {otherValue.trim() && (
-                      <button
-                        type="button"
-                        onClick={clearOtherConditionSelection}
-                        className="absolute right-1 top-1/2 flex size-7 -translate-y-1/2 items-center justify-center rounded-[8px] text-red-600 transition-all hover:bg-[#eff2f6]"
-                        aria-label="Sonstige Angabe löschen"
-                        title="Sonstige Angabe löschen"
+                    <div className="flex items-center gap-2">
+                      <Icon
+                        className={`size-5 ${otherValue.trim() ? "text-app-text-primary" : "text-app-text-muted"}`}
+                        strokeWidth={2.2}
+                        aria-hidden="true"
+                      />
+                      <Label
+                        htmlFor="otherCondition"
+                        className="font-['DM_Sans:Bold',sans-serif] font-bold text-app-text-body text-xs leading-tight"
+                        style={{ fontVariationSettings: "'opsz' 14" }}
                       >
-                        <X className="size-4" aria-hidden="true" />
-                      </button>
-                    )}
+                        Sonstige
+                      </Label>
+                    </div>
+                    <div className="relative">
+                      <Input
+                        id="otherCondition"
+                        value={otherValue}
+                        onChange={(event) =>
+                          updateOtherCondition(event.target.value)
+                        }
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          setExpandedConditionDetails(
+                            otherValue.trim() ? { Sonstige: true } : {},
+                          );
+                        }}
+                        onFocus={() =>
+                          setExpandedConditionDetails(
+                            otherValue.trim() ? { Sonstige: true } : {},
+                          )
+                        }
+                        onKeyDown={(event) => event.stopPropagation()}
+                        placeholder="Freitext"
+                        className="h-8 border-none bg-white pr-8 text-xs"
+                      />
+                      {otherValue.trim() && (
+                        <button
+                          type="button"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            clearOtherConditionSelection();
+                          }}
+                          className="absolute right-1 top-1/2 flex size-7 -translate-y-1/2 items-center justify-center rounded-[8px] text-red-600 transition-all hover:bg-[#eff2f6]"
+                          aria-label="Sonstige Angabe löschen"
+                          title="Sonstige Angabe löschen"
+                        >
+                          <X className="size-4" aria-hidden="true" />
+                        </button>
+                      )}
+                    </div>
                   </div>
+                  {otherValue.trim() && isOtherOpen && (
+                    <div
+                      className={`absolute z-10 left-0 right-0 max-h-[calc(100dvh-12rem)] overflow-y-auto rounded-[12px] border-2 border-[#486284] bg-white shadow-lg ${
+                        opensUpward ? "bottom-full mb-1" : "top-full mt-1"
+                      }`}
+                    >
+                      {renderConditionDurationField(condition)}
+                    </div>
+                  )}
                 </div>
               );
             }
 
             return (
               <div key={condition} className="relative">
+                {isSelected && (
+                  <button
+                    type="button"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      clearConditionSelection(condition);
+                    }}
+                    className="absolute left-2 top-2 z-[1] flex size-7 items-center justify-center rounded-[8px] text-app-text-primary transition-all hover:bg-white"
+                    aria-label={`${condition} aufheben`}
+                    title={`${condition} aufheben`}
+                  >
+                    <X className="size-4 text-red-600" aria-hidden="true" />
+                  </button>
+                )}
                 <button
                   type="button"
                   onClick={() => toggleConditionSelection(condition)}
@@ -1069,104 +1046,29 @@ export default function MedicalDataPage() {
                         key={option}
                         type="button"
                         onClick={() => selectConditionDetail(condition, option)}
-                        className="w-full p-3 text-left hover:bg-[#eff2f6] transition-all border-b border-gray-200 last:border-b-0"
+                        className="flex w-full items-center justify-between gap-3 border-b border-gray-200 p-3 text-left transition-all last:border-b-0 hover:bg-[#eff2f6]"
+                        aria-pressed={detail === option}
                       >
                         <span className="font-['DM_Sans:Medium',sans-serif] font-medium text-sm text-app-text-body">
                           {option}
                         </span>
+                        {detail === option && (
+                          <Check
+                            className="size-5 shrink-0 text-app-text-primary"
+                            strokeWidth={3}
+                            aria-hidden="true"
+                          />
+                        )}
                       </button>
                     ))}
+                    {renderConditionDurationField(condition)}
                   </div>
                 )}
               </div>
             );
           })}
         </div>
-
-        {activeConditionDetail && (
-          <section
-            className="mt-4"
-            aria-labelledby="condition-duration-heading"
-          >
-            <h3
-              id="condition-duration-heading"
-              className="mb-2 font-['DM_Sans:Bold',sans-serif] font-bold text-app-text-body text-lg"
-              style={{ fontVariationSettings: "'opsz' 14" }}
-            >
-              Dauer
-            </h3>
-            <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-              <div className="w-full max-w-[760px]">
-                <div
-                  className="flex items-stretch gap-3"
-                  onTouchStart={(event) => {
-                    conditionDetailTouchStartX.current =
-                      event.touches[0]?.clientX ?? null;
-                  }}
-                  onTouchEnd={(event) =>
-                    handleConditionDetailTouchEnd(
-                      event.changedTouches[0]?.clientX ?? 0,
-                    )
-                  }
-                >
-                  <button
-                    type="button"
-                    onClick={showPreviousConditionDetail}
-                    disabled={!hasMultipleConditionDetails}
-                    className="flex w-10 shrink-0 items-center justify-center rounded-[14px] bg-[#eff2f6] text-app-text-primary transition-all hover:bg-[#dde3ea] disabled:cursor-not-allowed disabled:opacity-45 disabled:hover:bg-[#eff2f6]"
-                    aria-label="Vorheriges Dauerfeld anzeigen"
-                  >
-                    <ChevronLeft className="size-5" aria-hidden="true" />
-                  </button>
-                  <div className="min-w-0 flex-1">
-                    {renderConditionDurationCard(activeConditionDetail)}
-                  </div>
-                  <button
-                    type="button"
-                    onClick={showNextConditionDetail}
-                    disabled={!hasMultipleConditionDetails}
-                    className="flex w-10 shrink-0 items-center justify-center rounded-[14px] bg-[#eff2f6] text-app-text-primary transition-all hover:bg-[#dde3ea] disabled:cursor-not-allowed disabled:opacity-45 disabled:hover:bg-[#eff2f6]"
-                    aria-label="Nächstes Dauerfeld anzeigen"
-                  >
-                    <ChevronRight className="size-5" aria-hidden="true" />
-                  </button>
-                </div>
-                {hasMultipleConditionDetails && (
-                  <div
-                    className="mt-2 flex justify-center gap-1.5"
-                    aria-label="Dauerfeld-Auswahl"
-                  >
-                    {selectedConditionDetails.map((detail, index) => (
-                      <span
-                        key={detail.condition}
-                        className={`h-1.5 rounded-full transition-all ${
-                          index === activeConditionDetailIndex
-                            ? "w-1.5 bg-[#486284]"
-                            : "w-1.5 bg-[#c8d0da]"
-                        }`}
-                      />
-                    ))}
-                  </div>
-                )}
-              </div>
-              <Button
-                onClick={handleContinue}
-                className="self-center lg:shrink-0"
-              >
-                <p
-                  className="font-['DM_Sans:Bold',sans-serif] font-bold text-base"
-                  style={{ fontVariationSettings: "'opsz' 14" }}
-                >
-                  Weiter
-                </p>
-              </Button>
-            </div>
-          </section>
-        )}
-      </div>
-
-      {!activeConditionDetail && (
-        <div className="mt-4 mb-5 flex justify-end">
+        <div className="mt-4 flex justify-center lg:justify-end">
           <Button onClick={handleContinue}>
             <p
               className="font-['DM_Sans:Bold',sans-serif] font-bold text-base"
@@ -1176,7 +1078,7 @@ export default function MedicalDataPage() {
             </p>
           </Button>
         </div>
-      )}
+      </div>
     </PageShell>
   );
 }
