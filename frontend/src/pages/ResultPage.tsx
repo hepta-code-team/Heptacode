@@ -464,7 +464,11 @@ export default function ResultPage() {
   const professionalSummary =
     assessmentResult?.reviewSummary?.professionalSummary?.trim() || buildProfessionalSummaryFallback();
 
-  const formatConditionDetail = (detail: PatientData["conditionDetails"][string]) => {
+  const formatConditionDetail = (detail: PatientData["conditionDetails"][string] | string) => {
+    if (typeof detail === "string") {
+      return detail.trim();
+    }
+
     const parts = [
       detail.detail.trim() ? detail.detail.trim() : null,
       detail.duration.trim() ? `Dauer: ${detail.duration.trim()}` : null,
@@ -615,6 +619,9 @@ export default function ResultPage() {
       const safeRecommendedSpecialty = isValidMedicalSpecialty(assessmentResult?.recommendedSpecialty)
         ? assessmentResult.recommendedSpecialty
         : recommendedSpecialty;
+      const complaintReasons = professionalSummaryDraft.complaints.trim()
+        ? [professionalSummaryDraft.complaints.trim()]
+        : explanationReasons.slice(0, 5);
 
       // Keep the export payload conservative and schema-shaped even when the page is rendered from URL fallbacks.
       const pdfPayload = {
@@ -625,7 +632,7 @@ export default function ResultPage() {
         triage: {
           careLevel: safeCareLevel,
           recommendedSpecialty: safeRecommendedSpecialty,
-          reasons: explanationReasons.slice(0, 5),
+          reasons: complaintReasons,
         },
         ...(patientData ? { patientData } : {}),
         ...(symptomDetails.length > 0
@@ -772,21 +779,17 @@ export default function ResultPage() {
               KI-Begründung
             </p>
             {symptomText?.trim() && (
-                <p className="mb-3 font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-body text-sm leading-relaxed">
+                <p className="mb-3 font-['DM_Sans:Medium',sans-serif] font-medium text-base leading-relaxed">
                   Ihre Eingabe: <span className="italic">„{symptomText.trim()}“</span>
                 </p>
             )}
             <div className="space-y-1.5">
-              {explanationReasons.map((reason) => (
-                <p
-                  key={reason}
-                  className="font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-body text-sm leading-relaxed"
-                >
-                  {reason}
+                <p>
+                    {professionalSummaryDraft.complaints}
                 </p>
-              ))}
+
               {assessmentResult?.aiModel && (
-                  <p className="font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-body text-sm leading-relaxed">
+                  <p className="font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-body text-base leading-relaxed">
                     Die Einschätzung wurde mit dem KI-Modell{" "}
                     <strong>{assessmentResult.aiModel}</strong> durchgeführt. KI kann Fehler machen.
                   </p>

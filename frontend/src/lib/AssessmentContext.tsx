@@ -22,7 +22,17 @@ const defaultPersistedAssessmentState: PersistedAssessmentState = {
   assessmentResult: null,
 };
 
-const isBrowserStorageAvailable = () => typeof window !== "undefined" && typeof window.localStorage !== "undefined";
+const isBrowserStorageAvailable = () => {
+  if (typeof window === "undefined") {
+    return false;
+  }
+
+  try {
+    return typeof window.localStorage !== "undefined";
+  } catch {
+    return false;
+  }
+};
 
 function omitMoodFromPatientData(patientData: PatientData | null | undefined): PatientData | null {
   if (!patientData) {

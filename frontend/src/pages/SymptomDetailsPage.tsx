@@ -84,14 +84,14 @@ export default function SymptomDetailsPage() {
         sourceText: symptomText.trim(),
         originalRegion: symptom.region,
         originalSide: symptom.side,
-        originalDetails: symptom.details,
+        originalDetails: "details" in symptom ? symptom.details : undefined,
       } : {}),
     };
   };
 
   const buildInitialSymptomDetails = (): SymptomDraft[] => {
     const activeSymptoms = (() => {
-      if (routeState?.extractedSymptoms && routeState.extractedSymptoms.length > 0) {
+      if (routeState?.extractedSymptoms && routeState.extractedSymptoms.length > 0 && contextDetails.length === 0) {
         return routeState.extractedSymptoms.map((symptom, index) => normalizeSymptom(symptom, index, true));
       }
 
@@ -155,6 +155,15 @@ export default function SymptomDetailsPage() {
   };
 
   const handleAddSymptom = (regionName: string, side?: string) => {
+    const symptomKey = side ? `${regionName} (${side})` : regionName;
+    const isAlreadySelected = symptomDetails.some(
+      (symptom) => symptom.active && getSymptomKey(symptom) === symptomKey,
+    );
+
+    if (isAlreadySelected) {
+      return;
+    }
+
     const inactiveIndex = symptomDetails.findIndex((symptom) => !symptom.active);
 
     if (inactiveIndex !== -1) {
@@ -257,7 +266,13 @@ export default function SymptomDetailsPage() {
         >
           <X className="h-7 w-7" aria-hidden="true" />
         </button>
-        <SymptomButtonGrid onRegionSelect={handleAddSymptom} />
+        <SymptomButtonGrid
+          onRegionSelect={handleAddSymptom}
+          selectedRegions={symptomDetails
+            .filter((symptom) => symptom.active && symptom.region.trim())
+            .map((symptom) => getSymptomKey(symptom))}
+          disableSelectedRegions
+        />
       </Modal>
     </PageShell>
   );
