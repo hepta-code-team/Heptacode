@@ -17,6 +17,7 @@ const basePatient: PatientData = {
   isBreastfeeding: false,
   allergies: '',
   medications: '',
+  medicationDuration: '',
   substanceInfluence: '',
   recentAbroad: false,
   recentAbroadDetails: '',

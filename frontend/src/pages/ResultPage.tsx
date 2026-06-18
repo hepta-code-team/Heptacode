@@ -464,7 +464,11 @@ export default function ResultPage() {
   const professionalSummary =
     assessmentResult?.reviewSummary?.professionalSummary?.trim() || buildProfessionalSummaryFallback();
 
-  const formatConditionDetail = (detail: PatientData["conditionDetails"][string]) => {
+  const formatConditionDetail = (detail: PatientData["conditionDetails"][string] | string) => {
+    if (typeof detail === "string") {
+      return detail.trim();
+    }
+
     const parts = [
       detail.detail.trim() ? detail.detail.trim() : null,
       detail.duration.trim() ? `Dauer: ${detail.duration.trim()}` : null,

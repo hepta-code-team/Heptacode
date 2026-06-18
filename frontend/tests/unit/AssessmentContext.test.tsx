@@ -24,6 +24,7 @@ const patientData: PatientData = {
   isBreastfeeding: false,
   allergies: '',
   medications: '',
+  medicationDuration: '',
   substanceInfluence: '',
   recentAbroad: false,
   recentAbroadDetails: '',
@@ -153,6 +154,8 @@ describe('AssessmentContext', () => {
 
     await userEvent.click(screen.getByRole('button', { name: 'submit' }));
 
-    expect(await screen.findByText(/Patientendaten fehlen/)).toBeInTheDocument();
+    expect(
+      await screen.findByText(/Bitte füllen Sie zuerst alle Pflichtfelder der Stammdaten vollständig aus/),
+    ).toBeInTheDocument();
   });
 });
