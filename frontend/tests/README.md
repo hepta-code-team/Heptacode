@@ -19,7 +19,7 @@ nachgebildet (gemockt). Deshalb wird kein echtes Backend benötigt.
 Ein Test rendert zuerst eine Komponente oder Seite. Danach werden Aktionen eines
 Nutzers simuliert, zum Beispiel:
 
-```ts
+```tsx
 render(<PatientDataPage />);
 await user.click(screen.getByRole("button", { name: "Weiter" }));
 expect(screen.getByText("Bitte Geschlecht auswählen.")).toBeInTheDocument();
