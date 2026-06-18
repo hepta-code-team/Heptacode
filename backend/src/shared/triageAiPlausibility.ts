@@ -2,6 +2,13 @@ import type { TriageSymptom } from '../modules/triage/triage.types.js'
 import type { MedicalSpecialty } from '../modules/triage/triage.types.js'
 import type { TriageAiResponse } from './validation.js'
 
+type PlausibilityTriageResponse = {
+  careLevel: TriageAiResponse['careLevel']
+  recommendedSpecialty?: MedicalSpecialty
+  reasons: string[]
+  reviewSummary: TriageAiResponse['reviewSummary']
+}
+
 const SPECIALTY_KEYWORDS: Record<MedicalSpecialty, string[]> = {
   home_care: [],
   emergency_medicine: ['notfallmedizin', 'notaufnahme', 'rettungsdienst'],
@@ -46,7 +53,7 @@ function isSpecialistSpecialty(
   return specialty !== undefined && !NON_SPECIALIST_SPECIALTIES.includes(specialty)
 }
 
-function getResponseText(response: TriageAiResponse): string {
+function getResponseText(response: PlausibilityTriageResponse): string {
   return normalizeText([
     ...response.reasons,
     response.reviewSummary.plainLanguage,
@@ -54,7 +61,7 @@ function getResponseText(response: TriageAiResponse): string {
   ].join(' '))
 }
 
-function findMentionedSpecialties(response: TriageAiResponse): MedicalSpecialty[] {
+function findMentionedSpecialties(response: PlausibilityTriageResponse): MedicalSpecialty[] {
   const responseText = getResponseText(response)
 
   return Object.entries(SPECIALTY_KEYWORDS)
@@ -180,7 +187,7 @@ function hasOnlyMildSymptoms(symptoms: TriageSymptom[]): boolean {
  * before an AI answer is trusted by downstream presentation or assessment code.
  */
 export function getTriageAiPlausibilityIssues(
-  response: TriageAiResponse,
+  response: PlausibilityTriageResponse,
   symptoms: TriageSymptom[],
 ): string[] {
   const issues: string[] = []
