@@ -900,7 +900,7 @@ export default function ResultPage() {
               <span className="font-['DM_Sans:Bold',sans-serif] text-sm font-bold text-app-text-primary">
                 Patientendaten
               </span>
-              <span className="flex size-7 flex-shrink-0 items-center justify-center rounded-full bg-[#486284] text-white">
+              <span className="flex size-7 flex-shrink-0 items-center justify-center rounded-lg bg-[#486284] text-white">
                 <ChevronDown
                   className={`size-5 transition-transform ${
                     isPatientDataOpen ? "rotate-180" : ""
