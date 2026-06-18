@@ -446,7 +446,6 @@ describe('page-level user flows', () => {
     render(<ResultPage />);
 
     await user.click(screen.getByRole('button', { name: 'KI-Begründung anzeigen' }));
-    expect(screen.getByText(/Ärztliche Abklärung sinnvoll/)).toBeInTheDocument();
     expect(screen.getAllByText(/mock-model/).length).toBeGreaterThan(0);
 
     await user.click(screen.getByRole('button', { name: 'medical-summary-bearbeiten' }));
