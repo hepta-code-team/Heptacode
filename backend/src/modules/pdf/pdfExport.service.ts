@@ -612,7 +612,7 @@ function buildSections(request: PdfExportRequest): PdfSection[] {
     {
       title: 'Wichtiger Hinweis',
       content:
-        'Diese Einschätzung ist keine medizinische Diagnose und ersetzt nicht den Besuch bei einem Arzt. KI-Systeme können Fehler machen. Bei Unsicherheit oder Verschlechterung Ihres Zustands suchen Sie bitte umgehend medizinische Hilfe.',
+        'Diese Einschätzung ist keine medizinische Diagnose und ersetzt nicht den Besuch bei einem Arzt.\nKI-Systeme können Fehler machen. Bei Unsicherheit oder Verschlechterung Ihres Zustands suchen Sie bitte umgehend medizinische Hilfe.',
     },
   ]
 }
@@ -939,6 +939,103 @@ function renderTextWithLinks(
   doc.fillColor(THEME.text).font('Helvetica').fontSize(10)
 }
 
+function measureSectionLines(doc: PdfDoc, lines: string[], width: number): number {
+  return lines.reduce((height, line) => {
+    if (line.trim().length === 0) {
+      return height + doc.currentLineHeight(true)
+    }
+
+    return height + doc.heightOfString(removeMarkdownLinkUrls(line), {
+      width,
+      lineGap: 4,
+    })
+  }, 0)
+}
+
+function renderSectionLines(
+  doc: PdfDoc,
+  lines: string[],
+  contentX: number,
+  contentWidth: number,
+  startY: number,
+): number {
+  doc.y = startY
+
+  lines.forEach((line) => {
+    if (line.trim().length === 0) {
+      doc.moveDown(1)
+      return
+    }
+
+    const headingMatch = line.trim().match(/^([^:]+:)(\s*)(.*)$/)
+
+    if (headingMatch) {
+      const prefix = headingMatch[1] ?? ''
+      const spacing = headingMatch[2] ?? ''
+      const rest = headingMatch[3] ?? ''
+
+      doc
+        .fillColor(THEME.text)
+        .font('Helvetica-Bold')
+        .fontSize(10)
+        .text(prefix, contentX, doc.y, {
+          width: contentWidth,
+          lineGap: 4,
+          continued: rest.length > 0,
+        })
+
+      if (rest.length > 0) {
+        renderTextWithLinks(doc, `${spacing}${rest}`, contentX, contentWidth, false)
+      }
+
+      doc.fillColor(THEME.text).font('Helvetica').fontSize(10)
+      return
+    }
+
+    renderTextWithLinks(doc, line, contentX, contentWidth)
+  })
+
+  return doc.y
+}
+
+function splitPatientDataColumns(content: string): {
+  heading: string
+  leftLines: string[]
+  rightLines: string[]
+  remainingLines: string[]
+} | null {
+  const lines = content.split('\n')
+  const patientHeadingIndex = lines.findIndex(
+    (line) => line.trim().toLowerCase() === 'patientendaten:',
+  )
+  const complaintsHeadingIndex = lines.findIndex(
+    (line, index) =>
+      index > patientHeadingIndex && line.trim().toLowerCase() === 'beschwerden:',
+  )
+
+  if (patientHeadingIndex < 0 || complaintsHeadingIndex < 0) {
+    return null
+  }
+
+  const patientLines = lines
+    .slice(patientHeadingIndex + 1, complaintsHeadingIndex)
+    .filter((line) => line.trim().length > 0)
+  const rightColumnStart = patientLines.findIndex((line) =>
+    /^Allergien:/i.test(line.trim()),
+  )
+
+  if (rightColumnStart <= 0) {
+    return null
+  }
+
+  return {
+    heading: lines[patientHeadingIndex] ?? 'Patientendaten:',
+    leftLines: patientLines.slice(0, rightColumnStart),
+    rightLines: patientLines.slice(rightColumnStart),
+    remainingLines: lines.slice(complaintsHeadingIndex),
+  }
+}
+
 /**
  * Draws one rounded PDF section card and renders its formatted text.
  *
@@ -963,15 +1060,46 @@ function addSectionCard(
   const bottomExtra = options?.compact ? 2 : 8
   const cardGap = options?.compact ? 10 : 14
   const contentWidth = width - padding * 2
+  const contentX = x + padding
+  const patientColumns = splitPatientDataColumns(section.content)
 
   const displayContent = removeMarkdownLinkUrls(section.content)
 
   doc.font('Helvetica').fontSize(10)
 
-  const contentHeight = doc.heightOfString(displayContent, {
-    width: contentWidth,
-    lineGap: 4,
-  })
+  const dividerX = contentX + contentWidth / 2
+  const leftDividerGap = 14
+  const rightDividerGap = 22
+  const leftColumnWidth = dividerX - contentX - leftDividerGap
+  const rightColumnX = dividerX + rightDividerGap
+  const rightColumnWidth = contentX + contentWidth - rightColumnX
+  const patientHeadingGap = 5
+  const complaintsSeparatorTopGap = 14
+  const complaintsSeparatorBottomGap = 18
+  const complaintsSeparatorHeight =
+    complaintsSeparatorTopGap + complaintsSeparatorBottomGap
+  const patientHeadingHeight = patientColumns
+    ? measureSectionLines(doc, [patientColumns.heading], contentWidth)
+    : 0
+  const leftColumnHeight = patientColumns
+    ? measureSectionLines(doc, patientColumns.leftLines, leftColumnWidth)
+    : 0
+  const rightColumnHeight = patientColumns
+    ? measureSectionLines(doc, patientColumns.rightLines, rightColumnWidth)
+    : 0
+  const remainingContentHeight = patientColumns
+    ? measureSectionLines(doc, patientColumns.remainingLines, contentWidth)
+    : 0
+  const contentHeight = patientColumns
+    ? patientHeadingHeight +
+      patientHeadingGap +
+      Math.max(leftColumnHeight, rightColumnHeight) +
+      complaintsSeparatorHeight +
+      remainingContentHeight
+    : doc.heightOfString(displayContent, {
+        width: contentWidth,
+        lineGap: 4,
+      })
 
   const cardHeight =
     padding + titleHeight + titleGap + contentHeight + padding + bottomExtra
@@ -1001,43 +1129,60 @@ function addSectionCard(
 
   doc.fillColor(THEME.text).font('Helvetica').fontSize(10)
 
-  const contentX = x + padding
-  doc.y = y + padding + titleHeight + titleGap
+  const contentY = y + padding + titleHeight + titleGap
 
-  section.content.split('\n').forEach((line) => {
-    if (line.trim().length === 0) {
-      doc.moveDown(1)
-      return
-    }
+  if (patientColumns) {
+    const headingEndY = renderSectionLines(
+      doc,
+      [patientColumns.heading],
+      contentX,
+      contentWidth,
+      contentY,
+    )
+    const columnsY = headingEndY + patientHeadingGap
+    const columnsHeight = Math.max(leftColumnHeight, rightColumnHeight)
 
-    const headingMatch = line.trim().match(/^([^:]+:)(\s*)(.*)$/)
+    renderSectionLines(
+      doc,
+      patientColumns.leftLines,
+      contentX,
+      leftColumnWidth,
+      columnsY,
+    )
+    renderSectionLines(
+      doc,
+      patientColumns.rightLines,
+      rightColumnX,
+      rightColumnWidth,
+      columnsY,
+    )
 
-    // Render "Label: value" lines with bold labels while keeping inline links clickable.
-    if (headingMatch) {
-      const prefix = headingMatch[1] ?? ''
-      const spacing = headingMatch[2] ?? ''
-      const rest = headingMatch[3] ?? ''
+    const complaintsSeparatorY =
+      columnsY + columnsHeight + complaintsSeparatorTopGap
 
-      doc
-        .fillColor(THEME.text)
-        .font('Helvetica-Bold')
-        .fontSize(10)
-        .text(prefix, contentX, doc.y, {
-          width: contentWidth,
-          lineGap: 4,
-          continued: rest.length > 0,
-        })
+    doc
+      .moveTo(contentX, complaintsSeparatorY)
+      .lineTo(contentX + contentWidth, complaintsSeparatorY)
+      .strokeColor(THEME.border)
+      .lineWidth(0.7)
+      .stroke()
 
-      if (rest.length > 0) {
-        renderTextWithLinks(doc, `${spacing}${rest}`, contentX, contentWidth, false)
-      }
-
-      doc.fillColor(THEME.text).font('Helvetica').fontSize(10)
-      return
-    }
-
-    renderTextWithLinks(doc, line, contentX, contentWidth)
-  })
+    renderSectionLines(
+      doc,
+      patientColumns.remainingLines,
+      contentX,
+      contentWidth,
+      complaintsSeparatorY + complaintsSeparatorBottomGap,
+    )
+  } else {
+    renderSectionLines(
+      doc,
+      section.content.split('\n'),
+      contentX,
+      contentWidth,
+      contentY,
+    )
+  }
 
   doc.y = y + cardHeight + cardGap
 }
