@@ -8,7 +8,9 @@
     "build": "tsc",
     "start": "node dist/index.js",
     "test": "vitest run",
-    "test:ai-triage": "RUN_AI_TRIAGE_EVAL=true vitest run tests/live/triage-specialty.live.test.ts --testTimeout=120000",
+    "test:ai-triage": "vitest run --config vitest.live.config.ts",
+    "test:ai-triage:specialties": "vitest run --config vitest.live.config.ts tests/live/triage-specialty.live.test.ts",
+    "test:ai-triage:plausibility": "vitest run --config vitest.live.config.ts tests/live/triage-plausibility.live.test.ts",
     "test:watch": "vitest"
   },
   "dependencies": {
