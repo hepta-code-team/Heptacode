@@ -331,7 +331,7 @@ describe('evaluateTriage', () => {
       },
     },
     {
-      name: 'allergischer Atemwegsschwellung',
+      name: 'allergische Atemwegsschwellung',
       symptom: {
         region: 'Allgemein',
         details: 'Allergische Reaktion, Zunge und Hals schwellen an',
