@@ -318,6 +318,51 @@ describe('evaluateTriage', () => {
     })
   })
 
+  /** Shared warning-pattern detection should also protect the local fallback path. */
+  it.each([
+    {
+      name: 'Schlaganfallzeichen',
+      symptom: {
+        region: 'Gesicht',
+        details: 'Ein Mundwinkel haengt, ein Arm ist halbseitig schwach und die Sprache verwaschen',
+        measurementType: 'severity' as const,
+        measurementValue: 5,
+        duration: 'today' as const,
+      },
+    },
+    {
+      name: 'allergischer Atemwegsschwellung',
+      symptom: {
+        region: 'Allgemein',
+        details: 'Allergische Reaktion, Zunge und Hals schwellen an',
+        measurementType: 'severity' as const,
+        measurementValue: 5,
+        duration: 'today' as const,
+      },
+    },
+    {
+      name: 'kritischen Blutungszeichen',
+      symptom: {
+        region: 'Bauch',
+        details: 'Blutiges Erbrechen und schwarzer Stuhl seit heute',
+        measurementType: 'severity' as const,
+        measurementValue: 5,
+        duration: 'today' as const,
+      },
+    },
+  ])('nutzt den Notfall-Fallback bei $name', async ({ symptom }) => {
+    requestStructuredAiResponseWithModelMock.mockRejectedValueOnce(new AiResponseError('timeout'))
+
+    const result = await evaluateTriage(undefined, [symptom])
+
+    expect(result).toMatchObject({
+      careLevel: 'emergency',
+      recommendedSpecialty: 'emergency_medicine',
+      aiUnavailable: true,
+    })
+    expect(result.reasons.join(' ')).toContain('Warnmuster')
+  })
+
   /** Very high symptom intensity should escalate even without a named warning pattern. */
   it('nutzt den Notfall-Fallback bei sehr starken Beschwerden ohne spezielles Warnmuster', async () => {
     requestStructuredAiResponseWithModelMock.mockRejectedValueOnce(new AiResponseError('timeout'))
