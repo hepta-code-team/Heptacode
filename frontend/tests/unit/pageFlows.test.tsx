@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import LandingPage from '../../src/pages/LandingPage';
 import MedicalDataPage from '../../src/pages/MedicalDataPage';
+import PreExistingConditionsPage from '../../src/pages/PreExistingConditionsPage';
 import PatientDataPage from '../../src/pages/PatientDataPage';
 import ResultPage from '../../src/pages/ResultPage';
 import SymptomDetailsPage from '../../src/pages/SymptomDetailsPage';
@@ -214,9 +215,6 @@ describe('page-level user flows', () => {
     await user.click(screen.getAllByRole('button', { name: 'Ja' })[1]);
     await user.click(screen.getByRole('button', { name: 'Rauchdauer erhöhen' }));
     await user.click(screen.getByRole('button', { name: 'Zigaretten pro Tag erhöhen' }));
-    await user.click(screen.getByRole('button', { name: 'Diabetes' }));
-    await user.click(screen.getByRole('button', { name: 'Typ 2' }));
-    await user.type(screen.getByLabelText('Sonstige'), 'Migräne');
     await user.click(screen.getAllByRole('button', { name: 'Weiter' }).at(-1)!);
 
     expect(setPatientDataMock).toHaveBeenCalledWith(expect.objectContaining({
@@ -229,6 +227,22 @@ describe('page-level user flows', () => {
       isSmoker: true,
       smokingSinceYears: '1',
       cigarettesPerDay: '1',
+    }));
+    expect(navigateMock).toHaveBeenCalledWith('/pre-existing-conditions');
+  });
+
+  it('collects pre-existing conditions and continues to symptom selection', async () => {
+    const user = userEvent.setup();
+    assessmentState.patientData = basePatientData;
+
+    render(<PreExistingConditionsPage />);
+
+    await user.click(screen.getByRole('button', { name: 'Diabetes' }));
+    await user.click(screen.getByRole('button', { name: 'Typ 2' }));
+    await user.type(screen.getByLabelText('Sonstige'), 'Migräne');
+    await user.click(screen.getAllByRole('button', { name: 'Weiter' }).at(-1)!);
+
+    expect(setPatientDataMock).toHaveBeenCalledWith(expect.objectContaining({
       conditions: expect.arrayContaining(['Diabetes', 'Sonstige']),
       conditionDetails: expect.objectContaining({
         Diabetes: {
