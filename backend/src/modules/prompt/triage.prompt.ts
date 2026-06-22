@@ -50,6 +50,13 @@ export const triageInstructions = [
   'Erfinde keine Dosierung, Einnahmefrequenz, Indikation, Wechselwirkung oder Nebenwirkung. Wenn Angaben dafuer fehlen oder der Zusammenhang unsicher ist, kennzeichne die Unsicherheit.',
   'Empfehle niemals eigenstaendig, ein verordnetes Medikament abzusetzen oder die Dosierung zu aendern. Verweise bei einem moeglichen Medikationsproblem auf aerztliche oder pharmazeutische Abklaerung.',
   'Medikamente duerfen klare Warnzeichen nicht herunterstufen. Bei moeglicher schwerer Nebenwirkung, Wechselwirkung oder allergischer Reaktion waehle sicherheitsorientiert die passende hoehere Versorgungsebene.',
+  'Pruefe den medizinischen Risikokontext ebenfalls aktiv: Allergien, aktuelle Beeinflussung durch Alkohol oder Drogen, kuerzliche Auslandsaufenthalte und Vorerkrankungen koennen Dringlichkeit, Differentialdiagnosen und geeignete Versorgung veraendern.',
+  'Setze Allergien zu Beschwerden und Medikamenten in Beziehung. Achte besonders auf moegliche allergische Reaktionen mit Atemnot, Schwellung, Kreislaufproblemen oder rascher Verschlechterung.',
+  'Beruecksichtige bei Alkohol- oder Drogeneinfluss moegliche Intoxikation, Entzug, Wechselwirkungen, eingeschraenkte Zuverlaessigkeit der Selbsteinschaetzung sowie das Maskieren oder Verstaerken von Symptomen. Stufe Warnzeichen deshalb nicht herunter.',
+  'Pruefe bei einem kuerzlichen Auslandsaufenthalt, ob Reiseziel oder genannte Umstaende zusammen mit Symptomen und zeitlichem Verlauf ein Infektions-, Expositions- oder Thromboserisiko plausibel machen. Erfinde kein Reiseziel, keinen Erreger und keine Exposition.',
+  'Beruecksichtige bei Vorerkrankungen Art, Details und Dauer sowie eine moegliche Verschlechterung, Komplikation oder Wechselwirkung mit aktuellen Beschwerden und Medikamenten.',
+  'Wenn ein Eintrag aus dem medizinischen Risikokontext die Triage beeinflusst, nenne die konkrete Angabe und den Zusammenhang kurz in reasons sowie in beiden Texten der reviewSummary. Wenn kein plausibler Zusammenhang besteht, konstruiere keinen.',
+  'Eine zeitliche oder medizinische Plausibilitaet ist kein Ursachennachweis. Kennzeichne Unsicherheit und empfehle die angemessene Abklaerung, ohne Diagnosen zu behaupten.',
   'Nutze das uebergebene aktuelle Datum als Bezugsdatum fuer Altersberechnungen aus Geburtsmonat und Geburtsjahr.',
   'Zusatzdetails koennen fuer die Dringlichkeit entscheidend sein, zum Beispiel Verbrennungsursache, Hitzequelle, Fremdkoerper steckt tief oder steckt explizit nicht mehr, Blutung, offene Wunde oder Negationen.',
   'Handle sicherheitsorientiert. Bei klaren Warnzeichen oder hohem Risiko waehle die hoehere Versorgungsebene.',
@@ -62,6 +69,7 @@ type TriagePromptInput = {
   currentDateText: string
   patientDataText: string
   medicationContextText: string
+  medicalRiskContextText: string
   symptomsText: string
 }
 
@@ -75,6 +83,9 @@ export function createTriagePrompt(input: TriagePromptInput): string {
     '',
     'Medikationskontext (bei der Triage aktiv pruefen):',
     input.medicationContextText,
+    '',
+    'Medizinischer Risikokontext (bei der Triage aktiv pruefen):',
+    input.medicalRiskContextText,
     '',
     'Symptome:',
     input.symptomsText,

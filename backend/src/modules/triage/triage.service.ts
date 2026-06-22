@@ -70,13 +70,6 @@ function buildPatientDataLines(patientData?: PatientData): string[] {
     return ['Keine Stammdaten uebergeben.']
   }
 
-  const conditionDetails = Object.entries(patientData.conditionDetails)
-    .map(([condition, detail]) => {
-      const formattedDetail = formatConditionDetail(detail)
-      return formattedDetail ? `${condition}: ${formattedDetail}` : null
-    })
-    .filter((detail): detail is string => detail !== null)
-
   return [
     `Geburtsmonat: ${patientData.birthMonth}`,
     `Geburtsjahr: ${patientData.birthYear}`,
@@ -85,25 +78,12 @@ function buildPatientDataLines(patientData?: PatientData): string[] {
     `Geschlecht: ${patientData.gender}`,
     patientData.isPregnant ? 'Schwanger: Ja' : null,
     patientData.isBreastfeeding ? 'Stillend: Ja' : null,
-    hasText(patientData.allergies) ? `Allergien: ${patientData.allergies.trim()}` : null,
-    hasText(patientData.substanceInfluence) && patientData.substanceInfluence.trim() !== 'Nein'
-      ? `Substanzbeeinflussung: ${patientData.substanceInfluence.trim()}`
-      : null,
-    patientData.recentAbroad
-      ? `Auslandsaufenthalt: ${hasText(patientData.recentAbroadDetails) ? patientData.recentAbroadDetails.trim() : 'Ja'}`
-      : null,
-    patientData.conditions.length > 0
-      ? `Vorerkrankungen: ${patientData.conditions.join(', ')}`
-      : null,
     patientData.isSmoker ? 'Raucher: Ja' : 'Raucher: Nein',
     patientData.isSmoker && hasText(patientData.smokingSinceYears)
       ? `Rauchdauer: ${patientData.smokingSinceYears.trim()} Jahre`
       : null,
     patientData.isSmoker && hasText(patientData.cigarettesPerDay)
       ? `Zigaretten pro Tag: ${patientData.cigarettesPerDay.trim()}`
-      : null,
-    conditionDetails.length > 0
-      ? `Details zu Vorerkrankungen: ${conditionDetails.join('; ')}`
       : null,
   ].filter((line): line is string => line !== null)
 }
@@ -133,6 +113,33 @@ function formatMedicationContext(patientData?: PatientData): string {
   return [
     `Aktuelle Medikamente: ${patientData.medications.trim()}`,
     `Einnahmedauer: ${hasText(patientData.medicationDuration) ? patientData.medicationDuration.trim() : 'Nicht angegeben'}`,
+  ].join('\n')
+}
+
+/**
+ * Keeps clinically relevant background data in a dedicated prompt section so
+ * the model evaluates it against symptoms instead of treating it as metadata.
+ */
+function formatMedicalRiskContext(patientData?: PatientData): string {
+  if (!patientData) {
+    return 'Kein medizinischer Risikokontext uebergeben.'
+  }
+
+  const conditionDetails = Object.entries(patientData.conditionDetails)
+    .map(([condition, detail]) => {
+      const formattedDetail = formatConditionDetail(detail)
+      return formattedDetail ? `${condition}: ${formattedDetail}` : null
+    })
+    .filter((detail): detail is string => detail !== null)
+
+  return [
+    `Allergien: ${hasText(patientData.allergies) ? patientData.allergies.trim() : 'Keine angegeben'}`,
+    `Einfluss durch Alkohol oder Drogen: ${hasText(patientData.substanceInfluence) ? patientData.substanceInfluence.trim() : 'Keine Angabe'}`,
+    `Auslandsaufenthalt in den letzten 3 Monaten: ${patientData.recentAbroad
+      ? hasText(patientData.recentAbroadDetails) ? patientData.recentAbroadDetails.trim() : 'Ja, keine Details angegeben'
+      : 'Nein'}`,
+    `Vorerkrankungen: ${patientData.conditions.length > 0 ? patientData.conditions.join(', ') : 'Keine angegeben'}`,
+    `Details und Dauer der Vorerkrankungen: ${conditionDetails.length > 0 ? conditionDetails.join('; ') : 'Keine angegeben'}`,
   ].join('\n')
 }
 
@@ -249,6 +256,7 @@ async function requestTriageFromAi(
           currentDateText: formatLocalDate(),
           patientDataText: formatPatientData(patientData),
           medicationContextText: formatMedicationContext(patientData),
+          medicalRiskContextText: formatMedicalRiskContext(patientData),
           symptomsText: formatSymptoms(symptoms),
         }),
       },
