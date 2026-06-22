@@ -16,6 +16,13 @@ import {
 import type { SymptomInputType } from '../../../../shared/symptomExtraction.types.js'
 import { triageInstructions, createTriagePrompt } from '../prompt/triage.prompt.js'
 
+export type TriageEvaluationDiagnostics = {
+  aiResponse?: TriageResponse
+  finalResponse: TriageResponse
+  plausibilityIssues: string[]
+  fallbackType: 'none' | 'plausibility' | 'availability'
+}
+
 function createBadRequestError(message: string): Error & { statusCode: number } {
   return new ApiError(400, 'BAD_REQUEST', message) as Error & { statusCode: number }
 }
@@ -222,10 +229,10 @@ function getComparableMeasurementValue(symptom: TriageSymptom): number {
  * The schema validation happens before the result leaves this function, so
  * downstream fallback logic only handles typed triage responses or known errors.
  */
-async function requestTriageFromAi(
+async function requestTriageFromAiWithDiagnostics(
   patientData: PatientData | undefined,
   symptoms: TriageSymptom[],
-): Promise<TriageResponse> {
+): Promise<TriageEvaluationDiagnostics> {
   const { data: parsed, model } = await requestStructuredAiResponseWithModel({
     messages: [
       { role: 'system', content: triageInstructions },
@@ -245,15 +252,35 @@ async function requestTriageFromAi(
 
   const normalized = triageAiResponseSchema.parse(parsed)
   const plausibilityIssues = getTriageAiPlausibilityIssues(normalized, symptoms)
-
-  if (plausibilityIssues.length > 0) {
-    return createPlausibilityFallbackTriage(symptoms, plausibilityIssues)
-  }
-
-  return {
+  const aiResponse = {
     ...normalized,
     aiModel: model,
   }
+
+  if (plausibilityIssues.length > 0) {
+    return {
+      aiResponse,
+      finalResponse: createPlausibilityFallbackTriage(symptoms, plausibilityIssues),
+      plausibilityIssues,
+      fallbackType: 'plausibility',
+    }
+  }
+
+  return {
+    aiResponse,
+    finalResponse: aiResponse,
+    plausibilityIssues: [],
+    fallbackType: 'none',
+  }
+}
+
+async function requestTriageFromAi(
+  patientData: PatientData | undefined,
+  symptoms: TriageSymptom[],
+): Promise<TriageResponse> {
+  const diagnostics = await requestTriageFromAiWithDiagnostics(patientData, symptoms)
+
+  return diagnostics.finalResponse
 }
 
 /**
@@ -370,6 +397,30 @@ async function requestTriageWithFallback(
     }
 
     return createFallbackTriage(symptoms)
+  }
+}
+
+/**
+ * Exposes the normalized AI answer and the final safety-filtered response for live evaluation.
+ */
+export async function evaluateTriageWithDiagnostics(
+  patientData: PatientData | undefined,
+  symptoms: TriageSymptom[],
+): Promise<TriageEvaluationDiagnostics> {
+  assertPatientDataIsPlausible(patientData, undefined, symptoms)
+
+  try {
+    return await requestTriageFromAiWithDiagnostics(patientData, symptoms)
+  } catch (error) {
+    if (!isAiRequestError(error)) {
+      throw error
+    }
+
+    return {
+      finalResponse: createFallbackTriage(symptoms),
+      plausibilityIssues: [],
+      fallbackType: 'availability',
+    }
   }
 }
 

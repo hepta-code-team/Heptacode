@@ -2,8 +2,8 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import type {
   CareLevel,
-  TriageResponse,
 } from '../../src/modules/triage/triage.types.js'
+import type { TriageEvaluationDiagnostics } from '../../src/modules/triage/triage.service.js'
 import {
   TRIAGE_PLAUSIBILITY_CATEGORIES,
   TRIAGE_PLAUSIBILITY_LIVE_CASES,
@@ -20,12 +20,16 @@ type EvaluationResult = {
   name: string
   category: TriagePlausibilityCategory
   expectedCareLevel: CareLevel
-  actualCareLevel?: CareLevel
+  directAiCareLevel?: CareLevel
+  finalCareLevel?: CareLevel
   aiModel?: string
-  passed: boolean
-  fallbackUsed: boolean
+  directAiPassed: boolean
+  systemPassed: boolean
+  fallbackType: TriageEvaluationDiagnostics['fallbackType']
   unavailable: boolean
-  reasons: string[]
+  aiReasons: string[]
+  finalReasons: string[]
+  plausibilityIssues: string[]
   error?: string
 }
 
@@ -33,16 +37,11 @@ type EvaluationResult = {
 const evaluationResults: EvaluationResult[] = []
 
 /** Reuses the availability probe as the first evaluated case. */
-const cachedResults = new Map<string, TriageResponse>()
+const cachedResults = new Map<string, TriageEvaluationDiagnostics>()
 
 /** Distinguishes an unreachable AI service from a rejected plausibility response. */
-function isAvailabilityFallback(result: TriageResponse): boolean {
-  return (
-    result.aiUnavailable === true &&
-    !result.reasons.some((reason) =>
-      reason.includes('KI-Antwort wurde verworfen'),
-    )
-  )
+function isAvailabilityFallback(result: TriageEvaluationDiagnostics): boolean {
+  return result.fallbackType === 'availability'
 }
 
 /** Formats a case ratio as a percentage for console reporting. */
@@ -53,36 +52,64 @@ function formatRate(passed: number, total: number): string {
 /** Prints total accuracy, category rates, and failed case details. */
 function logEvaluationSummary(): void {
   const availableResults = evaluationResults.filter((result) => !result.unavailable)
-  const passed = evaluationResults.filter((result) => result.passed).length
+  const directAiPassed = availableResults.filter((result) => result.directAiPassed).length
+  const systemPassed = availableResults.filter((result) => result.systemPassed).length
 
   const categories = TRIAGE_PLAUSIBILITY_CATEGORIES.map((category) => {
     const results = availableResults.filter((result) => result.category === category)
-    const categoryPassed = results.filter((result) => result.passed).length
+    const categoryDirectAiPassed = results.filter((result) => result.directAiPassed).length
+    const categorySystemPassed = results.filter((result) => result.systemPassed).length
 
     return {
       category,
-      passed: categoryPassed,
       total: results.length,
-      rate: formatRate(categoryPassed, results.length),
+      directAi: {
+        passed: categoryDirectAiPassed,
+        rate: formatRate(categoryDirectAiPassed, results.length),
+      },
+      finalSystem: {
+        passed: categorySystemPassed,
+        rate: formatRate(categorySystemPassed, results.length),
+      },
     }
   })
 
   console.info('Live AI triage plausibility evaluation summary', {
-    passed,
     evaluated: availableResults.length,
     unavailable: evaluationResults.length - availableResults.length,
     total: evaluationResults.length,
-    rate: formatRate(passed, availableResults.length),
+    directAi: {
+      passed: directAiPassed,
+      rate: formatRate(directAiPassed, availableResults.length),
+    },
+    finalSystem: {
+      passed: systemPassed,
+      rate: formatRate(systemPassed, availableResults.length),
+    },
     categories,
     failures: evaluationResults
-      .filter((result) => !result.passed)
-      .map(({ id, expectedCareLevel, actualCareLevel, fallbackUsed, unavailable, reasons, error }) => ({
+      .filter((result) => !result.directAiPassed || !result.systemPassed)
+      .map(({
         id,
         expectedCareLevel,
-        actualCareLevel,
-        fallbackUsed,
+        directAiCareLevel,
+        finalCareLevel,
+        fallbackType,
         unavailable,
-        reasons,
+        aiReasons,
+        finalReasons,
+        plausibilityIssues,
+        error,
+      }) => ({
+        id,
+        expectedCareLevel,
+        directAiCareLevel,
+        finalCareLevel,
+        fallbackType,
+        unavailable,
+        aiReasons,
+        finalReasons,
+        plausibilityIssues,
         error,
       })),
   })
@@ -101,8 +128,8 @@ describe('live AI triage plausibility evaluation', () => {
       throw new Error('No live AI triage plausibility cases configured')
     }
 
-    const { evaluateTriage } = await import('../../src/modules/triage/triage.service.js')
-    const result = await evaluateTriage(firstCase.patientData, firstCase.symptoms)
+    const { evaluateTriageWithDiagnostics } = await import('../../src/modules/triage/triage.service.js')
+    const result = await evaluateTriageWithDiagnostics(firstCase.patientData, firstCase.symptoms)
 
     if (isAvailabilityFallback(result)) {
       throw new Error(
@@ -127,43 +154,51 @@ describe('live AI triage plausibility evaluation', () => {
       try {
         const cachedResult = cachedResults.get(id)
         const result = cachedResult ?? await (async () => {
-          const { evaluateTriage } = await import('../../src/modules/triage/triage.service.js')
-          return evaluateTriage(patientData, symptoms)
+          const { evaluateTriageWithDiagnostics } = await import('../../src/modules/triage/triage.service.js')
+          return evaluateTriageWithDiagnostics(patientData, symptoms)
         })()
-        const fallbackUsed = result.aiUnavailable === true
         const unavailable = isAvailabilityFallback(result)
-        const passed = !fallbackUsed && result.careLevel === expectedCareLevel
+        const directAiPassed = result.aiResponse?.careLevel === expectedCareLevel
+        const systemPassed = result.finalResponse.careLevel === expectedCareLevel
 
         evaluationResults.push({
           id,
           name,
           category,
           expectedCareLevel,
-          actualCareLevel: result.careLevel,
-          aiModel: result.aiModel,
-          passed,
-          fallbackUsed,
+          directAiCareLevel: result.aiResponse?.careLevel,
+          finalCareLevel: result.finalResponse.careLevel,
+          aiModel: result.aiResponse?.aiModel,
+          directAiPassed,
+          systemPassed,
+          fallbackType: result.fallbackType,
           unavailable,
-          reasons: result.reasons,
+          aiReasons: result.aiResponse?.reasons ?? [],
+          finalReasons: result.finalResponse.reasons,
+          plausibilityIssues: result.plausibilityIssues,
         })
 
         console.info('Live AI plausibility case result', {
           id,
           category,
           expectedCareLevel,
-          actualCareLevel: result.careLevel,
-          fallbackUsed,
+          directAiCareLevel: result.aiResponse?.careLevel,
+          finalCareLevel: result.finalResponse.careLevel,
+          directAiPassed,
+          systemPassed,
+          fallbackType: result.fallbackType,
           unavailable,
-          aiModel: result.aiModel,
-          reasons: result.reasons,
+          aiModel: result.aiResponse?.aiModel,
+          aiReasons: result.aiResponse?.reasons ?? [],
+          finalReasons: result.finalResponse.reasons,
+          plausibilityIssues: result.plausibilityIssues,
         })
 
         expect(
           unavailable,
           'AI availability fallback used; this case cannot measure model correctness',
         ).toBe(false)
-        expect(result.aiUnavailable).toBeUndefined()
-        expect(result.careLevel).toBe(expectedCareLevel)
+        expect(result.aiResponse?.careLevel).toBe(expectedCareLevel)
       } catch (error) {
         if (!evaluationResults.some((result) => result.id === id)) {
           evaluationResults.push({
@@ -171,10 +206,13 @@ describe('live AI triage plausibility evaluation', () => {
             name,
             category,
             expectedCareLevel,
-            passed: false,
-            fallbackUsed: false,
+            directAiPassed: false,
+            systemPassed: false,
+            fallbackType: 'none',
             unavailable: false,
-            reasons: [],
+            aiReasons: [],
+            finalReasons: [],
+            plausibilityIssues: [],
             error: error instanceof Error ? error.message : String(error),
           })
         }

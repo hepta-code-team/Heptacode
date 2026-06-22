@@ -20,6 +20,16 @@ Fehler gewertet. Wenn beide konfigurierten KI-Modelle nicht erreichbar sind,
 bricht die Suite vor der Fallauswertung ab und berechnet keine irreführende
 Korrektheitsquote.
 
+Die Zusammenfassung enthält zwei getrennte Quoten:
+
+- `directAi`: Trefferquote der normalisierten KI-Antwort vor der
+  Plausibilitätsprüfung.
+- `finalSystem`: Trefferquote des Ergebnisses nach Plausibilitätsprüfung und
+  Sicherheitsfallback.
+
+Dadurch wird sichtbar, ob eine Prompt-Änderung die KI selbst verbessert oder ob
+das Backend eine fehlerhafte KI-Einstufung erst durch den Fallback korrigiert.
+
 ## Befehle
 
 Alle Live-Evaluationen der KI-Triage ausführen:
