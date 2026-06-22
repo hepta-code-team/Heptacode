@@ -84,18 +84,52 @@ function escapeRegExp(value: string): string {
  * Requires specialty wording to appear near an actual recommendation phrase.
  */
 function hasSpecialtyRecommendationContext(responseText: string, keyword: string): boolean {
-  const specialtyPattern = `(^|[^a-z])${escapeRegExp(keyword)}[a-z]*`
+  const specialtyPattern = new RegExp(
+    `(^|[^a-z])(${escapeRegExp(keyword)}[a-z]*)`,
+    'gi',
+  )
   const recommendationPattern = `(?:${SPECIALTY_RECOMMENDATION_KEYWORDS.join('|')})[a-z]*`
-  const beforeSpecialty = new RegExp(
-    `${recommendationPattern}[^.!?\\n]{0,60}${specialtyPattern}`,
+  const recommendationBefore = new RegExp(
+    `${recommendationPattern}[^.!?;\\n]{0,60}$`,
     'i',
   )
-  const afterSpecialty = new RegExp(
-    `${specialtyPattern}[^.!?\\n]{0,60}${recommendationPattern}`,
+  const recommendationAfter = new RegExp(
+    `^[^.!?;\\n]{0,60}${recommendationPattern}`,
     'i',
   )
+  let match: RegExpExecArray | null
 
-  return beforeSpecialty.test(responseText) || afterSpecialty.test(responseText)
+  while ((match = specialtyPattern.exec(responseText)) !== null) {
+    const boundaryLength = match[1]?.length ?? 0
+    const specialtyText = match[2] ?? ''
+    const specialtyIndex = match.index + boundaryLength
+    const beforeSpecialty = responseText.slice(
+      Math.max(0, specialtyIndex - 80),
+      specialtyIndex,
+    )
+    const afterSpecialty = responseText.slice(
+      specialtyIndex + specialtyText.length,
+      specialtyIndex + specialtyText.length + 80,
+    )
+    const negatedBefore =
+      /\b(?:kein[a-z]*|weder)\b[^.!?;\n]{0,75}$/i.test(beforeSpecialty)
+    const negatedAfter =
+      /^[^.!?;\n]{0,50}\b(?:nicht|kein[a-z]*)\b[^.!?;\n]{0,30}\b(?:indiziert|erforderlich|notwendig|empfohlen|angezeigt|vorgesehen)\b/i
+        .test(afterSpecialty)
+
+    if (
+      !negatedBefore &&
+      !negatedAfter &&
+      (
+        recommendationBefore.test(beforeSpecialty) ||
+        recommendationAfter.test(afterSpecialty)
+      )
+    ) {
+      return true
+    }
+  }
+
+  return false
 }
 
 function findRecommendedSpecialties(response: PlausibilityTriageResponse): MedicalSpecialty[] {

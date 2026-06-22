@@ -702,6 +702,34 @@ describe('getTriageAiPlausibilityIssues', () => {
     )
   })
 
+  /** Explicitly excluded specialties should not be interpreted as recommendations. */
+  it('akzeptiert Doctor-Antworten mit ausdruecklich nicht indizierten Fachrichtungen', () => {
+    const issues = getTriageAiPlausibilityIssues(
+      {
+        careLevel: 'doctor',
+        reasons: [
+          'Die Symptome deuten auf eine akute Infektion hin, die in der Regel ambulant behandelt werden kann. Da keine spezifischen Fachrichtungen wie Kardiologie, Neurologie etc. indiziert sind und es sich um allgemeine Symptome handelt, ist eine Vorstellung beim Hausarzt angemessen.',
+        ],
+        reviewSummary: {
+          plainLanguage: 'Bitte stellen Sie sich zur Abklaerung bei Ihrem Hausarzt vor.',
+          professionalSummary: 'Care Level: doctor. General practice is appropriate.',
+        },
+      },
+      [
+        {
+          region: 'Allgemein',
+          side: 'Fieber',
+          details: 'Fieber und Gliederschmerzen ohne Atemnot',
+          measurementType: 'temperature',
+          measurementValue: 39.2,
+          duration: 'days',
+        },
+      ],
+    )
+
+    expect(issues).toEqual([])
+  })
+
   /** Descriptive specialty wording should not be mistaken for a specialist recommendation. */
   it('akzeptiert psychiatrischen Notfalltext ohne Facharztempfehlung', () => {
     const issues = getTriageAiPlausibilityIssues(
