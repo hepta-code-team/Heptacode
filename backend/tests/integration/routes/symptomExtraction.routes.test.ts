@@ -292,4 +292,26 @@ describe('POST /api/v1/symptoms/extraction', () => {
       message: 'Der Text beschreibt keine gesundheitlichen Beschwerden.',
     })
   })
+
+  it('blockiert einen klaren Region-Detail-Widerspruch ueber die Konsistenzroute ohne KI', async () => {
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/v1/symptoms/consistency',
+      payload: {
+        region: 'Bein',
+        details: 'Schnittwunde in der Hand',
+      },
+    })
+
+    expect(response.statusCode).toBe(200)
+    expect(response.json()).toMatchObject({
+      isRegionMeaningful: true,
+      hasClearContradiction: true,
+      selectedLocationIds: ['legs'],
+      detailLocationIds: ['arms'],
+      selectedLocationConfidence: 'high',
+      detailLocationConfidence: 'high',
+    })
+    expect(requestStructuredAiResponseMock).not.toHaveBeenCalled()
+  })
 })

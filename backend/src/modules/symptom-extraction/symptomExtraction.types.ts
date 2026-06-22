@@ -7,6 +7,10 @@ import {
   type TriageSymptom,
 } from '../../../../shared/symptom.types.js'
 import {
+  BODY_LOCATION_CONFIDENCE_LEVELS,
+  BODY_LOCATION_IDS,
+  type BodyLocationConfidence,
+  type BodyLocationId,
   SYMPTOM_REGION_NAMES,
   SYMPTOM_REGIONS,
   type SymptomRegionName,
@@ -40,6 +44,17 @@ export interface SymptomInputValidationResponse {
   text: string
   inputType: SymptomInputType
   isValidMedicalInput: boolean
+  aiUnavailable?: boolean
+  message?: string
+}
+
+export interface SymptomConsistencyResponse {
+  isRegionMeaningful: boolean
+  hasClearContradiction: boolean
+  selectedLocationIds: BodyLocationId[]
+  detailLocationIds: BodyLocationId[]
+  selectedLocationConfidence: BodyLocationConfidence
+  detailLocationConfidence: BodyLocationConfidence
   aiUnavailable?: boolean
   message?: string
 }
@@ -223,6 +238,22 @@ export const symptomExtractionAiResultSchema = z.object({
 export const symptomInputValidationAiResultSchema = z.object({
   isValidMedicalInput: z.boolean(),
   reason: z.string().min(1),
+})
+
+export const symptomConsistencyAiResultSchema = z.object({
+  isRegionMeaningful: z.boolean(),
+  selectedLocationIds: z.array(z.enum(BODY_LOCATION_IDS)),
+  detailLocationIds: z.array(z.enum(BODY_LOCATION_IDS)),
+  selectedLocationConfidence: z.enum(BODY_LOCATION_CONFIDENCE_LEVELS),
+  detailLocationConfidence: z.enum(BODY_LOCATION_CONFIDENCE_LEVELS),
+  reason: z.string().min(1),
+})
+
+export const symptomConsistencyRequestSchema = z.object({
+  region: z.string().trim().min(1),
+  side: z.string().trim().min(1).optional(),
+  details: z.string().trim().min(1).optional(),
+  patientData: patientDataSchema.optional(),
 })
 
 // Accept legacy and current text fields while requiring at least one input value.

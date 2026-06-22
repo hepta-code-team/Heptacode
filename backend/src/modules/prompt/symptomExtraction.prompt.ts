@@ -1,4 +1,8 @@
 import type {SymptomInputType} from '../../../../shared/symptomExtraction.types.js'
+import {
+  formatBodyLocationTaxonomyForPrompt,
+  formatSymptomTaxonomyForPrompt,
+} from '../../../../shared/symptomTaxonomy.js'
 
 type SymptomExtractionPromptInput = {
   text: String
@@ -81,7 +85,8 @@ export const symptomDetailValidationInstructions = [
   'Die Angabe kann ein sehr kurzer Symptomname, ein Zusatzdetail oder ein strukturierter Block mit "Symptom/Region", optional "Unterangabe" und "Details" sein.',
   'Sei bewusst locker: Auch einzelne Woerter, Stichworte, Koerperstellen, Seitenangaben, Verletzungsmechanismen, Ursachen, Materialangaben, Negationen oder kurze Fragmente sind gueltig, wenn sie medizinisch, anatomisch oder fuer eine Triage im Ansatz relevant sein koennten.',
   'Unspezifische anatomische Koerperregionen sind gueltig und duerfen nicht wegen fehlender Spezifitaet abgelehnt werden.',
-  'Beispiele fuer gueltige unspezifische Koerperregionen: Bein, Beine, Arm, Arme, Hand, Fuss, Kopf, Hals, Brust, Bauch, Ruecken, Huefte.',
+  'Nutze die zentral gepflegte Symptomtaxonomie als Referenz, erkenne aber auch andere echte anatomische Koerperregionen als gueltig an:',
+  formatSymptomTaxonomyForPrompt(),
   'Die Angabe muss kein ganzer Satz sein und muss keine vollstaendige Beschwerdebeschreibung enthalten.',
   'Ungueltig sind leere Inhalte, offensichtlicher Buchstabensalat, zufaellige Zeichenfolgen, rein technische Eingaben, themenfremde Begriffe, Smalltalk und Inhalte ohne erkennbaren medizinischen oder anatomischen Bezug.',
   'Wenn ein strukturierter Block mit Symptom/Region und Details vorliegt, pruefe die Angaben gemeinsam.',
@@ -97,4 +102,33 @@ export function createSymptomDetailValidationPrompt(input: SymptomExtractionProm
     `Input-Typ: ${input.inputType}`,
     `Angabe: ${input.text}`,
   ].join('\n')
+}
+
+export const symptomConsistencyInstructions = [
+  'Du pruefst genau ein Symptom vor dem Absenden einer medizinischen Ersteinschaetzung.',
+  'Extrahiere getrennt die Koerperbereiche aus Symptom/Region plus Unterangabe und aus Details.',
+  'isRegionMeaningful ist true bei medizinischen Symptomen, Beschwerden, Verletzungen und anatomischen Koerperregionen.',
+  'Jede echte anatomische Koerperregion ist sinnvoll, auch wenn sie unspezifisch ist oder nicht in der Referenztaxonomie steht.',
+  'Fehlende Spezifitaet allein ist niemals ein Ablehnungsgrund.',
+  'Nutze ausschliesslich diese zentral gepflegten Koerperbereich-IDs fuer selectedLocationIds und detailLocationIds:',
+  formatBodyLocationTaxonomyForPrompt(),
+  'selectedLocationIds enthaelt die sicher erkannten IDs aus Symptom/Region und Unterangabe.',
+  'detailLocationIds enthaelt die sicher erkannten IDs aus Details.',
+  'Nutze confidence high nur bei einer explizit und eindeutig genannten Lokalisation, medium oder low bei Unsicherheit und none ohne Lokalisation.',
+  'isRegionMeaningful ist nur false bei offensichtlich themenfremden oder sinnlosen Angaben ohne medizinischen oder anatomischen Bezug.',
+  'Entscheide nicht selbst, ob ein Widerspruch vorliegt. Der aufrufende Code vergleicht die extrahierten IDs deterministisch.',
+  'Wenn Details fehlen oder keine eindeutige Lokalisation enthalten, verwende detailLocationIds [] und detailLocationConfidence none.',
+  'Antworte nur mit dem vorgegebenen JSON-Format.',
+].join('\n')
+
+export function createSymptomConsistencyPrompt(input: {
+  region: string
+  side?: string
+  details?: string
+}): string {
+  return [
+    `Symptom/Region: ${input.region}`,
+    input.side ? `Unterangabe: ${input.side}` : null,
+    input.details ? `Details: ${input.details}` : 'Details: keine',
+  ].filter(Boolean).join('\n')
 }

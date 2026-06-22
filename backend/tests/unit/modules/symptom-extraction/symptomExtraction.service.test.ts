@@ -3,7 +3,12 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { requestStructuredAiResponse } from '../../../../src/ai/llmAdapter.js'
 import { AiResponseError } from '../../../../src/ai/timeout.js'
 import {
+  formatBodyLocationTaxonomyForPrompt,
+  formatSymptomTaxonomyForPrompt,
+} from '../../../../../shared/symptomTaxonomy.js'
+import {
   extractSymptoms,
+  validateSymptomConsistency,
   validateSymptomDetailInput,
   validateSymptomInput,
 } from '../../../../src/modules/symptom-extraction/symptomExtraction.service.js'
@@ -419,7 +424,7 @@ describe('validateSymptomDetailInput', () => {
     )
   })
 
-  it('weist das Fallback-Modell an, unspezifische Koerperregionen zu akzeptieren', async () => {
+  it('weist das Fallback-Modell mit der zentralen Taxonomie an, Koerperregionen zu akzeptieren', async () => {
     requestStructuredAiResponseMock.mockResolvedValueOnce({
       isValidMedicalInput: true,
       reason: 'Allgemeine Koerperregion ist anatomisch relevant.',
@@ -448,7 +453,7 @@ describe('validateSymptomDetailInput', () => {
       expect.objectContaining({
         messages: expect.arrayContaining([
           expect.objectContaining({
-            content: expect.stringContaining('Bein, Beine, Arm, Arme'),
+            content: expect.stringContaining(formatSymptomTaxonomyForPrompt()),
           }),
         ]),
       }),
@@ -482,5 +487,107 @@ describe('validateSymptomDetailInput', () => {
       message: 'Bitte geben Sie eine Angabe ein.',
     })
     expect(requestStructuredAiResponseMock).not.toHaveBeenCalled()
+  })
+})
+
+describe('validateSymptomConsistency', () => {
+  beforeEach(() => {
+    vi.resetAllMocks()
+  })
+
+  it('akzeptiert eine unspezifische Koerperregion ohne Details', async () => {
+    requestStructuredAiResponseMock.mockResolvedValueOnce({
+      isRegionMeaningful: true,
+      selectedLocationIds: [],
+      detailLocationIds: [],
+      selectedLocationConfidence: 'none',
+      detailLocationConfidence: 'none',
+      reason: 'Bein ist eine anatomische Koerperregion.',
+    })
+
+    const result = await validateSymptomConsistency({ region: 'Bein' })
+
+    expect(result).toEqual({
+      isRegionMeaningful: true,
+      hasClearContradiction: false,
+      selectedLocationIds: ['legs'],
+      detailLocationIds: [],
+      selectedLocationConfidence: 'high',
+      detailLocationConfidence: 'none',
+    })
+    expect(requestStructuredAiResponseMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        schemaName: 'symptom_consistency_result',
+        modelStrategy: 'fallback-only',
+        messages: expect.arrayContaining([
+          expect.objectContaining({
+            role: 'system',
+            content: expect.stringContaining(formatBodyLocationTaxonomyForPrompt()),
+          }),
+          expect.objectContaining({
+            role: 'user',
+            content: 'Symptom/Region: Bein\nDetails: keine',
+          }),
+        ]),
+      }),
+    )
+  })
+
+  it('meldet einen klaren Widerspruch zwischen Bein und Hand', async () => {
+    const result = await validateSymptomConsistency({
+      region: 'Bein',
+      details: 'Schnittwunde in der Hand',
+    })
+
+    expect(result).toEqual({
+      isRegionMeaningful: true,
+      hasClearContradiction: true,
+      selectedLocationIds: ['legs'],
+      detailLocationIds: ['arms'],
+      selectedLocationConfidence: 'high',
+      detailLocationConfidence: 'high',
+      message: 'Symptom/Region und Details nennen eindeutig unterschiedliche Körperbereiche.',
+    })
+    expect(requestStructuredAiResponseMock).not.toHaveBeenCalled()
+  })
+
+  it.each([
+    ['Kopf', 'Schmerzen im Fuß', 'head', 'legs'],
+    ['Bauch', 'Schnittwunde an der Hand', 'abdomen', 'arms'],
+  ])('erkennt klare Widersprueche taxonomiebasiert fuer %s', async (
+    region,
+    details,
+    selectedLocationId,
+    detailLocationId,
+  ) => {
+    const result = await validateSymptomConsistency({ region, details })
+
+    expect(result).toMatchObject({
+      hasClearContradiction: true,
+      selectedLocationIds: [selectedLocationId],
+      detailLocationIds: [detailLocationId],
+      selectedLocationConfidence: 'high',
+      detailLocationConfidence: 'high',
+    })
+    expect(requestStructuredAiResponseMock).not.toHaveBeenCalled()
+  })
+
+  it('laesst unterschiedliche Regionen bei nicht hoher Sicherheit durch', async () => {
+    requestStructuredAiResponseMock.mockResolvedValueOnce({
+      isRegionMeaningful: true,
+      selectedLocationIds: ['legs'],
+      detailLocationIds: ['arms'],
+      selectedLocationConfidence: 'high',
+      detailLocationConfidence: 'medium',
+      reason: 'Die Lokalisation in den Details ist nicht eindeutig.',
+    })
+
+    const result = await validateSymptomConsistency({
+      region: 'Bein',
+      details: 'Vielleicht zieht es bis zur oberen Extremitaet.',
+    })
+
+    expect(result.hasClearContradiction).toBe(false)
+    expect(result.message).toBeUndefined()
   })
 })

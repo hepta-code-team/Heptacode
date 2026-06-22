@@ -8,7 +8,12 @@ import PatientDataPage from '../../src/pages/PatientDataPage';
 import ResultPage from '../../src/pages/ResultPage';
 import SymptomDetailsPage from '../../src/pages/SymptomDetailsPage';
 import SymptomSelectionPage from '../../src/pages/SymptomSelectionPage';
-import { extractSymptomsFromText, validateSymptomDetailInput, validateSymptomInput } from '../../src/lib/symptomExtractionApi';
+import {
+  extractSymptomsFromText,
+  validateSymptomConsistency,
+  validateSymptomDetailInput,
+  validateSymptomInput,
+} from '../../src/lib/symptomExtractionApi';
 import type { PatientData } from '../../src/types/assessment';
 
 const navigateMock = vi.fn();
@@ -82,6 +87,7 @@ vi.mock('react-router', () => ({
 
 vi.mock('../../src/lib/symptomExtractionApi', () => ({
   extractSymptomsFromText: vi.fn(),
+  validateSymptomConsistency: vi.fn(),
   validateSymptomDetailInput: vi.fn(),
   validateSymptomInput: vi.fn(),
 }));
@@ -102,6 +108,7 @@ vi.mock('../../src/lib/AssessmentContext', () => ({
 }));
 
 const extractSymptomsFromTextMock = vi.mocked(extractSymptomsFromText);
+const validateSymptomConsistencyMock = vi.mocked(validateSymptomConsistency);
 const validateSymptomDetailInputMock = vi.mocked(validateSymptomDetailInput);
 const validateSymptomInputMock = vi.mocked(validateSymptomInput);
 
@@ -124,6 +131,14 @@ describe('page-level user flows', () => {
       text: 'Kopf',
       inputType: 'text',
       isValidMedicalInput: true,
+    });
+    validateSymptomConsistencyMock.mockResolvedValue({
+      isRegionMeaningful: true,
+      hasClearContradiction: false,
+      selectedLocationIds: [],
+      detailLocationIds: [],
+      selectedLocationConfidence: 'none',
+      detailLocationConfidence: 'none',
     });
     vi.unstubAllGlobals();
   });
@@ -373,10 +388,13 @@ describe('page-level user flows', () => {
   it('blocks contradictory edited symptom region and details on the details page', async () => {
     const user = userEvent.setup();
     submitAssessmentMock.mockResolvedValue({});
-    validateSymptomDetailInputMock.mockResolvedValue({
-      text: 'Symptom/Region: Bein\nDetails: Schnittwunde in der Hand',
-      inputType: 'text',
-      isValidMedicalInput: false,
+    validateSymptomConsistencyMock.mockResolvedValue({
+      isRegionMeaningful: true,
+      hasClearContradiction: true,
+      selectedLocationIds: ['legs'],
+      detailLocationIds: ['arms'],
+      selectedLocationConfidence: 'high',
+      detailLocationConfidence: 'high',
       message: 'Bitte prüfen Sie Region und Zusatzdetails. Die Angaben widersprechen sich eindeutig.',
     });
     locationState.current = {
@@ -391,9 +409,8 @@ describe('page-level user flows', () => {
     await user.click(screen.getByRole('button', { name: 'Seit heute' }));
     await user.click(screen.getAllByRole('button', { name: 'Weiter' }).at(-1)!);
 
-    expect(validateSymptomDetailInputMock).toHaveBeenCalledWith(
-      'Symptom/Region: Bein\nDetails: Schnittwunde in der Hand',
-      'text',
+    expect(validateSymptomConsistencyMock).toHaveBeenCalledWith(
+      expect.objectContaining({ region: 'Bein', details: 'Schnittwunde in der Hand' }),
       undefined,
     );
     expect(await screen.findByText('Bitte prüfen Sie Region und Zusatzdetails. Die Angaben widersprechen sich eindeutig.')).toBeInTheDocument();

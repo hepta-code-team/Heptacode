@@ -1,13 +1,25 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { handleSubmitAssessment } from '../../src/features/symptoms/handleSubmitAssessment';
-import { validateSymptomDetailInput } from '../../src/lib/symptomExtractionApi';
+import { validateSymptomConsistency } from '../../src/lib/symptomExtractionApi';
 import type { SymptomDraft } from '../../src/types/assessment';
 
 vi.mock('../../src/lib/symptomExtractionApi', () => ({
-  validateSymptomDetailInput: vi.fn(),
+  validateSymptomConsistency: vi.fn(),
 }));
 
-const validateSymptomDetailInputMock = vi.mocked(validateSymptomDetailInput);
+const validateSymptomConsistencyMock = vi.mocked(validateSymptomConsistency);
+
+function createConsistencyResult(overrides: Partial<Awaited<ReturnType<typeof validateSymptomConsistency>>> = {}) {
+  return {
+    isRegionMeaningful: true,
+    hasClearContradiction: false,
+    selectedLocationIds: [],
+    detailLocationIds: [],
+    selectedLocationConfidence: 'none' as const,
+    detailLocationConfidence: 'none' as const,
+    ...overrides,
+  };
+}
 
 function createSetters() {
   return {
@@ -55,11 +67,7 @@ describe('handleSubmitAssessment', () => {
   it('submits normalized active symptoms and navigates to the result page', async () => {
     const setters = createSetters();
     const submitAssessment = vi.fn().mockResolvedValue({});
-    validateSymptomDetailInputMock.mockResolvedValue({
-      text: 'Symptom/Region: Kopfschmerzen\nDetails: seit dem Aufwachen',
-      inputType: 'text',
-      isValidMedicalInput: true,
-    });
+    validateSymptomConsistencyMock.mockResolvedValue(createConsistencyResult());
 
     await handleSubmitAssessment({
       symptomDetails: [
@@ -98,11 +106,7 @@ describe('handleSubmitAssessment', () => {
   it('validates editable AI-extracted symptoms before submitting', async () => {
     const setters = createSetters();
     const submitAssessment = vi.fn().mockResolvedValue({});
-    validateSymptomDetailInputMock.mockResolvedValue({
-      text: 'Kopfschmerzen',
-      inputType: 'text',
-      isValidMedicalInput: true,
-    });
+    validateSymptomConsistencyMock.mockResolvedValue(createConsistencyResult());
 
     await handleSubmitAssessment({
       symptomDetails: [
@@ -115,15 +119,11 @@ describe('handleSubmitAssessment', () => {
       ...setters,
     });
 
-    expect(validateSymptomDetailInputMock).toHaveBeenCalledTimes(3);
-    expect(validateSymptomDetailInputMock).toHaveBeenNthCalledWith(
-      1,
-      'Symptom/Region: Kopfschmerzen\nDetails: starker Druck',
-      'text',
+    expect(validateSymptomConsistencyMock).toHaveBeenCalledTimes(1);
+    expect(validateSymptomConsistencyMock).toHaveBeenCalledWith(
+      expect.objectContaining({ region: 'Kopfschmerzen', details: 'starker Druck' }),
       undefined,
     );
-    expect(validateSymptomDetailInputMock).toHaveBeenNthCalledWith(2, 'Kopfschmerzen', 'text', undefined);
-    expect(validateSymptomDetailInputMock).toHaveBeenNthCalledWith(3, 'starker Druck', 'text', undefined);
     expect(submitAssessment).toHaveBeenCalledTimes(1);
     expect(setters.navigate).toHaveBeenCalledWith('/result');
   });
@@ -131,11 +131,7 @@ describe('handleSubmitAssessment', () => {
   it('validates unchanged AI-extracted symptom labels with their original free-text context', async () => {
     const setters = createSetters();
     const submitAssessment = vi.fn().mockResolvedValue({});
-    validateSymptomDetailInputMock.mockResolvedValue({
-      text: 'Ich habe seit Tagen Schwindel und mir ist uebel.\nSymptom: Allgemein',
-      inputType: 'text',
-      isValidMedicalInput: true,
-    });
+    validateSymptomConsistencyMock.mockResolvedValue(createConsistencyResult());
 
     await handleSubmitAssessment({
       symptomDetails: [
@@ -150,17 +146,9 @@ describe('handleSubmitAssessment', () => {
       ...setters,
     });
 
-    expect(validateSymptomDetailInputMock).toHaveBeenCalledTimes(2);
-    expect(validateSymptomDetailInputMock).toHaveBeenNthCalledWith(
-      1,
-      'Symptom/Region: Allgemein\nDetails: keine',
-      'text',
-      undefined,
-    );
-    expect(validateSymptomDetailInputMock).toHaveBeenNthCalledWith(
-      2,
-      'Ich habe seit Tagen Schwindel und mir ist uebel.\nSymptom: Allgemein',
-      'text',
+    expect(validateSymptomConsistencyMock).toHaveBeenCalledTimes(1);
+    expect(validateSymptomConsistencyMock).toHaveBeenCalledWith(
+      expect.objectContaining({ region: 'Allgemein' }),
       undefined,
     );
     expect(submitAssessment).toHaveBeenCalledWith([
@@ -175,12 +163,15 @@ describe('handleSubmitAssessment', () => {
   it('blocks clearly contradictory edited AI-extracted region and detail combinations', async () => {
     const setters = createSetters();
     const submitAssessment = vi.fn();
-    validateSymptomDetailInputMock.mockResolvedValue({
-      text: 'Symptom/Region: Bein\nDetails: Schnittwunde in Hand',
-      inputType: 'text',
-      isValidMedicalInput: false,
+    validateSymptomConsistencyMock.mockResolvedValue(createConsistencyResult({
+      isRegionMeaningful: true,
+      hasClearContradiction: true,
+      selectedLocationIds: ['legs'],
+      detailLocationIds: ['arms'],
+      selectedLocationConfidence: 'high',
+      detailLocationConfidence: 'high',
       message: 'Bitte prüfen Sie Region und Zusatzdetails. Die Angaben widersprechen sich eindeutig.',
-    });
+    }));
 
     await handleSubmitAssessment({
       symptomDetails: [
@@ -197,9 +188,8 @@ describe('handleSubmitAssessment', () => {
       ...setters,
     });
 
-    expect(validateSymptomDetailInputMock).toHaveBeenCalledWith(
-      'Symptom/Region: Bein\nDetails: Schnittwunde in Hand',
-      'text',
+    expect(validateSymptomConsistencyMock).toHaveBeenCalledWith(
+      expect.objectContaining({ region: 'Bein', details: 'Schnittwunde in Hand' }),
       undefined,
     );
     expect(submitAssessment).not.toHaveBeenCalled();
@@ -212,12 +202,15 @@ describe('handleSubmitAssessment', () => {
   it('blocks clear region-detail contradictions even when editable metadata is missing', async () => {
     const setters = createSetters();
     const submitAssessment = vi.fn();
-    validateSymptomDetailInputMock.mockResolvedValue({
-      text: 'Symptom/Region: Bein\nDetails: Schnittwunde in der Hand',
-      inputType: 'text',
-      isValidMedicalInput: false,
+    validateSymptomConsistencyMock.mockResolvedValue(createConsistencyResult({
+      isRegionMeaningful: true,
+      hasClearContradiction: true,
+      selectedLocationIds: ['legs'],
+      detailLocationIds: ['arms'],
+      selectedLocationConfidence: 'high',
+      detailLocationConfidence: 'high',
       message: 'Bitte prüfen Sie Region und Zusatzdetails. Die Angaben widersprechen sich eindeutig.',
-    });
+    }));
 
     await handleSubmitAssessment({
       symptomDetails: [
@@ -231,9 +224,8 @@ describe('handleSubmitAssessment', () => {
       ...setters,
     });
 
-    expect(validateSymptomDetailInputMock).toHaveBeenCalledWith(
-      'Symptom/Region: Bein\nDetails: Schnittwunde in der Hand',
-      'text',
+    expect(validateSymptomConsistencyMock).toHaveBeenCalledWith(
+      expect.objectContaining({ region: 'Bein', details: 'Schnittwunde in der Hand' }),
       undefined,
     );
     expect(submitAssessment).not.toHaveBeenCalled();
@@ -246,12 +238,11 @@ describe('handleSubmitAssessment', () => {
   it('blocks non-medical symptom names even when the details look medical', async () => {
     const setters = createSetters();
     const submitAssessment = vi.fn();
-    validateSymptomDetailInputMock.mockResolvedValue({
-      text: 'Symptom/Region: Besen\nDetails: Schnittwunde in der Hand',
-      inputType: 'text',
-      isValidMedicalInput: false,
+    validateSymptomConsistencyMock.mockResolvedValue(createConsistencyResult({
+      isRegionMeaningful: false,
+      hasClearContradiction: false,
       message: 'Bitte prüfen Sie die Symptom- oder Regionsangabe. Die Angabe wirkt nicht medizinisch sinnvoll.',
-    });
+    }));
 
     await handleSubmitAssessment({
       symptomDetails: [
@@ -265,9 +256,8 @@ describe('handleSubmitAssessment', () => {
       ...setters,
     });
 
-    expect(validateSymptomDetailInputMock).toHaveBeenCalledWith(
-      'Symptom/Region: Besen\nDetails: Schnittwunde in der Hand',
-      'text',
+    expect(validateSymptomConsistencyMock).toHaveBeenCalledWith(
+      expect.objectContaining({ region: 'Besen', details: 'Schnittwunde in der Hand' }),
       undefined,
     );
     expect(submitAssessment).not.toHaveBeenCalled();
@@ -280,11 +270,7 @@ describe('handleSubmitAssessment', () => {
   it('allows edited AI-extracted symptoms when there is no clear region-detail contradiction', async () => {
     const setters = createSetters();
     const submitAssessment = vi.fn().mockResolvedValue({});
-    validateSymptomDetailInputMock.mockResolvedValue({
-      text: 'Schnittwunde',
-      inputType: 'text',
-      isValidMedicalInput: true,
-    });
+    validateSymptomConsistencyMock.mockResolvedValue(createConsistencyResult());
 
     await handleSubmitAssessment({
       symptomDetails: [
@@ -308,12 +294,11 @@ describe('handleSubmitAssessment', () => {
   it('shows an error and stays on the current page when editable symptom validation fails', async () => {
     const setters = createSetters();
     const submitAssessment = vi.fn();
-    validateSymptomDetailInputMock.mockResolvedValue({
-      text: 'kein medizinischer Kontext',
-      inputType: 'text',
-      isValidMedicalInput: false,
+    validateSymptomConsistencyMock.mockResolvedValue(createConsistencyResult({
+      isRegionMeaningful: false,
+      hasClearContradiction: false,
       message: 'Bitte beschreiben Sie ein medizinisches Symptom.',
-    });
+    }));
 
     await handleSubmitAssessment({
       symptomDetails: [createSymptomDraft({ isNameEditable: true })],
