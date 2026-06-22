@@ -14,6 +14,7 @@ vi.mock('../../../../src/ai/llmAdapter.js', () => ({
 
 const requestStructuredAiResponseMock = vi.mocked(requestStructuredAiResponse)
 
+/** Shared patient fixture for demographic plausibility checks. */
 const malePatientData = {
   birthMonth: '05',
   birthYear: '1988',
@@ -39,6 +40,7 @@ describe('extractSymptoms', () => {
     vi.resetAllMocks()
   })
 
+  /** Too-short input should be rejected by local heuristics before any model call. */
   it('faengt offensichtlich zu kurze Eingaben ohne KI-Aufruf ab', async () => {
     const result = await extractSymptoms('aua')
 
@@ -51,6 +53,7 @@ describe('extractSymptoms', () => {
     expect(requestStructuredAiResponseMock).not.toHaveBeenCalled()
   })
 
+  /** Punctuation and numeric placeholders should be rejected before model execution. */
   it('faengt reine Satzzeichen ohne KI-Aufruf ab', async () => {
     const result = await extractSymptoms('123 !!!')
 
@@ -64,6 +67,7 @@ describe('extractSymptoms', () => {
     expect(requestStructuredAiResponseMock).not.toHaveBeenCalled()
   })
 
+  /** Demographic contradictions should stop extraction before model execution. */
   it('faengt widerspruechliche Schwangerschaftsangaben vor der KI-Auswertung ab', async () => {
     const result = await extractSymptoms(
       'Ich waere schwanger und habe Wehen.',
@@ -81,6 +85,7 @@ describe('extractSymptoms', () => {
     expect(requestStructuredAiResponseMock).not.toHaveBeenCalled()
   })
 
+  /** Medical-context validation should return invalid input without running extraction. */
   it('gibt ungueltige medizinische Eingaben aus der KI-Validierung zurueck', async () => {
     requestStructuredAiResponseMock.mockResolvedValueOnce({
       isValidMedicalInput: false,
@@ -105,6 +110,7 @@ describe('extractSymptoms', () => {
     )
   })
 
+  /** Validated medical text should continue into symptom extraction. */
   it('extrahiert Symptome nach erfolgreicher Validierung', async () => {
     requestStructuredAiResponseMock
       .mockResolvedValueOnce({
@@ -133,6 +139,7 @@ describe('extractSymptoms', () => {
     )
   })
 
+  /** Unknown AI-extracted complaints should remain available as free-text symptoms. */
   it('uebernimmt nicht abgedeckte KI-Symptome als Freitext-Symptom', async () => {
     requestStructuredAiResponseMock
       .mockResolvedValueOnce({
@@ -148,6 +155,7 @@ describe('extractSymptoms', () => {
     expect(result.symptoms).toEqual([{ region: 'Blutiger Auswurf', measurementType: 'severity' }])
   })
 
+  /** Relevant injury details should survive mapping to a known symptom region. */
   it('uebernimmt relevante Zusatzdetails auch bei Mapping auf vorhandene Symptome', async () => {
     requestStructuredAiResponseMock
       .mockResolvedValueOnce({
@@ -175,6 +183,7 @@ describe('extractSymptoms', () => {
     ])
   })
 
+  /** Negated details should be preserved because they can change triage interpretation. */
   it('bewahrt Negationen in Zusatzdetails fuer die Triage', async () => {
     requestStructuredAiResponseMock
       .mockResolvedValueOnce({
@@ -204,6 +213,7 @@ describe('extractSymptoms', () => {
     ])
   })
 
+  /** Injury events should remain extractable as free-text symptom entries. */
   it('laesst Verletzungsereignisse als Freitext-Symptom durch die Extraktion laufen', async () => {
     requestStructuredAiResponseMock
       .mockResolvedValueOnce({
@@ -220,6 +230,7 @@ describe('extractSymptoms', () => {
     expect(requestStructuredAiResponseMock).toHaveBeenCalledTimes(2)
   })
 
+  /** Short single-word input should stay blocked by strict free-text validation. */
   it('behaelt die strenge Freitextvalidierung fuer kurze Einzelbegriffe bei', async () => {
     const result = await extractSymptoms('Fieber')
 
@@ -232,6 +243,7 @@ describe('extractSymptoms', () => {
     expect(requestStructuredAiResponseMock).not.toHaveBeenCalled()
   })
 
+  /** Severe free-text injury descriptions should not be dropped by taxonomy limits. */
   it('laesst Koerperteilverlust als Freitext-Symptom durch die Extraktion laufen', async () => {
     requestStructuredAiResponseMock
       .mockResolvedValueOnce({
@@ -248,6 +260,7 @@ describe('extractSymptoms', () => {
     expect(requestStructuredAiResponseMock).toHaveBeenCalledTimes(2)
   })
 
+  /** AI-provided measurement values should not be locally downgraded during extraction. */
   it('uebernimmt Messwerte aus der KI-Extraktion ohne lokale Nachfilterung', async () => {
     requestStructuredAiResponseMock
       .mockResolvedValueOnce({
@@ -263,6 +276,7 @@ describe('extractSymptoms', () => {
     expect(result.symptoms).toEqual([{ region: 'Blutiges Erbrechen', measurementType: 'severity', measurementValue: 10 }])
   })
 
+  /** Extraction should still run when only the validation model path is unavailable. */
   it('versucht die Extraktion, wenn nur die Validierungs-KI ausfaellt', async () => {
     requestStructuredAiResponseMock
       .mockRejectedValueOnce(new AiResponseError('validation timeout'))
@@ -280,6 +294,7 @@ describe('extractSymptoms', () => {
     expect(requestStructuredAiResponseMock).toHaveBeenCalledTimes(2)
   })
 
+  /** Extraction availability failures should return the controlled aiUnavailable contract. */
   it('liefert einen kontrollierten Fallback, wenn die Extraktion ausfaellt', async () => {
     requestStructuredAiResponseMock
       .mockResolvedValueOnce({
@@ -299,6 +314,7 @@ describe('extractSymptoms', () => {
     expect(result.message).toContain('KI-Auswertung')
   })
 
+  /** Unexpected model adapter errors should remain visible to callers. */
   it('reicht unerwartete Fehler weiter', async () => {
     requestStructuredAiResponseMock.mockRejectedValueOnce(new Error('boom'))
 
@@ -311,6 +327,7 @@ describe('validateSymptomInput', () => {
     vi.resetAllMocks()
   })
 
+  /** Standalone validation should classify medical text without extraction. */
   it('validiert medizinischen Kontext ohne Extraktionsaufruf', async () => {
     requestStructuredAiResponseMock.mockResolvedValueOnce({
       isValidMedicalInput: true,
@@ -333,6 +350,7 @@ describe('validateSymptomInput', () => {
     )
   })
 
+  /** Non-medical text should return a domain-level invalid result. */
   it('meldet themenfremde Eingaben als ungueltig', async () => {
     requestStructuredAiResponseMock.mockResolvedValueOnce({
       isValidMedicalInput: false,
@@ -349,6 +367,7 @@ describe('validateSymptomInput', () => {
     })
   })
 
+  /** Repeated placeholder text should be rejected locally before model execution. */
   it('faengt wiederholte Platzhaltertexte wie BlaBla ohne KI-Aufruf ab', async () => {
     const result = await validateSymptomInput('BlaBla, BlaBla')
 
@@ -360,6 +379,7 @@ describe('validateSymptomInput', () => {
     expect(requestStructuredAiResponseMock).not.toHaveBeenCalled()
   })
 
+  /** Validation availability failures should return the controlled aiUnavailable contract. */
   it('meldet kontrolliert, wenn die Validierungs-KI nicht verfuegbar ist', async () => {
     requestStructuredAiResponseMock.mockRejectedValueOnce(new AiResponseError('validation timeout'))
 
@@ -374,12 +394,14 @@ describe('validateSymptomInput', () => {
     expect(result.message).toContain('Kontext')
   })
 
+  /** Unexpected validation errors should not be converted into domain-level invalid input. */
   it('reicht unerwartete Validierungsfehler weiter', async () => {
     requestStructuredAiResponseMock.mockRejectedValueOnce(new Error('boom'))
 
     await expect(validateSymptomInput('Ich habe seit Tagen Husten.')).rejects.toThrow('boom')
   })
 
+  /** Placeholder symptom names should be rejected locally before model execution. */
   it('faengt Platzhaltertexte im Symptomnamen ohne KI-Aufruf ab', async () => {
     const result = await validateSymptomInput('BlaBla')
 
@@ -446,5 +468,27 @@ describe('validateSymptomDetailInput', () => {
       message: 'Bitte geben Sie eine Angabe ein.',
     })
     expect(requestStructuredAiResponseMock).not.toHaveBeenCalled()
+  })
+
+  /** Detail validation availability failures should return the controlled aiUnavailable contract. */
+  it('meldet kontrolliert, wenn die Detail-Validierungs-KI nicht verfuegbar ist', async () => {
+    requestStructuredAiResponseMock.mockRejectedValueOnce(new AiResponseError('detail validation timeout'))
+
+    const result = await validateSymptomDetailInput('links')
+
+    expect(result).toMatchObject({
+      text: 'links',
+      inputType: 'text',
+      isValidMedicalInput: false,
+      aiUnavailable: true,
+    })
+    expect(result.message).toContain('Kontext')
+  })
+
+  /** Unexpected detail-validation errors should remain visible to callers. */
+  it('reicht unerwartete Detail-Validierungsfehler weiter', async () => {
+    requestStructuredAiResponseMock.mockRejectedValueOnce(new Error('boom'))
+
+    await expect(validateSymptomDetailInput('links')).rejects.toThrow('boom')
   })
 })

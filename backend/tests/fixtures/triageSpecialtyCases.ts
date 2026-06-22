@@ -1,5 +1,6 @@
 import type { MedicalSpecialty, PatientData, TriageSymptom } from '../../src/modules/triage/triage.types.js'
 
+/** Specialist disciplines that should be covered by live specialty-mapping cases. */
 export const SPECIALIST_MEDICAL_SPECIALTIES = [
   'internal_medicine',
   'cardiology',
@@ -26,6 +27,7 @@ export type TriageSpecialtyCase = {
   patientData?: PatientData
 }
 
+/** Adult baseline patient data for specialty-mapping fixtures. */
 const adultPatientData: PatientData = {
   birthMonth: '05',
   birthYear: '1988',
@@ -46,11 +48,13 @@ const adultPatientData: PatientData = {
   conditionDetails: {},
 }
 
+/** Female baseline patient data for gynecology-oriented fixtures. */
 const femalePatientData: PatientData = {
   ...adultPatientData,
   gender: 'Weiblich',
 }
 
+/** Pediatric baseline patient data for child-specific specialty fixtures. */
 const childPatientData: PatientData = {
   ...adultPatientData,
   birthMonth: '03',
@@ -59,6 +63,7 @@ const childPatientData: PatientData = {
   weight: '27',
 }
 
+/** Live AI evaluation cases that probe specialist routing across major disciplines. */
 export const TRIAGE_SPECIALTY_CASES: TriageSpecialtyCase[] = [
   {
     name: 'Innere Medizin',

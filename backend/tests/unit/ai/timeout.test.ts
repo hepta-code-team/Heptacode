@@ -9,6 +9,7 @@ import {
 } from '../../../src/ai/timeout.js'
 
 describe('AI timeout configuration', () => {
+  /** Timeout options should stay explicit and avoid SDK-level retry amplification. */
   it('definiert getrennte Timeouts ohne automatische Retries', () => {
     expect(AI_REQUEST_TIMEOUT_MS).toEqual({
       primary: 40_000,
@@ -26,6 +27,7 @@ describe('AI timeout configuration', () => {
 })
 
 describe('AiResponseError', () => {
+  /** AI response errors should be distinguishable from generic runtime errors. */
   it('setzt einen eindeutigen Fehlernamen', () => {
     const error = new AiResponseError('Keine strukturierte KI-Antwort erhalten.')
 
@@ -36,14 +38,17 @@ describe('AiResponseError', () => {
 })
 
 describe('isAiRequestError', () => {
+  /** Domain AI response errors should be classified as AI request failures. */
   it('erkennt eigene KI-Antwortfehler', () => {
     expect(isAiRequestError(new AiResponseError('invalid response'))).toBe(true)
   })
 
+  /** Generic programming errors should not be handled as AI request failures. */
   it('lehnt normale Programmierfehler ab', () => {
     expect(isAiRequestError(new Error('boom'))).toBe(false)
   })
 
+  /** Non-error values should not enter AI request fallback handling. */
   it('lehnt unbekannte Werte ab', () => {
     expect(isAiRequestError('timeout')).toBe(false)
     expect(isAiRequestError(null)).toBe(false)

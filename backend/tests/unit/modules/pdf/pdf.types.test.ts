@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { pdfExportRequestSchema } from '../../../../src/modules/pdf/pdf.types.js'
 
 describe('pdfExportRequestSchema', () => {
+  /** Complete export data should satisfy the PDF route contract. */
   it('akzeptiert gueltige PDF-Exportdaten', () => {
     const result = pdfExportRequestSchema.safeParse({
       reviewSummary: {
@@ -34,6 +35,7 @@ describe('pdfExportRequestSchema', () => {
     expect(result.success).toBe(true)
   })
 
+  /** PDF export requests should keep the shared three-symptom limit. */
   it('lehnt mehr als drei Symptome ab', () => {
     const result = pdfExportRequestSchema.safeParse({
       reviewSummary: {

@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { createPdfSummary } from '../../../../src/modules/pdf/pdfExport.service.js'
 
 describe('createPdfSummary', () => {
+  /** Complete clinical context should render a valid PDF summary with expected sections. */
   it('erstellt eine PDF-Zusammenfassung mit Patientendaten und Symptomen', async () => {
     const result = await createPdfSummary({
       reviewSummary: {
@@ -43,6 +44,7 @@ describe('createPdfSummary', () => {
     expect(pdfContent.startsWith('%PDF-')).toBe(true)
   })
 
+  /** Missing optional patient data should not prevent PDF generation. */
   it('erstellt auch ohne Patientendaten eine gueltige PDF', async () => {
     const result = await createPdfSummary({
       reviewSummary: {
@@ -57,6 +59,7 @@ describe('createPdfSummary', () => {
     expect(pdfContent.startsWith('%PDF-')).toBe(true)
   })
 
+  /** Professional summaries should be normalized into clean patient and complaint sections. */
   it('formatiert Patientendaten und Beschwerden fuer den PDF-Export sauber', async () => {
     const result = await createPdfSummary({
       reviewSummary: {
@@ -89,6 +92,7 @@ describe('createPdfSummary', () => {
     expect(result.sections[0]?.content).not.toContain('Ausgewählte Symptome:')
   })
 
+  /** Structured payload data should feed the medical overview when summary text is sparse. */
   it('formatiert Triage-Empfehlungen und optionale Symptominformationen im medizinischen Ueberblick', async () => {
     const result = await createPdfSummary({
       reviewSummary: {
@@ -153,6 +157,7 @@ describe('createPdfSummary', () => {
     expect(result.sections[0]?.content).toContain('Ihre Angaben sprechen für eine hausärztliche Abklärung.')
   })
 
+  /** Specialist recommendations should render their user-facing specialty label. */
   it('zeigt die empfohlene Fachrichtung an, wenn sie vorhanden ist', async () => {
     const result = await createPdfSummary({
       reviewSummary: {
@@ -169,6 +174,7 @@ describe('createPdfSummary', () => {
     expect(result.sections[0]?.content).toContain('Empfohlene Fachrichtung: Kardiologie')
   })
 
+  /** Plain-language summaries should be used as the recommendation rationale when present. */
   it('nutzt die Plain-Language-Zusammenfassung als Begruendung der Empfehlung', async () => {
     const result = await createPdfSummary({
       reviewSummary: {
@@ -187,6 +193,7 @@ describe('createPdfSummary', () => {
     expect(result.sections[0]?.content).not.toContain('zweiter Grund')
   })
 
+  /** Travel metadata from patient data should be rendered in readable German date format. */
   it('formatiert Reisedetails in Patientendaten lesbar', async () => {
     const result = await createPdfSummary({
       reviewSummary: {
@@ -218,6 +225,7 @@ describe('createPdfSummary', () => {
     expect(result.sections[0]?.content).toContain('Reise ins Ausland: Kroatien, 01.06.2026 bis 14.06.2026')
   })
 
+  /** Travel metadata embedded in professional summaries should be normalized for the PDF. */
   it('normalisiert Reisedetails aus strukturierten Zusammenfassungen', async () => {
     const result = await createPdfSummary({
       reviewSummary: {

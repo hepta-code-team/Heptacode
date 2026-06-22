@@ -6,6 +6,7 @@ import {
   symptomSchema,
 } from '../../../../src/modules/assessment/assessment.types.js'
 
+/** Shared valid patient fixture for assessment schema boundaries. */
 const validPatientData = {
   birthMonth: '01',
   birthYear: '1990',
@@ -26,6 +27,7 @@ const validPatientData = {
   conditionDetails: {},
 }
 
+/** Shared valid symptom fixture for assessment schema boundaries. */
 const validSymptom = {
   id: 'symptom-1',
   region: 'Kopf',
@@ -38,12 +40,14 @@ const validSymptom = {
 }
 
 describe('symptomSchema', () => {
+  /** Complete symptom details should satisfy the assessment symptom contract. */
   it('akzeptiert gueltige Symptomdetails', () => {
     const result = symptomSchema.safeParse(validSymptom)
 
     expect(result.success).toBe(true)
   })
 
+  /** Unknown measurement types should not pass symptom validation. */
   it('lehnt unbekannte Messarten ab', () => {
     const result = symptomSchema.safeParse({
       ...validSymptom,
@@ -53,6 +57,7 @@ describe('symptomSchema', () => {
     expect(result.success).toBe(false)
   })
 
+  /** Required symptom fields should not accept empty values. */
   it('lehnt leere Pflichtfelder ab', () => {
     const result = symptomSchema.safeParse({
       ...validSymptom,
@@ -64,6 +69,7 @@ describe('symptomSchema', () => {
 })
 
 describe('assessmentPayloadSchema', () => {
+  /** Complete frontend assessment payloads should satisfy the API contract. */
   it('akzeptiert gueltige Assessment-Daten', () => {
     const result = assessmentPayloadSchema.safeParse({
       patientData: validPatientData,
@@ -74,6 +80,7 @@ describe('assessmentPayloadSchema', () => {
     expect(result.success).toBe(true)
   })
 
+  /** Assessment submission should require at least one detailed symptom. */
   it('lehnt Assessments ohne Detailangaben ab', () => {
     const result = assessmentPayloadSchema.safeParse({
       patientData: validPatientData,
@@ -84,6 +91,7 @@ describe('assessmentPayloadSchema', () => {
     expect(result.success).toBe(false)
   })
 
+  /** Patient data should remain structurally complete in assessment submissions. */
   it('lehnt unvollstaendige Patientendaten ab', () => {
     const incompletePatientData: Partial<typeof validPatientData> = { ...validPatientData }
     delete incompletePatientData.conditionDetails
@@ -99,6 +107,7 @@ describe('assessmentPayloadSchema', () => {
 })
 
 describe('assessmentResultSchema', () => {
+  /** Complete AI-backed assessment results should match the frontend response shape. */
   it('akzeptiert gueltige KI-Ergebnisse', () => {
     const result = assessmentResultSchema.safeParse({
       careLevel: 'doctor',
@@ -115,6 +124,7 @@ describe('assessmentResultSchema', () => {
     expect(result.success).toBe(true)
   })
 
+  /** Assessment results should include at least one reason. */
   it('lehnt leere Gruende ab', () => {
     const result = assessmentResultSchema.safeParse({
       careLevel: 'doctor',
@@ -131,6 +141,7 @@ describe('assessmentResultSchema', () => {
     expect(result.success).toBe(false)
   })
 
+  /** Assessment results should cap the number of reasons exposed to clients. */
   it('lehnt mehr als fuenf Gruende ab', () => {
     const result = assessmentResultSchema.safeParse({
       careLevel: 'doctor',
