@@ -5,6 +5,7 @@ import { apiClient } from "./apiClient";
 import { hasCompleteSymptomDetails, hasRequiredSymptoms, isValidPatientData } from "./assessmentValidation";
 
 const ASSESSMENT_STORAGE_KEY = "heptacheck.assessment.v1";
+const ASSESSMENT_STORAGE_TTL_MS = 10 * 60 * 1000;
 
 interface PersistedAssessmentState {
   patientData: PatientData | null;
@@ -12,6 +13,12 @@ interface PersistedAssessmentState {
   symptomText: string;
   symptomDetails: Symptom[];
   assessmentResult: AssessmentResult | null;
+  assessmentRequestKey: string | null;
+}
+
+interface StoredAssessment {
+  state: PersistedAssessmentState;
+  expiresAt: number;
 }
 
 const defaultPersistedAssessmentState: PersistedAssessmentState = {
@@ -20,6 +27,7 @@ const defaultPersistedAssessmentState: PersistedAssessmentState = {
   symptomText: "",
   symptomDetails: [],
   assessmentResult: null,
+  assessmentRequestKey: null,
 };
 
 const isBrowserStorageAvailable = () => {
@@ -33,6 +41,21 @@ const isBrowserStorageAvailable = () => {
     return false;
   }
 };
+
+function createAssessmentRequestKey(payload: AssessmentPayload): string {
+  return JSON.stringify({
+    patientData: payload.patientData,
+    selectedSymptoms: payload.selectedSymptoms,
+    symptomDetails: payload.symptomDetails.map((symptom) => ({
+      region: symptom.region,
+      side: symptom.side,
+      details: symptom.details,
+      measurementType: symptom.measurementType,
+      measurementValue: symptom.measurementValue,
+      duration: symptom.duration,
+    })),
+  });
+}
 
 function omitMoodFromPatientData(patientData: PatientData | null | undefined): PatientData | null {
   if (!patientData) {
@@ -83,7 +106,18 @@ function readPersistedAssessmentState(): PersistedAssessmentState {
       return defaultPersistedAssessmentState;
     }
 
-    const parsedState = JSON.parse(storedState) as Partial<PersistedAssessmentState>;
+    const storedAssessment = JSON.parse(storedState) as Partial<StoredAssessment>;
+
+    if (
+      !storedAssessment.state ||
+      typeof storedAssessment.expiresAt !== "number" ||
+      Date.now() >= storedAssessment.expiresAt
+    ) {
+      window.localStorage.removeItem(ASSESSMENT_STORAGE_KEY);
+      return defaultPersistedAssessmentState;
+    }
+
+    const parsedState = storedAssessment.state;
 
     return normalizePersistedAssessmentState({
       patientData: parsedState.patientData ?? null,
@@ -91,9 +125,11 @@ function readPersistedAssessmentState(): PersistedAssessmentState {
       symptomText: typeof parsedState.symptomText === "string" ? parsedState.symptomText : "",
       symptomDetails: Array.isArray(parsedState.symptomDetails) ? parsedState.symptomDetails : [],
       assessmentResult: parsedState.assessmentResult ?? null,
+      assessmentRequestKey: typeof parsedState.assessmentRequestKey === "string" ? parsedState.assessmentRequestKey : null,
     });
   } catch (error) {
     console.warn("Persistierte Ersteinschätzung konnte nicht geladen werden.", error);
+    window.localStorage.removeItem(ASSESSMENT_STORAGE_KEY);
     return defaultPersistedAssessmentState;
   }
 }
@@ -104,7 +140,15 @@ function writePersistedAssessmentState(state: PersistedAssessmentState) {
   }
 
   try {
-    window.localStorage.setItem(ASSESSMENT_STORAGE_KEY, JSON.stringify(normalizePersistedAssessmentState(state)));
+    const storedAssessment: StoredAssessment = {
+      state: normalizePersistedAssessmentState(state),
+      expiresAt: Date.now() + ASSESSMENT_STORAGE_TTL_MS,
+    };
+
+    window.localStorage.setItem(
+      ASSESSMENT_STORAGE_KEY,
+      JSON.stringify(storedAssessment),
+    );
   } catch (error) {
     console.warn("Ersteinschätzung konnte nicht im Browser gespeichert werden.", error);
   }
@@ -153,6 +197,9 @@ export function AssessmentProvider({ children }: { children: ReactNode }) {
   const [assessmentResult, setAssessmentResult] = useState<AssessmentResult | null>(
     initialPersistedState.current.assessmentResult,
   );
+  const [assessmentRequestKey, setAssessmentRequestKey] = useState<string | null>(
+    initialPersistedState.current.assessmentRequestKey,
+  );
   const [evaluationProgress, setEvaluationProgress] = useState(0);
   const [isEvaluating, setIsEvaluating] = useState(false);
   const assessmentRequestVersion = useRef(0);
@@ -169,12 +216,14 @@ export function AssessmentProvider({ children }: { children: ReactNode }) {
       symptomText,
       symptomDetails,
       assessmentResult,
+      assessmentRequestKey,
     });
-  }, [patientData, selectedSymptoms, symptomText, symptomDetails, assessmentResult]);
+  }, [patientData, selectedSymptoms, symptomText, symptomDetails, assessmentResult, assessmentRequestKey]);
 
   const invalidateAssessmentResult = () => {
     assessmentRequestVersion.current += 1;
     setAssessmentResult(null);
+    setAssessmentRequestKey(null);
     setEvaluationProgress(0);
     setIsEvaluating(false);
   };
@@ -221,11 +270,19 @@ export function AssessmentProvider({ children }: { children: ReactNode }) {
       throw new Error("Bitte füllen Sie zuerst Dauer und Stärke für alle Beschwerden vollständig aus.");
     }
 
+    const normalizedDetails = normalizeAssessmentSymptomDetails(details);
     const payload: AssessmentPayload = {
       patientData: omitMoodFromPatientData(patientData) as PatientData,
       selectedSymptoms,
-      symptomDetails: details,
+      symptomDetails: normalizedDetails,
     };
+    const requestKey = createAssessmentRequestKey(payload);
+
+    if (assessmentResult && assessmentRequestKey === requestKey) {
+      setSymptomDetailsState(normalizedDetails);
+      setEvaluationProgress(100);
+      return assessmentResult;
+    }
 
     console.log("Assessment payload", payload);
 
@@ -253,8 +310,9 @@ export function AssessmentProvider({ children }: { children: ReactNode }) {
         throw new Error("Die Auswertung wurde zurückgesetzt.");
       }
 
-      setSymptomDetailsState(normalizeAssessmentSymptomDetails(details));
+      setSymptomDetailsState(normalizedDetails);
       setAssessmentResult(result);
+      setAssessmentRequestKey(requestKey);
       setEvaluationProgress(100);
 
       return result;
@@ -280,6 +338,7 @@ export function AssessmentProvider({ children }: { children: ReactNode }) {
     setSymptomText("");
     setSymptomDetailsState([]);
     setAssessmentResult(null);
+    setAssessmentRequestKey(null);
     setEvaluationProgress(0);
     setIsEvaluating(false);
   };
