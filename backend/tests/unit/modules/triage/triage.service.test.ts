@@ -298,6 +298,42 @@ describe('evaluateTriage', () => {
     })
   })
 
+  /** Negated dyspnea should not turn mild chest-wall pain into an emergency fallback. */
+  it('behaelt Selfcare bei mildem Brustwandschmerz ohne Atemnot bei', async () => {
+    requestStructuredAiResponseWithModelMock.mockResolvedValueOnce({
+      data: {
+        careLevel: 'selfcare',
+        reasons: ['Die Beschwerden entsprechen einem milden Muskelkater ohne Warnzeichen.'],
+        reviewSummary: {
+          plainLanguage: 'Der milde Muskelkater kann zunächst selbst beobachtet werden.',
+          professionalSummary: 'Care Level: selfcare without warning signs.',
+        },
+      },
+      model: 'test-model',
+    })
+
+    const diagnostics = await evaluateTriageWithDiagnostics(undefined, [
+      {
+        region: 'Brust',
+        details: 'Leichter Muskelkater nach Liegestuetzen ohne Atemnot',
+        measurementType: 'pain',
+        measurementValue: 2,
+        duration: 'today',
+      },
+    ])
+
+    expect(diagnostics).toMatchObject({
+      aiResponse: {
+        careLevel: 'selfcare',
+      },
+      finalResponse: {
+        careLevel: 'selfcare',
+      },
+      plausibilityIssues: [],
+      fallbackType: 'none',
+    })
+  })
+
   /** Plausibility checks should reject emergency escalation for clearly mild symptoms. */
   it('verwirft unplausible Emergency-KI-Antworten bei milden Beschwerden', async () => {
     requestStructuredAiResponseWithModelMock.mockResolvedValueOnce({

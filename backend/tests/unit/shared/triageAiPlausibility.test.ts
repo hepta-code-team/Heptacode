@@ -265,6 +265,69 @@ describe('getTriageAiPlausibilityIssues', () => {
     expect(issues).toContain('Warnsymptome dürfen nicht als selfcare eingestuft werden.')
   })
 
+  /** Explicitly negated warning terms should not trigger emergency plausibility rules. */
+  it.each([
+    {
+      name: 'Atemnot',
+      symptom: {
+        region: 'Brust',
+        details: 'Leichter Muskelkater nach Sport, keine Atemnot und keine Luftnot',
+        measurementType: 'pain' as const,
+        measurementValue: 2,
+      },
+    },
+    {
+      name: 'neurologische Ausfälle',
+      symptom: {
+        region: 'Kopf',
+        details: 'Leichte Kopfschmerzen, keine Lähmung und keine Sprachstörung',
+        measurementType: 'pain' as const,
+        measurementValue: 2,
+      },
+    },
+    {
+      name: 'Suizidgedanken',
+      symptom: {
+        region: 'Psychische Probleme',
+        details: 'Leichte innere Unruhe, keine Suizidgedanken und keine Selbstverletzung',
+        measurementType: 'severity' as const,
+        measurementValue: 2,
+      },
+    },
+    {
+      name: 'allergische Reaktion',
+      symptom: {
+        region: 'Haut',
+        details: 'Lokale Rötung, keine allergische Reaktion und keine Schwellung im Gesicht',
+        measurementType: 'severity' as const,
+        measurementValue: 2,
+      },
+    },
+    {
+      name: 'starke Blutung',
+      symptom: {
+        region: 'Finger',
+        details: 'Kleiner Schnitt; eine zuvor starke Blutung besteht nicht mehr',
+        measurementType: 'pain' as const,
+        measurementValue: 2,
+      },
+    },
+  ])('akzeptiert Selfcare bei ausdrücklich verneintem Warnzeichen: $name', ({ symptom }) => {
+    const issues = getTriageAiPlausibilityIssues(
+      {
+        careLevel: 'selfcare',
+        reasons: ['Die Beschwerden sind mild und können zunächst beobachtet werden.'],
+        reviewSummary: {
+          plainLanguage: 'Die Beschwerden können zunächst selbst beobachtet werden.',
+          professionalSummary: 'Care Level: selfcare without warning signs.',
+        },
+      },
+      [symptom],
+    )
+
+    expect(issues).toEqual([])
+  })
+
   /** Airway-related allergic swelling should not be accepted as self-care. */
   it('markiert Selfcare bei allergischer Atemwegs-Schwellung als unplausibel', () => {
     const issues = getTriageAiPlausibilityIssues(
