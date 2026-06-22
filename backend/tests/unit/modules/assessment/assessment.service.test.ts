@@ -1,10 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { evaluateTriage } from '../triage/triage.service.js'
-import { evaluateAssessmentWithAi } from './assessment.service.js'
-import type { AssessmentPayload } from './assessment.types.js'
+import { evaluateTriage } from '../../../../src/modules/triage/triage.service.js'
+import { evaluateAssessmentWithAi } from '../../../../src/modules/assessment/assessment.service.js'
+import type { AssessmentPayload } from '../../../../src/modules/assessment/assessment.types.js'
 
-vi.mock('../triage/triage.service.js', () => ({
+vi.mock('../../../../src/modules/triage/triage.service.js', () => ({
   evaluateTriage: vi.fn(),
 }))
 
@@ -37,6 +37,7 @@ function createPayload(): AssessmentPayload {
         id: 'symptom-1',
         region: 'Kopf',
         side: 'links',
+        details: 'Seit dem Aufwachen schlimmer',
         measurementType: 'pain',
         measurementValue: 7,
         duration: 'days',
@@ -80,6 +81,7 @@ describe('evaluateAssessmentWithAi', () => {
         {
           region: 'Kopf',
           side: 'links',
+          details: 'Seit dem Aufwachen schlimmer',
           measurementType: 'pain',
           measurementValue: 7,
           duration: 'days',
@@ -103,6 +105,7 @@ describe('evaluateAssessmentWithAi', () => {
     expect(result.summary).toBe(result.reviewSummary.plainLanguage)
     expect(result.reviewSummary.professionalSummary).toContain('Geburtsjahr: 1990')
     expect(result.reviewSummary.professionalSummary).toContain('Kopf (links)')
+    expect(result.reviewSummary.professionalSummary).toContain('Details: Seit dem Aufwachen schlimmer')
     expect(result.reviewSummary.professionalSummary).toContain('Schmerzstaerke: 7/10')
   })
 
@@ -120,6 +123,76 @@ describe('evaluateAssessmentWithAi', () => {
       reasons: ['Fallback wurde genutzt.'],
       aiUnavailable: true,
     })
+  })
+
+  it('fuellt Specialty, leere Reasons, aiModel und empfohlene Fachrichtungen auf', async () => {
+    evaluateTriageMock.mockResolvedValueOnce({
+      careLevel: 'emergency',
+      reasons: [],
+      recommendedSpecialties: ['emergency_medicine', 'internal_medicine'],
+      aiModel: 'test-model',
+      reviewSummary: {
+        plainLanguage: 'Bitte nehmen Sie dringend medizinische Hilfe in Anspruch.',
+        professionalSummary: [
+          'Zusammenfassung fuer Patient:innen: Bitte Hilfe suchen.',
+          'Care Level: emergency.',
+        ].join('\n'),
+      },
+    })
+
+    const result = await evaluateAssessmentWithAi(createPayload())
+
+    expect(result).toMatchObject({
+      careLevel: 'emergency',
+      recommendedSpecialty: 'emergency_medicine',
+      recommendedSpecialties: ['emergency_medicine', 'internal_medicine'],
+      reasons: [
+        'Die Angaben wurden ausgewertet. Bei Verschlechterung bitte erneut medizinisch vorstellen.',
+      ],
+      aiModel: 'test-model',
+      summary: 'Bitte nehmen Sie dringend medizinische Hilfe in Anspruch.',
+    })
+    expect(result.reviewSummary.professionalSummary).toContain('Care Level: emergency.')
+  })
+
+  it('uebernimmt vorhandene Specialty und baut Fallback-Summary mit optionalen Patientendaten', async () => {
+    const payload = createPayload()
+    payload.patientData.isPregnant = true
+    payload.patientData.isBreastfeeding = true
+    payload.patientData.allergies = 'Penicillin'
+    payload.patientData.medications = 'Ibuprofen'
+    payload.patientData.substanceInfluence = 'Alkohol'
+    payload.patientData.recentAbroad = true
+    payload.patientData.recentAbroadDetails = 'Spanien'
+    payload.patientData.isSmoker = true
+    payload.patientData.smokingSinceYears = '5'
+    payload.patientData.cigarettesPerDay = '10'
+    payload.patientData.conditionDetails = {
+      Asthma: {
+        condition: 'Asthma',
+        detail: 'Belastungsasthma',
+        duration: '',
+      },
+    }
+
+    evaluateTriageMock.mockResolvedValueOnce({
+      careLevel: 'selfcare',
+      recommendedSpecialty: 'home_care',
+      reasons: ['Aktuell sprechen die Angaben fuer Selbstversorgung.'],
+    })
+
+    const result = await evaluateAssessmentWithAi(payload)
+
+    expect(result.recommendedSpecialty).toBe('home_care')
+    expect(result.reviewSummary.professionalSummary).toContain('Schwanger: Ja')
+    expect(result.reviewSummary.professionalSummary).toContain('Stillend: Ja')
+    expect(result.reviewSummary.professionalSummary).toContain('Allergien: Penicillin')
+    expect(result.reviewSummary.professionalSummary).toContain('Medikamente: Ibuprofen')
+    expect(result.reviewSummary.professionalSummary).toContain('Substanzbeeinflussung: Alkohol')
+    expect(result.reviewSummary.professionalSummary).toContain('Auslandsaufenthalt letzte 3 Monate: Spanien')
+    expect(result.reviewSummary.professionalSummary).toContain('Rauchdauer: 5 Jahre')
+    expect(result.reviewSummary.professionalSummary).toContain('Zigaretten pro Tag: 10')
+    expect(result.reviewSummary.professionalSummary).toContain('Details zu Vorerkrankungen: Asthma: Belastungsasthma')
   })
 
   it('reicht unerwartete Fehler weiter', async () => {

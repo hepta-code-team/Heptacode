@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router";
-import { Edit3, PhoneCall } from "lucide-react";
+import { Check, ChevronDown, Download, Edit3, PhoneCall, X } from "lucide-react";
 import PageShell from "../components/PageShell";
-import ResultCard from "../features/results/ResultCard";
+import NearbyPracticeSearch from "../features/results/NearbyPracticeSearch";
 import Button from "../components/Button";
 import {
   createSpecialtyConfig,
@@ -13,7 +13,7 @@ import { useAssessment } from "../lib/AssessmentContext";
 import type { CareLevel, MedicalSpecialty } from "../../../shared/result.types";
 import { CARE_LEVELS, MEDICAL_SPECIALTIES } from "../../../shared/result.types";
 import { DURATIONS, getMeasurementConfig } from "../features/symptoms/symptoms.constants";
-import type { Symptom } from "../types/assessment";
+import type { PatientData, Symptom } from "../types/assessment";
 
 const CARE_LEVEL_LABELS: Record<CareLevel, string> = {
   emergency: "Notfall - sofort medizinische Hilfe suchen",
@@ -42,6 +42,45 @@ const MEDICAL_SPECIALTY_LABELS: Record<MedicalSpecialty, string> = {
   otolaryngology: "HNO",
 };
 
+const SUBSTANCE_OPTIONS = [
+  "Alkohol",
+  "Cannabis",
+  "Kokain",
+  "Amphetamine",
+  "Opioide",
+  "Beruhigungsmittel",
+  "Andere",
+];
+
+const TRAVEL_COUNTRIES = [
+  "Deutschland",
+  "Frankreich",
+  "Italien",
+  "Spanien",
+  "Österreich",
+  "Schweiz",
+  "Türkei",
+  "Griechenland",
+  "Kroatien",
+  "Polen",
+  "Niederlande",
+  "Vereinigtes Königreich",
+  "USA",
+  "Kanada",
+  "Mexiko",
+  "Brasilien",
+  "Ägypten",
+  "Marokko",
+  "Tunesien",
+  "Südafrika",
+  "Indien",
+  "Thailand",
+  "Vietnam",
+  "China",
+  "Japan",
+  "Australien",
+];
+
 function isValidCareLevel(value: string | undefined): value is CareLevel {
   return value !== undefined && CARE_LEVELS.includes(value as CareLevel);
 }
@@ -62,6 +101,27 @@ function fallbackSpecialtyForCareLevel(careLevel: CareLevel): MedicalSpecialty {
   return "general_practice";
 }
 
+function formatOptionalValue(value: string | undefined) {
+  return value?.trim() || "Nicht angegeben";
+}
+
+function formatGender(value: string) {
+  switch (value.toLowerCase()) {
+    case "female":
+    case "weiblich":
+      return "Weiblich";
+    case "male":
+    case "männlich":
+    case "maennlich":
+      return "Männlich";
+    case "diverse":
+    case "divers":
+      return "Divers";
+    default:
+      return formatOptionalValue(value);
+  }
+}
+
 interface MedicalSummarySections {
   patientData: string;
   complaints: string;
@@ -76,10 +136,22 @@ function trimSectionLines(lines: string[]) {
   return lines.join("\n").trim();
 }
 
+/**
+ * Detects placeholder patient-data text that should not be edited as real data.
+ *
+ * Backend fallbacks use this sentence when no patient profile exists, but the
+ * result page should treat it as absence of content rather than user input.
+ */
 function isEmptyPatientDataPlaceholder(line: string) {
   return line.trim().toLowerCase() === "keine stammdaten vorhanden.";
 }
 
+/**
+ * Splits a professional summary into editable patient and complaint sections.
+ *
+ * The parser accepts both current PDF headings and older fallback headings so
+ * stored AI summaries, local fallbacks, and user edits stay compatible.
+ */
 function parseMedicalSummarySections(summary: string): MedicalSummarySections {
   const sections: MedicalSummarySections = { ...EMPTY_MEDICAL_SUMMARY_SECTIONS };
   const patientDataLines: string[] = [];
@@ -138,25 +210,183 @@ function parseMedicalSummarySections(summary: string): MedicalSummarySections {
   return sections;
 }
 
+/**
+ * Reassembles editable summary fields into the PDF-compatible section format.
+ *
+ * The backend PDF export recognizes these headings, so the edited summary can
+ * round-trip from the result page into a clean medical overview.
+ */
 function formatMedicalSummarySections(sections: MedicalSummarySections) {
-  const patientData = sections.patientData.trim() || "Keine Stammdaten vorhanden.";
   const complaints = sections.complaints.trim() || "Keine Beschwerden vorhanden.";
 
-  return `Patientendaten:\n${patientData}\n\nBeschwerden:\n${complaints}`;
+  return `Beschwerden:\n${complaints}`;
+}
+
+function splitTravelDetails(details: string) {
+  const [country = "", startDate = "", endDate = ""] = details.split("|").map((part) => part.trim());
+
+  if (startDate || endDate) {
+    return { country, startDate, endDate };
+  }
+
+  return { country: details.trim(), startDate: "", endDate: "" };
+}
+
+function formatTravelDetails(country: string, startDate: string, endDate: string) {
+  const cleanCountry = country.trim();
+  const cleanStartDate = startDate.trim();
+  const cleanEndDate = endDate.trim();
+
+  if (cleanCountry || cleanStartDate || cleanEndDate) {
+    return [cleanCountry, cleanStartDate, cleanEndDate].join(" | ");
+  }
+
+  return "";
+}
+
+function formatTravelDisplay(value: string) {
+  const { country, startDate, endDate } = splitTravelDetails(value);
+
+  if (country && startDate && endDate) {
+    return `${country}, ${startDate} bis ${endDate}`;
+  }
+
+  if (country && startDate) {
+    return `${country}, ab ${startDate}`;
+  }
+
+  if (country && endDate) {
+    return `${country}, bis ${endDate}`;
+  }
+
+  return country || startDate || endDate || value;
+}
+
+function AcuteEmergencySummaryFlow({
+  acuteSymptomName,
+  acuteSymptomDescription,
+  onReset,
+}: {
+  acuteSymptomName?: string;
+  acuteSymptomDescription?: string;
+  onReset: () => void;
+}) {
+  const emergencyConfig = TRIAGE_CONFIGS.emergency;
+
+  return (
+    <PageShell
+      title="Notfallversorgung"
+      subtitle="Sie sollten sich umgehend in die Notaufnahme begeben oder wahlen sie die 112."
+    >
+      <div
+        className="rounded-[16px] p-5 md:p-6 mb-4"
+        style={{ backgroundColor: emergencyConfig.bgColor }}
+      >
+        <div className="flex items-center gap-3 mb-3">
+          <div
+            className="w-14 h-14 rounded-full flex items-center justify-center flex-shrink-0"
+            style={{ backgroundColor: emergencyConfig.color }}
+          >
+            <p
+              className="font-['DM_Sans:Bold',sans-serif] font-bold text-app-text-on-primary text-xl"
+              style={{ fontVariationSettings: "'opsz' 14" }}
+            >
+              !
+            </p>
+          </div>
+          <p
+            className="font-['DM_Sans:Bold',sans-serif] font-bold text-xl md:text-2xl"
+            style={{ fontVariationSettings: "'opsz' 14", color: emergencyConfig.color }}
+          >
+            {emergencyConfig.title}
+          </p>
+        </div>
+
+        <p
+          className="font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-body text-sm md:text-base leading-relaxed"
+          style={{ fontVariationSettings: "'opsz' 14" }}
+        >
+          {emergencyConfig.description}
+        </p>
+
+        <div className="my-6 border-t border-[#FF2546]/20" />
+
+        <p className="font-['DM_Sans:Bold',sans-serif] font-bold text-app-text-primary text-lg mb-3">
+          Ihre Einschätzung
+        </p>
+
+        <p className="font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-body text-sm md:text-base leading-relaxed">
+          {acuteSymptomName ? (
+            <>
+              Sie haben <strong>{acuteSymptomName}</strong> ausgewählt.{" "}
+            </>
+          ) : (
+            "Sie haben ein akutes Notfallsymptom ausgewählt. "
+          )}
+          {acuteSymptomDescription ||
+            "Dieses Symptom kann auf einen medizinischen Notfall hinweisen und sollte sofort abgeklärt werden."}
+        </p>
+
+        <p className="mt-3 font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-body text-sm leading-relaxed">
+          Weitere Informationen zu Notruf und Notaufnahme finden Sie bei{" "}
+          <a
+            href="https://gesund.bund.de/wege-im-gesundheitswesen/erwachsenenleben/alter/notfaelle/notruf-und-notaufnahme"
+            target="_blank"
+            rel="noreferrer"
+            className="font-bold text-[#486284] underline hover:no-underline"
+          >
+            gesund.bund.de
+          </a>
+          .
+        </p>
+      </div>
+
+      <a
+        href="tel:112"
+        className="md:hidden mb-4 flex min-h-[56px] w-full items-center justify-center gap-3 rounded-[14px] px-5 py-3 text-app-text-on-primary shadow-sm transition-all hover:opacity-90"
+        style={{ backgroundColor: emergencyConfig.color }}
+        aria-label="112 anrufen"
+      >
+        <PhoneCall className="size-5 flex-shrink-0" aria-hidden="true" />
+        <span className="font-['DM_Sans:Bold',sans-serif] font-bold text-base">
+          112 anrufen
+        </span>
+      </a>
+
+      <NearbyPracticeSearch
+        careLevel="emergency"
+        specialties={["emergency_medicine"]}
+      />
+
+      <div className="mt-6 mb-6">
+        <Button onClick={onReset}>
+          <p className="font-['DM_Sans:Bold',sans-serif] font-bold text-base">
+            Neue Bewertung starten
+          </p>
+        </Button>
+      </div>
+    </PageShell>
+  );
 }
 
 export default function ResultPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { patientData, symptomDetails, assessmentResult, setAssessmentResult, resetAssessment } = useAssessment();
+  const { patientData, setPatientData, symptomDetails, assessmentResult, setAssessmentResult, resetAssessment } = useAssessment();
   const [isEditingSummary, setIsEditingSummary] = useState(false);
+  const [patientDataDraft, setPatientDataDraft] = useState<PatientData | null>(null);
+  const [conditionListDraft, setConditionListDraft] = useState("");
+  const [travelCountryDraft, setTravelCountryDraft] = useState("");
+  const [travelStartDateDraft, setTravelStartDateDraft] = useState("");
+  const [travelEndDateDraft, setTravelEndDateDraft] = useState("");
   const [editableProfessionalSummary, setEditableProfessionalSummary] = useState("");
+  const [isExplanationOpen, setIsExplanationOpen] = useState(false);
   const [professionalSummaryDraft, setProfessionalSummaryDraft] = useState<MedicalSummarySections>(
     EMPTY_MEDICAL_SUMMARY_SECTIONS,
   );
 
-  const isEmergency = searchParams.get("emergency") === "true";
-  const fallbackCareLevel: CareLevel = isEmergency ? "emergency" : "selfcare";
+  const isAcuteEmergencyFlow = searchParams.get("emergency") === "true";
+  const fallbackCareLevel: CareLevel = isAcuteEmergencyFlow ? "emergency" : "selfcare";
   const careLevel = assessmentResult?.careLevel ?? fallbackCareLevel;
   const specialtyParam = searchParams.get("specialty");
   const recommendedSpecialty = isValidMedicalSpecialty(assessmentResult?.recommendedSpecialty)
@@ -171,11 +401,13 @@ export default function ResultPage() {
       : TRIAGE_CONFIGS[careLevel === "specialist" ? "doctor" : careLevel];
 
   const callAction =
-    careLevel === "emergency"
-      ? { href: "tel:112", label: "112 anrufen", description: "Notruf" }
-      : careLevel === "doctor"
-        ? { href: "tel:116117", label: "116 117 anrufen", description: "Ärztlicher Bereitschaftsdienst" }
-        : null;
+      careLevel === "emergency"
+          ? {href: "tel:112", label: "112 anrufen", description: "Notruf"}
+          : careLevel === "doctor"
+              ? {href: "tel:116117", label: "Ärztlicher Bereitschaftsdienst (116 117)", description: "Ärztlicher Bereitschaftsdienst"}
+              : recommendedSpecialty === "psychiatry"
+                  ? {href: "tel:0800 1110111", label: "Telefonseelsorge (0800 1110111)", description: "Telefonseelsorge"}
+                  : null;
 
   const explanationReasons = assessmentResult?.reasons?.length
     ? assessmentResult.reasons
@@ -194,7 +426,7 @@ export default function ResultPage() {
   };
 
   const getMeasurementSummary = (symptom: Symptom) => {
-    const config = getMeasurementConfig(symptom.region, symptom.side);
+    const config = getMeasurementConfig(symptom.region);
     const value = symptom.measurementValue ?? 0;
 
     if (config.type === "temperature") {
@@ -204,37 +436,27 @@ export default function ResultPage() {
     return `${config.title} ${value}/10`;
   };
 
+  /**
+   * Creates a professional summary when the backend did not provide one.
+   *
+   * The generated text intentionally follows the same headings as AI summaries
+   * so editing and PDF export can use one parser for both paths.
+   */
   const buildProfessionalSummaryFallback = () => {
+    // Build the same section format that the PDF export expects when the backend summary is missing.
     return [
-      "Patientendaten:",
-      patientData
-        ? [
-            `Geburtsdatum: ${patientData.birthMonth}/${patientData.birthYear}`,
-            `Größe/Gewicht: ${patientData.height} cm / ${patientData.weight} kg`,
-            `Geschlecht: ${patientData.gender}`,
-            patientData.isPregnant ? "Schwanger: Ja" : null,
-            patientData.isBreastfeeding ? "Stillend: Ja" : null,
-            patientData.allergies ? `Allergien: ${patientData.allergies}` : null,
-            patientData.medications ? `Medikamente: ${patientData.medications}` : null,
-            patientData.conditions.length > 0
-              ? `Vorerkrankungen: ${patientData.conditions.join(", ")}`
-              : null,
-          ]
-            .filter(Boolean)
-            .join("\n")
-        : "Keine Stammdaten vorhanden.",
-      "",
       "Beschwerden:",
       symptomDetails.length > 0
         ? symptomDetails
             .map((symptom) => {
               const label = symptom.side ? `${symptom.region} (${symptom.side})` : symptom.region;
+              const details = symptom.details ? `, Details: ${symptom.details}` : "";
 
-              return `${label}, ${getMeasurementSummary(symptom)}${
+              return `${label}${details}, ${getMeasurementSummary(symptom)}${
                 symptom.duration ? `, ${getDurationLabel(symptom.duration)}` : ""
               }`;
             })
-            .join("\n")
+            .join("\n\n")
         : "Keine Beschwerden vorhanden.",
     ].join("\n");
   };
@@ -242,34 +464,127 @@ export default function ResultPage() {
   const professionalSummary =
     assessmentResult?.reviewSummary?.professionalSummary?.trim() || buildProfessionalSummaryFallback();
 
+  const formatConditionDetail = (detail: PatientData["conditionDetails"][string] | string) => {
+    if (typeof detail === "string") {
+      return detail.trim();
+    }
+
+    const parts = [
+      detail.detail.trim() ? detail.detail.trim() : null,
+      detail.duration.trim() ? `Dauer: ${detail.duration.trim()}` : null,
+    ].filter((part): part is string => part !== null);
+
+    return parts.join(", ");
+  };
+
+  const conditionDetails = patientData
+    ? Object.entries(patientData.conditionDetails)
+        .map(([condition, detail]) => {
+          const formattedDetail = formatConditionDetail(detail);
+          return formattedDetail ? `${condition}: ${formattedDetail}` : null;
+        })
+        .filter((detail): detail is string => detail !== null)
+    : [];
+
+  const patientDataRows = patientData
+    ? [
+        { label: "Geburtsdatum", value: `${formatOptionalValue(patientData.birthMonth)}/${formatOptionalValue(patientData.birthYear)}` },
+        { label: "Größe / Gewicht", value: `${formatOptionalValue(patientData.height)} cm / ${formatOptionalValue(patientData.weight)} kg` },
+        { label: "Geschlecht", value: formatGender(patientData.gender) },
+        { label: "Schwangerschaft", value: patientData.isPregnant ? "Ja" : "Nein" },
+        { label: "Stillzeit", value: patientData.isBreastfeeding ? "Ja" : "Nein" },
+        { label: "Allergien", value: formatOptionalValue(patientData.allergies) },
+        { label: "Medikamente", value: formatOptionalValue(patientData.medications) },
+        { label: "Medikamente seit", value: formatOptionalValue(patientData.medicationDuration) },
+        { label: "Substanzbeeinflussung", value: formatOptionalValue(patientData.substanceInfluence || "Nein") },
+        {
+          label: "Auslandsreise",
+          value: patientData.recentAbroad
+            ? formatOptionalValue(formatTravelDisplay(patientData.recentAbroadDetails) || "Ja")
+            : "Nein",
+        },
+        {
+          label: "Vorerkrankungen",
+          value: patientData.conditions.length > 0 ? patientData.conditions.join(", ") : "Keine angegeben",
+        },
+        { label: "Raucher", value: patientData.isSmoker ? "Ja" : "Nein" },
+        ...(patientData.isSmoker
+          ? [
+              { label: "Rauchdauer", value: formatOptionalValue(patientData.smokingSinceYears) },
+              { label: "Zigaretten pro Tag", value: formatOptionalValue(patientData.cigarettesPerDay) },
+            ]
+          : []),
+        ...(conditionDetails.length > 0
+          ? [{ label: "Details zu Vorerkrankungen", value: conditionDetails.join("; ") }]
+          : []),
+      ]
+    : [];
+
   useEffect(() => {
     setEditableProfessionalSummary(professionalSummary);
     setProfessionalSummaryDraft(parseMedicalSummarySections(professionalSummary));
   }, [professionalSummary]);
 
   const displayedProfessionalSummary = editableProfessionalSummary.trim()
-    ? editableProfessionalSummary
-    : professionalSummary;
+    ? formatMedicalSummarySections(parseMedicalSummarySections(editableProfessionalSummary))
+    : formatMedicalSummarySections(parseMedicalSummarySections(professionalSummary));
 
-  const handleReset = () => {
-    resetAssessment();
-    navigate("/");
+  const updatePatientDataDraft = <K extends keyof PatientData>(key: K, value: PatientData[K]) => {
+    setPatientDataDraft((currentDraft) => currentDraft ? { ...currentDraft, [key]: value } : currentDraft);
   };
 
+  const handleReset = () => {
+    navigate("/", { replace: true, flushSync: true });
+    resetAssessment();
+  };
+
+  const {symptomText} = useAssessment();
+
   const handleStartSummaryEdit = () => {
-    setProfessionalSummaryDraft(parseMedicalSummarySections(displayedProfessionalSummary));
+    const summaryDraft = parseMedicalSummarySections(displayedProfessionalSummary);
+    const travelDetails = splitTravelDetails(patientData?.recentAbroadDetails ?? "");
+
+    setPatientDataDraft(patientData ? { ...patientData } : null);
+    setConditionListDraft(patientData?.conditions.join(", ") ?? "");
+    setTravelCountryDraft(travelDetails.country);
+    setTravelStartDateDraft(travelDetails.startDate);
+    setTravelEndDateDraft(travelDetails.endDate);
+    setProfessionalSummaryDraft(summaryDraft);
     setIsEditingSummary(true);
   };
 
   const handleCancelSummaryEdit = () => {
     setProfessionalSummaryDraft(parseMedicalSummarySections(displayedProfessionalSummary));
+    setPatientDataDraft(null);
+    setConditionListDraft("");
+    setTravelCountryDraft("");
+    setTravelStartDateDraft("");
+    setTravelEndDateDraft("");
     setIsEditingSummary(false);
   };
 
   const handleSaveSummaryEdit = () => {
-    const nextProfessionalSummary = formatMedicalSummarySections(professionalSummaryDraft);
+    const nextPatientData = patientDataDraft
+      ? {
+          ...patientDataDraft,
+          recentAbroadDetails: patientDataDraft.recentAbroad
+            ? formatTravelDetails(travelCountryDraft, travelStartDateDraft, travelEndDateDraft)
+            : "",
+          conditions: conditionListDraft
+            .split(",")
+            .map((condition) => condition.trim())
+            .filter((condition) => condition.length > 0),
+        }
+      : null;
+    const nextProfessionalSummary = formatMedicalSummarySections({
+      ...professionalSummaryDraft,
+    });
 
     setEditableProfessionalSummary(nextProfessionalSummary);
+
+    if (nextPatientData) {
+      setPatientData(nextPatientData);
+    }
 
     if (assessmentResult) {
       setAssessmentResult({
@@ -281,9 +596,20 @@ export default function ResultPage() {
       });
     }
 
+    setPatientDataDraft(null);
+    setConditionListDraft("");
+    setTravelCountryDraft("");
+    setTravelStartDateDraft("");
+    setTravelEndDateDraft("");
     setIsEditingSummary(false);
   };
 
+  /**
+   * Sends the current result state to the backend PDF endpoint and downloads it.
+   *
+   * The page can also render from URL fallbacks, so this builds a schema-safe
+   * payload even when no persisted assessment result exists in context.
+   */
   const handlePdfDownload = async () => {
     try {
       const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:3000";
@@ -293,16 +619,20 @@ export default function ResultPage() {
       const safeRecommendedSpecialty = isValidMedicalSpecialty(assessmentResult?.recommendedSpecialty)
         ? assessmentResult.recommendedSpecialty
         : recommendedSpecialty;
+      const complaintReasons = professionalSummaryDraft.complaints.trim()
+        ? [professionalSummaryDraft.complaints.trim()]
+        : explanationReasons.slice(0, 5);
 
+      // Keep the export payload conservative and schema-shaped even when the page is rendered from URL fallbacks.
       const pdfPayload = {
         reviewSummary: {
           plainLanguage: plainLanguageSummary,
-          professionalSummary: editableProfessionalSummary.trim() || professionalSummary,
+          professionalSummary: displayedProfessionalSummary,
         },
         triage: {
           careLevel: safeCareLevel,
           recommendedSpecialty: safeRecommendedSpecialty,
-          reasons: explanationReasons.slice(0, 5),
+          reasons: complaintReasons,
         },
         ...(patientData ? { patientData } : {}),
         ...(symptomDetails.length > 0
@@ -310,6 +640,7 @@ export default function ResultPage() {
               symptoms: symptomDetails.slice(0, 3).map((symptom) => ({
                 region: symptom.region,
                 ...(symptom.side ? { side: symptom.side } : {}),
+                ...(symptom.details ? { details: symptom.details } : {}),
                 measurementType: symptom.measurementType,
                 measurementValue: symptom.measurementValue,
                 ...(symptom.duration ? { duration: symptom.duration } : {}),
@@ -345,15 +676,73 @@ export default function ResultPage() {
       alert("Das PDF konnte nicht heruntergeladen werden.");
     }
   };
-
+  
+  if (isAcuteEmergencyFlow) {
+    return (
+      <AcuteEmergencySummaryFlow
+        acuteSymptomName={searchParams.get("acuteSymptom") ?? undefined}
+        acuteSymptomDescription={searchParams.get("acuteSymptomDescription") ?? undefined}
+        onReset={handleReset}
+      />
+    );
+  }
   return (
     <PageShell
       title="Ihre Auswertung"
       subtitle="Basierend auf Ihren Angaben haben wir folgende Empfehlung für Sie."
     >
-      <ResultCard config={config} />
+      <div
+        className="rounded-[16px] p-5 md:p-6 mb-4"
+        style={{ backgroundColor: config.bgColor }}
+      >
+        <div className="flex items-center gap-3 mb-3">
+          <div
+            className="w-14 h-14 rounded-full flex items-center justify-center flex-shrink-0"
+            style={{ backgroundColor: config.color }}
+          >
+            <p
+              className="font-['DM_Sans:Bold',sans-serif] font-bold text-app-text-on-primary text-xl"
+              style={{ fontVariationSettings: "'opsz' 14" }}
+            >
+              !
+            </p>
+          </div>
+          <p
+            className="font-['DM_Sans:Bold',sans-serif] font-bold text-xl md:text-2xl"
+            style={{ fontVariationSettings: "'opsz' 14", color: config.color }}
+          >
+            {config.title}
+            {config.titleSupplement && (
+              <span className="block font-['DM_Sans:Medium',sans-serif] font-light">
+                {" "}({config.titleSupplement})
+              </span>
+            )}
+          </p>
+        </div>
 
-      <div className="bg-white border border-[#d8e0ea] rounded-[16px] p-5 md:p-6 mb-4">
+        <p
+          className="font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-body text-sm md:text-base leading-relaxed"
+          style={{ fontVariationSettings: "'opsz' 14" }}
+        >
+          {config.description}
+          {careLevel === "doctor" && (
+            <span className="hidden md:inline">
+              {" "}
+              Bei weiteren Fragen oder Unsicherheiten kontaktieren Sie die{" "}
+              <strong>116 117</strong>.
+            </span>
+          )}
+          {recommendedSpecialty === "psychiatry" && (
+            <span className="hidden md:inline">
+              {" "}
+              Bei akuten Sorgen erreichen Sie die Telefonseelsorge unter{" "}
+              <strong>0800 1110111</strong>.
+            </span>
+          )}
+        </p>
+
+        <div className="my-6 border-t border-black/10" />
+
         <p className="font-['DM_Sans:Bold',sans-serif] font-bold text-app-text-primary text-lg mb-3">
           Ihre Einschätzung
         </p>
@@ -366,35 +755,71 @@ export default function ResultPage() {
             deshalb mit einem vorsichtigen medizinischen Fallback erzeugt.
           </p>
         )}
+
+        <button
+          type="button"
+          onClick={() => setIsExplanationOpen((isOpen) => !isOpen)}
+          className="mt-5 inline-flex items-center gap-2 rounded-[10px] border border-[#d8e0ea] bg-white/40 px-4 py-2 text-app-text-primary transition-all hover:border-[#486284] hover:bg-white/60"
+          aria-expanded={isExplanationOpen}
+        >
+          <span className="font-['DM_Sans:Bold',sans-serif] font-bold text-sm">
+            {isExplanationOpen ? "KI-Begründung ausblenden" : "KI-Begründung anzeigen"}
+          </span>
+          <ChevronDown
+            className={`size-4 flex-shrink-0 text-app-text-primary transition-transform ${
+              isExplanationOpen ? "rotate-180" : ""
+            }`}
+            aria-hidden="true"
+          />
+        </button>
+
+        {isExplanationOpen && (
+          <div className="mt-4 border-l-2 border-[#486284]/30 pl-4">
+            <p className="font-['DM_Sans:Bold',sans-serif] font-bold text-app-text-primary text-base mb-2">
+              KI-Begründung
+            </p>
+            {symptomText?.trim() && (
+                <p className="mb-3 font-['DM_Sans:Medium',sans-serif] font-medium text-base leading-relaxed">
+                  Ihre Eingabe: <span className="italic">„{symptomText.trim()}“</span>
+                </p>
+            )}
+            <div className="space-y-1.5">
+                <p>
+                    {professionalSummaryDraft.complaints}
+                </p>
+
+              {assessmentResult?.aiModel && (
+                  <p className="font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-body text-base leading-relaxed">
+                    Die Einschätzung wurde mit dem KI-Modell{" "}
+                    <strong>{assessmentResult.aiModel}</strong> durchgeführt. KI kann Fehler machen.
+                  </p>
+              )}
+            </div>
+          </div>
+        )}
       </div>
 
       {callAction && (
-        <a
-          href={callAction.href}
-          className="md:hidden mb-4 flex min-h-[56px] w-full items-center justify-center gap-3 rounded-[14px] px-5 py-3 text-app-text-on-primary shadow-sm transition-all hover:opacity-90"
-          style={{ backgroundColor: config.color }}
-          aria-label={callAction.label}
-        >
-          <PhoneCall className="size-5 flex-shrink-0" aria-hidden="true" />
-          <span className="font-['DM_Sans:Bold',sans-serif] font-bold text-base">
+          <a
+              href={callAction.href}
+              className="md:hidden mb-4 flex min-h-[56px] w-full items-center justify-center gap-3 rounded-[14px] px-5 py-3 text-app-text-on-primary shadow-sm transition-all hover:opacity-90"
+              style={{ backgroundColor: config.color }}
+              aria-label={callAction.label}
+          >
+            <PhoneCall className="size-5 flex-shrink-0" aria-hidden="true" />
+            <span className="font-['DM_Sans:Bold',sans-serif] font-bold text-base">
             {callAction.label}
           </span>
-          <span className="sr-only">{callAction.description}</span>
-        </a>
+            <span className="sr-only">{callAction.description}</span>
+          </a>
       )}
+      <NearbyPracticeSearch
+        careLevel={careLevel}
+        specialties={
+          assessmentResult?.recommendedSpecialties?.map((specialty) => specialty.specialty) ?? [recommendedSpecialty]
+        }
+      />
 
-      <div className="bg-[#eff2f6] rounded-[16px] p-5 md:p-6 mb-4">
-        <p className="font-['DM_Sans:Bold',sans-serif] font-bold text-app-text-primary text-lg mb-3">
-          Begründung
-        </p>
-        <ul className="space-y-1.5">
-          {explanationReasons.map((reason) => (
-            <li key={reason} className="font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-body text-sm leading-relaxed">
-              • {reason}
-            </li>
-          ))}
-        </ul>
-      </div>
 
       <div className="bg-white border-2 border-[#486284] rounded-[16px] p-5 md:p-6 mb-4">
         <div className="flex flex-col gap-3 mb-4 sm:flex-row sm:items-center sm:justify-between">
@@ -402,23 +827,47 @@ export default function ResultPage() {
             Ihre Angaben
           </p>
           <div className="flex flex-wrap gap-2">
-            <button
-              type="button"
-              onClick={handleStartSummaryEdit}
-              aria-label="medical-summary-bearbeiten"
-              className="inline-flex items-center justify-center gap-2 rounded-[10px] border border-[#486284] px-4 py-2 text-sm font-bold text-[#486284] transition-all hover:bg-[#eff2f6]"
-            >
-              <Edit3 className="size-4" aria-hidden="true" />
-              Bearbeiten
-            </button>
-            <button
-              type="button"
-              onClick={handlePdfDownload}
-              aria-label="download-summary"
-              className="bg-[#486284] text-app-text-on-primary rounded-[10px] px-4 py-2 hover:bg-[#3a4d68] transition-all"
-            >
-              PDF
-            </button>
+            {isEditingSummary ? (
+              <>
+                <button
+                  type="button"
+                  onClick={handleCancelSummaryEdit}
+                  className="inline-flex items-center justify-center gap-2 rounded-[10px] border border-[#d8e0ea] bg-white px-4 py-2 text-sm font-bold text-app-text-body transition-all hover:bg-[#eff2f6]"
+                >
+                  <X className="size-4 text-red-600" aria-hidden="true" />
+                  Abbrechen
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSaveSummaryEdit}
+                  className="inline-flex items-center justify-center gap-2 rounded-[10px] bg-[#486284] px-4 py-2 text-sm font-bold text-app-text-on-primary transition-all hover:bg-[#3a4d68]"
+                >
+                  <Check className="size-4" aria-hidden="true" />
+                  Speichern
+                </button>
+              </>
+            ) : (
+              <button
+                type="button"
+                onClick={handleStartSummaryEdit}
+                aria-label="medical-summary-bearbeiten"
+                className="inline-flex items-center justify-center gap-2 rounded-[10px] border border-[#486284] px-4 py-2 text-sm font-bold text-[#486284] transition-all hover:bg-[#eff2f6]"
+              >
+                <Edit3 className="size-4" aria-hidden="true" />
+                Bearbeiten
+              </button>
+            )}
+            {!isEditingSummary && (
+              <button
+                type="button"
+                onClick={handlePdfDownload}
+                aria-label="download-summary"
+                className="inline-flex items-center justify-center gap-2 bg-[#486284] text-app-text-on-primary rounded-[10px] px-4 py-2 hover:bg-[#3a4d68] transition-all"
+              >
+                <Download className="size-4" aria-hidden="true" />
+                PDF
+              </button>
+            )}
           </div>
         </div>
 
@@ -439,23 +888,247 @@ export default function ResultPage() {
           </div>
 
           <div className="bg-white rounded-[10px] p-3 border border-[#d8e0ea]">
+            <p className="text-xs text-app-text-subtle mb-2">Patientendaten</p>
+            {isEditingSummary && patientDataDraft ? (
+              <div className="grid gap-3 md:grid-cols-2">
+                <label className="block">
+                  <span className="text-[11px] font-medium text-app-text-subtle">Geburtsmonat</span>
+                  <input
+                    value={patientDataDraft.birthMonth}
+                    onChange={(event) => updatePatientDataDraft("birthMonth", event.target.value)}
+                    className="mt-1 w-full rounded-[8px] border border-[#d8e0ea] px-3 py-2 text-sm font-medium text-app-text-body outline-none focus:border-[#486284] focus:ring-2 focus:ring-[#486284]/20"
+                  />
+                </label>
+                <label className="block">
+                  <span className="text-[11px] font-medium text-app-text-subtle">Geburtsjahr</span>
+                  <input
+                    value={patientDataDraft.birthYear}
+                    onChange={(event) => updatePatientDataDraft("birthYear", event.target.value)}
+                    className="mt-1 w-full rounded-[8px] border border-[#d8e0ea] px-3 py-2 text-sm font-medium text-app-text-body outline-none focus:border-[#486284] focus:ring-2 focus:ring-[#486284]/20"
+                  />
+                </label>
+                <label className="block">
+                  <span className="text-[11px] font-medium text-app-text-subtle">Größe</span>
+                  <input
+                    value={patientDataDraft.height}
+                    onChange={(event) => updatePatientDataDraft("height", event.target.value)}
+                    className="mt-1 w-full rounded-[8px] border border-[#d8e0ea] px-3 py-2 text-sm font-medium text-app-text-body outline-none focus:border-[#486284] focus:ring-2 focus:ring-[#486284]/20"
+                  />
+                </label>
+                <label className="block">
+                  <span className="text-[11px] font-medium text-app-text-subtle">Gewicht</span>
+                  <input
+                    value={patientDataDraft.weight}
+                    onChange={(event) => updatePatientDataDraft("weight", event.target.value)}
+                    className="mt-1 w-full rounded-[8px] border border-[#d8e0ea] px-3 py-2 text-sm font-medium text-app-text-body outline-none focus:border-[#486284] focus:ring-2 focus:ring-[#486284]/20"
+                  />
+                </label>
+                <label className="block">
+                  <span className="text-[11px] font-medium text-app-text-subtle">Geschlecht</span>
+                  <select
+                    value={patientDataDraft.gender}
+                    onChange={(event) => updatePatientDataDraft("gender", event.target.value)}
+                    className="mt-1 w-full rounded-[8px] border border-[#d8e0ea] bg-white px-3 py-2 text-sm font-medium text-app-text-body outline-none focus:border-[#486284] focus:ring-2 focus:ring-[#486284]/20"
+                  >
+                    <option value="Weiblich">Weiblich</option>
+                    <option value="Männlich">Männlich</option>
+                    <option value="Divers">Divers</option>
+                  </select>
+                </label>
+                <div className="grid grid-cols-2 gap-3">
+                  <label className="flex items-center gap-2 rounded-[8px] border border-[#d8e0ea] px-3 py-2 text-sm font-bold text-app-text-body">
+                    <input
+                      type="checkbox"
+                      checked={patientDataDraft.isPregnant}
+                      onChange={(event) => updatePatientDataDraft("isPregnant", event.target.checked)}
+                    />
+                    Schwanger
+                  </label>
+                  <label className="flex items-center gap-2 rounded-[8px] border border-[#d8e0ea] px-3 py-2 text-sm font-bold text-app-text-body">
+                    <input
+                      type="checkbox"
+                      checked={patientDataDraft.isBreastfeeding}
+                      onChange={(event) => updatePatientDataDraft("isBreastfeeding", event.target.checked)}
+                    />
+                    Stillzeit
+                  </label>
+                </div>
+                <label className="block">
+                  <span className="text-[11px] font-medium text-app-text-subtle">Allergien</span>
+                  <input
+                    value={patientDataDraft.allergies}
+                    onChange={(event) => updatePatientDataDraft("allergies", event.target.value)}
+                    className="mt-1 w-full rounded-[8px] border border-[#d8e0ea] px-3 py-2 text-sm font-medium text-app-text-body outline-none focus:border-[#486284] focus:ring-2 focus:ring-[#486284]/20"
+                  />
+                </label>
+                <label className="block">
+                  <span className="text-[11px] font-medium text-app-text-subtle">Medikamente</span>
+                  <input
+                    value={patientDataDraft.medications}
+                    onChange={(event) => updatePatientDataDraft("medications", event.target.value)}
+                    className="mt-1 w-full rounded-[8px] border border-[#d8e0ea] px-3 py-2 text-sm font-medium text-app-text-body outline-none focus:border-[#486284] focus:ring-2 focus:ring-[#486284]/20"
+                  />
+                </label>
+                <div className="block">
+                  <span className="text-[11px] font-medium text-app-text-subtle">Substanzbeeinflussung</span>
+                  <select
+                    value={patientDataDraft.substanceInfluence.trim().toLowerCase() === "nein" || !patientDataDraft.substanceInfluence.trim() ? "Nein" : "Ja"}
+                    onChange={(event) => updatePatientDataDraft("substanceInfluence", event.target.value === "Ja" ? SUBSTANCE_OPTIONS[0] : "Nein")}
+                    className="mt-1 w-full rounded-[8px] border border-[#d8e0ea] bg-white px-3 py-2 text-sm font-medium text-app-text-body outline-none focus:border-[#486284] focus:ring-2 focus:ring-[#486284]/20"
+                  >
+                    <option value="Nein">Nein</option>
+                    <option value="Ja">Ja</option>
+                  </select>
+                  {patientDataDraft.substanceInfluence.trim().toLowerCase() !== "nein" && patientDataDraft.substanceInfluence.trim() && (
+                    <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                      <select
+                        value={SUBSTANCE_OPTIONS.includes(patientDataDraft.substanceInfluence) ? patientDataDraft.substanceInfluence : "Andere"}
+                        onChange={(event) => updatePatientDataDraft("substanceInfluence", event.target.value)}
+                        className="w-full rounded-[8px] border border-[#d8e0ea] bg-white px-3 py-2 text-sm font-medium text-app-text-body outline-none focus:border-[#486284] focus:ring-2 focus:ring-[#486284]/20"
+                      >
+                        {SUBSTANCE_OPTIONS.map((substance) => (
+                          <option key={substance} value={substance}>{substance}</option>
+                        ))}
+                      </select>
+                      <input
+                        value={SUBSTANCE_OPTIONS.includes(patientDataDraft.substanceInfluence) ? "" : patientDataDraft.substanceInfluence}
+                        onChange={(event) => updatePatientDataDraft("substanceInfluence", event.target.value)}
+                        placeholder="Welche Substanz?"
+                        className="w-full rounded-[8px] border border-[#d8e0ea] px-3 py-2 text-sm font-medium text-app-text-body outline-none focus:border-[#486284] focus:ring-2 focus:ring-[#486284]/20"
+                      />
+                    </div>
+                  )}
+                </div>
+                <div className="grid gap-3 md:col-span-2 md:grid-cols-[auto_1fr_1fr]">
+                  <label className="flex items-center gap-2 rounded-[8px] border border-[#d8e0ea] px-3 py-2 text-sm font-bold text-app-text-body">
+                    <input
+                      type="checkbox"
+                      checked={patientDataDraft.recentAbroad}
+                      onChange={(event) => {
+                        updatePatientDataDraft("recentAbroad", event.target.checked);
+
+                        if (!event.target.checked) {
+                          setTravelCountryDraft("");
+                          setTravelStartDateDraft("");
+                          setTravelEndDateDraft("");
+                        }
+                      }}
+                    />
+                    Auslandsreise
+                  </label>
+                  <label className="block">
+                    <span className="text-[11px] font-medium text-app-text-subtle">Wo</span>
+                    <input
+                      list="travel-country-options"
+                      value={travelCountryDraft}
+                      onChange={(event) => setTravelCountryDraft(event.target.value)}
+                      disabled={!patientDataDraft.recentAbroad}
+                      className="mt-1 w-full rounded-[8px] border border-[#d8e0ea] px-3 py-2 text-sm font-medium text-app-text-body outline-none focus:border-[#486284] focus:ring-2 focus:ring-[#486284]/20"
+                    />
+                    <datalist id="travel-country-options">
+                      {TRAVEL_COUNTRIES.map((country) => (
+                        <option key={country} value={country} />
+                      ))}
+                    </datalist>
+                  </label>
+                  <label className="block">
+                    <span className="text-[11px] font-medium text-app-text-subtle">Von</span>
+                    <input
+                      type="date"
+                      value={travelStartDateDraft}
+                      onChange={(event) => setTravelStartDateDraft(event.target.value)}
+                      disabled={!patientDataDraft.recentAbroad}
+                      className="mt-1 w-full rounded-[8px] border border-[#d8e0ea] px-3 py-2 text-sm font-medium text-app-text-body outline-none focus:border-[#486284] focus:ring-2 focus:ring-[#486284]/20"
+                    />
+                  </label>
+                  <label className="block md:col-start-3">
+                    <span className="text-[11px] font-medium text-app-text-subtle">Bis</span>
+                    <input
+                      type="date"
+                      value={travelEndDateDraft}
+                      min={travelStartDateDraft || undefined}
+                      onChange={(event) => setTravelEndDateDraft(event.target.value)}
+                      disabled={!patientDataDraft.recentAbroad}
+                      className="mt-1 w-full rounded-[8px] border border-[#d8e0ea] px-3 py-2 text-sm font-medium text-app-text-body outline-none focus:border-[#486284] focus:ring-2 focus:ring-[#486284]/20"
+                    />
+                  </label>
+                </div>
+                <label className="block md:col-span-2">
+                  <span className="text-[11px] font-medium text-app-text-subtle">Vorerkrankungen</span>
+                  <input
+                    value={conditionListDraft}
+                    onChange={(event) => setConditionListDraft(event.target.value)}
+                    className="mt-1 w-full rounded-[8px] border border-[#d8e0ea] px-3 py-2 text-sm font-medium text-app-text-body outline-none focus:border-[#486284] focus:ring-2 focus:ring-[#486284]/20"
+                  />
+                </label>
+                <div className="grid gap-3 md:col-span-2 md:grid-cols-[auto_1fr_1fr]">
+                  <label className="flex items-center gap-2 rounded-[8px] border border-[#d8e0ea] px-3 py-2 text-sm font-bold text-app-text-body">
+                    <input
+                      type="checkbox"
+                      checked={patientDataDraft.isSmoker}
+                      onChange={(event) => updatePatientDataDraft("isSmoker", event.target.checked)}
+                    />
+                    Raucher
+                  </label>
+                  <label className="block">
+                    <span className="text-[11px] font-medium text-app-text-subtle">Rauchdauer</span>
+                    <input
+                      value={patientDataDraft.smokingSinceYears}
+                      onChange={(event) => updatePatientDataDraft("smokingSinceYears", event.target.value)}
+                      className="mt-1 w-full rounded-[8px] border border-[#d8e0ea] px-3 py-2 text-sm font-medium text-app-text-body outline-none focus:border-[#486284] focus:ring-2 focus:ring-[#486284]/20"
+                    />
+                  </label>
+                  <label className="block">
+                    <span className="text-[11px] font-medium text-app-text-subtle">Zigaretten pro Tag</span>
+                    <input
+                      value={patientDataDraft.cigarettesPerDay}
+                      onChange={(event) => updatePatientDataDraft("cigarettesPerDay", event.target.value)}
+                      className="mt-1 w-full rounded-[8px] border border-[#d8e0ea] px-3 py-2 text-sm font-medium text-app-text-body outline-none focus:border-[#486284] focus:ring-2 focus:ring-[#486284]/20"
+                    />
+                  </label>
+                </div>
+              </div>
+            ) : patientDataRows.length > 0 ? (
+              <dl className="grid gap-x-4 gap-y-2 md:grid-cols-2">
+                {patientDataRows.map((row) => (
+                  <div key={row.label} className="min-w-0">
+                    <dt className="text-[11px] font-medium text-app-text-subtle">{row.label}</dt>
+                    <dd className="break-words font-['DM_Sans:Bold',sans-serif] text-sm font-bold text-app-text-body">
+                      {row.value}
+                    </dd>
+                  </div>
+                ))}
+              </dl>
+            ) : (
+              <p className="font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-body text-xs leading-relaxed">
+                Keine Patientendaten angegeben.
+              </p>
+            )}
+          </div>
+
+          <div className="bg-white rounded-[10px] p-3 border border-[#d8e0ea]">
             <p className="text-xs text-app-text-subtle mb-1">Beschwerden</p>
-            <p className="font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-body text-xs leading-relaxed">
-              {symptomDetails.length > 0
-                ? symptomDetails
-                    .map((symptom) => {
+            <div className="space-y-2 font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-body text-xs leading-relaxed">
+              {symptomDetails.length > 0 ? (
+                symptomDetails.map((symptom) => {
                       const label = symptom.side
                         ? `${symptom.region} (${symptom.side})`
                         : symptom.region;
+                      const details = symptom.details ? `, Details: ${symptom.details}` : "";
 
-                      return `${label}: ${getMeasurementSummary(symptom)}${
-                        symptom.duration ? `, ${getDurationLabel(symptom.duration)}` : ""
-                      }`;
+                      return (
+                        <p key={`${label}-${symptom.details ?? ""}-${symptom.measurementType}-${symptom.measurementValue}-${symptom.duration ?? ""}`}>
+                          {label}{details}: {getMeasurementSummary(symptom)}
+                          {symptom.duration ? `, ${getDurationLabel(symptom.duration)}` : ""}
+                        </p>
+                      );
                     })
-                    .join("; ")
-                : "Keine Beschwerden angegeben."}
-            </p>
+              ) : (
+                <p>Keine Beschwerden angegeben.</p>
+              )}
+            </div>
           </div>
+
         </div>
 
         <div className="bg-white rounded-[12px] p-4 border border-[#d8e0ea] mb-4">
@@ -463,45 +1136,10 @@ export default function ResultPage() {
             <p className="font-['DM_Sans:Bold',sans-serif] font-bold text-app-text-primary text-base">
               Medical Summary
             </p>
-            {isEditingSummary && (
-              <div className="flex gap-2">
-                <button
-                  type="button"
-                  onClick={handleCancelSummaryEdit}
-                  className="rounded-[10px] border border-[#d8e0ea] px-3 py-1.5 text-sm font-bold text-app-text-body transition-all hover:bg-[#eff2f6]"
-                >
-                  Abbrechen
-                </button>
-                <button
-                  type="button"
-                  onClick={handleSaveSummaryEdit}
-                  className="rounded-[10px] bg-[#486284] px-3 py-1.5 text-sm font-bold text-app-text-on-primary transition-all hover:bg-[#3a4d68]"
-                >
-                  Speichern
-                </button>
-              </div>
-            )}
           </div>
 
           {isEditingSummary ? (
             <div className="space-y-4">
-              <div>
-                <p className="mb-2 font-['DM_Sans:Bold',sans-serif] text-sm font-bold text-app-text-body">
-                  Patientendaten:
-                </p>
-                <textarea
-                  value={professionalSummaryDraft.patientData}
-                  onChange={(event) =>
-                    setProfessionalSummaryDraft((currentDraft) => ({
-                      ...currentDraft,
-                      patientData: event.target.value,
-                    }))
-                  }
-                  aria-label="Patientendaten bearbeiten"
-                  className="min-h-[96px] w-full resize-y rounded-[10px] border border-[#d8e0ea] bg-white p-3 font-['DM_Sans:Medium',sans-serif] text-sm leading-relaxed text-app-text-body outline-none transition-all focus:border-[#486284] focus:ring-2 focus:ring-[#486284]/20"
-                />
-              </div>
-
               <div>
                 <p className="mb-2 font-['DM_Sans:Bold',sans-serif] text-sm font-bold text-app-text-body">
                   Beschwerden:
@@ -540,22 +1178,6 @@ export default function ResultPage() {
         </div>
       </div>
 
-      <div className="bg-[#FEF3C7] border-l-4 border-[#F59E0B] rounded-[16px] p-5 md:p-6 mt-4">
-        <p className="font-['DM_Sans:Bold',sans-serif] font-bold text-app-text-warning-strong text-base mb-2">
-          Wichtiger Hinweis
-        </p>
-        <p className="font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-warning-strong text-sm leading-relaxed">
-          Diese Einschätzung ist <strong>keine medizinische Diagnose</strong> und ersetzt nicht den Besuch bei einem Arzt.
-          KI-Systeme können Fehler machen. Bei Unsicherheit oder Verschlechterung Ihres Zustands suchen Sie bitte
-          umgehend medizinische Hilfe.
-          {assessmentResult?.aiModel && (
-            <>
-              {" "}
-              Die Triage wurde mit dem KI-Modell <strong>{assessmentResult.aiModel}</strong> durchgeführt.
-            </>
-          )}
-        </p>
-      </div>
 
       <div className="mt-6 mb-6">
         <Button onClick={handleReset}>

@@ -1,16 +1,11 @@
 import PDFDocument from 'pdfkit'
-import { Buffer } from 'node:buffer'
-import { existsSync } from 'node:fs'
-import { join } from 'node:path'
+import {Buffer} from 'node:buffer'
+import {existsSync} from 'node:fs'
+import {join} from 'node:path'
 
-import type { PatientData } from '../../../../shared/patientData.types.js'
-import type { TriageSymptom } from '../../../../shared/symptom.types.js'
-import type {
-  PdfExportRequest,
-  PdfExportResult,
-  PdfSection,
-  PdfTriageResult,
-} from './pdf.types.js'
+import type {PatientData} from '../../../../shared/patientData.types.js'
+import type {TriageSymptom} from '../../../../shared/symptom.types.js'
+import type {PdfExportRequest, PdfExportResult, PdfSection, PdfTriageResult,} from './pdf.types.js'
 
 type PdfDoc = InstanceType<typeof PDFDocument>
 
@@ -58,6 +53,12 @@ const PAGE = {
   bottom: 54,
 }
 
+/**
+ * Maps internal care-level identifiers to the wording shown in the PDF header.
+ *
+ * This keeps the exported document patient-readable while preserving the typed
+ * care-level contract used by the API.
+ */
 function formatCareLevel(careLevel: PdfTriageResult['careLevel']): string {
   switch (careLevel) {
     case 'emergency':
@@ -94,6 +95,12 @@ function formatGender(value: string): string {
   }
 }
 
+/**
+ * Normalizes common ASCII spellings that can come from prompts or fallbacks.
+ *
+ * The PDF is a patient-facing artifact, so it should prefer proper German
+ * characters even when upstream service text uses ue/ae/oe fallbacks.
+ */
 function normalizeGermanText(value: string): string {
   return value
     .replace(/Groesse/g, 'Größe')
@@ -118,6 +125,12 @@ function normalizeGermanText(value: string): string {
     .replace(/schilddruesenunterfunktion/g, 'Schilddrüsenunterfunktion')
 }
 
+/**
+ * Cleans an individual triage reason before it is joined into prose.
+ *
+ * Reasons may already contain punctuation depending on whether they came from
+ * local fallbacks or AI output, so the formatter standardizes the ending.
+ */
 function formatReason(reason: string): string {
   const cleanedReason = normalizeGermanText(reason)
     .trim()
@@ -147,32 +160,75 @@ function formatValue(value?: string | number | null): string {
   return String(value)
 }
 
-function formatConditionDetail(condition: string, detail: string): string {
-  const cleanCondition = normalizeGermanText(condition).trim()
-  const cleanDetail = normalizeGermanText(detail).trim()
+function formatIsoDate(value: string): string {
+  const match = value.match(/^(\d{4})-(\d{2})-(\d{2})$/)
 
-  if (cleanDetail.length === 0) {
-    return ''
+  if (!match) {
+    return value
   }
 
-  if (/^(sonstige|sonstiges|other)$/i.test(cleanCondition)) {
-    return cleanDetail.replace(/^(sonstige|sonstiges|other)\s*:\s*/i, '')
-  }
-
-  return cleanDetail.toLowerCase().startsWith(`${cleanCondition.toLowerCase()}:`)
-    ? cleanDetail
-    : `${cleanCondition}: ${cleanDetail}`
+  return `${match[3]}.${match[2]}.${match[1]}`
 }
 
+function splitTravelDetails(details: string) {
+  const [country = '', startDate = '', endDate = ''] = details.split('|').map((part) => part.trim())
+
+  if (startDate || endDate) {
+    return { country, startDate, endDate }
+  }
+
+  return { country: details.trim(), startDate: '', endDate: '' }
+}
+
+function formatTravelDisplay(value: string): string {
+  const { country, startDate, endDate } = splitTravelDetails(value)
+  const formattedStartDate = startDate ? formatIsoDate(startDate) : ''
+  const formattedEndDate = endDate ? formatIsoDate(endDate) : ''
+
+  if (country && formattedStartDate && formattedEndDate) {
+    return `${country}, ${formattedStartDate} bis ${formattedEndDate}`
+  }
+
+  if (country && formattedStartDate) {
+    return `${country}, ab ${formattedStartDate}`
+  }
+
+  if (country && formattedEndDate) {
+    return `${country}, bis ${formattedEndDate}`
+  }
+
+  return country || formattedStartDate || formattedEndDate || value
+}
+
+function formatRecentAbroad(data: PatientData): string {
+  if (!data.recentAbroad) {
+    return 'Nein'
+  }
+
+  return formatTravelDisplay(data.recentAbroadDetails) || 'Ja'
+}
+
+function normalizeTravelSummaryLine(line: string): string {
+  return line.replace(
+    /^(Reise ins Ausland|Auslandsreise|Auslandsaufenthalt(?: letzte 3 Monate)?):\s*(.+)$/i,
+    (match, label: string, value: string) => {
+      const formattedValue = formatTravelDisplay(value)
+
+      return formattedValue ? `${label}: ${formattedValue}` : match
+    },
+  )
+}
+
+/**
+ * Builds the patient-data block used when no structured professional summary exists.
+ *
+ * The output intentionally includes negative answers for important risk fields
+ * so the PDF documents what was asked, not only what was positive.
+ */
 function summarizePatient(data?: PatientData): string {
   if (!data) {
     return 'Keine Stammdaten vorhanden.'
   }
-
-  const conditionDetails = Object.entries(data.conditionDetails)
-    .filter(([, detail]) => detail?.trim().length > 0)
-    .map(([condition, detail]) => formatConditionDetail(condition, detail))
-    .filter((detail) => detail.length > 0)
 
   return [
     `Geburtsdatum: ${formatValue(data.birthMonth)}/${formatValue(data.birthYear)}`,
@@ -183,16 +239,15 @@ function summarizePatient(data?: PatientData): string {
     `Stillzeit: ${data.isBreastfeeding ? 'Ja' : 'Nein'}`,
     `Allergien: ${data.allergies || '-'}`,
     `Medikamente: ${data.medications || '-'}`,
+    `Einahmedauer Medikamente: ${data.medicationDuration || '-'}`,
     `Substanzbeeinflussung: ${data.substanceInfluence || 'Nein'}`,
-    `Reise ins Ausland: ${data.recentAbroad ? data.recentAbroadDetails || 'Ja' : 'Nein'
-    }`,
+    `Reise ins Ausland: ${formatRecentAbroad(data)}`,
     data.conditions.length > 0
       ? `Vorerkrankungen: ${data.conditions.join(', ')}`
       : 'Vorerkrankungen: —',
     `Raucher: ${data.isSmoker ? 'Ja' : 'Nein'}`,
     data.isSmoker ? `Rauchdauer: ${data.smokingSinceYears || '—'}` : null,
     data.isSmoker ? `Zigaretten pro Tag: ${data.cigarettesPerDay || '—'}` : null,
-    conditionDetails.length > 0 ? `Details zu Vorerkrankungen: ${conditionDetails.join('; ')}` : null,
   ].filter((line): line is string => line !== null).join('\n')
 }
 
@@ -227,6 +282,12 @@ function formatMeasurement(symptom: TriageSymptom): string | null {
   return `Schmerzstärke: ${symptom.measurementValue}/10`
 }
 
+/**
+ * Formats symptoms as a readable multi-line complaint block for the PDF.
+ *
+ * Each symptom is separated by a blank line so measurement and duration details
+ * remain visually grouped in the exported document.
+ */
 function summarizeSymptoms(symptoms?: TriageSymptom[]): string {
   if (!symptoms || symptoms.length === 0) {
     return 'Keine Beschwerden vorhanden.'
@@ -236,6 +297,7 @@ function summarizeSymptoms(symptoms?: TriageSymptom[]): string {
     .map((symptom, index) => {
       const detailLines = [
         `${index + 1}. ${symptomLabel(symptom)}`,
+        symptom.details ? `Details: ${symptom.details}` : null,
         formatMeasurement(symptom),
         formatDuration(symptom.duration) ? `Dauer: ${formatDuration(symptom.duration)}` : null,
       ].filter((part): part is string => part !== null)
@@ -245,6 +307,12 @@ function summarizeSymptoms(symptoms?: TriageSymptom[]): string {
     .join('\n\n')
 }
 
+/**
+ * Removes the short preselection section from backend-generated summaries.
+ *
+ * The detailed active symptom section carries better information for the PDF,
+ * so keeping both would make the complaint block repetitive.
+ */
 function removeSelectedSymptomBlock(lines: string[]): string[] {
   const cleanedLines: string[] = []
   let skipSelectedSymptoms = false
@@ -272,6 +340,12 @@ function removeSelectedSymptomBlock(lines: string[]): string[] {
   return cleanedLines
 }
 
+/**
+ * Normalizes patient summary lines into the current PDF section format.
+ *
+ * Older summaries can contain separate birth-month and birth-year lines; this
+ * combines them into the single birth-date row shown in the export.
+ */
 function normalizePatientSummaryLines(lines: string[]): string[] {
   const normalizedLines: string[] = []
   let birthMonth: string | null = null
@@ -290,6 +364,10 @@ function normalizePatientSummaryLines(lines: string[]): string[] {
       return
     }
 
+    if (/^Details zu(?:r|) Vorerkrankung(?:en)?:/i.test(trimmedLine)) {
+      return
+    }
+
     if (birthMonthMatch) {
       birthMonth = birthMonthMatch[1]?.trim() ?? null
       return
@@ -301,9 +379,11 @@ function normalizePatientSummaryLines(lines: string[]): string[] {
     }
 
     normalizedLines.push(
-      trimmedLine
+      normalizeTravelSummaryLine(trimmedLine)
         .replace(/^Details zu Vorerkrankungen:\s*Sonstige(?:s)?\s*:\s*/i, 'Details zu Vorerkrankungen: ')
-        .replace(/^Details zur Vorerkrankung:\s*Sonstige(?:s)?\s*:\s*/i, 'Details zu Vorerkrankungen: '),
+        .replace(/^Details zur Vorerkrankung:\s*Sonstige(?:s)?\s*:\s*/i, 'Details zu Vorerkrankungen: ')
+        .replace(/^Details zu Vorerkrankungen:\s*([^:;]+):\s*/i, 'Details zu Vorerkrankungen: ')
+        .replace(/^Details zur Vorerkrankung:\s*([^:;]+):\s*/i, 'Details zu Vorerkrankungen: '),
     )
   })
 
@@ -314,10 +394,23 @@ function normalizePatientSummaryLines(lines: string[]): string[] {
   return normalizedLines
 }
 
+/**
+ * Splits compact symptom detail rows into separate PDF lines.
+ *
+ * Backend fallback summaries often encode symptom, measurement, and duration on
+ * one comma-separated line; the PDF layout reads better when they are separated.
+ */
 function normalizeComplaintSummaryLines(lines: string[]): string[] {
   return removeSelectedSymptomBlock(lines)
     .map((line) => normalizeGermanText(line.trim()))
     .filter((line) => line.length > 0)
+    .flatMap((line) =>
+      line
+        .replace(/\s+(?=(Vorerkrankungen|Risikofaktoren|Indikation)\b)/g, '\n')
+        .split('\n')
+        .map((part) => part.trim())
+        .filter((part) => part.length > 0),
+    )
     .flatMap((line) => {
       const detailMatch = line.match(/^(\d+\.\s*[^,]+),\s*(.+)$/)
 
@@ -335,16 +428,37 @@ function normalizeComplaintSummaryLines(lines: string[]): string[] {
     })
 }
 
+function extractComplaintsFromStructuredSummary(summary: string): string {
+  const cleanedSummary = cleanStructuredProfessionalSummary(summary)
+  const complaintMatch = cleanedSummary.match(/(?:^|\n)Beschwerden:\n([\s\S]*)$/i)
+
+  return complaintMatch?.[1]?.trim() || 'Keine Beschwerden vorhanden.'
+}
+
+function extractPatientFromStructuredSummary(summary: string): string {
+  const cleanedSummary = cleanStructuredProfessionalSummary(summary)
+  const patientMatch = cleanedSummary.match(/(?:^|\n)Patientendaten:\n([\s\S]*?)(?:\n\nBeschwerden:|$)/i)
+
+  return patientMatch?.[1]?.trim() || 'Keine Stammdaten vorhanden.'
+}
+
 function hasMedicalSummaryStructure(summary: string): boolean {
   return /(^|\n)\s*(Patientendaten|Stammdaten|Beschwerden|Ausgewählte Symptome|Ausgewaehlte Symptome|Detailangaben zu aktiven Symptomen)\s*:/i.test(summary)
 }
 
+/**
+ * Cleans a structured professional summary before it is embedded in the PDF.
+ *
+ * The parser accepts both current and older heading names because summaries may
+ * be produced by backend fallbacks, AI responses, or user edits in the frontend.
+ */
 function cleanStructuredProfessionalSummary(summary: string): string {
   const patientLines: string[] = []
   const complaintLines: string[] = []
   let activeSection: 'patientData' | 'complaints' | null = null
   let skipSelectedSymptoms = false
 
+  // Rebuild only the patient and complaint sections to avoid duplicating the selection summary in the PDF.
   normalizeGermanText(summary)
     .split('\n')
     .forEach((line) => {
@@ -398,39 +512,43 @@ function cleanStructuredProfessionalSummary(summary: string): string {
   ].join('\n')
 }
 
-function summarizeCareReason(triage?: PdfTriageResult): string {
-  if (!triage) {
+function summarizeCareReason(request: PdfExportRequest): string {
+  const plainLanguageSummary = normalizeGermanText(request.reviewSummary.plainLanguage).trim()
+
+  if (plainLanguageSummary.length > 0) {
+    return `Begründung der Empfehlung: \n${plainLanguageSummary}`
+  }
+
+  if (!request.triage) {
     return 'Begründung der Empfehlung: Keine Begründung vorhanden.'
   }
 
-  switch (triage.careLevel) {
-    case 'emergency':
-      return 'Begründung der Empfehlung: \nIhre ausgewählten Symptome deuten auf einen Notfall hin. Weitere Informationen finden Sie unter gesund.bund.de.'
-
-    case 'doctor':
-      return 'Begründung der Empfehlung: \nIhre Angaben sprechen für Beschwerden, die ärztlich abgeklärt werden sollten. Deshalb wird eine hausärztliche Abklärung empfohlen.'
-
-    case 'specialist':
-      return 'Begründung der Empfehlung: \nIhre Angaben sprechen für Beschwerden, die fachärztlich abgeklärt werden sollten. Deshalb wird eine fachärztliche Versorgung empfohlen.'
-
-    case 'selfcare':
-      return 'Begründung der Empfehlung: \nIhre Angaben sprechen derzeit eher für eine Selbstversorgung. Beobachten Sie Ihre Beschwerden weiter. Bei Verschlechterung, starken Beschwerden oder Unsicherheit sollten Sie medizinische Hilfe suchen.'
-
-    default:
-      return `Begründung der Empfehlung: ${formatReasons(triage.reasons)}`
-  }
+  return `Begründung der Empfehlung: ${formatReasons(request.triage.reasons)}`
 }
 
+/**
+ * Chooses the best source for the PDF's medical overview section.
+ *
+ * Edited professional summaries win when they have recognizable headings;
+ * otherwise the overview is rebuilt from structured patient and symptom data.
+ */
 function summarizeMedicalOverview(request: PdfExportRequest): string {
   const rawProfessionalSummary = normalizeGermanText(
     request.reviewSummary.professionalSummary,
   ).trim()
 
+  // Preserve clinician-edited structured summaries, but normalize them into the PDF section format.
   if (rawProfessionalSummary.length > 0 && hasMedicalSummaryStructure(rawProfessionalSummary)) {
     return [
-      cleanStructuredProfessionalSummary(rawProfessionalSummary),
+      'Patientendaten:',
+      request.patientData
+        ? summarizePatient(request.patientData)
+        : extractPatientFromStructuredSummary(rawProfessionalSummary),
       '',
-      summarizeCareReason(request.triage),
+      'Beschwerden:',
+      extractComplaintsFromStructuredSummary(rawProfessionalSummary),
+      '',
+      summarizeCareReason(request),
     ].join('\n')
   }
 
@@ -441,10 +559,16 @@ function summarizeMedicalOverview(request: PdfExportRequest): string {
     'Beschwerden:',
     summarizeSymptoms(request.symptoms),
     '',
-    summarizeCareReason(request.triage),
+    summarizeCareReason(request),
   ].join('\n')
 }
 
+/**
+ * Defines the ordered PDF sections.
+ *
+ * The medical overview stays first because it is the primary artifact, while
+ * the warning remains a separate card for visual emphasis.
+ */
 function buildSections(request: PdfExportRequest): PdfSection[] {
   return [
     {
@@ -463,9 +587,16 @@ function formatGeneratedAt(value: string): string {
   return new Intl.DateTimeFormat('de-DE', {
     dateStyle: 'medium',
     timeStyle: 'short',
+    timeZone: 'Europe/Berlin',
   }).format(new Date(value))
 }
 
+/**
+ * Collects PDFKit stream chunks into a single Buffer.
+ *
+ * PDFKit writes asynchronously, so callers must start collection before drawing
+ * content and await the promise after doc.end().
+ */
 function collectPdfBuffer(doc: PdfDoc): Promise<Buffer> {
   return new Promise((resolve, reject) => {
     const chunks: Buffer[] = []
@@ -486,6 +617,12 @@ function paintPageBackground(doc: PdfDoc): void {
   doc.rect(0, 0, doc.page.width, doc.page.height).fill(THEME.background)
 }
 
+/**
+ * Draws the repeating document header for the first page.
+ *
+ * The logo is optional so local development and production builds can still
+ * export PDFs even if the asset is missing from the runtime image.
+ */
 function addHeader(
   doc: PdfDoc,
   generatedAt: string,
@@ -539,11 +676,17 @@ function addHeader(
         valign: 'center',
       })
     } catch {
-      // Falls das Logo nicht geladen werden kann, wird es übersprungen.
+      // Skip the logo if the asset cannot be loaded.
     }
   }
 }
 
+/**
+ * Adds a footer after all pages are known.
+ *
+ * Page numbers are written in a second pass because PDFKit only knows the final
+ * page count after content rendering has finished.
+ */
 function addFooter(doc: PdfDoc, pageNumber: number, totalPages: number): void {
   const footerY = doc.page.height - 34
   const contentWidth = doc.page.width - PAGE.marginX * 2
@@ -574,6 +717,12 @@ function addFooter(doc: PdfDoc, pageNumber: number, totalPages: number): void {
     })
 }
 
+/**
+ * Starts a new page when the next card would overflow the printable area.
+ *
+ * This keeps cards intact instead of splitting rounded backgrounds across page
+ * boundaries, which would make the medical summary harder to scan.
+ */
 function ensureSpace(doc: PdfDoc, neededHeight: number): void {
   const maxY = doc.page.height - PAGE.bottom
 
@@ -615,10 +764,22 @@ function addIntroBox(doc: PdfDoc): void {
   doc.y = y + boxHeight + 16
 }
 
+/**
+ * Strips Markdown URLs before measuring card height.
+ *
+ * The visible PDF text only displays link labels, so measurement must use the
+ * same text that will be rendered to avoid oversized cards.
+ */
 function removeMarkdownLinkUrls(value: string): string {
   return value.replace(/\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g, '$1')
 }
 
+/**
+ * Renders one line of text with inline clickable links.
+ *
+ * PDFKit does not parse Markdown links automatically, so this function splits
+ * the line into styled text runs and attaches link targets manually.
+ */
 function renderTextWithLinks(
   doc: PdfDoc,
   line: string,
@@ -636,6 +797,7 @@ function renderTextWithLinks(
   let lastIndex = 0
   let match: RegExpExecArray | null
 
+  // Split linkable phrases from plain text because PDFKit applies link styling per text run.
   while ((match = linkPattern.exec(line)) !== null) {
     const linkText = match[1] ?? match[2] ?? match[3] ?? ''
     const linkUrl = match[4] ?? EMERGENCY_INFO_URL
@@ -738,6 +900,12 @@ function renderTextWithLinks(
   doc.fillColor(THEME.text).font('Helvetica').fontSize(10)
 }
 
+/**
+ * Draws one rounded PDF section card and renders its formatted text.
+ *
+ * Height is calculated before drawing because PDFKit cannot auto-layout a card
+ * background around content after the text has already been written.
+ */
 function addSectionCard(
   doc: PdfDoc,
   section: PdfSection,
@@ -790,9 +958,7 @@ function addSectionCard(
   doc.fillColor(THEME.text).font('Helvetica').fontSize(10)
 
   const contentX = x + padding
-  const contentY = y + padding + titleHeight + 8
-
-  doc.y = contentY
+  doc.y = y + padding + titleHeight + 8
 
   section.content.split('\n').forEach((line) => {
     if (line.trim().length === 0) {
@@ -802,6 +968,7 @@ function addSectionCard(
 
     const headingMatch = line.trim().match(/^([^:]+:)(\s*)(.*)$/)
 
+    // Render "Label: value" lines with bold labels while keeping inline links clickable.
     if (headingMatch) {
       const prefix = headingMatch[1] ?? ''
       const spacing = headingMatch[2] ?? ''
@@ -831,6 +998,12 @@ function addSectionCard(
   doc.y = y + cardHeight + 14
 }
 
+/**
+ * Draws all visible PDF content before page numbers are added.
+ *
+ * The warning section receives separate colors here so the data-building layer
+ * does not need to know about presentation styling.
+ */
 function addPdfContent(
   doc: PdfDoc,
   request: PdfExportRequest,
@@ -855,6 +1028,12 @@ function addPdfContent(
   })
 }
 
+/**
+ * Adds final page numbers to every buffered page.
+ *
+ * This function must run after addPdfContent because it switches between pages
+ * that PDFKit has already buffered.
+ */
 function addPageNumbers(doc: PdfDoc): void {
   const range = doc.bufferedPageRange()
   const totalPages = range.count
@@ -865,6 +1044,12 @@ function addPageNumbers(doc: PdfDoc): void {
   }
 }
 
+/**
+ * Public PDF export entry point.
+ *
+ * It builds sections, renders the buffered PDF, adds page numbers, and returns
+ * a base64 payload that the frontend can download without handling binary data.
+ */
 export async function createPdfSummary(
   request: PdfExportRequest,
 ): Promise<PdfExportResult> {

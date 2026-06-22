@@ -21,6 +21,7 @@ interface SymptomButtonGridProps {
   showOtherOption?: boolean;
   onOtherClick?: () => void;
   inlineOptions?: boolean;
+  disableSelectedRegions?: boolean;
 }
 
 export default function SymptomButtonGrid({
@@ -30,6 +31,7 @@ export default function SymptomButtonGrid({
   showOtherOption = false,
   onOtherClick,
   inlineOptions = false,
+  disableSelectedRegions = false,
 }: SymptomButtonGridProps) {
   const [expandedRegion, setExpandedRegion] = useState<string | null>(null);
 
@@ -53,6 +55,12 @@ export default function SymptomButtonGrid({
   };
 
   const handleOptionClick = (regionName: string, option: string) => {
+    const symptomKey = `${regionName} (${option})`;
+
+    if (disableSelectedRegions && selectedRegions.includes(symptomKey)) {
+      return;
+    }
+
     onRegionSelect(regionName, option);
     setExpandedRegion(null);
   };
@@ -71,6 +79,23 @@ export default function SymptomButtonGrid({
     }
 
     return isRegionSelected(region.name);
+  };
+
+
+  const isItemExactSelected = (region: SymptomGridItem) => {
+    if ("isInlineOption" in region) {
+      if ("options" in region && region.options?.length) {
+        return false;
+      }
+
+      return selectedRegions.includes(`${region.parentName} (${region.option})`);
+    }
+
+    if ("options" in region && region.options?.length) {
+      return false;
+    }
+
+    return selectedRegions.includes(region.name);
   };
 
   const otherRegion: OtherRegion = { id: "other", name: "Symptome umschreiben" };
@@ -101,7 +126,10 @@ export default function SymptomButtonGrid({
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-      {regions.map((region) => (
+      {regions.map((region) => {
+        const isSelectedItemDisabled = disableSelectedRegions && isItemExactSelected(region);
+
+        return (
         <div key={region.id} className="relative">
           <button
             onClick={() => handleRegionClick(region)}
@@ -110,7 +138,7 @@ export default function SymptomButtonGrid({
                 ? "ring-4 ring-[#486284]"
                 : "hover:bg-[#dde3ea]"
             }`}
-            disabled={selectedRegions.length >= MAX_SYMPTOMS && !isItemSelected(region)}
+            disabled={isSelectedItemDisabled || (selectedRegions.length >= MAX_SYMPTOMS && !isItemSelected(region))}
           >
             {"icon" in region && (
               <img
@@ -158,21 +186,30 @@ export default function SymptomButtonGrid({
 
           {expandedRegion === region.id && "options" in region && region.options?.length && (
             <div className="absolute z-10 top-full left-0 right-0 mt-1 bg-white border-2 border-[#486284] rounded-[12px] shadow-lg overflow-hidden">
-              {region.options.map((option) => (
+              {region.options.map((option) => {
+                const optionKey = `${region.name} (${option})`;
+                const isSelectedOptionDisabled = disableSelectedRegions && selectedRegions.includes(optionKey);
+
+                return (
                 <button
                   key={option}
                   onClick={() => handleOptionClick(region.name, option)}
-                  className="w-full p-3 text-left hover:bg-[#eff2f6] transition-all border-b border-gray-200 last:border-b-0"
+                  disabled={isSelectedOptionDisabled}
+                  className={`w-full p-3 text-left transition-all border-b border-gray-200 last:border-b-0 ${
+                    isSelectedOptionDisabled ? "cursor-not-allowed bg-[#eff2f6] text-app-text-muted" : "hover:bg-[#eff2f6]"
+                  }`}
                 >
                   <span className="font-['DM_Sans:Medium',sans-serif] font-medium text-sm text-app-text-body">
                     {option}
                   </span>
                 </button>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
-      ))}
+        );
+      })}
     </div>
   );
 }

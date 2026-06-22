@@ -4,7 +4,7 @@ import {
   assessmentPayloadSchema,
   assessmentResultSchema,
   symptomSchema,
-} from './assessment.types.js'
+} from '../../../../src/modules/assessment/assessment.types.js'
 
 const validPatientData = {
   birthMonth: '01',
@@ -30,6 +30,7 @@ const validSymptom = {
   id: 'symptom-1',
   region: 'Kopf',
   side: 'links',
+  details: 'Seit dem Aufwachen schlimmer',
   measurementType: 'pain',
   measurementValue: 6,
   duration: 'days',

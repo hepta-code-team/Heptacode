@@ -1,5 +1,9 @@
 import type { FastifyPluginAsync } from 'fastify'
-import { extractSymptoms } from '../modules/symptom-extraction/symptomExtraction.service.js'
+import {
+  extractSymptoms,
+  validateSymptomDetailInput,
+  validateSymptomInput,
+} from '../modules/symptom-extraction/symptomExtraction.service.js'
 import { symptomExtractionRequestSchema } from '../modules/symptom-extraction/symptomExtraction.types.js'
 
 export const symptomExtractionRoutes: FastifyPluginAsync = async (app) => {
@@ -8,6 +12,29 @@ export const symptomExtractionRoutes: FastifyPluginAsync = async (app) => {
     const result = await extractSymptoms(
       body.symptomText ?? body.text ?? body.input ?? '',
       body.inputType,
+      body.patientData,
+    )
+
+    return reply.send(result)
+  })
+
+  app.post('/api/v1/symptoms/validation', async (request, reply) => {
+    const body = symptomExtractionRequestSchema.parse(request.body)
+    const result = await validateSymptomInput(
+      body.symptomText ?? body.text ?? body.input ?? '',
+      body.inputType,
+      body.patientData,
+    )
+
+    return reply.send(result)
+  })
+
+  app.post('/api/v1/symptoms/detail-validation', async (request, reply) => {
+    const body = symptomExtractionRequestSchema.parse(request.body)
+    const result = await validateSymptomDetailInput(
+      body.symptomText ?? body.text ?? body.input ?? '',
+      body.inputType,
+      body.patientData,
     )
 
     return reply.send(result)

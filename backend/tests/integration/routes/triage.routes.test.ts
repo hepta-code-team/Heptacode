@@ -13,6 +13,26 @@ vi.mock('../../../src/ai/llmAdapter.js', () => ({
 const requestStructuredAiResponseMock = vi.mocked(requestStructuredAiResponse)
 const requestStructuredAiResponseWithModelMock = vi.mocked(requestStructuredAiResponseWithModel)
 
+const malePatientData = {
+  birthMonth: '05',
+  birthYear: '1988',
+  height: '175',
+  weight: '78',
+  gender: 'Maennlich',
+  isPregnant: false,
+  isBreastfeeding: false,
+  allergies: '',
+  medications: '',
+  substanceInfluence: 'Nein',
+  recentAbroad: false,
+  recentAbroadDetails: '',
+  conditions: [],
+  isSmoker: false,
+  smokingSinceYears: '',
+  cigarettesPerDay: '',
+  conditionDetails: {},
+}
+
 async function createApp(): Promise<FastifyInstance> {
   const app = await buildApp()
   await app.ready()
@@ -58,14 +78,6 @@ describe('POST /api/v1/triage/evaluate', () => {
       careLevel: 'specialist',
       recommendedSpecialty: 'cardiology',
       reasons: ['Die Beschwerden sollten kardiologisch abgeklaert werden.'],
-      recommendedSpecialties: [
-        {
-          specialty: 'cardiology',
-          label: 'Kardiologie',
-          reason: 'Die Beschwerden sollten kardiologisch abgeklaert werden.',
-          priority: 1,
-        },
-      ],
       reviewSummary: {
         plainLanguage: 'Bitte lassen Sie die Beschwerden kardiologisch abklaeren.',
         professionalSummary: 'Care Level: specialist. Empfohlene Fachrichtung: cardiology.',
@@ -115,14 +127,6 @@ describe('POST /api/v1/triage/evaluate', () => {
     expect(response.json()).toEqual({
       careLevel: 'doctor',
       reasons: ['Die Beschwerden sollten aerztlich abgeklart werden.'],
-      recommendedSpecialties: [
-        {
-          specialty: 'neurology',
-          label: 'Neurologie',
-          reason: 'Die Beschwerden sollten aerztlich abgeklart werden.',
-          priority: 1,
-        },
-      ],
       reviewSummary: {
         plainLanguage: 'Bitte lassen Sie die Beschwerden aerztlich abklaeren.',
         professionalSummary: 'Care Level: doctor.',
@@ -166,6 +170,28 @@ describe('POST /api/v1/triage/evaluate', () => {
         message: 'Request body is invalid',
       },
     })
+  })
+
+  it('antwortet mit 400 bei logisch widerspruechlichen Schwangerschaftsangaben', async () => {
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/v1/triage/evaluate',
+      payload: {
+        patientData: malePatientData,
+        text: 'Ich waere schwanger und habe Wehen.',
+      },
+    })
+
+    expect(response.statusCode).toBe(400)
+    expect(response.json()).toMatchObject({
+      success: false,
+      error: {
+        code: 'BAD_REQUEST',
+        message: expect.stringContaining('passen logisch nicht zusammen'),
+      },
+    })
+    expect(requestStructuredAiResponseMock).not.toHaveBeenCalled()
+    expect(requestStructuredAiResponseWithModelMock).not.toHaveBeenCalled()
   })
 
   it('nutzt den kontrollierten Fallback, wenn die Triage-KI nicht antwortet', async () => {

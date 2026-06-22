@@ -13,10 +13,12 @@ import upperArmIcon from "../../assets/symptoms/upperArm.png";
 import upperLegIcon from "../../assets/symptoms/upperLeg.png";
 import lowerLegIcon from "../../assets/symptoms/lowerLeg.png";
 import hipPainIcon from "../../assets/symptoms/hip.png"
+import throatIcon from "../../assets/symptoms/throat.png";
 import nauseaIcon from "../../assets/symptoms/nausea.png";
 import feverIcon from "../../assets/symptoms/fever.png";
 import weaknessIcon from "../../assets/symptoms/weakness.png";
 import confusionIcon from "../../assets/symptoms/confusion.png";
+
 
 export interface BodyRegion {
   id: string;
@@ -25,29 +27,19 @@ export interface BodyRegion {
   options?: string[];
 }
 
-const MALE_GENITAL_OPTIONS = ["Hoden", "Männliches Genital", "Vorhaut", "Brennen beim Wasserlassen", "Schwellung"];
-const FEMALE_GENITAL_OPTIONS = ["Vaginalbereich", "Unterleib", "Ausfluss", "Vaginale Blutung", "Brennen beim Wasserlassen"];
-const ALL_GENITAL_OPTIONS = Array.from(new Set([...MALE_GENITAL_OPTIONS, ...FEMALE_GENITAL_OPTIONS]));
+export type BodyAreaCategory = "headNeck" | "head" | "neck" | "torso" | "hips" | "arms" | "legs" | "mental" | "general";
 
-export type BodyAreaCategory =
-  | "head"
-  | "neck"
-  | "torso"
-  | "hips"
-  | "arms"
-  | "hands"
-  | "legs"
-  | "knees"
-  | "feet"
-  | "mental"
-  | "general";
-
+/**
+ * Canonical symptom regions shown in the manual selection flow.
+ * These names are also used by AI extraction and triage normalization, so
+ * display labels should only change together with the shared taxonomy.
+ */
 export const BODY_REGIONS: BodyRegion[] = [
   {
     id: "kopf",
     name: "Kopf",
     icon: headAcheIcon,
-    options: ["Kopf allgemein", "Stirn", "Schläfen", "Hinterkopf", "Kopfhaut", "Platzwunde"],
+    options: ["Stirn", "Schläfen", "Hinterkopf", "Gesicht"],
   },
   {
     id: "gesicht",
@@ -58,8 +50,8 @@ export const BODY_REGIONS: BodyRegion[] = [
   {
     id: "hals",
     name: "Hals",
-    icon: backPainIcon,
-    options: ["Hals allgemein", "Rachen", "Mandeln", "Kehlkopf", "Schluckbeschwerden", "Schwellung"],
+    icon: throatIcon,
+    options: ["Hals", "Rachen", "Schluckbeschwerden", "Nacken"],
   },
   {
     id: "brust",
@@ -71,79 +63,43 @@ export const BODY_REGIONS: BodyRegion[] = [
     id: "ruecken",
     name: "Rücken",
     icon: backPainIcon,
-    options: ["Oberer Rücken", "Mittlerer Rücken", "Unterer Rücken", "Wirbelsäule", "Steißbein"],
+    options: ["Nacken", "Oberer Rücken", "Mittlerer Rücken", "Unterer Rücken", "Steißbein"],
   },
   {
     id: "huefte",
     name: "Hüfte",
     icon: hipPainIcon,
-    options: ["Hüfte allgemein", "Leiste", "Gesäßschmerzen", "Seitliche Hüfte"],
-  },
-  {
-    id: "genitalbereich",
-    name: "Genitalbereich",
-    icon: hipPainIcon,
-    options: ALL_GENITAL_OPTIONS,
+    options: ["Leiste", "Hüfte", "Seitliche Hüfte","Gesäßschmerzen", "Genitalbereich"],
   },
   {
     id: "oberarm",
     name: "Oberarm",
     icon: upperArmIcon,
-    options: ["Schulter", "Oberarm", "Ellenbogen", "Bruch", "Verstauchung"],
+    options: ["Schulter", "Oberarm", "Ellenbogen"],
   },
   {
     id: "unterarm",
     name: "Unterarm",
     icon: lowerArmIcon,
-    options: ["Unterarm allgemein", "Unterarm innen", "Unterarm außen", "Bruch", "Verstauchung"],
-  },
-  {
-    id: "hand",
-    name: "Hände",
-    icon: lowerArmIcon,
-    options: ["Hand", "Handgelenk", "Finger"],
+    options: ["Unterarm", "Hand/Handgelenk", "Finger"],
   },
   {
     id: "bauch",
     name: "Bauch",
     icon: stomachPainIcon,
-    options: [
-      "Bauch allgemein",
-      "Oberbauch",
-      "Unterbauch",
-      "Bauchnabelbereich",
-      "Linker Bauch",
-      "Rechter Bauch",
-      "Linke Flanke",
-      "Rechte Flanke",
-      "Beidseitige Flanken",
-      "Blähbauch",
-      "Bauchkrämpfe",
-    ],
+    options: ["Oberbauch", "Unterbauch", "Rechts oben", "Rechts unten", "Links oben", "Links unten"],
   },
   {
     id: "oberschenkel",
     name: "Oberschenkel",
     icon: upperLegIcon,
-    options: ["Oberschenkel allgemein", "Vorderer Oberschenkel", "Hinterer Oberschenkel", "Innenseite", "Außenseite", "Zerrung", "Prellung"],
-  },
-  {
-    id: "knie",
-    name: "Knie",
-    icon: upperLegIcon,
-    options: ["Vorderes Knie", "Hinteres Knie", "Knie innen", "Knie außen", "Schwellung", "Instabilität", "Blockade", "Verdrehung"],
+    options: ["Hüfte", "Oberschenkel", "Knie"],
   },
   {
     id: "unterschenkel",
     name: "Unterschenkel",
     icon: lowerLegIcon,
-    options: ["Unterschenkel allgemein", "Wade", "Schienbein", "Zerrung", "Prellung", "Schwellung"],
-  },
-  {
-    id: "fuss",
-    name: "Füße",
-    icon: lowerLegIcon,
-    options: ["Fuß allgemein", "Knöchel", "Zehen", "Ferse", "Fußsohle", "Bruch", "Verstauchung"],
+    options: ["Wade", "Fuß/Knöchel", "Zehen"],
   },
   {
     id: "verbrennung",
@@ -162,12 +118,6 @@ export const BODY_REGIONS: BodyRegion[] = [
     name: "Allgemein",
     icon: overallPainIcon,
     options: ["Fieber", "Übelkeit/Schwindel", "Schwäche", "Verwirrtheit"],
-  },
-  {
-    id: "haut",
-    name: "Haut",
-    icon: overallPainIcon,
-    options: ["Ausschlag", "Juckreiz", "Rötung", "Schwellung", "Bläschen", "Quaddeln"],
   },
   {
     id: "fieber",
@@ -211,63 +161,49 @@ export const BODY_REGIONS: BodyRegion[] = [
   },
 ];
 
+/**
+ * Manual suboptions that immediately trigger the emergency path.
+ * The list is intentionally small because these options bypass the normal
+ * symptom-details step and should only include high-confidence red flags.
+ */
 export const EMERGENCY_SYMPTOM_OPTIONS = ["Suizidgedanken"];
 
+/**
+ * Maps coarse body areas to the detailed regions shown after selection.
+ * Shared injury types such as burns and cuts appear in multiple body areas
+ * because their location is less important than surfacing the symptom quickly.
+ */
 export const BODY_AREA_REGION_IDS: Record<BodyAreaCategory, string[]> = {
+  headNeck: ["kopf", "gesicht", "hals", "verbrennung", "schnittwunde"],
   head: ["kopf", "gesicht", "verbrennung", "schnittwunde"],
   neck: ["hals", "verbrennung", "schnittwunde"],
   torso: ["brust", "bauch", "ruecken", "verbrennung", "schnittwunde"],
-  hips: ["huefte", "genitalbereich", "verbrennung", "schnittwunde"],
+  hips: ["huefte", "verbrennung", "schnittwunde"],
   arms: ["oberarm", "unterarm", "verbrennung", "schnittwunde"],
-  hands: ["hand", "verbrennung", "schnittwunde"],
   legs: ["oberschenkel", "unterschenkel", "verbrennung", "schnittwunde"],
-  knees: ["knie", "verbrennung", "schnittwunde"],
-  feet: ["fuss", "verbrennung", "schnittwunde"],
-  mental: ["angst", "depression", "halluzinationen", "suizidgedanken"],
-  general: ["fieber", "schwaeche", "uebelkeit", "verwirrtheit", "haut"],
+  mental: ["angst", "depression","halluzinationen", "suizidgedanken"],
+  general: ["fieber", "schwaeche", "uebelkeit", "verwirrtheit"],
 };
 
 export const BODY_AREA_LABELS: Record<BodyAreaCategory, string> = {
+  headNeck: "Kopf & Hals",
   head: "Kopf",
   neck: "Hals",
   torso: "Torso",
   hips: "Hüfte",
   arms: "Arme",
-  hands: "Hände",
   legs: "Beine",
-  knees: "Knie",
-  feet: "Füße",
   mental: "Psyche",
   general: "Allgemein",
 };
 
-function getGenitalOptionsForGender(gender?: string | null) {
-  const normalizedGender = gender?.toLowerCase() ?? "";
-
-  if (normalizedGender.startsWith("männ")) {
-    return MALE_GENITAL_OPTIONS;
-  }
-
-  if (normalizedGender.startsWith("weib")) {
-    return FEMALE_GENITAL_OPTIONS;
-  }
-
-  return ALL_GENITAL_OPTIONS;
-}
-
-export function getBodyRegionsForCategory(category?: string | null, gender?: string | null) {
+export function getBodyRegionsForCategory(category?: string | null) {
   if (!category || !(category in BODY_AREA_REGION_IDS)) {
     return BODY_REGIONS;
   }
 
   const regionIds = BODY_AREA_REGION_IDS[category as BodyAreaCategory];
-  return BODY_REGIONS
-    .filter((region) => regionIds.includes(region.id))
-    .map((region) =>
-      region.id === "genitalbereich"
-        ? { ...region, options: getGenitalOptionsForGender(gender) }
-        : region
-    );
+  return BODY_REGIONS.filter((region) => regionIds.includes(region.id));
 }
 
 export interface Duration {
@@ -304,20 +240,30 @@ export interface MeasurementConfig {
   step?: number;
   defaultValue: number;
   unit?: string;
-  minLabel: string;
-  maxLabel: string;
+  minLabel?: string;
+  maxLabel?: string;
+  scaleLabels?: Array<{
+    value: number;
+    label: string;
+  }>;
 }
 
 const MEASUREMENT_CONFIGS: Record<SymptomMeasurementType, MeasurementConfig> = {
   pain: {
     type: "pain",
     title: "Schmerzstärke",
-    min: 1,
+    min: 0,
     max: 10,
     defaultValue: 5,
-    minLabel: "Leicht",
-    maxLabel: "Sehr stark",
+    scaleLabels: [
+      { value: 0, label: "Kein Schmerz" },
+      { value: 3, label: "Leicht" },
+      { value: 4, label: "Mittel" },
+      { value: 7, label: "Stark" },
+      { value: 10, label: "Sehr stark" },
+    ],
   },
+
   temperature: {
     type: "temperature",
     title: "Temperatur",
@@ -335,8 +281,12 @@ const MEASUREMENT_CONFIGS: Record<SymptomMeasurementType, MeasurementConfig> = {
     min: 1,
     max: 10,
     defaultValue: 5,
-    minLabel: "Leicht",
-    maxLabel: "Sehr stark",
+    scaleLabels: [
+      { value: 1, label: "Leicht" },
+      { value: 4, label: "Mittel" },
+      { value: 7, label: "Stark" },
+      { value: 10, label: "Sehr stark" },
+    ],
   },
   severity: {
     type: "severity",
@@ -344,11 +294,20 @@ const MEASUREMENT_CONFIGS: Record<SymptomMeasurementType, MeasurementConfig> = {
     min: 1,
     max: 10,
     defaultValue: 5,
-    minLabel: "Leicht",
-    maxLabel: "Sehr stark",
+    scaleLabels: [
+      { value: 1, label: "Leicht" },
+      { value: 4, label: "Mittel" },
+      { value: 7, label: "Stark" },
+      { value: 10, label: "Sehr stark" },
+    ],
   },
 };
 
+/**
+ * Chooses the measurement UI based on the selected symptom region.
+ * Most symptoms use pain by default, while fever, mental-health symptoms, and
+ * general complaints need scales that better match their clinical meaning.
+ */
 export function getMeasurementConfig(region: string): MeasurementConfig {
     if (region === "Fieber") {
         return MEASUREMENT_CONFIGS.temperature;

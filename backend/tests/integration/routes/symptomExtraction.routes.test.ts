@@ -11,6 +11,26 @@ vi.mock('../../../src/ai/llmAdapter.js', () => ({
 
 const requestStructuredAiResponseMock = vi.mocked(requestStructuredAiResponse)
 
+const malePatientData = {
+  birthMonth: '05',
+  birthYear: '1988',
+  height: '175',
+  weight: '78',
+  gender: 'Maennlich',
+  isPregnant: false,
+  isBreastfeeding: false,
+  allergies: '',
+  medications: '',
+  substanceInfluence: 'Nein',
+  recentAbroad: false,
+  recentAbroadDetails: '',
+  conditions: [],
+  isSmoker: false,
+  smokingSinceYears: '',
+  cigarettesPerDay: '',
+  conditionDetails: {},
+}
+
 async function createApp(): Promise<FastifyInstance> {
   const app = await buildApp()
   await app.ready()
@@ -79,6 +99,46 @@ describe('POST /api/v1/symptoms/extraction', () => {
     )
   })
 
+  it('gibt nicht abgedeckte Verletzungsereignisse als Freitext-Symptom fuer die Detailseite zurueck', async () => {
+    requestStructuredAiResponseMock
+      .mockResolvedValueOnce({
+        isValidMedicalInput: true,
+        reason: 'Medizinischer Verletzungskontext erkannt.',
+      })
+      .mockResolvedValueOnce({
+        symptoms: [
+          {
+            region: 'In Nagel getreten',
+            side: 'Fuß',
+            details: 'Nagel steckt tief im Fuß',
+            measurementType: 'severity',
+          },
+        ],
+      })
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/v1/symptoms/extraction',
+      payload: {
+        text: 'Der Nagel steckt tief in meinem Fuß.',
+      },
+    })
+
+    expect(response.statusCode).toBe(200)
+    expect(response.json()).toEqual({
+      text: 'Der Nagel steckt tief in meinem Fuß.',
+      inputType: 'text',
+      symptoms: [
+        {
+          region: 'In Nagel getreten',
+          side: 'Fuß',
+          details: 'Nagel steckt tief im Fuß',
+          measurementType: 'severity',
+        },
+      ],
+    })
+  })
+
   it('akzeptiert input als kompatibles Eingabefeld', async () => {
     requestStructuredAiResponseMock
       .mockResolvedValueOnce({
@@ -101,7 +161,7 @@ describe('POST /api/v1/symptoms/extraction', () => {
     expect(response.json()).toEqual({
       text: 'Seit heute Bauchschmerzen.',
       inputType: 'text',
-      symptoms: [{ region: 'Bauch', measurementType: 'pain', duration: 'today' }],
+      symptoms: [{ region: 'Bauch', measurementType: 'pain', measurementValue: 5, duration: 'today' }],
     })
   })
 
@@ -120,6 +180,27 @@ describe('POST /api/v1/symptoms/extraction', () => {
       inputType: 'text',
       symptoms: [],
       invalidInput: true,
+    })
+    expect(requestStructuredAiResponseMock).not.toHaveBeenCalled()
+  })
+
+  it('antwortet beim Freitext-Absenden mit invalidInput bei logisch widerspruechlichen Schwangerschaftsangaben', async () => {
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/v1/symptoms/extraction',
+      payload: {
+        symptomText: 'Ich waere schwanger und habe Wehen.',
+        patientData: malePatientData,
+      },
+    })
+
+    expect(response.statusCode).toBe(200)
+    expect(response.json()).toMatchObject({
+      text: 'Ich waere schwanger und habe Wehen.',
+      inputType: 'text',
+      symptoms: [],
+      invalidInput: true,
+      message: expect.stringContaining('passen logisch nicht zusammen'),
     })
     expect(requestStructuredAiResponseMock).not.toHaveBeenCalled()
   })
@@ -163,6 +244,52 @@ describe('POST /api/v1/symptoms/extraction', () => {
       inputType: 'text',
       symptoms: [],
       aiUnavailable: true,
+    })
+  })
+
+  it('validiert bearbeitete Symptomtexte ueber eine eigene HTTP-Route', async () => {
+    requestStructuredAiResponseMock.mockResolvedValueOnce({
+      isValidMedicalInput: true,
+      reason: 'Medizinischer Kontext erkannt.',
+    })
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/v1/symptoms/validation',
+      payload: {
+        text: 'Verbrennung, kochendes Wasser ueber Arm geschuettet',
+      },
+    })
+
+    expect(response.statusCode).toBe(200)
+    expect(response.json()).toEqual({
+      text: 'Verbrennung, kochendes Wasser ueber Arm geschuettet',
+      inputType: 'text',
+      isValidMedicalInput: true,
+    })
+    expect(requestStructuredAiResponseMock).toHaveBeenCalledTimes(1)
+  })
+
+  it('lehnt nicht-medizinischen Kontext ueber die Validierungsroute ab', async () => {
+    requestStructuredAiResponseMock.mockResolvedValueOnce({
+      isValidMedicalInput: false,
+      reason: 'Der Text beschreibt keine gesundheitlichen Beschwerden.',
+    })
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/v1/symptoms/validation',
+      payload: {
+        text: 'Ich mag Pizza und Filme.',
+      },
+    })
+
+    expect(response.statusCode).toBe(200)
+    expect(response.json()).toEqual({
+      text: 'Ich mag Pizza und Filme.',
+      inputType: 'text',
+      isValidMedicalInput: false,
+      message: 'Der Text beschreibt keine gesundheitlichen Beschwerden.',
     })
   })
 })

@@ -1,4 +1,4 @@
-/** Frontend-kompatible Symptomtaxonomie (Anzeigenamen wie in symptoms.constants). */
+/** Frontend-compatible symptom taxonomy using the same display names as symptoms.constants. */
 export const SYMPTOM_REGIONS = [
   {
     name: 'Kopf',
@@ -11,6 +11,10 @@ export const SYMPTOM_REGIONS = [
   {
     name: 'Hals',
     options: ['Hals allgemein', 'Rachen', 'Mandeln', 'Kehlkopf', 'Schluckbeschwerden', 'Schwellung'],
+  },
+  {
+    name: 'Hals',
+    options: ['Hals', 'Rachen', 'Schluckbeschwerden', 'Nacken'],
   },
   {
     name: 'Brust',

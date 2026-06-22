@@ -13,7 +13,7 @@ import {
 } from "../features/symptoms/symptoms.constants";
 import type { SelectedSymptom, Symptom, SymptomDraft, TriageSymptom } from "../types/assessment";
 import { handleSubmitAssessment } from "../features/symptoms/handleSubmitAssessment";
-import {X} from "lucide-react";
+import { LoaderCircle, X } from "lucide-react";
 
 interface SymptomDetailsRouteState {
   extractedSymptoms?: TriageSymptom[];
@@ -25,11 +25,18 @@ export default function SymptomDetailsPage() {
   const routeState = location.state as SymptomDetailsRouteState | null;
   const hasRouteExtractedSymptoms = Boolean(routeState?.extractedSymptoms?.length);
   const {
+    patientData,
     selectedSymptoms,
     symptomDetails: contextDetails,
     setSymptomDetails,
+    setSelectedSymptoms,
+    isEvaluating,
     submitAssessment,
+    symptomText,
   } = useAssessment();
+
+  const getSymptomKey = (symptom: { region: string; side?: string }) =>
+    symptom.side ? `${symptom.region} (${symptom.side})` : symptom.region;
 
   const createSymptomDetails = (region: string, side: string | undefined, index: number): SymptomDraft => {
     const measurementConfig = getMeasurementConfig(region);
@@ -58,7 +65,7 @@ export default function SymptomDetailsPage() {
     index: number,
     isNameEditable = false,
   ): SymptomDraft => {
-    const inferredMeasurementConfig = getMeasurementConfig(symptom.region, symptom.side);
+    const inferredMeasurementConfig = getMeasurementConfig(symptom.region);
     const measurementType = "measurementType" in symptom && symptom.measurementType
       ? symptom.measurementType
       : inferredMeasurementConfig.type;
@@ -73,16 +80,33 @@ export default function SymptomDetailsPage() {
         ? symptom.measurementValue
         : measurementConfig.defaultValue,
       isNameEditable,
+      ...(isNameEditable ? {
+        sourceText: symptomText.trim(),
+        originalRegion: symptom.region,
+        originalSide: symptom.side,
+        originalDetails: "details" in symptom ? symptom.details : undefined,
+      } : {}),
     };
   };
 
   const buildInitialSymptomDetails = (): SymptomDraft[] => {
-    const activeSymptoms =
-      routeState?.extractedSymptoms && routeState.extractedSymptoms.length > 0
-        ? routeState.extractedSymptoms.map((symptom, index) => normalizeSymptom(symptom, index, true))
-        : contextDetails.length > 0
-          ? contextDetails.map((symptom, index) => normalizeSymptom(symptom, index))
-          : selectedSymptoms.map((symptom, index) => normalizeSymptom(symptom, index));
+    const activeSymptoms = (() => {
+      if (routeState?.extractedSymptoms && routeState.extractedSymptoms.length > 0 && contextDetails.length === 0) {
+        return routeState.extractedSymptoms.map((symptom, index) => normalizeSymptom(symptom, index, true));
+      }
+
+      if (selectedSymptoms.length === 0) {
+        return contextDetails.map((symptom, index) => normalizeSymptom(symptom, index));
+      }
+
+      return selectedSymptoms.map((selectedSymptom, index) => {
+        const persistedSymptom = contextDetails.find(
+          (symptom) => getSymptomKey(symptom) === getSymptomKey(selectedSymptom),
+        );
+
+        return normalizeSymptom(persistedSymptom ?? selectedSymptom, index);
+      });
+    })();
 
     const placeholders = Array.from(
       { length: Math.max(0, MAX_SYMPTOMS - activeSymptoms.length) },
@@ -97,6 +121,14 @@ export default function SymptomDetailsPage() {
   const [showValidationErrors, setShowValidationErrors] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const activeSymptoms = symptomDetails.filter((symptom) => symptom.active && symptom.region.trim()) as Symptom[];
+    const selectedActiveSymptoms = activeSymptoms.map(({ region, side }) => ({ region, side }));
+
+    setSymptomDetails(activeSymptoms);
+    setSelectedSymptoms(selectedActiveSymptoms);
+  }, [symptomDetails, setSelectedSymptoms, setSymptomDetails]);
 
   useEffect(() => {
     if (selectedSymptoms.length === 0 && contextDetails.length === 0 && !hasRouteExtractedSymptoms) {
@@ -123,6 +155,15 @@ export default function SymptomDetailsPage() {
   };
 
   const handleAddSymptom = (regionName: string, side?: string) => {
+    const symptomKey = side ? `${regionName} (${side})` : regionName;
+    const isAlreadySelected = symptomDetails.some(
+      (symptom) => symptom.active && getSymptomKey(symptom) === symptomKey,
+    );
+
+    if (isAlreadySelected) {
+      return;
+    }
+
     const inactiveIndex = symptomDetails.findIndex((symptom) => !symptom.active);
 
     if (inactiveIndex !== -1) {
@@ -139,6 +180,7 @@ export default function SymptomDetailsPage() {
 
     void handleSubmitAssessment({
       symptomDetails,
+      patientData: patientData ?? undefined,
       submitAssessment,
       navigate,
       setShowValidationErrors,
@@ -147,6 +189,7 @@ export default function SymptomDetailsPage() {
     });
   };
 
+  const isAssessmentSubmitting = isSubmitting || isEvaluating;
   const canContinue = symptomDetails
     .filter((symptom) => symptom.active)
     .every((symptom) => {
@@ -188,13 +231,15 @@ export default function SymptomDetailsPage() {
       </div>
 
       <div className="mt-6 mb-3 flex justify-end">
-        <Button onClick={handleContinue} disabled={!canContinue || isSubmitting}>
-          <p
-            className="font-['DM_Sans:Bold',sans-serif] font-bold text-base"
+        <Button onClick={handleContinue} disabled={!canContinue || isAssessmentSubmitting}>
+          <span
+            className="flex items-center justify-center gap-2 font-['DM_Sans:Bold',sans-serif] font-bold text-base"
             style={{ fontVariationSettings: "'opsz' 14" }}
+            aria-live="polite"
           >
-            {isSubmitting ? "Wird gesendet..." : "Weiter"}
-          </p>
+            {isAssessmentSubmitting ? "Angaben werden ausgewertet..." : "Weiter"}
+            {isAssessmentSubmitting && <LoaderCircle className="size-5 animate-spin" aria-hidden="true" />}
+          </span>
         </Button>
       </div>
 
@@ -221,7 +266,13 @@ export default function SymptomDetailsPage() {
         >
           <X className="h-7 w-7" aria-hidden="true" />
         </button>
-        <SymptomButtonGrid onRegionSelect={handleAddSymptom} />
+        <SymptomButtonGrid
+          onRegionSelect={handleAddSymptom}
+          selectedRegions={symptomDetails
+            .filter((symptom) => symptom.active && symptom.region.trim())
+            .map((symptom) => getSymptomKey(symptom))}
+          disableSelectedRegions
+        />
       </Modal>
     </PageShell>
   );

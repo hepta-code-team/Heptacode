@@ -1,12 +1,17 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { z } from 'zod'
 
-import { AI_REQUEST_OPTIONS, AiResponseError } from './timeout.js'
+import {
+  AI_REQUEST_OPTIONS,
+  AI_REQUEST_TIMEOUT_MS,
+  AiResponseError,
+  createAiRequestOptions,
+} from '../../../src/ai/timeout.js'
 
 const parseMock = vi.fn()
 const createMock = vi.fn()
 
-vi.mock('./client.js', () => ({
+vi.mock('../../../src/ai/client.js', () => ({
   aiClient: {
     beta: {
       chat: {
@@ -31,7 +36,7 @@ describe('requestStructuredAiResponse', () => {
   })
 
   it('gibt die strukturierte parsed-Antwort zurueck', async () => {
-    const { requestStructuredAiResponse } = await import('./llmAdapter.js')
+    const { requestStructuredAiResponse } = await import('../../../src/ai/llmAdapter.js')
     const schema = z.object({
       result: z.string(),
     })
@@ -66,7 +71,7 @@ describe('requestStructuredAiResponse', () => {
   })
 
   it('nutzt die Standard-Temperatur, wenn keine Temperatur uebergeben wird', async () => {
-    const { requestStructuredAiResponse } = await import('./llmAdapter.js')
+    const { requestStructuredAiResponse } = await import('../../../src/ai/llmAdapter.js')
 
     parseMock.mockResolvedValueOnce({
       choices: [
@@ -93,7 +98,7 @@ describe('requestStructuredAiResponse', () => {
   })
 
   it('nutzt bei fallback-only direkt das Fallback-Modell', async () => {
-    const { requestStructuredAiResponseWithModel } = await import('./llmAdapter.js')
+    const { requestStructuredAiResponseWithModel } = await import('../../../src/ai/llmAdapter.js')
 
     parseMock.mockResolvedValueOnce({
       choices: [
@@ -117,12 +122,119 @@ describe('requestStructuredAiResponse', () => {
       expect.objectContaining({
         model: 'fallback-test-model',
       }),
+      createAiRequestOptions(AI_REQUEST_TIMEOUT_MS.fallback),
+    )
+  })
+
+  it('nutzt JSON-Fallback, wenn Structured Parsing ohne Availability-Fehler fehlschlaegt', async () => {
+    const { requestStructuredAiResponse } = await import('../../../src/ai/llmAdapter.js')
+
+    parseMock.mockRejectedValueOnce(new Error('parse unsupported'))
+    createMock.mockResolvedValueOnce({
+      choices: [
+        {
+          message: {
+            content: JSON.stringify({ result: 'json ok' }),
+          },
+        },
+      ],
+    })
+
+    const result = await requestStructuredAiResponse({
+      messages: [{ role: 'user', content: 'Bitte strukturiert antworten.' }],
+      schema: z.object({ result: z.string() }),
+      schemaName: 'test_schema',
+      temperature: 0,
+    })
+
+    expect(result).toEqual({ result: 'json ok' })
+    expect(createMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        model: 'test-model',
+        response_format: { type: 'json_object' },
+        messages: expect.arrayContaining([
+          expect.objectContaining({
+            role: 'system',
+            content: 'Antworte ausschliesslich mit validem JSON.',
+          }),
+        ]),
+      }),
       AI_REQUEST_OPTIONS,
     )
   })
 
+  it('wirft AiResponseError, wenn der JSON-Fallback keinen Content liefert', async () => {
+    const { requestStructuredAiResponse } = await import('../../../src/ai/llmAdapter.js')
+
+    parseMock.mockRejectedValueOnce(new Error('parse unsupported'))
+    createMock.mockResolvedValueOnce({
+      choices: [
+        {
+          message: {},
+        },
+      ],
+    })
+
+    await expect(
+      requestStructuredAiResponse({
+        messages: [{ role: 'user', content: 'Bitte strukturiert antworten.' }],
+        schema: z.object({ result: z.string() }),
+        schemaName: 'test_schema',
+        modelStrategy: 'fallback-only',
+      }),
+    ).rejects.toThrow('AI returned no JSON content for test_schema')
+  })
+
+  it('wirft AiResponseError, wenn der JSON-Fallback invalides JSON liefert', async () => {
+    const { requestStructuredAiResponse } = await import('../../../src/ai/llmAdapter.js')
+
+    parseMock.mockRejectedValueOnce(new Error('parse unsupported'))
+    createMock.mockResolvedValueOnce({
+      choices: [
+        {
+          message: {
+            content: '{invalid-json',
+          },
+        },
+      ],
+    })
+
+    await expect(
+      requestStructuredAiResponse({
+        messages: [{ role: 'user', content: 'Bitte strukturiert antworten.' }],
+        schema: z.object({ result: z.string() }),
+        schemaName: 'test_schema',
+        modelStrategy: 'fallback-only',
+      }),
+    ).rejects.toThrow('AI returned invalid JSON for test_schema')
+  })
+
+  it('wirft AiResponseError, wenn JSON nicht zum Schema passt', async () => {
+    const { requestStructuredAiResponse } = await import('../../../src/ai/llmAdapter.js')
+
+    parseMock.mockRejectedValueOnce(new Error('parse unsupported'))
+    createMock.mockResolvedValueOnce({
+      choices: [
+        {
+          message: {
+            content: JSON.stringify({ result: 123 }),
+          },
+        },
+      ],
+    })
+
+    await expect(
+      requestStructuredAiResponse({
+        messages: [{ role: 'user', content: 'Bitte strukturiert antworten.' }],
+        schema: z.object({ result: z.string() }),
+        schemaName: 'test_schema',
+        modelStrategy: 'fallback-only',
+      }),
+    ).rejects.toThrow('AI returned JSON that does not match test_schema')
+  })
+
   it('versucht bei der Standardstrategie nach einem Fehler das Fallback-Modell', async () => {
-    const { requestStructuredAiResponseWithModel } = await import('./llmAdapter.js')
+    const { requestStructuredAiResponseWithModel } = await import('../../../src/ai/llmAdapter.js')
 
     parseMock
       .mockRejectedValueOnce(new AiResponseError('primary failed'))
@@ -152,12 +264,12 @@ describe('requestStructuredAiResponse', () => {
     expect(parseMock).toHaveBeenNthCalledWith(
       2,
       expect.objectContaining({ model: 'fallback-test-model' }),
-      AI_REQUEST_OPTIONS,
+      createAiRequestOptions(AI_REQUEST_TIMEOUT_MS.fallback),
     )
   })
 
   it('wirft AiResponseError, wenn keine parsed-Antwort vorhanden ist', async () => {
-    const { requestStructuredAiResponse } = await import('./llmAdapter.js')
+    const { requestStructuredAiResponse } = await import('../../../src/ai/llmAdapter.js')
 
     parseMock
       .mockResolvedValueOnce({

@@ -4,12 +4,20 @@ import imgHeartPain from "../../assets/emergency/heartpain.png";
 import imgIconAtemnot from "../../assets/emergency/shortness-of-breath.png";
 import imgSevereBleeding from "../../assets/emergency/severbleeding.png";
 import allergy from "../../assets/emergency/allergy.png";
+
+type EmergencySymptom = {
+  name: string;
+  desc: string;
+  descLong: string;
+  icon: string;
+};
+
 interface EmergencySymptomGridProps {
-  onSymptomClick: () => void;
+  onSymptomClick: (symptom: EmergencySymptom) => void;
   variant?: "mobile" | "desktop";
 }
 
-const symptoms = [
+const symptoms: EmergencySymptom[] = [
   {
     name: "Akute Atemnot",
     desc: "Plötzliche Probleme beim Atmen oder starke Luftnot.",
@@ -48,6 +56,8 @@ const symptoms = [
   },
 ];
 
+const severeHeadache = symptoms[5];
+
 export default function EmergencySymptomGrid({ onSymptomClick, variant = "mobile" }: EmergencySymptomGridProps) {
   if (variant === "mobile") {
     return (
@@ -55,7 +65,7 @@ export default function EmergencySymptomGrid({ onSymptomClick, variant = "mobile
         {symptoms.map((symptom) => (
           <button
             key={symptom.name}
-            onClick={onSymptomClick}
+            onClick={() => onSymptomClick(symptom)}
             className="bg-[#eff2f6] rounded-[16px] p-3 min-h-[85px] hover:bg-[#dde3ea] transition-all flex items-start gap-3"
           >
             <img
@@ -84,7 +94,7 @@ export default function EmergencySymptomGrid({ onSymptomClick, variant = "mobile
       {symptoms.slice(0, 5).map((symptom) => (
         <button
           key={symptom.name}
-          onClick={onSymptomClick}
+          onClick={() => onSymptomClick(symptom)}
           className="bg-[#eff2f6] rounded-[16px] p-3 min-h-[140px] flex items-start gap-3 hover:bg-[#dde3ea] transition-all"
         >
           <img
@@ -110,9 +120,9 @@ export default function EmergencySymptomGrid({ onSymptomClick, variant = "mobile
         </button>
       ))}
 
-      {/* Special layout for Starke Kopfschmerzen on desktop */}
+      {/* Dedicated desktop layout for severe headache. */}
       <button
-        onClick={onSymptomClick}
+        onClick={() => onSymptomClick(severeHeadache)}
         className="bg-[#eff2f6] rounded-[16px] p-3 min-h-[140px] flex items-start gap-3 hover:bg-[#dde3ea] transition-all"
       >
         <img
