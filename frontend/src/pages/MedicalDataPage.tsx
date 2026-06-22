@@ -617,7 +617,7 @@ export default function MedicalDataPage() {
               <Input
                 id="medicationDuration"
                 value={formData.medicationDuration}
-                onChange={(event) => 
+                onChange={(event) =>
                   setFormData({ ...formData, medicationDuration: event.target.value})
                 }
                 placeholder="z.b.B seit 2021, seit 3 Wochen, unbekannt"

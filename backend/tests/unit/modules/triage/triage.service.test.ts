@@ -168,6 +168,128 @@ describe('evaluateTriage', () => {
     )
   })
 
+  it('hebt Medikamente und Einnahmedauer als eigenen Triage-Kontext hervor', async () => {
+    requestStructuredAiResponseWithModelMock.mockResolvedValueOnce({
+      data: {
+        careLevel: 'doctor',
+        reasons: ['Ein moeglicher zeitlicher Zusammenhang mit Ramipril sollte aerztlich geprueft werden.'],
+        reviewSummary: {
+          plainLanguage: 'Der Schwindel kann zeitlich mit Ramipril zusammenhaengen und sollte aerztlich geprueft werden.',
+          professionalSummary: 'Schwindel nach Beginn einer Ramipril-Einnahme; medikationsbezogene Abklaerung empfohlen.',
+        },
+      },
+      model: 'test-model',
+    })
+
+    await evaluateTriage({
+      ...malePatientData,
+      medications: 'Ramipril 5 mg',
+      medicationDuration: 'seit 3 Tagen',
+    }, [
+      { region: 'Allgemein', side: 'Schwindel', measurementType: 'severity', measurementValue: 5, duration: 'days' },
+    ])
+
+    expect(requestStructuredAiResponseWithModelMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        messages: expect.arrayContaining([
+          expect.objectContaining({
+            role: 'system',
+            content: expect.stringMatching(/Medikationskontext aktiv[\s\S]*zeitlichen Zusammenhang/),
+          }),
+          expect.objectContaining({
+            role: 'user',
+            content: expect.stringContaining(
+              'Medikationskontext (bei der Triage aktiv pruefen):\nAktuelle Medikamente: Ramipril 5 mg\nEinnahmedauer: seit 3 Tagen',
+            ),
+          }),
+        ]),
+      }),
+    )
+  })
+
+  it('kennzeichnet eine fehlende Einnahmedauer im Medikationskontext', async () => {
+    requestStructuredAiResponseWithModelMock.mockResolvedValueOnce({
+      data: {
+        careLevel: 'doctor',
+        reasons: ['Aerztliche Abklaerung empfohlen.'],
+        reviewSummary: {
+          plainLanguage: 'Bitte lassen Sie die Beschwerden aerztlich abklaeren.',
+          professionalSummary: 'Care Level: doctor.',
+        },
+      },
+      model: 'test-model',
+    })
+
+    await evaluateTriage({
+      ...malePatientData,
+      medications: 'Metformin',
+    }, [
+      { region: 'Bauch', measurementType: 'pain', measurementValue: 5, duration: 'days' },
+    ])
+
+    expect(requestStructuredAiResponseWithModelMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        messages: expect.arrayContaining([
+          expect.objectContaining({
+            role: 'user',
+            content: expect.stringContaining('Aktuelle Medikamente: Metformin\nEinnahmedauer: Nicht angegeben'),
+          }),
+        ]),
+      }),
+    )
+  })
+
+  it('hebt Allergien, Substanzeinfluss, Reisen und Vorerkrankungen als Risikokontext hervor', async () => {
+    requestStructuredAiResponseWithModelMock.mockResolvedValueOnce({
+      data: {
+        careLevel: 'doctor',
+        reasons: ['Die Vorerkrankungen und der kuerzliche Auslandsaufenthalt sollten aerztlich eingeordnet werden.'],
+        reviewSummary: {
+          plainLanguage: 'Bitte lassen Sie die Beschwerden unter Beruecksichtigung Ihrer Vorerkrankungen aerztlich abklaeren.',
+          professionalSummary: 'Relevanter Reise- und Vorerkrankungskontext; aerztliche Abklaerung empfohlen.',
+        },
+      },
+      model: 'test-model',
+    })
+
+    await evaluateTriage({
+      ...malePatientData,
+      allergies: 'Penicillin',
+      substanceInfluence: 'Alkohol',
+      recentAbroad: true,
+      recentAbroadDetails: 'Thailand, Rueckkehr vor 5 Tagen',
+      conditions: ['Asthma', 'Diabetes'],
+      conditionDetails: {
+        Asthma: { condition: 'Asthma', detail: 'allergisches Asthma', duration: 'seit 10 Jahren' },
+        Diabetes: { condition: 'Diabetes', detail: 'Typ 2', duration: 'seit 4 Jahren' },
+      },
+    }, [
+      { region: 'Allgemein', side: 'Fieber', measurementType: 'temperature', measurementValue: 39, duration: 'days' },
+    ])
+
+    expect(requestStructuredAiResponseWithModelMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        messages: expect.arrayContaining([
+          expect.objectContaining({
+            role: 'system',
+            content: expect.stringMatching(/medizinischen Risikokontext[\s\S]*Allergien[\s\S]*Alkohol[\s\S]*Auslandsaufenthalt[\s\S]*Vorerkrankungen/),
+          }),
+          expect.objectContaining({
+            role: 'user',
+            content: expect.stringContaining([
+              'Medizinischer Risikokontext (bei der Triage aktiv pruefen):',
+              'Allergien: Penicillin',
+              'Einfluss durch Alkohol oder Drogen: Alkohol',
+              'Auslandsaufenthalt in den letzten 3 Monaten: Thailand, Rueckkehr vor 5 Tagen',
+              'Vorerkrankungen: Asthma, Diabetes',
+              'Details und Dauer der Vorerkrankungen: Asthma: allergisches Asthma, Dauer: seit 10 Jahren; Diabetes: Typ 2, Dauer: seit 4 Jahren',
+            ].join('\n')),
+          }),
+        ]),
+      }),
+    )
+  })
+
   /** AI request availability failures should use the conservative local triage fallback. */
   it('nutzt den Fallback, wenn die KI-Anfrage fehlschlaegt', async () => {
     requestStructuredAiResponseWithModelMock.mockRejectedValueOnce(new AiResponseError('timeout'))
