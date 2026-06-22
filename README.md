@@ -86,6 +86,27 @@ git push
 
 ---
 
+## Google Places einrichten
+
+Die Suche nach medizinischen Einrichtungen verwendet bevorzugt die Google Places API (New). Der API-Key bleibt ausschließlich im Backend. Bei Nicht-Notfällen sucht Google nachts zusätzlich im Umkreis von 20 km nach geöffneten Apotheken. Wenn Google nicht erreichbar ist, übernimmt der OSM-/Overpass-Fallback mit derselben Nacht-Erweiterung.
+
+1. In Google Cloud beziehungsweise über den Maps Demo Key die **Places API (New)** aktivieren.
+2. Den Key in `.env.local` eintragen:
+
+```dotenv
+GOOGLE_MAPS_API_KEY=your-key
+```
+
+3. Backend und Frontend neu starten:
+
+```bash
+make dev
+```
+
+Für einen produktiven Key sollten API- und Server-IP-Beschränkungen aktiviert werden. Der Key darf nie als `VITE_`-Variable oder direkt im Frontend hinterlegt werden.
+
+---
+
 
 ## Projektstruktur
 

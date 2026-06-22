@@ -55,37 +55,31 @@ describe('result and shared UI components', () => {
     mockGeolocation(getCurrentPosition);
     vi.stubGlobal('fetch', vi.fn<typeof fetch>().mockResolvedValue({
       ok: true,
+      status: 200,
       json: async () => ({
-        elements: [
+        provider: 'google',
+        places: [
           {
-            type: 'node',
-            id: 1,
-            lat: 49.487,
-            lon: 8.466,
-            tags: {
-              name: 'Praxis Kardiologie am Stadtpark',
-              healthcare: 'doctor',
-              opening_hours: '24/7',
-              'addr:street': 'Parkstraße',
-              'addr:housenumber': '1',
-              'addr:postcode': '68161',
-              'addr:city': 'Mannheim',
-            },
+            id: 'place-1',
+            name: 'Praxis Kardiologie am Stadtpark',
+            address: 'Parkstraße 1, 68161 Mannheim',
+            latitude: 49.487,
+            longitude: 8.466,
+            primaryType: 'doctor',
+            types: ['doctor', 'health'],
+            openNow: true,
+            weekdayDescriptions: ['Montag: 08:00–18:00', 'Dienstag: 08:00–18:00'],
           },
           {
-            type: 'node',
-            id: 2,
-            lat: 49.49,
-            lon: 8.47,
-            tags: {
-              name: 'Kardiologie Zentrum',
-              healthcare: 'doctor',
-              opening_hours: '24/7',
-              'addr:street': 'Hauptstraße',
-              'addr:housenumber': '2',
-              'addr:postcode': '68159',
-              'addr:city': 'Mannheim',
-            },
+            id: 'place-2',
+            name: 'Kardiologie Zentrum',
+            address: 'Hauptstraße 2, 68159 Mannheim',
+            latitude: 49.49,
+            longitude: 8.47,
+            primaryType: 'doctor',
+            types: ['doctor', 'health'],
+            openNow: false,
+            weekdayDescriptions: ['Montag: 09:00–17:00'],
           },
         ],
       }),
@@ -96,14 +90,22 @@ describe('result and shared UI components', () => {
     await user.click(screen.getByRole('button', { name: /Standort freigeben/ }));
 
     await waitFor(() => {
-      expect(screen.getByText(/2 offene Einrichtungen gefunden/)).toBeInTheDocument();
+      expect(screen.getByText(/2 Einrichtungen gefunden/)).toBeInTheDocument();
     });
 
     expect(screen.getByText('Praxis Kardiologie am Stadtpark')).toBeInTheDocument();
+    expect(screen.getByText('Geschlossen')).toBeInTheDocument();
+    expect(screen.getByText('Dienstag: 08:00–18:00')).toBeInTheDocument();
+    expect(screen.getByText(/Datenquelle: Google Maps/)).toBeInTheDocument();
     expect(screen.getAllByRole('link')[0]).toHaveAttribute(
       'href',
       expect.stringContaining('google.com/maps/dir'),
     );
+
+    await user.click(screen.getByRole('button', { name: 'PLZ ändern' }));
+
+    expect(screen.getByLabelText('PLZ oder Adresse')).toHaveValue('');
+    expect(screen.queryByText('Praxis Kardiologie am Stadtpark')).not.toBeInTheDocument();
   });
 
   it('shows a helpful message when geolocation is unavailable', async () => {
@@ -115,6 +117,59 @@ describe('result and shared UI components', () => {
     await user.click(screen.getByRole('button', { name: /Standort freigeben/ }));
 
     expect(screen.getByText('Ihr Browser unterstützt keine Standortfreigabe.')).toBeInTheDocument();
+  });
+
+  it('filters manual searches to the exact entered postal code', async () => {
+    const user = userEvent.setup();
+    const fetchMock = vi.fn<typeof fetch>()
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => [{ lat: '49.47', lon: '8.48', display_name: '68163 Mannheim' }],
+      } as Response)
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          provider: 'google',
+          places: [
+            {
+              id: 'matching-place',
+              name: 'Praxis in 68163',
+              address: 'Musterstraße 1, 68163 Mannheim',
+              latitude: 49.47,
+              longitude: 8.48,
+              primaryType: 'doctor',
+              types: ['doctor'],
+              openNow: true,
+              weekdayDescriptions: [],
+            },
+            {
+              id: 'other-place',
+              name: 'Praxis in 68165',
+              address: 'Andere Straße 2, 68165 Mannheim',
+              latitude: 49.48,
+              longitude: 8.49,
+              primaryType: 'doctor',
+              types: ['doctor'],
+              openNow: false,
+              weekdayDescriptions: [],
+            },
+          ],
+        }),
+      } as Response);
+    vi.stubGlobal('fetch', fetchMock);
+
+    render(<NearbyPracticeSearch careLevel="specialist" specialties={['urology']} />);
+
+    await user.type(screen.getByLabelText('PLZ oder Adresse'), '68163');
+    await user.click(screen.getByRole('button', { name: 'Suchen' }));
+
+    await waitFor(() => {
+      expect(screen.getByText(/1 Einrichtung gefunden/)).toBeInTheDocument();
+    });
+
+    expect(screen.getByText('Praxis in 68163')).toBeInTheDocument();
+    expect(screen.queryByText('Praxis in 68165')).not.toBeInTheDocument();
   });
 
   it('closes modal via backdrop and close button', async () => {

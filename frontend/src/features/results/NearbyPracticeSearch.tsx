@@ -3,13 +3,15 @@ import type { FormEvent } from "react";
 import { Clock, LocateFixed, MapPin, Navigation, Search } from "lucide-react";
 import { MEDICAL_SPECIALTY_LABELS } from "./result.config";
 import type { CareLevel, MedicalSpecialty } from "../../types/triage";
+import type { NearbyPlace, NearbyPlacesResponse } from "../../../../shared/nearbyPlaces.types";
+import { apiClient } from "../../lib/apiClient";
 
 // Gesamtlogik dieser Komponente:
 // 1. Versorgungsebene aus dem Triage-Ergebnis entgegennehmen.
 // 2. Standort entweder per Browser-Geolocation oder manueller PLZ/Adresse bestimmen.
-// 3. Passende Einrichtungen ueber OpenStreetMap/Overpass suchen.
+// 3. Passende Einrichtungen bevorzugt ueber Google Places suchen.
 // 4. Rohdaten in UI-Objekte normalisieren und nach Qualitaet filtern.
-// 5. Hauptempfehlungen und Zusatzoptionen sortiert darstellen.
+// 5. Bei einem Google-Ausfall auf OpenStreetMap/Overpass zurueckfallen.
 interface NearbyPracticeSearchProps {
   // careLevel kommt aus dem Triage-Ergebnis und steuert, welche Art von Einrichtung gesucht wird.
   careLevel: CareLevel;
@@ -29,6 +31,10 @@ type Facility = {
   address: string;
   priority: "recommended" | "additional";
   distanceMeters: number;
+  source: "google" | "osm";
+  openNow?: boolean;
+  weekdayDescriptions?: string[];
+  nextCloseTime?: string;
 };
 
 // Die einzelnen Statuswerte trennen Standortabfrage, externe Suche und Fehlermeldungen sauber.
@@ -101,6 +107,14 @@ function formatDistance(distanceMeters: number) {
   return `${(distanceMeters / 1000).toLocaleString("de-DE", {
     maximumFractionDigits: 1,
   })} km`;
+}
+
+function extractGermanPostalCode(value: string) {
+  return value.match(/(?:^|\D)(\d{5})(?:\D|$)/)?.[1] ?? null;
+}
+
+function addressMatchesPostalCode(address: string, postalCode: string) {
+  return address.match(/\b\d{5}\b/)?.[0] === postalCode;
 }
 
 const OSM_DAY_LABELS: Record<string, string> = {
@@ -215,7 +229,7 @@ function dayMatches(ruleDays: string | undefined, currentDay: number) {
 
 type OpeningHoursDisplay = {
   hoursLabel: string;
-  statusLabel: "Geöffnet" | "Schließt bald";
+  statusLabel: "Geöffnet" | "Schließt bald" | "Geschlossen" | "Status unbekannt";
   statusColor: string;
 };
 
@@ -295,6 +309,47 @@ function getOpeningHoursDisplay(openingHours: string, now = new Date()): Opening
     statusLabel: closesSoon ? "Schließt bald" : "Geöffnet",
     statusColor: closesSoon ? "#EAB308" : "#65A30D",
   };
+}
+
+function getGoogleOpeningHoursDisplay(facility: Facility, now = new Date()): OpeningHoursDisplay {
+  if (facility.openNow === false) {
+    return {
+      hoursLabel: "Öffnungszeiten",
+      statusLabel: "Geschlossen",
+      statusColor: "#DC2626",
+    };
+  }
+
+  if (facility.openNow === undefined) {
+    return {
+      hoursLabel: "Öffnungszeiten nicht verfügbar",
+      statusLabel: "Status unbekannt",
+      statusColor: "#64748B",
+    };
+  }
+
+  const weekday = new Intl.DateTimeFormat("de-DE", { weekday: "long" }).format(now).toLowerCase();
+  const todayDescription = facility.weekdayDescriptions?.find((description) =>
+    description.toLowerCase().startsWith(weekday),
+  );
+  const closingTime = facility.nextCloseTime ? new Date(facility.nextCloseTime).getTime() : null;
+  const millisecondsUntilClosing = closingTime === null ? null : closingTime - now.getTime();
+  const closesSoon =
+    millisecondsUntilClosing !== null &&
+    millisecondsUntilClosing >= 0 &&
+    millisecondsUntilClosing <= 60 * 60 * 1000;
+
+  return {
+    hoursLabel: todayDescription?.replace(/^[^:]+:/, "Heute:") ?? "Heute: Geöffnet",
+    statusLabel: closesSoon ? "Schließt bald" : "Geöffnet",
+    statusColor: closesSoon ? "#EAB308" : "#65A30D",
+  };
+}
+
+function getFacilityOpeningHoursDisplay(facility: Facility) {
+  return facility.source === "google"
+    ? getGoogleOpeningHoursDisplay(facility)
+    : getOpeningHoursDisplay(facility.openingHours);
 }
 
 function isOpenNow(openingHours: string | undefined, now = new Date()) {
@@ -412,35 +467,35 @@ const BDZ_LUDWIGSHAFEN_OPENING_HOURS = "Mo off; Tu off; We 14:00-22:00; Th off; 
 function getSearchIntro(careLevel: CareLevel, includeNightPharmacies: boolean) {
   // Die Beschreibung im UI soll zur aktuellen Versorgungsebene passen.
   if (careLevel === "emergency") {
-    return "Auf Wunsch zeigen wir aktuell geöffnete Notaufnahmen und Notfallapotheken in Ihrer Nähe, sortiert nach Entfernung.";
+    return "Auf Wunsch zeigen wir Notaufnahmen und Notfallapotheken in Ihrer Nähe, sortiert nach Entfernung.";
   }
 
   // Bei Selbstversorgung interessieren zuerst Apotheken.
   if (careLevel === "selfcare") {
-    return "Auf Wunsch zeigen wir aktuell geöffnete Apotheken in Ihrer Nähe, sortiert nach Entfernung.";
+    return "Auf Wunsch zeigen wir Apotheken in Ihrer Nähe, sortiert nach Entfernung.";
   }
 
   // Bei Facharzt-Empfehlungen wird die Beschreibung auf Fachstellen ausgerichtet.
   if (careLevel === "specialist") {
     return includeNightPharmacies
-      ? "Auf Wunsch zeigen wir aktuell geöffnete Fachstellen und ergänzend Nacht-Apotheken in Ihrer Nähe."
-      : "Auf Wunsch zeigen wir aktuell geöffnete Fachstellen in Ihrer Nähe, sortiert nach Entfernung.";
+      ? "Auf Wunsch zeigen wir Fachstellen und ergänzend Nacht-Apotheken in Ihrer Nähe."
+      : "Auf Wunsch zeigen wir Fachstellen in Ihrer Nähe, sortiert nach Entfernung.";
   }
 
   // Standardfall: Hausarzt/Praxis, nachts mit Apotheke als Zusatzoption.
   return includeNightPharmacies
-    ? "Auf Wunsch zeigen wir aktuell geöffnete Praxen und ergänzend Nacht-Apotheken in Ihrer Nähe."
-    : "Auf Wunsch zeigen wir aktuell geöffnete Praxen in Ihrer Nähe, sortiert nach Entfernung.";
+    ? "Auf Wunsch zeigen wir Praxen und ergänzend Nacht-Apotheken in Ihrer Nähe."
+    : "Auf Wunsch zeigen wir Praxen in Ihrer Nähe, sortiert nach Entfernung.";
 }
 
 function getEmptyMessage(careLevel: CareLevel) {
   // Leerer Zustand fuer Notfall soll ausdruecklich Notaufnahmen nennen.
   if (careLevel === "emergency") {
-    return "Für die empfohlene Versorgungsebene wurden in Ihrer Nähe keine aktuell geöffneten Notaufnahmen mit vollständiger Adresse gefunden.";
+    return "Für die empfohlene Versorgungsebene wurden in Ihrer Nähe keine Notaufnahmen mit vollständiger Adresse gefunden.";
   }
 
   // Allgemeiner leerer Zustand fuer alle anderen Versorgungsebenen.
-  return "Für die empfohlene Versorgungsebene wurden in Ihrer Nähe keine aktuell geöffneten Einträge mit vollständiger Adresse gefunden.";
+  return "Für die empfohlene Versorgungsebene wurden in Ihrer Nähe keine Einträge mit vollständiger Adresse gefunden.";
 }
 
 function getSearchRadius(careLevel: CareLevel, includeNightPharmacies: boolean) {
@@ -533,7 +588,7 @@ async function geocodeManualLocation(query: string): Promise<UserLocation | null
   });
 
   // Manuelle PLZ-/Adresssuche nutzt Nominatim nur zur Koordinaten-Ermittlung.
-  // Die eigentlichen Einrichtungen werden danach weiterhin ueber Overpass gesucht.
+  // Die eigentlichen Einrichtungen werden danach ueber Google Places gesucht.
   const response = await fetch(`${NOMINATIM_SEARCH_URL}?${searchParams.toString()}`, {
     headers: {
       // Wir erwarten JSON und vermeiden HTML-Fallbacks.
@@ -701,10 +756,75 @@ async function fetchOverpassData(query: string): Promise<OverpassResponse> {
   throw lastError instanceof Error ? lastError : new Error("Overpass request failed.");
 }
 
-async function fetchNearbyFacilities(
+function getGoogleFacilityType(
+  place: NearbyPlace,
+  careLevel: CareLevel,
+  specialties: MedicalSpecialty[],
+  includeNightPharmacies: boolean,
+) {
+  if (place.types.includes("pharmacy") || place.primaryType === "pharmacy") {
+    if (careLevel === "emergency") return "Notfallapotheke";
+    return includeNightPharmacies && careLevel !== "selfcare" ? "Nacht-Apotheke" : "Apotheke";
+  }
+
+  return getFacilityType(careLevel, specialties);
+}
+
+async function fetchGoogleFacilities(
   location: UserLocation,
   careLevel: CareLevel,
   specialties: MedicalSpecialty[],
+  requiredPostalCode?: string,
+): Promise<Facility[]> {
+  const includeNightPharmacies = careLevel !== "emergency" && isNightTime();
+  const response = await apiClient.post<NearbyPlacesResponse>("/api/v1/places/nearby", {
+    latitude: location.latitude,
+    longitude: location.longitude,
+    careLevel,
+    specialties,
+    includeNightPharmacies,
+  });
+
+  const sortedFacilities = response.places
+    .map((place) => {
+      const type = getGoogleFacilityType(place, careLevel, specialties, includeNightPharmacies);
+
+      return {
+        id: `google-${place.id}`,
+        name: place.name,
+        hasKnownName: true,
+        type,
+        latitude: place.latitude,
+        longitude: place.longitude,
+        openingHours: "24/7",
+        address: place.address,
+        priority:
+          (type === "Nacht-Apotheke" || type === "Notfallapotheke") && careLevel !== "selfcare"
+            ? "additional" as const
+            : "recommended" as const,
+        distanceMeters: calculateDistanceMeters(location, place),
+        source: "google" as const,
+        ...(typeof place.openNow === "boolean" ? { openNow: place.openNow } : {}),
+        weekdayDescriptions: place.weekdayDescriptions,
+        ...(place.nextCloseTime ? { nextCloseTime: place.nextCloseTime } : {}),
+      };
+    })
+    .filter((facility) =>
+      requiredPostalCode ? addressMatchesPostalCode(facility.address, requiredPostalCode) : true,
+    )
+    .sort((first, second) => first.distanceMeters - second.distanceMeters);
+
+  const recommendedFacilities = sortedFacilities.filter((facility) => facility.priority === "recommended");
+  const additionalFacilities = sortedFacilities.filter((facility) => facility.priority === "additional");
+
+  return [...recommendedFacilities.slice(0, 4), ...additionalFacilities.slice(0, 2)];
+}
+
+async function fetchOsmFacilities(
+  location: UserLocation,
+  careLevel: CareLevel,
+  specialties: MedicalSpecialty[],
+  requiredPostalCode?: string,
 ): Promise<Facility[]> {
   // Nachts werden bei Nicht-Notfaellen Apotheken erweitert gesucht, weil Praxen
   // oft geschlossen sind und Apotheken die realistischere Anlaufstelle sein koennen.
@@ -754,7 +874,12 @@ async function fetchNearbyFacilities(
 
       // Nur aktuell geoeffnete Einrichtungen anzeigen, damit die Liste handlungsrelevant bleibt.
       // Name und vollstaendige Adresse sind Pflicht, weil Koordinaten allein keine gute Empfehlung sind.
-      if (!isOpenNow(openingHours) || !hasKnownName || !address) {
+      if (
+        !isOpenNow(openingHours) ||
+        !hasKnownName ||
+        !address ||
+        (requiredPostalCode !== undefined && !addressMatchesPostalCode(address, requiredPostalCode))
+      ) {
         return facilities;
       }
 
@@ -782,6 +907,7 @@ async function fetchNearbyFacilities(
             : "recommended",
         // Entfernung vom Nutzerstandort zur Einrichtung.
         distanceMeters: calculateDistanceMeters(location, { latitude, longitude }),
+        source: "osm",
       });
 
       // Reduce-Akkumulator zurueckgeben.
@@ -808,6 +934,20 @@ async function fetchNearbyFacilities(
     });
 }
 
+async function fetchNearbyFacilities(
+  location: UserLocation,
+  careLevel: CareLevel,
+  specialties: MedicalSpecialty[],
+  requiredPostalCode?: string,
+) {
+  try {
+    return await fetchGoogleFacilities(location, careLevel, specialties, requiredPostalCode);
+  } catch (error) {
+    console.warn("Google Places ist nicht verfügbar, OSM-Fallback wird verwendet.", error);
+    return fetchOsmFacilities(location, careLevel, specialties, requiredPostalCode);
+  }
+}
+
 export default function NearbyPracticeSearch({
   // careLevel kommt als Prop von der Ergebnis-Seite.
   careLevel,
@@ -832,14 +972,19 @@ export default function NearbyPracticeSearch({
   // Leerzustand passend zur Versorgungsebene.
   const emptyMessage = getEmptyMessage(careLevel);
 
-  const loadNearbyFacilities = async (location: UserLocation) => {
+  const loadNearbyFacilities = async (location: UserLocation, requiredPostalCode?: string) => {
     // Zentraler Einstieg fuer beide Standortquellen:
     // Browser-Geolocation und manuell geocodierte PLZ/Adresse landen beide hier.
     setLocationStatus("searching");
 
     try {
       // Einrichtungen fuer den Suchmittelpunkt laden.
-      const nextFacilities = await fetchNearbyFacilities(location, careLevel, specialties);
+      const nextFacilities = await fetchNearbyFacilities(
+        location,
+        careLevel,
+        specialties,
+        requiredPostalCode,
+      );
 
       // Treffer im State ablegen, damit React die Liste rendert.
       setFacilities(nextFacilities);
@@ -921,7 +1066,8 @@ export default function NearbyPracticeSearch({
       // Manuell gefundenen Standort speichern.
       setUserLocation(nextLocation);
       // Danach dieselbe Einrichtungssuche starten.
-      await loadNearbyFacilities(nextLocation);
+      const requiredPostalCode = extractGermanPostalCode(manualLocationQuery);
+      await loadNearbyFacilities(nextLocation, requiredPostalCode ?? undefined);
     } catch (error) {
       // Technische Fehler loggen.
       console.error(error);
@@ -944,6 +1090,13 @@ export default function NearbyPracticeSearch({
         ? "Adresse wird gesucht..."
         : "Standort wird angefragt...";
 
+  const handleChangeLocation = () => {
+    setLocationStatus("idle");
+    setFacilities([]);
+    setUserLocation(null);
+    setManualLocationQuery("");
+  };
+
   return (
     // Aeusserer Container der gesamten Suchkarte.
     <div className="rounded-[16px] bg-[#eff2f6] p-5 md:p-6 mb-4">
@@ -960,6 +1113,15 @@ export default function NearbyPracticeSearch({
             {searchIntro}
           </p>
         </div>
+        {locationStatus === "ready" && (
+          <button
+            type="button"
+            onClick={handleChangeLocation}
+            className="shrink-0 rounded-[10px] bg-white px-3 py-2 text-sm font-bold text-[#486284] ring-1 ring-[#c8d2dc] transition-colors hover:bg-[#dde3ea]"
+          >
+            PLZ ändern
+          </button>
+        )}
       </div>
 
       {/* Vor erfolgreicher Suche wird der Freigabe-Button mit passenden Statusmeldungen angezeigt. */}
@@ -1042,10 +1204,10 @@ export default function NearbyPracticeSearch({
             </p>
           )}
 
-          {/* Technischer Fehler bei Nominatim oder Overpass */}
+          {/* Technischer Fehler bei Nominatim, Google Places oder Overpass */}
           {locationStatus === "error" && (
             <p className="mt-3 rounded-[12px] bg-white px-4 py-3 text-sm font-medium text-[#8A4B16]">
-              Die Kartensuche ist gerade überlastet. Bitte versuchen Sie es erneut oder öffnen Sie direkt eine Karten-App.
+              Die Kartensuche ist gerade nicht verfügbar. Bitte versuchen Sie es später erneut.
             </p>
           )}
         </>
@@ -1055,14 +1217,24 @@ export default function NearbyPracticeSearch({
           {/* Kurze Trefferzusammenfassung */}
           {userLocation && (
             <div className="mb-3 rounded-[12px] bg-white px-4 py-3 text-sm font-medium text-[#486284]">
-              {facilities.length} offene Einrichtungen gefunden.
+              {facilities.length} {facilities.length === 1 ? "Einrichtung" : "Einrichtungen"} gefunden.
+              {facilities.some((facility) => facility.source === "google") && (
+                <span className="ml-1 text-xs text-[#52676B]">Datenquelle: Google Maps.</span>
+              )}
+              {facilities.some((facility) => facility.source === "osm") && (
+                <span className="ml-1 text-xs text-[#52676B]">Datenquelle: OpenStreetMap.</span>
+              )}
             </div>
           )}
 
           {/* Ergebnisliste */}
           <div className="grid grid-cols-1 gap-3">
             {facilities.map((facility) => {
-              const openingHoursDisplay = getOpeningHoursDisplay(facility.openingHours);
+              const openingHoursDisplay = getFacilityOpeningHoursDisplay(facility);
+              const openingHoursLines =
+                facility.source === "google" && facility.weekdayDescriptions?.length
+                  ? facility.weekdayDescriptions
+                  : [openingHoursDisplay.hoursLabel];
 
               return (
                 // Einzelne Einrichtungskarte.
@@ -1070,55 +1242,61 @@ export default function NearbyPracticeSearch({
                   key={facility.id}
                   className="rounded-[8px] bg-white p-4"
                 >
-                {/* Oberer Kartenbereich: Name, Kategorie, Entfernung, Adresse */}
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <p className="font-['DM_Sans:Bold',sans-serif] font-bold text-[#3e3e3e] text-sm">
-                      {facility.hasKnownName ? facility.name : `${facility.type} (Name nicht verfügbar)`}
-                    </p>
-                    <p className="mt-1 font-['DM_Sans:Medium',sans-serif] font-medium text-[#486284] text-xs">
-                      {facility.type} · {formatDistance(facility.distanceMeters)} entfernt
-                    </p>
-                    <p className="mt-1 text-xs font-medium text-[#52676B]">
-                      {facility.address}
-                    </p>
-                  </div>
-                </div>
-
-                {/* Oeffnungszeitenblock */}
-                <div className="mt-3 flex min-w-0 items-start gap-2 text-xs font-medium text-[#3e3e3e]">
-                  <Clock className="mt-0.5 size-4 flex-shrink-0 text-[#486284]" aria-hidden="true" />
-                  <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1">
-                    <p className="min-w-0 break-words">{openingHoursDisplay.hoursLabel}</p>
-                    <span className="inline-flex items-center gap-1.5 font-bold">
-                      <span
-                        className="size-2 rounded-full"
-                        style={{ backgroundColor: openingHoursDisplay.statusColor }}
-                        aria-hidden="true"
-                      />
-                      {openingHoursDisplay.statusLabel}
-                    </span>
-                  </div>
-                </div>
-
-                {/* Routenlinks werden nur angezeigt, wenn ein Suchmittelpunkt existiert */}
-                {userLocation && (
-                  <div className="mt-3 rounded-[8px] bg-[#f4f7fa] px-3 py-2">
-                    <p className="mb-2 text-xs font-bold text-[#486284]">Route öffnen:</p>
-                    <div className="flex flex-wrap gap-2">
-                      <a
-                        href={createGoogleMapsRouteUrl(facility, userLocation)}
-                        target="_blank"
-                        rel="noreferrer"
-                        aria-label={`Route zu ${facility.name} mit Google Maps öffnen`}
-                        className="inline-flex min-h-[36px] items-center gap-2 rounded-[8px] bg-white px-3 py-2 text-xs font-bold text-[#486284] transition-all hover:bg-[#dde3ea]"
-                      >
-                        <Navigation className="size-4 flex-shrink-0" aria-hidden="true" />
-                        Google Maps
-                      </a>
+                  {/* Oberer Kartenbereich: Name, Kategorie, Entfernung, Adresse */}
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="font-['DM_Sans:Bold',sans-serif] font-bold text-[#3e3e3e] text-sm">
+                        {facility.hasKnownName ? facility.name : `${facility.type} (Name nicht verfügbar)`}
+                      </p>
+                      <p className="mt-1 font-['DM_Sans:Medium',sans-serif] font-medium text-[#486284] text-xs">
+                        {facility.type} · {formatDistance(facility.distanceMeters)} entfernt
+                      </p>
+                      <p className="mt-1 text-xs font-medium text-[#52676B]">
+                        {facility.address}
+                      </p>
                     </div>
                   </div>
-                )}
+
+                  {/* Oeffnungszeitenblock */}
+                  <div className="mt-3 flex min-w-0 items-start gap-2 text-xs font-medium text-[#3e3e3e]">
+                    <Clock className="mt-0.5 size-4 flex-shrink-0 text-[#486284]" aria-hidden="true" />
+                    <div className="min-w-0">
+                      <span className="inline-flex items-center gap-1.5 font-bold">
+                        <span
+                          className="size-2 rounded-full"
+                          style={{ backgroundColor: openingHoursDisplay.statusColor }}
+                          aria-hidden="true"
+                        />
+                        {openingHoursDisplay.statusLabel}
+                      </span>
+                      <div className="mt-1 space-y-0.5 text-[#52676B]">
+                        {openingHoursLines.map((openingHoursLine) => (
+                          <p key={openingHoursLine} className="min-w-0 break-words">
+                            {openingHoursLine}
+                          </p>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Routenlinks werden nur angezeigt, wenn ein Suchmittelpunkt existiert */}
+                  {userLocation && (
+                    <div className="mt-3 rounded-[8px] bg-[#f4f7fa] px-3 py-2">
+                      <p className="mb-2 text-xs font-bold text-[#486284]">Route öffnen:</p>
+                      <div className="flex flex-wrap gap-2">
+                        <a
+                          href={createGoogleMapsRouteUrl(facility, userLocation)}
+                          target="_blank"
+                          rel="noreferrer"
+                          aria-label={`Route zu ${facility.name} mit Google Maps öffnen`}
+                          className="inline-flex min-h-[36px] items-center gap-2 rounded-[8px] bg-white px-3 py-2 text-xs font-bold text-[#486284] transition-all hover:bg-[#dde3ea]"
+                        >
+                          <Navigation className="size-4 flex-shrink-0" aria-hidden="true" />
+                          Google Maps
+                        </a>
+                      </div>
+                    </div>
+                  )}
                 </div>
               );
             })}
