@@ -35,6 +35,21 @@ const NON_SPECIALIST_SPECIALTIES: MedicalSpecialty[] = [
   'general_practice',
 ]
 
+const SPECIALTY_RECOMMENDATION_KEYWORDS = [
+  'abklaer',
+  'abgeklar',
+  'abgeklaer',
+  'behandel',
+  'empfehl',
+  'facharzt',
+  'fachrichtung',
+  'konsult',
+  'termin',
+  'uberweis',
+  'ueberweis',
+  'vorstell',
+]
+
 /**
  * Normalizes optional symptom text before keyword matching.
  */
@@ -61,14 +76,36 @@ function getResponseText(response: PlausibilityTriageResponse): string {
   ].join(' '))
 }
 
-function findMentionedSpecialties(response: PlausibilityTriageResponse): MedicalSpecialty[] {
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
+/**
+ * Requires specialty wording to appear near an actual recommendation phrase.
+ */
+function hasSpecialtyRecommendationContext(responseText: string, keyword: string): boolean {
+  const specialtyPattern = `(^|[^a-z])${escapeRegExp(keyword)}[a-z]*`
+  const recommendationPattern = `(?:${SPECIALTY_RECOMMENDATION_KEYWORDS.join('|')})[a-z]*`
+  const beforeSpecialty = new RegExp(
+    `${recommendationPattern}[^.!?\\n]{0,60}${specialtyPattern}`,
+    'i',
+  )
+  const afterSpecialty = new RegExp(
+    `${specialtyPattern}[^.!?\\n]{0,60}${recommendationPattern}`,
+    'i',
+  )
+
+  return beforeSpecialty.test(responseText) || afterSpecialty.test(responseText)
+}
+
+function findRecommendedSpecialties(response: PlausibilityTriageResponse): MedicalSpecialty[] {
   const responseText = getResponseText(response)
 
   return Object.entries(SPECIALTY_KEYWORDS)
     .filter(([specialty, keywords]) => {
       return (
         isSpecialistSpecialty(specialty as MedicalSpecialty) &&
-        keywords.some((keyword) => new RegExp(`(^|[^a-z])${keyword}`, 'i').test(responseText))
+        keywords.some((keyword) => hasSpecialtyRecommendationContext(responseText, keyword))
       )
     })
     .map(([specialty]) => specialty as MedicalSpecialty)
@@ -205,11 +242,11 @@ export function getTriageAiPlausibilityIssues(
     issues.push('Empfehlungen zu Fachrichtungen benötigen eine genaue Angabe der Fachrichtung.')
   }
 
-  const mentionedSpecialties = findMentionedSpecialties(response)
+  const recommendedSpecialties = findRecommendedSpecialties(response)
 
   if (
     response.careLevel !== 'specialist' &&
-    mentionedSpecialties.length > 0
+    recommendedSpecialties.length > 0
   ) {
     issues.push('Wenn eine Fachrichtung genannt wird, muss diese auch als Empfehlung eingestuft werden.')
   }
@@ -217,7 +254,7 @@ export function getTriageAiPlausibilityIssues(
   if (
     response.careLevel === 'specialist' &&
     response.recommendedSpecialty &&
-    mentionedSpecialties.some((specialty) => specialty !== response.recommendedSpecialty)
+    recommendedSpecialties.some((specialty) => specialty !== response.recommendedSpecialty)
   ) {
     issues.push('Genannte Fachrichtung muss zur empfohlenen Fachrichtung passen.')
   }

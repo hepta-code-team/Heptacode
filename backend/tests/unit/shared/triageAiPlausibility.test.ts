@@ -578,6 +578,32 @@ describe('getTriageAiPlausibilityIssues', () => {
     )
   })
 
+  /** Descriptive specialty wording should not be mistaken for a specialist recommendation. */
+  it('akzeptiert psychiatrischen Notfalltext ohne Facharztempfehlung', () => {
+    const issues = getTriageAiPlausibilityIssues(
+      {
+        careLevel: 'emergency',
+        reasons: ['Es handelt sich um einen psychiatrischen Notfall mit akuter Eigengefaehrdung.'],
+        reviewSummary: {
+          plainLanguage: 'Bitte nehmen Sie sofort medizinische Hilfe in Anspruch.',
+          professionalSummary: 'Psychiatrischer Notfall. Care Level: emergency.',
+        },
+      },
+      [
+        {
+          region: 'Psychische Probleme',
+          side: 'Suizidgedanken',
+          details: 'Konkrete Suizidabsicht mit Plan',
+          measurementType: 'severity',
+          measurementValue: 9,
+          duration: 'today',
+        },
+      ],
+    )
+
+    expect(issues).toEqual([])
+  })
+
   /** Specialty wording with German umlauts should be normalized before matching. */
   it.each([
     ['orthopädische', 'orthopädisch'],
