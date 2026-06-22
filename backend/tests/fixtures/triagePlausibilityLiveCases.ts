@@ -90,6 +90,73 @@ export const TRIAGE_PLAUSIBILITY_LIVE_CASES: TriagePlausibilityLiveCase[] = [
     ],
   },
   {
+    id: 'emergency-transient-stroke-signs',
+    name: 'Voruebergehende Schlaganfallzeichen',
+    category: 'emergency',
+    expectedCareLevel: 'emergency',
+    patientData: adultPatientData,
+    symptoms: [
+      {
+        region: 'Gesicht',
+        side: 'halbseitig',
+        details: 'Vor 20 Minuten hing ein Mundwinkel herab, der rechte Arm war schwach und die Sprache undeutlich; inzwischen sind die Beschwerden wieder verschwunden',
+        measurementType: 'severity',
+        measurementValue: 5,
+        duration: 'today',
+      },
+    ],
+  },
+  {
+    id: 'emergency-prolonged-seizure',
+    name: 'Anhaltender Krampfanfall',
+    category: 'emergency',
+    expectedCareLevel: 'emergency',
+    patientData: adultPatientData,
+    symptoms: [
+      {
+        region: 'Allgemein',
+        details: 'Generalisierter Krampfanfall, der seit sieben Minuten ununterbrochen anhaelt',
+        measurementType: 'severity',
+        measurementValue: 9,
+        duration: 'today',
+      },
+    ],
+  },
+  {
+    id: 'emergency-sepsis-signs',
+    name: 'Infektion mit Sepsiszeichen',
+    category: 'emergency',
+    expectedCareLevel: 'emergency',
+    patientData: adultPatientData,
+    symptoms: [
+      {
+        region: 'Allgemein',
+        side: 'Fieber',
+        details: 'Hohes Fieber mit Schuettelfrost, ploetzlicher Verwirrtheit, schneller Atmung und starkem Krankheitsgefuehl',
+        measurementType: 'temperature',
+        measurementValue: 40.1,
+        duration: 'today',
+      },
+    ],
+  },
+  {
+    id: 'emergency-pulmonary-embolism-signs',
+    name: 'Hinweise auf Lungenembolie',
+    category: 'emergency',
+    expectedCareLevel: 'emergency',
+    patientData: adultPatientData,
+    symptoms: [
+      {
+        region: 'Brust',
+        side: 'atemabhaengig',
+        details: 'Ploetzliche Atemnot mit stechendem atemabhaengigem Brustschmerz und einseitig geschwollener Wade nach langer Reise',
+        measurementType: 'pain',
+        measurementValue: 7,
+        duration: 'today',
+      },
+    ],
+  },
+  {
     id: 'emergency-suicidal-intent',
     name: 'Akute Suizidgefahr',
     category: 'emergency',

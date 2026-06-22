@@ -170,6 +170,48 @@ function hasAffirmedWarningTerm(text: string, terms: string[]): boolean {
 }
 
 /**
+ * Keeps transient focal neurological deficits urgent even after they resolve.
+ */
+function hasTransientNeurologicalWarningPattern(text: string): boolean {
+  const hasNeurologicalDeficit = [
+    'sprach',
+    'laehmung',
+    'lahmung',
+    'halbseit',
+    'schwaeche',
+    'schwache',
+  ].some((term) => text.includes(term))
+  const hasTransientCourse = [
+    'vorubergehend',
+    'kurzzeitig',
+    'inzwischen',
+    'abgeklungen',
+    'verschwunden',
+    'wieder normal',
+    'nicht mehr',
+  ].some((term) => text.includes(term))
+
+  return hasNeurologicalDeficit && hasTransientCourse
+}
+
+/**
+ * Detects descriptions of a seizure continuing beyond the five-minute threshold.
+ */
+function hasProlongedSeizurePattern(text: string): boolean {
+  const hasSeizure = [
+    'krampfanfall',
+    'epileptischer anfall',
+    'konvulsion',
+  ].some((term) => text.includes(term))
+  const hasProlongedCourse =
+    /\bseit\b[^.!?,;]{0,20}\b(?:5|funf|6|sechs|7|sieben|8|acht|9|neun|10|zehn)\b[^.!?,;]{0,10}\bminut/.test(text) ||
+    /\b(?:langer|mehr)\s+als\s+(?:5|funf)\b[^.!?,;]{0,10}\bminut/.test(text) ||
+    /\b(?:anhaltend|halt[^.!?,;]{0,12}\ban)\b/.test(text)
+
+  return hasSeizure && hasProlongedCourse
+}
+
+/**
  * Detects high-risk symptom patterns that should not be classified as self-care.
  */
 export function hasEmergencyTriagePattern(symptom: TriageSymptom): boolean {
@@ -178,6 +220,13 @@ export function hasEmergencyTriagePattern(symptom: TriageSymptom): boolean {
   const details = normalizeText(symptom.details)
   const combinedText = `${region} ${side} ${details}`
   const measurementValue = getComparableMeasurementValue(symptom)
+
+  if (
+    hasTransientNeurologicalWarningPattern(combinedText) ||
+    hasProlongedSeizurePattern(combinedText)
+  ) {
+    return true
+  }
 
   if (hasAffirmedWarningTerm(combinedText, [
     'suizid',

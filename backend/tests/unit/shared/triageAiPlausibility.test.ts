@@ -99,6 +99,67 @@ describe('getTriageAiPlausibilityIssues', () => {
     expect(issues).toContain('Warnsymptome dürfen nicht als selfcare eingestuft werden.')
   })
 
+  /** Time-critical warning scenarios should remain incompatible with self-care. */
+  it.each([
+    {
+      name: 'voruebergehenden Schlaganfallzeichen',
+      symptom: {
+        region: 'Gesicht',
+        side: 'halbseitig',
+        details: 'Vor 20 Minuten hing ein Mundwinkel herab, der Arm war schwach und die Sprache undeutlich; inzwischen sind die Beschwerden wieder verschwunden',
+        measurementType: 'severity' as const,
+        measurementValue: 5,
+        duration: 'today' as const,
+      },
+    },
+    {
+      name: 'einem mehr als fuenf Minuten anhaltenden Krampfanfall',
+      symptom: {
+        region: 'Allgemein',
+        details: 'Generalisierter Krampfanfall, der seit sieben Minuten ununterbrochen anhaelt',
+        measurementType: 'severity' as const,
+        measurementValue: 7,
+        duration: 'today' as const,
+      },
+    },
+    {
+      name: 'Sepsiszeichen',
+      symptom: {
+        region: 'Allgemein',
+        side: 'Fieber',
+        details: 'Hohes Fieber mit Schuettelfrost, ploetzlicher Verwirrtheit und schneller Atmung',
+        measurementType: 'temperature' as const,
+        measurementValue: 40.1,
+        duration: 'today' as const,
+      },
+    },
+    {
+      name: 'Hinweisen auf eine Lungenembolie',
+      symptom: {
+        region: 'Brust',
+        side: 'atemabhaengig',
+        details: 'Ploetzliche Atemnot mit stechendem Brustschmerz und einseitig geschwollener Wade',
+        measurementType: 'pain' as const,
+        measurementValue: 7,
+        duration: 'today' as const,
+      },
+    },
+  ])('markiert Selfcare bei $name als unplausibel', ({ symptom }) => {
+    const issues = getTriageAiPlausibilityIssues(
+      {
+        careLevel: 'selfcare',
+        reasons: ['Die Beschwerden koennen zunaechst beobachtet werden.'],
+        reviewSummary: {
+          plainLanguage: 'Die Beschwerden koennen zunaechst selbst beobachtet werden.',
+          professionalSummary: 'Care Level: selfcare.',
+        },
+      },
+      [symptom],
+    )
+
+    expect(issues).toContainEqual(expect.stringContaining('selfcare'))
+  })
+
   /** Suicidal ideation should not be accepted as self-care. */
   it('markiert Selfcare bei Suizidgedanken als unplausibel', () => {
     const issues = getTriageAiPlausibilityIssues(
