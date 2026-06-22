@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
 
-import { MEDICAL_SPECIALTIES } from '../../../shared/result.types.js'
-import { SPECIALIST_MEDICAL_SPECIALTIES, TRIAGE_SPECIALTY_CASES } from '../../tests/fixtures/triageSpecialtyCases.js'
-import { triageAiResponseSchema } from './validation.js'
+import { MEDICAL_SPECIALTIES } from '../../../../shared/result.types.js'
+import { SPECIALIST_MEDICAL_SPECIALTIES, TRIAGE_SPECIALTY_CASES } from '../../fixtures/triageSpecialtyCases.js'
+import { triageAiResponseSchema } from '../../../src/shared/validation.js'
 
 const NON_SPECIALIST_SPECIALTIES = [
   'home_care',
@@ -11,6 +11,7 @@ const NON_SPECIALIST_SPECIALTIES = [
 ] as const
 
 describe('MedicalSpecialty coverage', () => {
+  /** Every specialist specialty should have exactly one live-evaluation fixture. */
   it('hat genau einen Triage-Testfall fuer jede fachaerztliche Disziplin', () => {
     const expectedSpecialties = MEDICAL_SPECIALTIES.filter(
       (specialty) => !NON_SPECIALIST_SPECIALTIES.includes(specialty as typeof NON_SPECIALIST_SPECIALTIES[number]),
@@ -22,6 +23,7 @@ describe('MedicalSpecialty coverage', () => {
     expect([...SPECIALIST_MEDICAL_SPECIALTIES].sort()).toEqual([...expectedSpecialties].sort())
   })
 
+  /** Each specialty fixture should still satisfy the shared triage response schema. */
   it.each(TRIAGE_SPECIALTY_CASES)(
     'akzeptiert $name als Specialist-Antwort',
     ({ expectedSpecialty }) => {

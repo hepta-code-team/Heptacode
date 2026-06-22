@@ -49,7 +49,7 @@ export const triageAiResponseSchema = z
     if (value.careLevel === 'emergency') {
       return {
         ...value,
-        recommendedSpecialty: 'emergency_medicine',
+        recommendedSpecialty: 'emergency_medicine' as const,
       }
     }
     if (value.careLevel !== 'specialist' && isSpecialistSpecialty(value.recommendedSpecialty)) {

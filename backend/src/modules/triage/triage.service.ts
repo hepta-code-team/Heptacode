@@ -9,6 +9,10 @@ import type {
   TriageSymptom,
 } from './triage.types.js'
 import { triageAiResponseSchema } from '../../shared/validation.js'
+import {
+  getTriageAiPlausibilityIssues,
+  hasEmergencyTriagePattern,
+} from '../../shared/triageAiPlausibility.js'
 import type { SymptomInputType } from '../../../../shared/symptomExtraction.types.js'
 import { triageInstructions, createTriagePrompt } from '../prompt/triage.prompt.js'
 
@@ -254,7 +258,12 @@ async function requestTriageFromAi(
     temperature: 0,
   })
 
-  const normalized = triageAiResponseSchema.parse(parsed) as Omit<TriageResponse, 'aiModel'>
+  const normalized = triageAiResponseSchema.parse(parsed)
+  const plausibilityIssues = getTriageAiPlausibilityIssues(normalized, symptoms)
+
+  if (plausibilityIssues.length > 0) {
+    return createPlausibilityFallbackTriage(symptoms, plausibilityIssues)
+  }
 
   return {
     ...normalized,
@@ -274,44 +283,7 @@ function createFallbackTriage(symptoms: TriageSymptom[]): TriageResponse {
     ...symptoms.map(getComparableMeasurementValue),
   )
 
-  // Mirror the most urgent local safety rules when the AI cannot classify the case.
-  const hasEmergencyPattern = symptoms.some((symptom) => {
-    const region = symptom.region.toLowerCase()
-    const side = symptom.side?.toLowerCase() ?? ''
-    const measurementValue = getComparableMeasurementValue(symptom)
-
-    if (region === 'psychische probleme' && side === 'suizidgedanken') {
-      return true
-    }
-
-    if (region === 'allgemein' && side === 'verwirrtheit') {
-      return true
-    }
-
-    if (region === 'brust') {
-      return (
-        measurementValue >= 5 ||
-        side === 'linksseitig' ||
-        side === 'brustmitte' ||
-        side === 'atemabhaengig' ||
-        side === 'atemabhängig'
-      )
-    }
-
-    return false
-  })
-
-  if (hasEmergencyPattern) {
-    return {
-      careLevel: 'emergency',
-      recommendedSpecialty: 'emergency_medicine',
-      reasons: [
-        'Die KI-Auswertung ist aktuell nicht verfuegbar.',
-        'Die uebergebenen Beschwerden enthalten ein Warnmuster, das vorsichtshalber als Notfall eingestuft wird.',
-      ],
-      aiUnavailable: true,
-    }
-  }
+  const hasEmergencyPattern = symptoms.some(hasEmergencyTriagePattern)
 
   if (strongestMeasurementValue >= 8) {
     return {
@@ -320,6 +292,18 @@ function createFallbackTriage(symptoms: TriageSymptom[]): TriageResponse {
       reasons: [
         'Die KI-Auswertung ist aktuell nicht verfuegbar.',
         'Aufgrund der sehr starken Beschwerden wird sicherheitshalber eine Notfallabklaerung empfohlen.',
+      ],
+      aiUnavailable: true,
+    }
+  }
+
+  if (hasEmergencyPattern) {
+    return {
+      careLevel: 'emergency',
+      recommendedSpecialty: 'emergency_medicine',
+      reasons: [
+        'Die KI-Auswertung ist aktuell nicht verfuegbar.',
+        'Die uebergebenen Beschwerden enthalten ein Warnmuster, das vorsichtshalber als Notfall eingestuft wird.',
       ],
       aiUnavailable: true,
     }
@@ -341,6 +325,26 @@ function createFallbackTriage(symptoms: TriageSymptom[]): TriageResponse {
     careLevel: 'selfcare',
     recommendedSpecialty: 'home_care',
     reasons: ['Die KI-Auswertung ist aktuell nicht verfuegbar. Ohne erkannte Symptome ist keine hoehere Dringlichkeit ableitbar.'],
+    aiUnavailable: true,
+  }
+}
+
+/**
+ * Uses deterministic triage when an AI answer is formally valid but medically contradictory.
+ */
+function createPlausibilityFallbackTriage(
+  symptoms: TriageSymptom[],
+  issues: string[],
+): TriageResponse {
+  const fallback = createFallbackTriage(symptoms)
+
+  return {
+    ...fallback,
+    reasons: [
+      'Die KI-Antwort wurde verworfen, weil sie die Plausibilitaetspruefung nicht bestanden hat.',
+      ...issues,
+      ...fallback.reasons.filter((reason) => !reason.includes('KI-Auswertung ist aktuell nicht verfuegbar')),
+    ],
     aiUnavailable: true,
   }
 }
