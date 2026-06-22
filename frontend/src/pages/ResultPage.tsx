@@ -679,7 +679,7 @@ export default function ResultPage() {
       alert("Das PDF konnte nicht heruntergeladen werden.");
     }
   };
-  
+
   if (isAcuteEmergencyFlow) {
     return (
       <AcuteEmergencySummaryFlow
