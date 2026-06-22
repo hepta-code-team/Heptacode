@@ -158,6 +158,77 @@ describe('evaluateTriage', () => {
     )
   })
 
+  it('hebt Medikamente und Einnahmedauer als eigenen Triage-Kontext hervor', async () => {
+    requestStructuredAiResponseWithModelMock.mockResolvedValueOnce({
+      data: {
+        careLevel: 'doctor',
+        reasons: ['Ein moeglicher zeitlicher Zusammenhang mit Ramipril sollte aerztlich geprueft werden.'],
+        reviewSummary: {
+          plainLanguage: 'Der Schwindel kann zeitlich mit Ramipril zusammenhaengen und sollte aerztlich geprueft werden.',
+          professionalSummary: 'Schwindel nach Beginn einer Ramipril-Einnahme; medikationsbezogene Abklaerung empfohlen.',
+        },
+      },
+      model: 'test-model',
+    })
+
+    await evaluateTriage({
+      ...malePatientData,
+      medications: 'Ramipril 5 mg',
+      medicationDuration: 'seit 3 Tagen',
+    }, [
+      { region: 'Allgemein', side: 'Schwindel', measurementType: 'severity', measurementValue: 5, duration: 'days' },
+    ])
+
+    expect(requestStructuredAiResponseWithModelMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        messages: expect.arrayContaining([
+          expect.objectContaining({
+            role: 'system',
+            content: expect.stringMatching(/Medikationskontext aktiv[\s\S]*zeitlichen Zusammenhang/),
+          }),
+          expect.objectContaining({
+            role: 'user',
+            content: expect.stringContaining(
+              'Medikationskontext (bei der Triage aktiv pruefen):\nAktuelle Medikamente: Ramipril 5 mg\nEinnahmedauer: seit 3 Tagen',
+            ),
+          }),
+        ]),
+      }),
+    )
+  })
+
+  it('kennzeichnet eine fehlende Einnahmedauer im Medikationskontext', async () => {
+    requestStructuredAiResponseWithModelMock.mockResolvedValueOnce({
+      data: {
+        careLevel: 'doctor',
+        reasons: ['Aerztliche Abklaerung empfohlen.'],
+        reviewSummary: {
+          plainLanguage: 'Bitte lassen Sie die Beschwerden aerztlich abklaeren.',
+          professionalSummary: 'Care Level: doctor.',
+        },
+      },
+      model: 'test-model',
+    })
+
+    await evaluateTriage({
+      ...malePatientData,
+      medications: 'Metformin',
+    }, [
+      { region: 'Bauch', measurementType: 'pain', measurementValue: 5, duration: 'days' },
+    ])
+
+    expect(requestStructuredAiResponseWithModelMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        messages: expect.arrayContaining([
+          expect.objectContaining({
+            role: 'user',
+            content: expect.stringContaining('Aktuelle Medikamente: Metformin\nEinnahmedauer: Nicht angegeben'),
+          }),
+        ]),
+      }),
+    )
+  })
+
   it('nutzt den Fallback, wenn die KI-Anfrage fehlschlaegt', async () => {
     requestStructuredAiResponseWithModelMock.mockRejectedValueOnce(new AiResponseError('timeout'))
 

@@ -44,6 +44,12 @@ export const triageInstructions = [
   'Wenn reasons, plainLanguage oder professionalSummary eine fachaerztliche Disziplin empfehlen oder namentlich nennen, muss careLevel = specialist sein und recommendedSpecialty muss dazu passen.',
   'Nutze general_practice nicht als Ersatz fuer specialist. Nutze general_practice nur, wenn careLevel nicht specialist ist.',
   'Beruecksichtige die uebergebenen Symptome, Zusatzdetails, Messwerte, Dauern und die Stammdaten.',
+  'Pruefe den Medikationskontext aktiv und nicht nur als Stammdatum: Beruecksichtige bekannte Nebenwirkungen, Wechselwirkungen, Gegenanzeigen sowie einen plausiblen zeitlichen Zusammenhang zwischen Einnahmebeginn oder Einnahmedauer und den Beschwerden.',
+  'Unterscheide dabei zwischen neu begonnener oder kuerzlich veraenderter Medikation und langjaehrig stabil eingenommener Medikation. Eine zeitliche Naehe kann die Relevanz erhoehen, beweist aber keine Ursache.',
+  'Wenn Medikamente fuer Dringlichkeit, moegliche Ursache oder geeignete Versorgung relevant sind, nenne das konkrete Medikament und den Zusammenhang kurz in reasons sowie in beiden Texten der reviewSummary.',
+  'Erfinde keine Dosierung, Einnahmefrequenz, Indikation, Wechselwirkung oder Nebenwirkung. Wenn Angaben dafuer fehlen oder der Zusammenhang unsicher ist, kennzeichne die Unsicherheit.',
+  'Empfehle niemals eigenstaendig, ein verordnetes Medikament abzusetzen oder die Dosierung zu aendern. Verweise bei einem moeglichen Medikationsproblem auf aerztliche oder pharmazeutische Abklaerung.',
+  'Medikamente duerfen klare Warnzeichen nicht herunterstufen. Bei moeglicher schwerer Nebenwirkung, Wechselwirkung oder allergischer Reaktion waehle sicherheitsorientiert die passende hoehere Versorgungsebene.',
   'Nutze das uebergebene aktuelle Datum als Bezugsdatum fuer Altersberechnungen aus Geburtsmonat und Geburtsjahr.',
   'Zusatzdetails koennen fuer die Dringlichkeit entscheidend sein, zum Beispiel Verbrennungsursache, Hitzequelle, Fremdkoerper steckt tief oder steckt explizit nicht mehr, Blutung, offene Wunde oder Negationen.',
   'Handle sicherheitsorientiert. Bei klaren Warnzeichen oder hohem Risiko waehle die hoehere Versorgungsebene.',
@@ -55,6 +61,7 @@ export const triageInstructions = [
 type TriagePromptInput = {
   currentDateText: string
   patientDataText: string
+  medicationContextText: string
   symptomsText: string
 }
 
@@ -65,6 +72,9 @@ export function createTriagePrompt(input: TriagePromptInput): string {
     '',
     'Stammdaten:',
     input.patientDataText,
+    '',
+    'Medikationskontext (bei der Triage aktiv pruefen):',
+    input.medicationContextText,
     '',
     'Symptome:',
     input.symptomsText,

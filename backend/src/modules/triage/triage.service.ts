@@ -82,8 +82,6 @@ function buildPatientDataLines(patientData?: PatientData): string[] {
     patientData.isPregnant ? 'Schwanger: Ja' : null,
     patientData.isBreastfeeding ? 'Stillend: Ja' : null,
     hasText(patientData.allergies) ? `Allergien: ${patientData.allergies.trim()}` : null,
-    hasText(patientData.medications) ? `Medikamente: ${patientData.medications.trim()}` : null,
-    hasText(patientData.medicationDuration) ? `Einahmedauer Medikamente: ${patientData.medicationDuration.trim()}` : null,
     hasText(patientData.substanceInfluence) && patientData.substanceInfluence.trim() !== 'Nein'
       ? `Substanzbeeinflussung: ${patientData.substanceInfluence.trim()}`
       : null,
@@ -116,6 +114,22 @@ function formatLocalDate(date: Date = new Date()): string {
 
 function formatPatientData(patientData?: PatientData): string {
   return buildPatientDataLines(patientData).join('\n')
+}
+
+/**
+ * Gives medication details a dedicated prompt section instead of burying them
+ * among demographic data. Missing duration remains explicit because it limits
+ * assessment of a temporal relationship with current symptoms.
+ */
+function formatMedicationContext(patientData?: PatientData): string {
+  if (!patientData || !hasText(patientData.medications)) {
+    return 'Keine aktuelle Medikation angegeben.'
+  }
+
+  return [
+    `Aktuelle Medikamente: ${patientData.medications.trim()}`,
+    `Einnahmedauer: ${hasText(patientData.medicationDuration) ? patientData.medicationDuration.trim() : 'Nicht angegeben'}`,
+  ].join('\n')
 }
 
 /**
@@ -230,6 +244,7 @@ async function requestTriageFromAi(
         content: createTriagePrompt({
           currentDateText: formatLocalDate(),
           patientDataText: formatPatientData(patientData),
+          medicationContextText: formatMedicationContext(patientData),
           symptomsText: formatSymptoms(symptoms),
         }),
       },
