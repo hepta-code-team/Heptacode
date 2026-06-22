@@ -240,6 +240,7 @@ export const symptomInputValidationAiResultSchema = z.object({
   reason: z.string().min(1),
 })
 
+// The model extracts locations and confidence; the service decides whether they conflict.
 export const symptomConsistencyAiResultSchema = z.object({
   isRegionMeaningful: z.boolean(),
   selectedLocationIds: z.array(z.enum(BODY_LOCATION_IDS)),

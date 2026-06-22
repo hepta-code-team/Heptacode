@@ -44,6 +44,7 @@ export const symptomExtractionRoutes: FastifyPluginAsync = async (app) => {
     return reply.send(result)
   })
 
+  // Dedicated endpoint for the final region/detail consistency check.
   app.post('/api/v1/symptoms/consistency', async (request, reply) => {
     const body = symptomConsistencyRequestSchema.parse(request.body)
     const result = await validateSymptomConsistency({

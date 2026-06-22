@@ -49,6 +49,7 @@ export const SYMPTOM_REGIONS = [
   },
 ] as const;
 
+// Stable broad location IDs used to compare regions across UI text and AI output.
 export const BODY_LOCATION_IDS = [
   'head',
   'neck',
@@ -93,6 +94,7 @@ export function formatBodyLocationTaxonomyForPrompt(): string {
     .join('\n');
 }
 
+// Exposes labels and options from the central taxonomy for deterministic matching.
 export function getBodyLocationTaxonomy(): Array<{
   id: BodyLocationId;
   labels: string[];

@@ -85,6 +85,7 @@ export async function validateSymptomDetailInput(
   });
 }
 
+// Sends the displayed region and details together for the pre-submit consistency check.
 export async function validateSymptomConsistency(
   symptom: Pick<TriageSymptom, "region" | "side" | "details">,
   patientData?: PatientData,

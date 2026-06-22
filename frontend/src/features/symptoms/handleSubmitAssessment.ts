@@ -17,6 +17,7 @@ async function validateSymptomInputs(symptoms: SymptomDraft[], patientData?: Pat
       throw new Error("Bitte geben Sie für jedes erkannte Symptom einen Namen ein.");
     }
 
+    // Validate every active symptom before sending the assessment payload.
     const regionDetailResult = await validateSymptomConsistency(symptom, patientData);
 
     if (!regionDetailResult.isRegionMeaningful || regionDetailResult.hasClearContradiction) {

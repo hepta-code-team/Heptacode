@@ -41,6 +41,7 @@ function splitWords(text: string): string[] {
     .filter((part) => part.length > 0)
 }
 
+// Add common German singular variants without maintaining a separate alias list.
 function addSingularVariants(aliases: Set<string>, value: string): void {
   aliases.add(value)
 
@@ -54,6 +55,7 @@ function addSingularVariants(aliases: Set<string>, value: string): void {
   }
 }
 
+// Build all deterministic aliases from the shared taxonomy.
 const bodyLocationAliases = getBodyLocationTaxonomy().map(({ id, labels }) => {
   const aliases = new Set<string>()
 
@@ -181,6 +183,7 @@ export async function validateSymptomConsistency(
   )
   const explicitDetailLocationIds = extractExplicitBodyLocationIds(input.details ?? '')
 
+  // Exact matches are reliable enough to compare without an AI request.
   if (explicitSelectedLocationIds.length > 0 && explicitDetailLocationIds.length > 0) {
     const hasCompatibleLocation = explicitSelectedLocationIds.some((locationId) =>
       explicitDetailLocationIds.includes(locationId),
@@ -200,6 +203,7 @@ export async function validateSymptomConsistency(
     }
   }
 
+  // Use the fallback model only when one side cannot be resolved deterministically.
   try {
     const result = await requestSymptomConsistencyFromAi(input)
     const selectedLocationIds = explicitSelectedLocationIds.length > 0
@@ -214,6 +218,7 @@ export async function validateSymptomConsistency(
     const detailLocationConfidence = explicitDetailLocationIds.length > 0
       ? 'high'
       : result.detailLocationConfidence
+    // Block only when both extracted locations are explicit and highly confident.
     const hasHighConfidenceLocations =
       selectedLocationConfidence === 'high' &&
       detailLocationConfidence === 'high' &&
