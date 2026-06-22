@@ -80,6 +80,7 @@ function Harness() {
 describe('AssessmentContext', () => {
   beforeEach(() => {
     window.localStorage.clear();
+    window.sessionStorage.clear();
     apiPostMock.mockReset();
   });
 
@@ -137,7 +138,7 @@ describe('AssessmentContext', () => {
   it('discards persisted assessment data after its expiration time', () => {
     const removeItemSpy = vi.spyOn(Storage.prototype, 'removeItem');
 
-    window.localStorage.setItem(ASSESSMENT_STORAGE_KEY, JSON.stringify({
+    window.sessionStorage.setItem(ASSESSMENT_STORAGE_KEY, JSON.stringify({
       state: {
         patientData,
         selectedSymptoms: [{ region: 'Kopf' }],

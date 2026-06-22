@@ -36,7 +36,7 @@ const isBrowserStorageAvailable = () => {
   }
 
   try {
-    return typeof window.localStorage !== "undefined";
+    return typeof window.sessionStorage !== "undefined";
   } catch {
     return false;
   }
@@ -95,12 +95,18 @@ function normalizePersistedAssessmentState(state: PersistedAssessmentState): Per
 }
 
 function readPersistedAssessmentState(): PersistedAssessmentState {
+  try {
+    window.localStorage.removeItem(ASSESSMENT_STORAGE_KEY);
+  } catch {
+    // Ignore unavailable legacy storage. Current assessment data uses sessionStorage.
+  }
+
   if (!isBrowserStorageAvailable()) {
     return defaultPersistedAssessmentState;
   }
 
   try {
-    const storedState = window.localStorage.getItem(ASSESSMENT_STORAGE_KEY);
+    const storedState = window.sessionStorage.getItem(ASSESSMENT_STORAGE_KEY);
 
     if (!storedState) {
       return defaultPersistedAssessmentState;
@@ -113,7 +119,7 @@ function readPersistedAssessmentState(): PersistedAssessmentState {
       typeof storedAssessment.expiresAt !== "number" ||
       Date.now() >= storedAssessment.expiresAt
     ) {
-      window.localStorage.removeItem(ASSESSMENT_STORAGE_KEY);
+      window.sessionStorage.removeItem(ASSESSMENT_STORAGE_KEY);
       return defaultPersistedAssessmentState;
     }
 
@@ -129,7 +135,7 @@ function readPersistedAssessmentState(): PersistedAssessmentState {
     });
   } catch (error) {
     console.warn("Persistierte Ersteinschätzung konnte nicht geladen werden.", error);
-    window.localStorage.removeItem(ASSESSMENT_STORAGE_KEY);
+    window.sessionStorage.removeItem(ASSESSMENT_STORAGE_KEY);
     return defaultPersistedAssessmentState;
   }
 }
@@ -145,7 +151,7 @@ function writePersistedAssessmentState(state: PersistedAssessmentState) {
       expiresAt: Date.now() + ASSESSMENT_STORAGE_TTL_MS,
     };
 
-    window.localStorage.setItem(
+    window.sessionStorage.setItem(
       ASSESSMENT_STORAGE_KEY,
       JSON.stringify(storedAssessment),
     );
@@ -160,7 +166,7 @@ function clearPersistedAssessmentState() {
   }
 
   try {
-    window.localStorage.removeItem(ASSESSMENT_STORAGE_KEY);
+    window.sessionStorage.removeItem(ASSESSMENT_STORAGE_KEY);
   } catch (error) {
     console.warn("Persistierte Ersteinschätzung konnte nicht gelöscht werden.", error);
   }
