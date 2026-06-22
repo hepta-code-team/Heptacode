@@ -3,7 +3,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { AiResponseError } from '../../../../src/ai/timeout.js'
 import { requestStructuredAiResponseWithModel } from '../../../../src/ai/llmAdapter.js'
 import { extractSymptoms } from '../../../../src/modules/symptom-extraction/symptomExtraction.service.js'
-import { evaluateTriage } from '../../../../src/modules/triage/triage.service.js'
+import {
+  evaluateTriage,
+  evaluateTriageWithDiagnostics,
+} from '../../../../src/modules/triage/triage.service.js'
 
 vi.mock('../../../../src/ai/llmAdapter.js', () => ({
   requestStructuredAiResponseWithModel: vi.fn(),
@@ -338,6 +341,119 @@ describe('evaluateTriage', () => {
         'Warnsymptome dürfen nicht als selfcare eingestuft werden.',
       ]),
     )
+  })
+
+  /** Diagnostic evaluation should preserve the rejected AI answer and the final safety fallback. */
+  it('stellt direkte KI-Antwort und finales Fallback getrennt bereit', async () => {
+    requestStructuredAiResponseWithModelMock.mockResolvedValueOnce({
+      data: {
+        careLevel: 'selfcare',
+        reasons: ['Die Beschwerden koennen zunaechst beobachtet werden.'],
+        reviewSummary: {
+          plainLanguage: 'Die Beschwerden koennen zunaechst beobachtet werden.',
+          professionalSummary: 'Care Level: selfcare.',
+        },
+      },
+      model: 'test-model',
+    })
+
+    const diagnostics = await evaluateTriageWithDiagnostics(undefined, [
+      {
+        region: 'Brust',
+        details: 'Druckgefuehl mit Atemnot',
+        measurementType: 'pain',
+        measurementValue: 5,
+        duration: 'today',
+      },
+    ])
+
+    expect(diagnostics).toMatchObject({
+      aiResponse: {
+        careLevel: 'selfcare',
+        aiModel: 'test-model',
+      },
+      finalResponse: {
+        careLevel: 'emergency',
+        aiUnavailable: true,
+      },
+      fallbackType: 'plausibility',
+    })
+    expect(diagnostics.plausibilityIssues).toContain(
+      'Warnsymptome dürfen nicht als selfcare eingestuft werden.',
+    )
+  })
+
+  /** Diagnostic evaluation should keep matching AI and system results without a fallback. */
+  it('meldet bei plausibler KI-Antwort keinen Fallback', async () => {
+    requestStructuredAiResponseWithModelMock.mockResolvedValueOnce({
+      data: {
+        careLevel: 'doctor',
+        reasons: ['Die Beschwerden sollten aerztlich eingeordnet werden.'],
+        reviewSummary: {
+          plainLanguage: 'Bitte lassen Sie die Beschwerden aerztlich einordnen.',
+          professionalSummary: 'Care Level: doctor.',
+        },
+      },
+      model: 'test-model',
+    })
+
+    const diagnostics = await evaluateTriageWithDiagnostics(undefined, [
+      {
+        region: 'Bauch',
+        measurementType: 'pain',
+        measurementValue: 5,
+        duration: 'days',
+      },
+    ])
+
+    expect(diagnostics).toMatchObject({
+      aiResponse: {
+        careLevel: 'doctor',
+        aiModel: 'test-model',
+      },
+      finalResponse: {
+        careLevel: 'doctor',
+        aiModel: 'test-model',
+      },
+      plausibilityIssues: [],
+      fallbackType: 'none',
+    })
+  })
+
+  /** Negated dyspnea should not turn mild chest-wall pain into an emergency fallback. */
+  it('behaelt Selfcare bei mildem Brustwandschmerz ohne Atemnot bei', async () => {
+    requestStructuredAiResponseWithModelMock.mockResolvedValueOnce({
+      data: {
+        careLevel: 'selfcare',
+        reasons: ['Die Beschwerden entsprechen einem milden Muskelkater ohne Warnzeichen.'],
+        reviewSummary: {
+          plainLanguage: 'Der milde Muskelkater kann zunächst selbst beobachtet werden.',
+          professionalSummary: 'Care Level: selfcare without warning signs.',
+        },
+      },
+      model: 'test-model',
+    })
+
+    const diagnostics = await evaluateTriageWithDiagnostics(undefined, [
+      {
+        region: 'Brust',
+        details: 'Leichter Muskelkater nach Liegestuetzen ohne Atemnot',
+        measurementType: 'pain',
+        measurementValue: 2,
+        duration: 'today',
+      },
+    ])
+
+    expect(diagnostics).toMatchObject({
+      aiResponse: {
+        careLevel: 'selfcare',
+      },
+      finalResponse: {
+        careLevel: 'selfcare',
+      },
+      plausibilityIssues: [],
+      fallbackType: 'none',
+    })
   })
 
   /** Plausibility checks should reject emergency escalation for clearly mild symptoms. */

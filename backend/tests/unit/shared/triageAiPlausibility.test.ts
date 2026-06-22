@@ -99,6 +99,67 @@ describe('getTriageAiPlausibilityIssues', () => {
     expect(issues).toContain('Warnsymptome dürfen nicht als selfcare eingestuft werden.')
   })
 
+  /** Time-critical warning scenarios should remain incompatible with self-care. */
+  it.each([
+    {
+      name: 'voruebergehenden Schlaganfallzeichen',
+      symptom: {
+        region: 'Gesicht',
+        side: 'halbseitig',
+        details: 'Vor 20 Minuten hing ein Mundwinkel herab, der Arm war schwach und die Sprache undeutlich; inzwischen sind die Beschwerden wieder verschwunden',
+        measurementType: 'severity' as const,
+        measurementValue: 5,
+        duration: 'today' as const,
+      },
+    },
+    {
+      name: 'einem mehr als fuenf Minuten anhaltenden Krampfanfall',
+      symptom: {
+        region: 'Allgemein',
+        details: 'Generalisierter Krampfanfall, der seit sieben Minuten ununterbrochen anhaelt',
+        measurementType: 'severity' as const,
+        measurementValue: 7,
+        duration: 'today' as const,
+      },
+    },
+    {
+      name: 'Sepsiszeichen',
+      symptom: {
+        region: 'Allgemein',
+        side: 'Fieber',
+        details: 'Hohes Fieber mit Schuettelfrost, ploetzlicher Verwirrtheit und schneller Atmung',
+        measurementType: 'temperature' as const,
+        measurementValue: 40.1,
+        duration: 'today' as const,
+      },
+    },
+    {
+      name: 'Hinweisen auf eine Lungenembolie',
+      symptom: {
+        region: 'Brust',
+        side: 'atemabhaengig',
+        details: 'Ploetzliche Atemnot mit stechendem Brustschmerz und einseitig geschwollener Wade',
+        measurementType: 'pain' as const,
+        measurementValue: 7,
+        duration: 'today' as const,
+      },
+    },
+  ])('markiert Selfcare bei $name als unplausibel', ({ symptom }) => {
+    const issues = getTriageAiPlausibilityIssues(
+      {
+        careLevel: 'selfcare',
+        reasons: ['Die Beschwerden koennen zunaechst beobachtet werden.'],
+        reviewSummary: {
+          plainLanguage: 'Die Beschwerden koennen zunaechst selbst beobachtet werden.',
+          professionalSummary: 'Care Level: selfcare.',
+        },
+      },
+      [symptom],
+    )
+
+    expect(issues).toContainEqual(expect.stringContaining('selfcare'))
+  })
+
   /** Suicidal ideation should not be accepted as self-care. */
   it('markiert Selfcare bei Suizidgedanken als unplausibel', () => {
     const issues = getTriageAiPlausibilityIssues(
@@ -263,6 +324,69 @@ describe('getTriageAiPlausibilityIssues', () => {
     )
 
     expect(issues).toContain('Warnsymptome dürfen nicht als selfcare eingestuft werden.')
+  })
+
+  /** Explicitly negated warning terms should not trigger emergency plausibility rules. */
+  it.each([
+    {
+      name: 'Atemnot',
+      symptom: {
+        region: 'Brust',
+        details: 'Leichter Muskelkater nach Sport, keine Atemnot und keine Luftnot',
+        measurementType: 'pain' as const,
+        measurementValue: 2,
+      },
+    },
+    {
+      name: 'neurologische Ausfälle',
+      symptom: {
+        region: 'Kopf',
+        details: 'Leichte Kopfschmerzen, keine Lähmung und keine Sprachstörung',
+        measurementType: 'pain' as const,
+        measurementValue: 2,
+      },
+    },
+    {
+      name: 'Suizidgedanken',
+      symptom: {
+        region: 'Psychische Probleme',
+        details: 'Leichte innere Unruhe, keine Suizidgedanken und keine Selbstverletzung',
+        measurementType: 'severity' as const,
+        measurementValue: 2,
+      },
+    },
+    {
+      name: 'allergische Reaktion',
+      symptom: {
+        region: 'Haut',
+        details: 'Lokale Rötung, keine allergische Reaktion und keine Schwellung im Gesicht',
+        measurementType: 'severity' as const,
+        measurementValue: 2,
+      },
+    },
+    {
+      name: 'starke Blutung',
+      symptom: {
+        region: 'Finger',
+        details: 'Kleiner Schnitt; eine zuvor starke Blutung besteht nicht mehr',
+        measurementType: 'pain' as const,
+        measurementValue: 2,
+      },
+    },
+  ])('akzeptiert Selfcare bei ausdrücklich verneintem Warnzeichen: $name', ({ symptom }) => {
+    const issues = getTriageAiPlausibilityIssues(
+      {
+        careLevel: 'selfcare',
+        reasons: ['Die Beschwerden sind mild und können zunächst beobachtet werden.'],
+        reviewSummary: {
+          plainLanguage: 'Die Beschwerden können zunächst selbst beobachtet werden.',
+          professionalSummary: 'Care Level: selfcare without warning signs.',
+        },
+      },
+      [symptom],
+    )
+
+    expect(issues).toEqual([])
   })
 
   /** Airway-related allergic swelling should not be accepted as self-care. */
@@ -576,6 +700,34 @@ describe('getTriageAiPlausibilityIssues', () => {
     expect(issues).toContain(
       'Wenn eine Fachrichtung genannt wird, muss diese auch als Empfehlung eingestuft werden.',
     )
+  })
+
+  /** Explicitly excluded specialties should not be interpreted as recommendations. */
+  it('akzeptiert Doctor-Antworten mit ausdruecklich nicht indizierten Fachrichtungen', () => {
+    const issues = getTriageAiPlausibilityIssues(
+      {
+        careLevel: 'doctor',
+        reasons: [
+          'Die Symptome deuten auf eine akute Infektion hin, die in der Regel ambulant behandelt werden kann. Da keine spezifischen Fachrichtungen wie Kardiologie, Neurologie etc. indiziert sind und es sich um allgemeine Symptome handelt, ist eine Vorstellung beim Hausarzt angemessen.',
+        ],
+        reviewSummary: {
+          plainLanguage: 'Bitte stellen Sie sich zur Abklaerung bei Ihrem Hausarzt vor.',
+          professionalSummary: 'Care Level: doctor. General practice is appropriate.',
+        },
+      },
+      [
+        {
+          region: 'Allgemein',
+          side: 'Fieber',
+          details: 'Fieber und Gliederschmerzen ohne Atemnot',
+          measurementType: 'temperature',
+          measurementValue: 39.2,
+          duration: 'days',
+        },
+      ],
+    )
+
+    expect(issues).toEqual([])
   })
 
   /** Descriptive specialty wording should not be mistaken for a specialist recommendation. */
