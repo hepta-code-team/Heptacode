@@ -4,6 +4,7 @@ import {existsSync} from 'node:fs'
 import {join} from 'node:path'
 
 import type {PatientData} from '../../../../shared/patientData.types.js'
+import type {MedicalSpecialty} from '../../../../shared/result.types.js'
 import type {TriageSymptom} from '../../../../shared/symptom.types.js'
 import type {PdfExportRequest, PdfExportResult, PdfSection, PdfTriageResult,} from './pdf.types.js'
 
@@ -72,6 +73,36 @@ function formatCareLevel(careLevel: PdfTriageResult['careLevel']): string {
     default:
       return careLevel
   }
+}
+
+const MEDICAL_SPECIALTY_LABELS: Record<MedicalSpecialty, string> = {
+  home_care: 'Häusliche Versorgung',
+  emergency_medicine: 'Notfallmedizin',
+  general_practice: 'Allgemeinmedizin',
+  internal_medicine: 'Innere Medizin',
+  cardiology: 'Kardiologie',
+  neurology: 'Neurologie',
+  orthopedics: 'Orthopädie',
+  gastroenterology: 'Gastroenterologie',
+  pulmonology: 'Pneumologie',
+  dermatology: 'Dermatologie',
+  urology: 'Urologie',
+  gynecology: 'Gynäkologie',
+  psychiatry: 'Psychiatrie',
+  pediatrics: 'Pädiatrie',
+  dentistry: 'Zahnmedizin',
+  ophthalmology: 'Augenheilkunde',
+  otolaryngology: 'Hals-Nasen-Ohren-Heilkunde',
+}
+
+function formatCareRecommendation(triage: PdfTriageResult): string {
+  const careLevel = formatCareLevel(triage.careLevel)
+
+  if (!triage.recommendedSpecialty) {
+    return careLevel
+  }
+
+  return `${careLevel} – ${MEDICAL_SPECIALTY_LABELS[triage.recommendedSpecialty]}`
 }
 
 function symptomLabel(symptom: TriageSymptom): string {
@@ -239,6 +270,7 @@ function summarizePatient(data?: PatientData): string {
     `Stillzeit: ${data.isBreastfeeding ? 'Ja' : 'Nein'}`,
     `Allergien: ${data.allergies || '-'}`,
     `Medikamente: ${data.medications || '-'}`,
+    `Einahmedauer Medikamente: ${data.medicationDuration || '-'}`,
     `Substanzbeeinflussung: ${data.substanceInfluence || 'Nein'}`,
     `Reise ins Ausland: ${formatRecentAbroad(data)}`,
     data.conditions.length > 0
@@ -513,16 +545,19 @@ function cleanStructuredProfessionalSummary(summary: string): string {
 
 function summarizeCareReason(request: PdfExportRequest): string {
   const plainLanguageSummary = normalizeGermanText(request.reviewSummary.plainLanguage).trim()
+  const specialtyLine = request.triage?.recommendedSpecialty
+    ? `Empfohlene Fachrichtung: ${MEDICAL_SPECIALTY_LABELS[request.triage.recommendedSpecialty]}\n`
+    : ''
 
   if (plainLanguageSummary.length > 0) {
-    return `Begründung der Empfehlung: \n${plainLanguageSummary}`
+    return `${specialtyLine}Begründung der Empfehlung: \n${plainLanguageSummary}`
   }
 
   if (!request.triage) {
     return 'Begründung der Empfehlung: Keine Begründung vorhanden.'
   }
 
-  return `Begründung der Empfehlung: ${formatReasons(request.triage.reasons)}`
+  return `${specialtyLine}Begründung der Empfehlung: ${formatReasons(request.triage.reasons)}`
 }
 
 /**
@@ -577,7 +612,7 @@ function buildSections(request: PdfExportRequest): PdfSection[] {
     {
       title: 'Wichtiger Hinweis',
       content:
-        'Diese Einschätzung ist keine medizinische Diagnose und ersetzt nicht den Besuch bei einem Arzt. KI-Systeme können Fehler machen. Bei Unsicherheit oder Verschlechterung Ihres Zustands suchen Sie bitte umgehend medizinische Hilfe.',
+        'Diese Einschätzung ist keine medizinische Diagnose und ersetzt nicht den Besuch bei einem Arzt.\nKI-Systeme können Fehler machen. Bei Unsicherheit oder Verschlechterung Ihres Zustands suchen Sie bitte umgehend medizinische Hilfe.',
     },
   ]
 }
@@ -664,7 +699,7 @@ function addHeader(
       .fillColor(THEME.darkBlue)
       .font('Helvetica-Bold')
       .fontSize(13)
-      .text(formatCareLevel(triage.careLevel), PAGE.marginX, 107)
+      .text(formatCareRecommendation(triage), PAGE.marginX, 107)
   }
 
   if (existsSync(TEAM_LOGO_PATH)) {
@@ -732,19 +767,10 @@ function ensureSpace(doc: PdfDoc, neededHeight: number): void {
   }
 }
 
-function addIntroBox(doc: PdfDoc): void {
+function addIntroText(doc: PdfDoc, aiModel?: string): void {
   const x = PAGE.marginX
   const width = doc.page.width - PAGE.marginX * 2
   const y = doc.y
-  const boxHeight = 48
-
-  doc.roundedRect(x, y, width, boxHeight, 12).fill(THEME.cardAlt)
-
-  doc
-    .roundedRect(x, y, width, boxHeight, 12)
-    .strokeColor(THEME.border)
-    .lineWidth(0.9)
-    .stroke()
 
   doc
     .fillColor(THEME.text)
@@ -752,15 +778,29 @@ function addIntroBox(doc: PdfDoc): void {
     .fontSize(9.5)
     .text(
       'Dieses Dokument fasst Ihre eingegebenen Daten und die empfohlene Versorgung zusammen.',
-      x + 16,
-      y + 15,
-      {
-        width: width - 32,
-        lineGap: 3,
-      },
+      x,
+      y,
+      { width },
     )
 
-  doc.y = y + boxHeight + 16
+  if (aiModel) {
+    doc
+      .moveDown(0.25)
+      .font('Helvetica')
+      .text('Die Einschätzung wurde mit dem KI-Modell ', x, doc.y, {
+        continued: true,
+      })
+      .font('Helvetica-Bold')
+      .text(aiModel, {
+        continued: true,
+      })
+      .font('Helvetica')
+      .text(' durchgeführt.', {
+        width,
+      })
+  }
+
+  doc.y += 16
 }
 
 /**
@@ -899,67 +939,29 @@ function renderTextWithLinks(
   doc.fillColor(THEME.text).font('Helvetica').fontSize(10)
 }
 
-/**
- * Draws one rounded PDF section card and renders its formatted text.
- *
- * Height is calculated before drawing because PDFKit cannot auto-layout a card
- * background around content after the text has already been written.
- */
-function addSectionCard(
-  doc: PdfDoc,
-  section: PdfSection,
-  options?: {
-    backgroundColor?: string
-    borderColor?: string
-    titleColor?: string
-  },
-): void {
-  const x = PAGE.marginX
-  const width = doc.page.width - PAGE.marginX * 2
-  const padding = 16
-  const titleHeight = 18
-  const contentWidth = width - padding * 2
+function measureSectionLines(doc: PdfDoc, lines: string[], width: number): number {
+  return lines.reduce((height, line) => {
+    if (line.trim().length === 0) {
+      return height + doc.currentLineHeight(true)
+    }
 
-  const displayContent = removeMarkdownLinkUrls(section.content)
-
-  doc.font('Helvetica').fontSize(10)
-
-  const contentHeight = doc.heightOfString(displayContent, {
-    width: contentWidth,
-    lineGap: 4,
-  })
-
-  const cardHeight = padding + titleHeight + 8 + contentHeight + padding + 8
-
-  ensureSpace(doc, cardHeight + 14)
-
-  const y = doc.y
-  const backgroundColor = options?.backgroundColor ?? THEME.card
-  const borderColor = options?.borderColor ?? THEME.border
-  const titleColor = options?.titleColor ?? THEME.darkBlue
-
-  doc.roundedRect(x, y, width, cardHeight, 12).fill(backgroundColor)
-
-  doc
-    .roundedRect(x, y, width, cardHeight, 12)
-    .strokeColor(borderColor)
-    .lineWidth(0.9)
-    .stroke()
-
-  doc
-    .fillColor(titleColor)
-    .font('Helvetica-Bold')
-    .fontSize(13)
-    .text(section.title, x + padding, y + padding, {
-      width: contentWidth,
+    return height + doc.heightOfString(removeMarkdownLinkUrls(line), {
+      width,
+      lineGap: 4,
     })
+  }, 0)
+}
 
-  doc.fillColor(THEME.text).font('Helvetica').fontSize(10)
+function renderSectionLines(
+  doc: PdfDoc,
+  lines: string[],
+  contentX: number,
+  contentWidth: number,
+  startY: number,
+): number {
+  doc.y = startY
 
-  const contentX = x + padding
-  doc.y = y + padding + titleHeight + 8
-
-  section.content.split('\n').forEach((line) => {
+  lines.forEach((line) => {
     if (line.trim().length === 0) {
       doc.moveDown(1)
       return
@@ -967,7 +969,6 @@ function addSectionCard(
 
     const headingMatch = line.trim().match(/^([^:]+:)(\s*)(.*)$/)
 
-    // Render "Label: value" lines with bold labels while keeping inline links clickable.
     if (headingMatch) {
       const prefix = headingMatch[1] ?? ''
       const spacing = headingMatch[2] ?? ''
@@ -994,7 +995,196 @@ function addSectionCard(
     renderTextWithLinks(doc, line, contentX, contentWidth)
   })
 
-  doc.y = y + cardHeight + 14
+  return doc.y
+}
+
+function splitPatientDataColumns(content: string): {
+  heading: string
+  leftLines: string[]
+  rightLines: string[]
+  remainingLines: string[]
+} | null {
+  const lines = content.split('\n')
+  const patientHeadingIndex = lines.findIndex(
+    (line) => line.trim().toLowerCase() === 'patientendaten:',
+  )
+  const complaintsHeadingIndex = lines.findIndex(
+    (line, index) =>
+      index > patientHeadingIndex && line.trim().toLowerCase() === 'beschwerden:',
+  )
+
+  if (patientHeadingIndex < 0 || complaintsHeadingIndex < 0) {
+    return null
+  }
+
+  const patientLines = lines
+    .slice(patientHeadingIndex + 1, complaintsHeadingIndex)
+    .filter((line) => line.trim().length > 0)
+  const rightColumnStart = patientLines.findIndex((line) =>
+    /^Allergien:/i.test(line.trim()),
+  )
+
+  if (rightColumnStart <= 0) {
+    return null
+  }
+
+  return {
+    heading: lines[patientHeadingIndex] ?? 'Patientendaten:',
+    leftLines: patientLines.slice(0, rightColumnStart),
+    rightLines: patientLines.slice(rightColumnStart),
+    remainingLines: lines.slice(complaintsHeadingIndex),
+  }
+}
+
+/**
+ * Draws one rounded PDF section card and renders its formatted text.
+ *
+ * Height is calculated before drawing because PDFKit cannot auto-layout a card
+ * background around content after the text has already been written.
+ */
+function addSectionCard(
+  doc: PdfDoc,
+  section: PdfSection,
+  options?: {
+    backgroundColor?: string
+    borderColor?: string
+    titleColor?: string
+    compact?: boolean
+  },
+): void {
+  const x = PAGE.marginX
+  const width = doc.page.width - PAGE.marginX * 2
+  const padding = options?.compact ? 12 : 16
+  const titleHeight = options?.compact ? 16 : 18
+  const titleGap = options?.compact ? 6 : 8
+  const bottomExtra = options?.compact ? 2 : 8
+  const cardGap = options?.compact ? 10 : 14
+  const contentWidth = width - padding * 2
+  const contentX = x + padding
+  const patientColumns = splitPatientDataColumns(section.content)
+
+  const displayContent = removeMarkdownLinkUrls(section.content)
+
+  doc.font('Helvetica').fontSize(10)
+
+  const dividerX = contentX + contentWidth / 2
+  const leftDividerGap = 14
+  const rightDividerGap = 22
+  const leftColumnWidth = dividerX - contentX - leftDividerGap
+  const rightColumnX = dividerX + rightDividerGap
+  const rightColumnWidth = contentX + contentWidth - rightColumnX
+  const patientHeadingGap = 5
+  const complaintsSeparatorTopGap = 14
+  const complaintsSeparatorBottomGap = 18
+  const complaintsSeparatorHeight =
+    complaintsSeparatorTopGap + complaintsSeparatorBottomGap
+  const patientHeadingHeight = patientColumns
+    ? measureSectionLines(doc, [patientColumns.heading], contentWidth)
+    : 0
+  const leftColumnHeight = patientColumns
+    ? measureSectionLines(doc, patientColumns.leftLines, leftColumnWidth)
+    : 0
+  const rightColumnHeight = patientColumns
+    ? measureSectionLines(doc, patientColumns.rightLines, rightColumnWidth)
+    : 0
+  const remainingContentHeight = patientColumns
+    ? measureSectionLines(doc, patientColumns.remainingLines, contentWidth)
+    : 0
+  const contentHeight = patientColumns
+    ? patientHeadingHeight +
+      patientHeadingGap +
+      Math.max(leftColumnHeight, rightColumnHeight) +
+      complaintsSeparatorHeight +
+      remainingContentHeight
+    : doc.heightOfString(displayContent, {
+        width: contentWidth,
+        lineGap: 4,
+      })
+
+  const cardHeight =
+    padding + titleHeight + titleGap + contentHeight + padding + bottomExtra
+
+  ensureSpace(doc, cardHeight + cardGap)
+
+  const y = doc.y
+  const backgroundColor = options?.backgroundColor ?? THEME.card
+  const borderColor = options?.borderColor ?? THEME.border
+  const titleColor = options?.titleColor ?? THEME.darkBlue
+
+  doc.roundedRect(x, y, width, cardHeight, 12).fill(backgroundColor)
+
+  doc
+    .roundedRect(x, y, width, cardHeight, 12)
+    .strokeColor(borderColor)
+    .lineWidth(0.9)
+    .stroke()
+
+  doc
+    .fillColor(titleColor)
+    .font('Helvetica-Bold')
+    .fontSize(13)
+    .text(section.title, x + padding, y + padding, {
+      width: contentWidth,
+    })
+
+  doc.fillColor(THEME.text).font('Helvetica').fontSize(10)
+
+  const contentY = y + padding + titleHeight + titleGap
+
+  if (patientColumns) {
+    const headingEndY = renderSectionLines(
+      doc,
+      [patientColumns.heading],
+      contentX,
+      contentWidth,
+      contentY,
+    )
+    const columnsY = headingEndY + patientHeadingGap
+    const columnsHeight = Math.max(leftColumnHeight, rightColumnHeight)
+
+    renderSectionLines(
+      doc,
+      patientColumns.leftLines,
+      contentX,
+      leftColumnWidth,
+      columnsY,
+    )
+    renderSectionLines(
+      doc,
+      patientColumns.rightLines,
+      rightColumnX,
+      rightColumnWidth,
+      columnsY,
+    )
+
+    const complaintsSeparatorY =
+      columnsY + columnsHeight + complaintsSeparatorTopGap
+
+    doc
+      .moveTo(contentX, complaintsSeparatorY)
+      .lineTo(contentX + contentWidth, complaintsSeparatorY)
+      .strokeColor(THEME.border)
+      .lineWidth(0.7)
+      .stroke()
+
+    renderSectionLines(
+      doc,
+      patientColumns.remainingLines,
+      contentX,
+      contentWidth,
+      complaintsSeparatorY + complaintsSeparatorBottomGap,
+    )
+  } else {
+    renderSectionLines(
+      doc,
+      section.content.split('\n'),
+      contentX,
+      contentWidth,
+      contentY,
+    )
+  }
+
+  doc.y = y + cardHeight + cardGap
 }
 
 /**
@@ -1014,15 +1204,20 @@ function addPdfContent(
 
   doc.y = 154
 
-  addIntroBox(doc)
+  addIntroText(doc, request.aiModel)
 
   sections.forEach((section) => {
     const isWarning = section.title === 'Wichtiger Hinweis'
+
+    if (isWarning) {
+      doc.y -= 6
+    }
 
     addSectionCard(doc, section, {
       backgroundColor: isWarning ? THEME.warningLight : THEME.card,
       borderColor: isWarning ? THEME.warningBorder : THEME.border,
       titleColor: isWarning ? THEME.warning : THEME.darkBlue,
+      compact: isWarning,
     })
   })
 }

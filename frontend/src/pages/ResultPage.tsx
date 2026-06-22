@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import { Check, ChevronDown, Download, Edit3, PhoneCall, X } from "lucide-react";
 import PageShell from "../components/PageShell";
-import ResultCard from "../features/results/ResultCard";
 import NearbyPracticeSearch from "../features/results/NearbyPracticeSearch";
 import Button from "../components/Button";
 import {
@@ -263,6 +262,113 @@ function formatTravelDisplay(value: string) {
   return country || startDate || endDate || value;
 }
 
+function AcuteEmergencySummaryFlow({
+  acuteSymptomName,
+  acuteSymptomDescription,
+  onReset,
+}: {
+  acuteSymptomName?: string;
+  acuteSymptomDescription?: string;
+  onReset: () => void;
+}) {
+  const emergencyConfig = TRIAGE_CONFIGS.emergency;
+
+  return (
+    <PageShell
+      title="Notfallversorgung"
+      subtitle="Sie sollten sich umgehend in die Notaufnahme begeben oder wahlen sie die 112."
+    >
+      <div
+        className="rounded-[16px] p-5 md:p-6 mb-4"
+        style={{ backgroundColor: emergencyConfig.bgColor }}
+      >
+        <div className="flex items-center gap-3 mb-3">
+          <div
+            className="w-14 h-14 rounded-full flex items-center justify-center flex-shrink-0"
+            style={{ backgroundColor: emergencyConfig.color }}
+          >
+            <p
+              className="font-['DM_Sans:Bold',sans-serif] font-bold text-app-text-on-primary text-xl"
+              style={{ fontVariationSettings: "'opsz' 14" }}
+            >
+              !
+            </p>
+          </div>
+          <p
+            className="font-['DM_Sans:Bold',sans-serif] font-bold text-xl md:text-2xl"
+            style={{ fontVariationSettings: "'opsz' 14", color: emergencyConfig.color }}
+          >
+            {emergencyConfig.title}
+          </p>
+        </div>
+
+        <p
+          className="font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-body text-sm md:text-base leading-relaxed"
+          style={{ fontVariationSettings: "'opsz' 14" }}
+        >
+          {emergencyConfig.description}
+        </p>
+
+        <div className="my-6 border-t border-[#FF2546]/20" />
+
+        <p className="font-['DM_Sans:Bold',sans-serif] font-bold text-app-text-primary text-lg mb-3">
+          Ihre Einschätzung
+        </p>
+
+        <p className="font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-body text-sm md:text-base leading-relaxed">
+          {acuteSymptomName ? (
+            <>
+              Sie haben <strong>{acuteSymptomName}</strong> ausgewählt.{" "}
+            </>
+          ) : (
+            "Sie haben ein akutes Notfallsymptom ausgewählt. "
+          )}
+          {acuteSymptomDescription ||
+            "Dieses Symptom kann auf einen medizinischen Notfall hinweisen und sollte sofort abgeklärt werden."}
+        </p>
+
+        <p className="mt-3 font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-body text-sm leading-relaxed">
+          Weitere Informationen zu Notruf und Notaufnahme finden Sie bei{" "}
+          <a
+            href="https://gesund.bund.de/wege-im-gesundheitswesen/erwachsenenleben/alter/notfaelle/notruf-und-notaufnahme"
+            target="_blank"
+            rel="noreferrer"
+            className="font-bold text-[#486284] underline hover:no-underline"
+          >
+            gesund.bund.de
+          </a>
+          .
+        </p>
+      </div>
+
+      <a
+        href="tel:112"
+        className="md:hidden mb-4 flex min-h-[56px] w-full items-center justify-center gap-3 rounded-[14px] px-5 py-3 text-app-text-on-primary shadow-sm transition-all hover:opacity-90"
+        style={{ backgroundColor: emergencyConfig.color }}
+        aria-label="112 anrufen"
+      >
+        <PhoneCall className="size-5 flex-shrink-0" aria-hidden="true" />
+        <span className="font-['DM_Sans:Bold',sans-serif] font-bold text-base">
+          112 anrufen
+        </span>
+      </a>
+
+      <NearbyPracticeSearch
+        careLevel="emergency"
+        specialties={["emergency_medicine"]}
+      />
+
+      <div className="mt-6 mb-6">
+        <Button onClick={onReset}>
+          <p className="font-['DM_Sans:Bold',sans-serif] font-bold text-base">
+            Neue Bewertung starten
+          </p>
+        </Button>
+      </div>
+    </PageShell>
+  );
+}
+
 export default function ResultPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -275,12 +381,13 @@ export default function ResultPage() {
   const [travelEndDateDraft, setTravelEndDateDraft] = useState("");
   const [editableProfessionalSummary, setEditableProfessionalSummary] = useState("");
   const [isExplanationOpen, setIsExplanationOpen] = useState(false);
+  const [isPatientDataOpen, setIsPatientDataOpen] = useState(false);
   const [professionalSummaryDraft, setProfessionalSummaryDraft] = useState<MedicalSummarySections>(
     EMPTY_MEDICAL_SUMMARY_SECTIONS,
   );
 
-  const isEmergency = searchParams.get("emergency") === "true";
-  const fallbackCareLevel: CareLevel = isEmergency ? "emergency" : "selfcare";
+  const isAcuteEmergencyFlow = searchParams.get("emergency") === "true";
+  const fallbackCareLevel: CareLevel = isAcuteEmergencyFlow ? "emergency" : "selfcare";
   const careLevel = assessmentResult?.careLevel ?? fallbackCareLevel;
   const specialtyParam = searchParams.get("specialty");
   const recommendedSpecialty = isValidMedicalSpecialty(assessmentResult?.recommendedSpecialty)
@@ -358,7 +465,11 @@ export default function ResultPage() {
   const professionalSummary =
     assessmentResult?.reviewSummary?.professionalSummary?.trim() || buildProfessionalSummaryFallback();
 
-  const formatConditionDetail = (detail: PatientData["conditionDetails"][string]) => {
+  const formatConditionDetail = (detail: PatientData["conditionDetails"][string] | string) => {
+    if (typeof detail === "string") {
+      return detail.trim();
+    }
+
     const parts = [
       detail.detail.trim() ? detail.detail.trim() : null,
       detail.duration.trim() ? `Dauer: ${detail.duration.trim()}` : null,
@@ -385,6 +496,7 @@ export default function ResultPage() {
         { label: "Stillzeit", value: patientData.isBreastfeeding ? "Ja" : "Nein" },
         { label: "Allergien", value: formatOptionalValue(patientData.allergies) },
         { label: "Medikamente", value: formatOptionalValue(patientData.medications) },
+        { label: "Medikamente seit", value: formatOptionalValue(patientData.medicationDuration) },
         { label: "Substanzbeeinflussung", value: formatOptionalValue(patientData.substanceInfluence || "Nein") },
         {
           label: "Auslandsreise",
@@ -427,6 +539,8 @@ export default function ResultPage() {
     resetAssessment();
   };
 
+  const {symptomText} = useAssessment();
+
   const handleStartSummaryEdit = () => {
     const summaryDraft = parseMedicalSummarySections(displayedProfessionalSummary);
     const travelDetails = splitTravelDetails(patientData?.recentAbroadDetails ?? "");
@@ -437,6 +551,7 @@ export default function ResultPage() {
     setTravelStartDateDraft(travelDetails.startDate);
     setTravelEndDateDraft(travelDetails.endDate);
     setProfessionalSummaryDraft(summaryDraft);
+    setIsPatientDataOpen(true);
     setIsEditingSummary(true);
   };
 
@@ -506,6 +621,9 @@ export default function ResultPage() {
       const safeRecommendedSpecialty = isValidMedicalSpecialty(assessmentResult?.recommendedSpecialty)
         ? assessmentResult.recommendedSpecialty
         : recommendedSpecialty;
+      const complaintReasons = professionalSummaryDraft.complaints.trim()
+        ? [professionalSummaryDraft.complaints.trim()]
+        : explanationReasons.slice(0, 5);
 
       // Keep the export payload conservative and schema-shaped even when the page is rendered from URL fallbacks.
       const pdfPayload = {
@@ -513,10 +631,11 @@ export default function ResultPage() {
           plainLanguage: plainLanguageSummary,
           professionalSummary: displayedProfessionalSummary,
         },
+        ...(assessmentResult?.aiModel ? { aiModel: assessmentResult.aiModel } : {}),
         triage: {
           careLevel: safeCareLevel,
           recommendedSpecialty: safeRecommendedSpecialty,
-          reasons: explanationReasons.slice(0, 5),
+          reasons: complaintReasons,
         },
         ...(patientData ? { patientData } : {}),
         ...(symptomDetails.length > 0
@@ -561,12 +680,127 @@ export default function ResultPage() {
     }
   };
 
+  if (isAcuteEmergencyFlow) {
+    return (
+      <AcuteEmergencySummaryFlow
+        acuteSymptomName={searchParams.get("acuteSymptom") ?? undefined}
+        acuteSymptomDescription={searchParams.get("acuteSymptomDescription") ?? undefined}
+        onReset={handleReset}
+      />
+    );
+  }
   return (
     <PageShell
       title="Ihre Auswertung"
       subtitle="Basierend auf Ihren Angaben haben wir folgende Empfehlung für Sie."
     >
-      <ResultCard config={config} careLevel={careLevel} recommendedSpecialty={recommendedSpecialty} />
+      <div
+        className="rounded-[16px] p-5 md:p-6 mb-4"
+        style={{ backgroundColor: config.bgColor }}
+      >
+        <div className="flex items-center gap-3 mb-3">
+          <div
+            className="w-14 h-14 rounded-full flex items-center justify-center flex-shrink-0"
+            style={{ backgroundColor: config.color }}
+          >
+            <p
+              className="font-['DM_Sans:Bold',sans-serif] font-bold text-app-text-on-primary text-xl"
+              style={{ fontVariationSettings: "'opsz' 14" }}
+            >
+              !
+            </p>
+          </div>
+          <p
+            className="font-['DM_Sans:Bold',sans-serif] font-bold text-xl md:text-2xl"
+            style={{ fontVariationSettings: "'opsz' 14", color: config.color }}
+          >
+            {config.title}
+            {config.titleSupplement && (
+              <span className="block font-['DM_Sans:Medium',sans-serif] font-light">
+                {" "}({config.titleSupplement})
+              </span>
+            )}
+          </p>
+        </div>
+
+        <p
+          className="font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-body text-sm md:text-base leading-relaxed"
+          style={{ fontVariationSettings: "'opsz' 14" }}
+        >
+          {config.description}
+          {careLevel === "doctor" && (
+            <span className="hidden md:inline">
+              {" "}
+              Bei weiteren Fragen oder Unsicherheiten kontaktieren Sie die{" "}
+              <strong>116 117</strong>.
+            </span>
+          )}
+          {recommendedSpecialty === "psychiatry" && (
+            <span className="hidden md:inline">
+              {" "}
+              Bei akuten Sorgen erreichen Sie die Telefonseelsorge unter{" "}
+              <strong>0800 1110111</strong>.
+            </span>
+          )}
+        </p>
+
+        <div className="my-6 border-t border-black/10" />
+
+        <p className="font-['DM_Sans:Bold',sans-serif] font-bold text-app-text-primary text-lg mb-3">
+          Ihre Einschätzung
+        </p>
+        <p className="font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-body text-sm md:text-base leading-relaxed">
+          {plainLanguageSummary}
+        </p>
+        {assessmentResult?.aiUnavailable && (
+          <p className="mt-3 font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-body text-xs leading-relaxed">
+            Die automatische KI-Auswertung war nicht vollständig verfügbar. Die Empfehlung wurde
+            deshalb mit einem vorsichtigen medizinischen Fallback erzeugt.
+          </p>
+        )}
+
+        <button
+          type="button"
+          onClick={() => setIsExplanationOpen((isOpen) => !isOpen)}
+          className="mt-5 inline-flex items-center gap-2 rounded-[10px] border border-[#d8e0ea] bg-white/40 px-4 py-2 text-app-text-primary transition-all hover:border-[#486284] hover:bg-white/60"
+          aria-expanded={isExplanationOpen}
+        >
+          <span className="font-['DM_Sans:Bold',sans-serif] font-bold text-sm">
+            {isExplanationOpen ? "KI-Begründung ausblenden" : "KI-Begründung anzeigen"}
+          </span>
+          <ChevronDown
+            className={`size-5 flex-shrink-0 text-app-text-primary transition-transform ${
+              isExplanationOpen ? "rotate-180" : ""
+            }`}
+            aria-hidden="true"
+          />
+        </button>
+
+        {isExplanationOpen && (
+          <div className="mt-4 border-l-2 border-[#486284]/30 pl-4">
+            <p className="font-['DM_Sans:Bold',sans-serif] font-bold text-app-text-primary text-base mb-2">
+              KI-Begründung
+            </p>
+            {symptomText?.trim() && (
+                <p className="mb-3 font-['DM_Sans:Medium',sans-serif] font-medium text-base leading-relaxed">
+                  Ihre Eingabe: <span className="italic">„{symptomText.trim()}“</span>
+                </p>
+            )}
+            <div className="space-y-1.5">
+                <p>
+                    {professionalSummaryDraft.complaints}
+                </p>
+
+              {assessmentResult?.aiModel && (
+                  <p className="font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-body text-base leading-relaxed">
+                    Die Einschätzung wurde mit dem KI-Modell{" "}
+                    <strong>{assessmentResult.aiModel}</strong> durchgeführt. KI kann Fehler machen.
+                  </p>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
 
       {callAction && (
           <a
@@ -588,65 +822,6 @@ export default function ResultPage() {
           assessmentResult?.recommendedSpecialties?.map((specialty) => specialty.specialty) ?? [recommendedSpecialty]
         }
       />
-
-      <div className="bg-white border border-[#d8e0ea] rounded-[16px] p-5 md:p-6 mb-4">
-        <p className="font-['DM_Sans:Bold',sans-serif] font-bold text-app-text-primary text-lg mb-3">
-          Ihre Einschätzung
-        </p>
-        <p className="font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-body text-sm md:text-base leading-relaxed">
-          {plainLanguageSummary}
-        </p>
-        {assessmentResult?.aiUnavailable && (
-          <p className="mt-3 font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-body text-xs leading-relaxed">
-            Die automatische KI-Auswertung war nicht vollständig verfügbar. Die Empfehlung wurde
-            deshalb mit einem vorsichtigen medizinischen Fallback erzeugt.
-          </p>
-        )}
-
-
-
-        <button
-          type="button"
-          onClick={() => setIsExplanationOpen((isOpen) => !isOpen)}
-          className="mt-5 inline-flex items-center gap-2 rounded-[10px] border border-[#d8e0ea] px-4 py-2 text-app-text-primary transition-all hover:border-[#486284] hover:bg-[#eff2f6]"
-          aria-expanded={isExplanationOpen}
-        >
-          <span className="font-['DM_Sans:Bold',sans-serif] font-bold text-sm">
-            {isExplanationOpen ? "KI-Begründung ausblenden" : "KI-Begründung anzeigen"}
-          </span>
-          <ChevronDown
-            className={`size-4 flex-shrink-0 text-app-text-primary transition-transform ${
-              isExplanationOpen ? "rotate-180" : ""
-            }`}
-            aria-hidden="true"
-          />
-        </button>
-
-        {isExplanationOpen && (
-          <div className="mt-4">
-            <p className="font-['DM_Sans:Bold',sans-serif] font-bold text-app-text-primary text-sm mb-2">
-              KI-Begründung
-            </p>
-            <ul className="space-y-1.5">
-              {explanationReasons.map((reason) => (
-                <li
-                  key={reason}
-                  className="font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-body text-sm leading-relaxed"
-                >
-                  • {reason}
-                </li>
-              ))}
-              {assessmentResult?.aiModel && (
-                <li className="font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-body text-sm leading-relaxed">
-                  • Die Einschätzung wurde mit dem KI-Modell{" "}
-                  <strong>{assessmentResult.aiModel}</strong> durchgeführt. KI kann Fehler machen.
-                </li>
-              )}
-            </ul>
-          </div>
-        )}
-      </div>
-
 
 
       <div className="bg-white border-2 border-[#486284] rounded-[16px] p-5 md:p-6 mb-4">
@@ -715,10 +890,31 @@ export default function ResultPage() {
             </div>
           </div>
 
-          <div className="bg-white rounded-[10px] p-3 border border-[#d8e0ea]">
-            <p className="text-xs text-app-text-subtle mb-2">Patientendaten</p>
-            {isEditingSummary && patientDataDraft ? (
-              <div className="grid gap-3 md:grid-cols-2">
+          <div className="bg-white rounded-[10px] border border-[#d8e0ea]">
+            <button
+              type="button"
+              onClick={() => setIsPatientDataOpen((isOpen) => !isOpen)}
+              className="flex w-full items-center justify-between gap-3 p-3 text-left"
+              aria-expanded={isPatientDataOpen}
+              aria-controls="result-patient-data"
+            >
+              <span className="font-['DM_Sans:Bold',sans-serif] text-sm font-bold text-app-text-primary">
+                Patientendaten
+              </span>
+              <span className="flex size-7 flex-shrink-0 items-center justify-center rounded-lg bg-[#486284] text-white">
+                <ChevronDown
+                  className={`size-5 transition-transform ${
+                    isPatientDataOpen ? "rotate-180" : ""
+                  }`}
+                  aria-hidden="true"
+                />
+              </span>
+            </button>
+
+            {isPatientDataOpen && (
+              <div id="result-patient-data" className="border-t border-[#d8e0ea] px-3 pb-3 pt-3">
+                {isEditingSummary && patientDataDraft ? (
+                  <div className="grid gap-3 md:grid-cols-2">
                 <label className="block">
                   <span className="text-[11px] font-medium text-app-text-subtle">Geburtsmonat</span>
                   <input
@@ -915,28 +1111,30 @@ export default function ResultPage() {
                     />
                   </label>
                 </div>
-              </div>
-            ) : patientDataRows.length > 0 ? (
-              <dl className="grid gap-x-4 gap-y-2 md:grid-cols-2">
-                {patientDataRows.map((row) => (
-                  <div key={row.label} className="min-w-0">
-                    <dt className="text-[11px] font-medium text-app-text-subtle">{row.label}</dt>
-                    <dd className="break-words font-['DM_Sans:Bold',sans-serif] text-sm font-bold text-app-text-body">
-                      {row.value}
-                    </dd>
                   </div>
-                ))}
-              </dl>
-            ) : (
-              <p className="font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-body text-xs leading-relaxed">
-                Keine Patientendaten angegeben.
-              </p>
+                ) : patientDataRows.length > 0 ? (
+                  <dl className="grid gap-x-4 gap-y-2 md:grid-cols-2">
+                    {patientDataRows.map((row) => (
+                      <div key={row.label} className="min-w-0">
+                        <dt className="text-xs font-medium text-app-text-subtle">{row.label}</dt>
+                        <dd className="break-words font-['DM_Sans:Bold',sans-serif] text-sm font-bold text-app-text-body">
+                          {row.value}
+                        </dd>
+                      </div>
+                    ))}
+                  </dl>
+                ) : (
+                  <p className="font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-body text-xs leading-relaxed">
+                    Keine Patientendaten angegeben.
+                  </p>
+                )}
+              </div>
             )}
           </div>
 
           <div className="bg-white rounded-[10px] p-3 border border-[#d8e0ea]">
-            <p className="text-xs text-app-text-subtle mb-1">Beschwerden</p>
-            <div className="space-y-2 font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-body text-xs leading-relaxed">
+            <p className="text-sm font-bold text-app-text-primary mb-1">Beschwerden</p>
+            <div className="space-y-2 font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-body text-sm leading-relaxed">
               {symptomDetails.length > 0 ? (
                 symptomDetails.map((symptom) => {
                       const label = symptom.side
@@ -1006,22 +1204,6 @@ export default function ResultPage() {
         </div>
       </div>
 
-      <div className="bg-[#FEF3C7] border-l-4 border-[#F59E0B] rounded-[16px] p-5 md:p-6 mt-4">
-        <p className="font-['DM_Sans:Bold',sans-serif] font-bold text-app-text-warning-strong text-base mb-2">
-          Wichtiger Hinweis
-        </p>
-        <p className="font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-warning-strong text-sm leading-relaxed">
-          Diese Einschätzung ist <strong>keine medizinische Diagnose</strong> und ersetzt nicht den Besuch bei einem Arzt.
-          KI-Systeme können Fehler machen. Bei Unsicherheit oder Verschlechterung Ihres Zustands suchen Sie bitte
-          umgehend medizinische Hilfe.
-          {assessmentResult?.aiModel && (
-            <>
-              {" "}
-              Die Triage wurde mit dem KI-Modell <strong>{assessmentResult.aiModel}</strong> durchgeführt.
-            </>
-          )}
-        </p>
-      </div>
 
       <div className="mt-6 mb-6">
         <Button onClick={handleReset}>

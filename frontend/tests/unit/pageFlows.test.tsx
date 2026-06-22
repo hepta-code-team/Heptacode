@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useState } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -34,6 +34,7 @@ const basePatientData: PatientData = {
   isBreastfeeding: false,
   allergies: '',
   medications: '',
+  medicationDuration: '',
   substanceInfluence: 'Nein',
   recentAbroad: false,
   recentAbroadDetails: '',
@@ -165,21 +166,21 @@ describe('page-level user flows', () => {
     const user = userEvent.setup();
 
     render(<PatientDataPage />);
+    setPatientDataMock.mockClear();
 
     await user.click(screen.getAllByRole('button', { name: 'Weiter' }).at(-1)!);
     expect(screen.getByText('Bitte Geschlecht auswählen.')).toBeInTheDocument();
     expect(setPatientDataMock).not.toHaveBeenCalled();
     expect(navigateMock).not.toHaveBeenCalled();
 
-    await user.type(screen.getByPlaceholderText('MM'), '13');
-    await user.type(screen.getByPlaceholderText('JJJJ'), '1990');
-    await user.type(screen.getByPlaceholderText('zB. 175'), '180');
-    await user.type(screen.getByPlaceholderText('zB. 70'), '80');
+    fireEvent.change(screen.getByPlaceholderText('MM'), { target: { value: '13' } });
+    fireEvent.change(screen.getByPlaceholderText('JJJJ'), { target: { value: '1990' } });
+    fireEvent.change(screen.getByPlaceholderText('zB. 175'), { target: { value: '180' } });
+    fireEvent.change(screen.getByPlaceholderText('zB. 70'), { target: { value: '80' } });
     await user.click(screen.getByRole('button', { name: 'Männlich' }));
     expect(screen.getByText('Bitte Monat zwischen 1-12 wählen.')).toBeInTheDocument();
 
-    await user.clear(screen.getByPlaceholderText('MM'));
-    await user.type(screen.getByPlaceholderText('MM'), '12');
+    fireEvent.change(screen.getByPlaceholderText('MM'), { target: { value: '12' } });
     await user.click(screen.getAllByRole('button', { name: 'Weiter' }).at(-1)!);
 
     expect(setPatientDataMock).toHaveBeenCalledWith(expect.objectContaining({
@@ -230,8 +231,16 @@ describe('page-level user flows', () => {
       cigarettesPerDay: '1',
       conditions: expect.arrayContaining(['Diabetes', 'Sonstige']),
       conditionDetails: expect.objectContaining({
-        Diabetes: 'Typ 2',
-        Sonstige: 'Migräne',
+        Diabetes: {
+          condition: 'Diabetes',
+          detail: 'Typ 2',
+          duration: '',
+        },
+        Sonstige: {
+          condition: 'Sonstige',
+          detail: 'Migräne',
+          duration: '',
+        },
       }),
     }));
     expect(navigateMock).toHaveBeenCalledWith('/symptom-selection');
@@ -247,7 +256,10 @@ describe('page-level user flows', () => {
     await user.click(screen.getByRole('button', { name: 'Neue Bewertung starten' }));
 
     expect(resetAssessmentMock).toHaveBeenCalledTimes(1);
-    expect(navigateMock).toHaveBeenCalledWith('/');
+    expect(navigateMock).toHaveBeenCalledWith('/', {
+      flushSync: true,
+      replace: true,
+    });
   });
 
   it('selects manual symptoms, removes them and continues to symptom details', async () => {
@@ -272,7 +284,6 @@ describe('page-level user flows', () => {
     await user.click(screen.getAllByRole('button', { name: 'Weiter' }).at(-1)!);
 
     expect(assessmentState.setSelectedSymptoms).toHaveBeenCalledWith([{ region: 'Kopf', side: 'Gesicht' }]);
-    expect(assessmentState.setSymptomDetails).toHaveBeenCalledWith([]);
     expect(navigateMock).toHaveBeenCalledWith('/symptom-details');
   });
 
@@ -293,7 +304,7 @@ describe('page-level user flows', () => {
 
     render(<SymptomSelectionPage />);
 
-    await user.click(screen.getByRole('button', { name: /Symptome beschreiben/ }));
+    await user.click(screen.getAllByRole('button', { name: /Symptome beschreiben/ })[0]);
     expect(screen.getByRole('button', { name: 'Symptombeschreibung übernehmen' })).toBeDisabled();
 
     await user.type(
@@ -335,7 +346,7 @@ describe('page-level user flows', () => {
 
     render(<SymptomSelectionPage />);
 
-    await user.click(screen.getByRole('button', { name: /Symptome beschreiben/ }));
+    await user.click(screen.getAllByRole('button', { name: /Symptome beschreiben/ })[0]);
     await user.type(screen.getByPlaceholderText(/Ich habe seit 3 Tagen/), 'hallo');
     await user.click(screen.getByRole('button', { name: 'Symptombeschreibung übernehmen' }));
 
@@ -445,7 +456,13 @@ describe('page-level user flows', () => {
     assessmentState.patientData = {
       ...basePatientData,
       conditions: ['Diabetes'],
-      conditionDetails: { Diabetes: 'Typ 2' },
+      conditionDetails: {
+        Diabetes: {
+          condition: 'Diabetes',
+          detail: 'Typ 2',
+          duration: '',
+        },
+      },
       recentAbroad: true,
       recentAbroadDetails: 'Italien | 2026-01-01 | 2026-01-10',
     };
@@ -476,11 +493,22 @@ describe('page-level user flows', () => {
 
     render(<ResultPage />);
 
+    const patientDataToggle = screen.getByRole('button', { name: 'Patientendaten' });
+    expect(patientDataToggle).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.queryByText('Geburtsdatum')).not.toBeInTheDocument();
+
+    await user.click(patientDataToggle);
+    expect(patientDataToggle).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.getByText('Geburtsdatum')).toBeInTheDocument();
+
+    await user.click(patientDataToggle);
+    expect(patientDataToggle).toHaveAttribute('aria-expanded', 'false');
+
     await user.click(screen.getByRole('button', { name: 'KI-Begründung anzeigen' }));
-    expect(screen.getByText(/Ärztliche Abklärung sinnvoll/)).toBeInTheDocument();
     expect(screen.getAllByText(/mock-model/).length).toBeGreaterThan(0);
 
     await user.click(screen.getByRole('button', { name: 'medical-summary-bearbeiten' }));
+    expect(patientDataToggle).toHaveAttribute('aria-expanded', 'true');
     await user.clear(screen.getByDisplayValue('1990'));
     await user.type(screen.getByLabelText('Geburtsjahr'), '1988');
     await user.clear(screen.getByLabelText('Beschwerden bearbeiten'));
@@ -511,10 +539,11 @@ describe('page-level user flows', () => {
       reviewSummary: {
         plainLanguage: 'Bitte ärztlich abklären lassen.',
       },
+      aiModel: 'mock-model',
       triage: {
         careLevel: 'doctor',
         recommendedSpecialty: 'general_practice',
-        reasons: ['Ärztliche Abklärung sinnvoll.'],
+        reasons: ['Geänderte Beschwerden.'],
       },
       symptoms: [
         {

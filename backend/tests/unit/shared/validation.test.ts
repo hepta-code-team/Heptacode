@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { triageAiResponseSchema } from '../../../src/shared/validation.js'
 
 describe('triageAiResponseSchema', () => {
+  /** Self-care responses should not require a specialist recommendation. */
   it('akzeptiert gueltige Selfcare-Antworten ohne Fachrichtung', () => {
     const result = triageAiResponseSchema.safeParse({
       careLevel: 'selfcare',
@@ -16,6 +17,7 @@ describe('triageAiResponseSchema', () => {
     expect(result.success).toBe(true)
   })
 
+  /** Specialist responses should carry a concrete specialist discipline. */
   it('akzeptiert gueltige Specialist-Antworten mit Fachrichtung', () => {
     const result = triageAiResponseSchema.safeParse({
       careLevel: 'specialist',
@@ -30,6 +32,7 @@ describe('triageAiResponseSchema', () => {
     expect(result.success).toBe(true)
   })
 
+  /** AI responses must include the review summary used by downstream presentation layers. */
   it('akzeptiert Review-Summaries in KI-Antworten', () => {
     const result = triageAiResponseSchema.safeParse({
       careLevel: 'doctor',
@@ -43,6 +46,7 @@ describe('triageAiResponseSchema', () => {
     expect(result.success).toBe(true)
   })
 
+  /** Single reason strings should normalize to the array shape used by callers. */
   it('normalisiert einzelne Reason-Strings zu einem Array', () => {
     const result = triageAiResponseSchema.safeParse({
       careLevel: 'doctor',
@@ -61,6 +65,7 @@ describe('triageAiResponseSchema', () => {
     }
   })
 
+  /** Responses without review summaries should fail the shared AI response contract. */
   it('lehnt KI-Antworten ohne Review-Summary ab', () => {
     const result = triageAiResponseSchema.safeParse({
       careLevel: 'doctor',
@@ -70,6 +75,7 @@ describe('triageAiResponseSchema', () => {
     expect(result.success).toBe(false)
   })
 
+  /** Specialist care level should not be accepted without a specialist discipline. */
   it('lehnt Specialist-Antworten ohne fachmedizinische Richtung ab', () => {
     const result = triageAiResponseSchema.safeParse({
       careLevel: 'specialist',
@@ -84,6 +90,7 @@ describe('triageAiResponseSchema', () => {
     expect(result.success).toBe(false)
   })
 
+  /** Doctor-level responses with specialist disciplines should be promoted to specialist. */
   it('normalisiert Doctor-Antworten mit Fachrichtung zu Specialist', () => {
     const result = triageAiResponseSchema.safeParse({
       careLevel: 'doctor',
@@ -102,6 +109,7 @@ describe('triageAiResponseSchema', () => {
     }
   })
 
+  /** General practice should not be exposed as a specialist recommendation for doctor care. */
   it('entfernt Allgemeinmedizin fuer Doctor-Antworten', () => {
     const result = triageAiResponseSchema.safeParse({
       careLevel: 'doctor',
@@ -120,6 +128,7 @@ describe('triageAiResponseSchema', () => {
     }
   })
 
+  /** Specialist care level should reject non-specialist disciplines. */
   it('lehnt Specialist-Antworten mit Allgemeinmedizin ab', () => {
     const result = triageAiResponseSchema.safeParse({
       careLevel: 'specialist',
@@ -134,6 +143,7 @@ describe('triageAiResponseSchema', () => {
     expect(result.success).toBe(false)
   })
 
+  /** Reasons must contain at least one explanatory entry. */
   it('lehnt leere reasons ab', () => {
     const result = triageAiResponseSchema.safeParse({
       careLevel: 'doctor',
