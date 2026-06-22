@@ -9,6 +9,7 @@ describe('createPdfSummary', () => {
         plainLanguage: 'Ihre Angaben sprechen für eine hausärztliche Abklärung.',
         professionalSummary: 'Strukturierte medizinische Zusammenfassung.',
       },
+      aiModel: 'test-model',
       patientData: {
         birthMonth: '01',
         birthYear: '1990',
@@ -150,6 +151,22 @@ describe('createPdfSummary', () => {
     expect(result.sections[0]?.content).toContain('Dauer: Seit einer Woche')
     expect(result.sections[0]?.content).toContain('Dauer: Seit mehreren Wochen')
     expect(result.sections[0]?.content).toContain('Ihre Angaben sprechen für eine hausärztliche Abklärung.')
+  })
+
+  it('zeigt die empfohlene Fachrichtung an, wenn sie vorhanden ist', async () => {
+    const result = await createPdfSummary({
+      reviewSummary: {
+        plainLanguage: 'Bitte lassen Sie die Beschwerden fachärztlich abklären.',
+        professionalSummary: '',
+      },
+      triage: {
+        careLevel: 'specialist',
+        recommendedSpecialty: 'cardiology',
+        reasons: ['Eine kardiologische Abklärung ist sinnvoll.'],
+      },
+    })
+
+    expect(result.sections[0]?.content).toContain('Empfohlene Fachrichtung: Kardiologie')
   })
 
   it('nutzt die Plain-Language-Zusammenfassung als Begruendung der Empfehlung', async () => {

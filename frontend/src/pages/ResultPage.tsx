@@ -381,6 +381,7 @@ export default function ResultPage() {
   const [travelEndDateDraft, setTravelEndDateDraft] = useState("");
   const [editableProfessionalSummary, setEditableProfessionalSummary] = useState("");
   const [isExplanationOpen, setIsExplanationOpen] = useState(false);
+  const [isPatientDataOpen, setIsPatientDataOpen] = useState(false);
   const [professionalSummaryDraft, setProfessionalSummaryDraft] = useState<MedicalSummarySections>(
     EMPTY_MEDICAL_SUMMARY_SECTIONS,
   );
@@ -550,6 +551,7 @@ export default function ResultPage() {
     setTravelStartDateDraft(travelDetails.startDate);
     setTravelEndDateDraft(travelDetails.endDate);
     setProfessionalSummaryDraft(summaryDraft);
+    setIsPatientDataOpen(true);
     setIsEditingSummary(true);
   };
 
@@ -629,6 +631,7 @@ export default function ResultPage() {
           plainLanguage: plainLanguageSummary,
           professionalSummary: displayedProfessionalSummary,
         },
+        ...(assessmentResult?.aiModel ? { aiModel: assessmentResult.aiModel } : {}),
         triage: {
           careLevel: safeCareLevel,
           recommendedSpecialty: safeRecommendedSpecialty,
@@ -766,7 +769,7 @@ export default function ResultPage() {
             {isExplanationOpen ? "KI-Begründung ausblenden" : "KI-Begründung anzeigen"}
           </span>
           <ChevronDown
-            className={`size-4 flex-shrink-0 text-app-text-primary transition-transform ${
+            className={`size-5 flex-shrink-0 text-app-text-primary transition-transform ${
               isExplanationOpen ? "rotate-180" : ""
             }`}
             aria-hidden="true"
@@ -887,10 +890,31 @@ export default function ResultPage() {
             </div>
           </div>
 
-          <div className="bg-white rounded-[10px] p-3 border border-[#d8e0ea]">
-            <p className="text-xs text-app-text-subtle mb-2">Patientendaten</p>
-            {isEditingSummary && patientDataDraft ? (
-              <div className="grid gap-3 md:grid-cols-2">
+          <div className="bg-white rounded-[10px] border border-[#d8e0ea]">
+            <button
+              type="button"
+              onClick={() => setIsPatientDataOpen((isOpen) => !isOpen)}
+              className="flex w-full items-center justify-between gap-3 p-3 text-left"
+              aria-expanded={isPatientDataOpen}
+              aria-controls="result-patient-data"
+            >
+              <span className="font-['DM_Sans:Bold',sans-serif] text-sm font-bold text-app-text-primary">
+                Patientendaten
+              </span>
+              <span className="flex size-7 flex-shrink-0 items-center justify-center rounded-lg bg-[#486284] text-white">
+                <ChevronDown
+                  className={`size-5 transition-transform ${
+                    isPatientDataOpen ? "rotate-180" : ""
+                  }`}
+                  aria-hidden="true"
+                />
+              </span>
+            </button>
+
+            {isPatientDataOpen && (
+              <div id="result-patient-data" className="border-t border-[#d8e0ea] px-3 pb-3 pt-3">
+                {isEditingSummary && patientDataDraft ? (
+                  <div className="grid gap-3 md:grid-cols-2">
                 <label className="block">
                   <span className="text-[11px] font-medium text-app-text-subtle">Geburtsmonat</span>
                   <input
@@ -1087,28 +1111,30 @@ export default function ResultPage() {
                     />
                   </label>
                 </div>
-              </div>
-            ) : patientDataRows.length > 0 ? (
-              <dl className="grid gap-x-4 gap-y-2 md:grid-cols-2">
-                {patientDataRows.map((row) => (
-                  <div key={row.label} className="min-w-0">
-                    <dt className="text-[11px] font-medium text-app-text-subtle">{row.label}</dt>
-                    <dd className="break-words font-['DM_Sans:Bold',sans-serif] text-sm font-bold text-app-text-body">
-                      {row.value}
-                    </dd>
                   </div>
-                ))}
-              </dl>
-            ) : (
-              <p className="font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-body text-xs leading-relaxed">
-                Keine Patientendaten angegeben.
-              </p>
+                ) : patientDataRows.length > 0 ? (
+                  <dl className="grid gap-x-4 gap-y-2 md:grid-cols-2">
+                    {patientDataRows.map((row) => (
+                      <div key={row.label} className="min-w-0">
+                        <dt className="text-xs font-medium text-app-text-subtle">{row.label}</dt>
+                        <dd className="break-words font-['DM_Sans:Bold',sans-serif] text-sm font-bold text-app-text-body">
+                          {row.value}
+                        </dd>
+                      </div>
+                    ))}
+                  </dl>
+                ) : (
+                  <p className="font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-body text-xs leading-relaxed">
+                    Keine Patientendaten angegeben.
+                  </p>
+                )}
+              </div>
             )}
           </div>
 
           <div className="bg-white rounded-[10px] p-3 border border-[#d8e0ea]">
-            <p className="text-xs text-app-text-subtle mb-1">Beschwerden</p>
-            <div className="space-y-2 font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-body text-xs leading-relaxed">
+            <p className="text-sm font-bold text-app-text-primary mb-1">Beschwerden</p>
+            <div className="space-y-2 font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-body text-sm leading-relaxed">
               {symptomDetails.length > 0 ? (
                 symptomDetails.map((symptom) => {
                       const label = symptom.side
