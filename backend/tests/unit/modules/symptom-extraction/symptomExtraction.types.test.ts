@@ -7,6 +7,7 @@ import {
 } from '../../../../src/modules/symptom-extraction/symptomExtraction.types.js'
 
 describe('symptomExtractionRequestSchema', () => {
+  /** The current symptomText field should be accepted as the primary free-text input. */
   it('akzeptiert symptomText als Eingabe', () => {
     const result = symptomExtractionRequestSchema.safeParse({
       symptomText: 'Ich habe Fieber und Husten.',
@@ -16,6 +17,7 @@ describe('symptomExtractionRequestSchema', () => {
     expect(result.success).toBe(true)
   })
 
+  /** The legacy input field should remain compatible with older callers. */
   it('akzeptiert den alten input-Fallback', () => {
     const result = symptomExtractionRequestSchema.safeParse({
       input: 'Mir ist seit heute schwindelig.',
@@ -24,6 +26,7 @@ describe('symptomExtractionRequestSchema', () => {
     expect(result.success).toBe(true)
   })
 
+  /** Patient data should be allowed for early plausibility checks before extraction. */
   it('akzeptiert Patientendaten fuer fruehe Plausibilitaetspruefungen', () => {
     const result = symptomExtractionRequestSchema.safeParse({
       symptomText: 'Ich habe Bauchschmerzen.',
@@ -51,6 +54,7 @@ describe('symptomExtractionRequestSchema', () => {
     expect(result.success).toBe(true)
   })
 
+  /** Extraction requests without any free-text source should be rejected. */
   it('lehnt Anfragen ohne Freitext ab', () => {
     const result = symptomExtractionRequestSchema.safeParse({})
 
@@ -59,6 +63,7 @@ describe('symptomExtractionRequestSchema', () => {
 })
 
 describe('symptomExtractionAiResultSchema', () => {
+  /** AI extraction results should accept the frontend maximum of three symptoms. */
   it('akzeptiert bis zu drei extrahierte Symptome', () => {
     const result = symptomExtractionAiResultSchema.safeParse({
       symptoms: [
@@ -70,6 +75,7 @@ describe('symptomExtractionAiResultSchema', () => {
     expect(result.success).toBe(true)
   })
 
+  /** More than three extracted symptoms should fail schema validation. */
   it('lehnt mehr als drei Symptome ab', () => {
     const result = symptomExtractionAiResultSchema.safeParse({
       symptoms: [
@@ -83,6 +89,7 @@ describe('symptomExtractionAiResultSchema', () => {
     expect(result.success).toBe(false)
   })
 
+  /** Unknown complaints should remain usable as free-text symptom regions. */
   it('akzeptiert unbekannte extrahierte Beschwerden als Freitext-Region', () => {
     const result = symptomExtractionAiResultSchema.safeParse({
       symptoms: [{ region: 'Husten', measurementType: 'severity', measurementValue: 5 }],
@@ -96,6 +103,7 @@ describe('symptomExtractionAiResultSchema', () => {
     })
   })
 
+  /** Clinically relevant details should survive symptom normalization. */
   it('akzeptiert relevante Zusatzdetails zu extrahierten Symptomen', () => {
     const result = symptomExtractionAiResultSchema.safeParse({
       symptoms: [
@@ -115,6 +123,7 @@ describe('symptomExtractionAiResultSchema', () => {
     })
   })
 
+  /** Details that only repeat duration or intensity should be removed. */
   it('entfernt Dauer und Staerke aus Zusatzdetails', () => {
     const result = symptomExtractionAiResultSchema.safeParse({
       symptoms: [
@@ -137,6 +146,7 @@ describe('symptomExtractionAiResultSchema', () => {
     })
   })
 
+  /** Relevant narrative details should survive even when duration and intensity are present. */
   it('behaelt echte Zusatzdetails trotz genannter Staerke und Dauer', () => {
     const result = symptomExtractionAiResultSchema.safeParse({
       symptoms: [
@@ -160,6 +170,7 @@ describe('symptomExtractionAiResultSchema', () => {
     })
   })
 
+  /** Burn injuries should not inherit temperature measurements from the source text. */
   it('normalisiert faelschliche Temperaturmessung bei Verbrennung auf Schmerzskala', () => {
     const result = symptomExtractionAiResultSchema.safeParse({
       symptoms: [
@@ -180,6 +191,7 @@ describe('symptomExtractionAiResultSchema', () => {
     })
   })
 
+  /** Fever should keep temperature as its clinically meaningful measurement type. */
   it('behaelt Temperaturmessung bei Fieber', () => {
     const result = symptomExtractionAiResultSchema.safeParse({
       symptoms: [
@@ -201,6 +213,7 @@ describe('symptomExtractionAiResultSchema', () => {
     })
   })
 
+  /** Known regions may still carry AI-extracted free-text suboptions. */
   it('akzeptiert unbekannte Unteroptionen fuer bekannte Regionen', () => {
     const result = symptomExtractionAiResultSchema.safeParse({
       symptoms: [{ region: 'Allgemein', side: 'Husten' }],
@@ -213,6 +226,7 @@ describe('symptomExtractionAiResultSchema', () => {
     })
   })
 
+  /** Free-text symptoms should not be forced into taxonomy options by partial matches. */
   it('normalisiert Freitext-Symptome nicht ueber Teiltreffer auf vorhandene Optionen', () => {
     const result = symptomExtractionAiResultSchema.safeParse({
       symptoms: [{ region: 'Juckender Ausschlag am Fuss' }],
@@ -224,6 +238,7 @@ describe('symptomExtractionAiResultSchema', () => {
     })
   })
 
+  /** Intensity words should not be converted into numeric measurements locally. */
   it('leitet Messwerte nicht lokal aus Intensitaetswoertern ab', () => {
     const result = symptomExtractionAiResultSchema.safeParse({
       symptoms: [{ region: 'Kopf', measurementType: 'pain', measurementValue: 'stark' }],
@@ -236,6 +251,7 @@ describe('symptomExtractionAiResultSchema', () => {
     })
   })
 
+  /** Duration phrases should not be converted into enum values locally. */
   it('leitet Dauer nicht lokal aus Freitext ab', () => {
     const result = symptomExtractionAiResultSchema.safeParse({
       symptoms: [{ region: 'Kopf', duration: 'seit heute' }],
@@ -249,6 +265,7 @@ describe('symptomExtractionAiResultSchema', () => {
 })
 
 describe('symptomInputValidationAiResultSchema', () => {
+  /** Validation AI results should include the boolean decision and rationale. */
   it('akzeptiert gueltige Validierungsergebnisse', () => {
     const result = symptomInputValidationAiResultSchema.safeParse({
       isValidMedicalInput: false,
@@ -258,6 +275,7 @@ describe('symptomInputValidationAiResultSchema', () => {
     expect(result.success).toBe(true)
   })
 
+  /** Validation rationales should not be empty. */
   it('lehnt leere Begruendungen ab', () => {
     const result = symptomInputValidationAiResultSchema.safeParse({
       isValidMedicalInput: true,

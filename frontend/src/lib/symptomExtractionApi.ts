@@ -5,6 +5,10 @@ import type {
 } from "../../../shared/symptomExtraction.types";
 import type { PatientData } from "../../../shared/patientData.types";
 import type { TriageSymptom } from "../../../shared/symptom.types";
+import type {
+  BodyLocationConfidence,
+  BodyLocationId,
+} from "../../../shared/symptomTaxonomy";
 
 export type { SymptomExtractionAiResult, SymptomInputType, TriageSymptom };
 
@@ -21,6 +25,17 @@ export interface SymptomInputValidationResponse {
   text: string;
   inputType: SymptomInputType;
   isValidMedicalInput: boolean;
+  aiUnavailable?: boolean;
+  message?: string;
+}
+
+export interface SymptomConsistencyResponse {
+  isRegionMeaningful: boolean;
+  hasClearContradiction: boolean;
+  selectedLocationIds: BodyLocationId[];
+  detailLocationIds: BodyLocationId[];
+  selectedLocationConfidence: BodyLocationConfidence;
+  detailLocationConfidence: BodyLocationConfidence;
   aiUnavailable?: boolean;
   message?: string;
 }
@@ -67,5 +82,18 @@ export async function validateSymptomDetailInput(
     symptomText,
     inputType,
     patientData,
+  });
+}
+
+// Sends the displayed region and details together for the pre-submit consistency check.
+export async function validateSymptomConsistency(
+  symptom: Pick<TriageSymptom, "region" | "side" | "details">,
+  patientData?: PatientData,
+): Promise<SymptomConsistencyResponse> {
+  return apiClient.post<SymptomConsistencyResponse>("/api/v1/symptoms/consistency", {
+    region: symptom.region,
+    ...(symptom.side?.trim() ? { side: symptom.side.trim() } : {}),
+    ...(symptom.details?.trim() ? { details: symptom.details.trim() } : {}),
+    patientData: omitMoodFromPatientData(patientData),
   });
 }

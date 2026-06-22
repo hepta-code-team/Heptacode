@@ -1,26 +1,26 @@
 /** Frontend-compatible symptom taxonomy using the same display names as symptoms.constants. */
 export const SYMPTOM_REGIONS = [
   {
+    locationId: 'head',
     name: 'Kopf',
     options: ['Kopf allgemein', 'Stirn', 'Schläfen', 'Hinterkopf', 'Kopfhaut', 'Platzwunde'],
   },
   {
     name: 'Gesicht',
-    options: ['Augen', 'Ohren', 'Nase', 'Mund'],
+    options: ['Augen', 'Ohren', 'Nase', 'Mund', 'Zähne', 'Zahnschmerzen'],
   },
   {
+    locationId: 'neck',
     name: 'Hals',
-    options: ['Hals allgemein', 'Rachen', 'Mandeln', 'Kehlkopf', 'Schluckbeschwerden', 'Schwellung'],
+    options: ['Hals allgemein', 'Rachen', 'Mandeln', 'Kehlkopf', 'Schluckbeschwerden', 'Schwellung', 'Nacken'],
   },
   {
-    name: 'Hals',
-    options: ['Hals', 'Rachen', 'Schluckbeschwerden', 'Nacken'],
-  },
-  {
+    locationId: 'chest',
     name: 'Brust',
     options: ['Brustmitte', 'Linksseitig', 'Rechtsseitig', 'Rippen', 'Atemabhängig'],
   },
   {
+    locationId: 'back',
     name: 'Rücken',
     options: ['Oberer Rücken', 'Mittlerer Rücken', 'Unterer Rücken', 'Wirbelsäule', 'Steißbein'],
   },
@@ -43,18 +43,34 @@ export const SYMPTOM_REGIONS = [
     ],
   },
   {
+    locationId: 'arms',
+    name: 'Arme',
+    options: [
+      'Schulter',
+      'Oberarm',
+      'Ellenbogen',
+      'Unterarm',
+      'Hand/Handgelenk',
+      'Finger',
+      'Bruch',
+      'Verstauchung',
+      'Muskelkrämpfe',
+    ],
+  },
+  {
     name: 'Oberarm',
-    options: ['Schulter', 'Oberarm', 'Ellenbogen', 'Bruch', 'Verstauchung'],
+    options: ['Schulter', 'Oberarm', 'Ellenbogen', 'Bruch', 'Verstauchung', 'Muskelkrämpfe'],
   },
   {
     name: 'Unterarm',
-    options: ['Unterarm allgemein', 'Unterarm innen', 'Unterarm außen', 'Bruch', 'Verstauchung'],
+    options: ['Unterarm allgemein', 'Unterarm innen', 'Unterarm außen', 'Bruch', 'Verstauchung', 'Muskelkrämpfe'],
   },
   {
     name: 'Hände',
     options: ['Hand', 'Handgelenk', 'Finger'],
   },
   {
+    locationId: 'abdomen',
     name: 'Bauch',
     options: [
       'Bauch allgemein',
@@ -68,6 +84,23 @@ export const SYMPTOM_REGIONS = [
       'Beidseitige Flanken',
       'Blähbauch',
       'Bauchkrämpfe',
+      'Magenkrämpfe',
+    ],
+  },
+  {
+    locationId: 'legs',
+    name: 'Beine',
+    options: [
+      'Hüfte',
+      'Oberschenkel',
+      'Knie',
+      'Wade',
+      'Fuß/Knöchel',
+      'Zehen',
+      'Füße',
+      'Bruch',
+      'Verstauchung',
+      'Muskelkrämpfe',
     ],
   },
   {
@@ -80,6 +113,7 @@ export const SYMPTOM_REGIONS = [
       'Außenseite',
       'Zerrung',
       'Prellung',
+      'Muskelkrämpfe',
     ],
   },
   {
@@ -88,7 +122,7 @@ export const SYMPTOM_REGIONS = [
   },
   {
     name: 'Unterschenkel',
-    options: ['Unterschenkel allgemein', 'Wade', 'Schienbein', 'Zerrung', 'Prellung', 'Schwellung'],
+    options: ['Unterschenkel allgemein', 'Wade', 'Schienbein', 'Zerrung', 'Prellung', 'Schwellung', 'Muskelkrämpfe'],
   },
   {
     name: 'Füße',
@@ -108,13 +142,29 @@ export const SYMPTOM_REGIONS = [
   },
   {
     name: 'Haut',
-    options: ['Ausschlag', 'Juckreiz', 'Rötung', 'Schwellung', 'Bläschen', 'Quaddeln'],
+    options: ['Hautausschlag', 'Ausschlag', 'Juckreiz', 'Rötung', 'Schwellung', 'Bläschen', 'Quaddeln', 'Trockene Haut'],
   },
   {
     name: 'Psychische Probleme',
     options: ['Angst/Panik', 'Suizidgedanken', 'Niedergeschlagenheit', 'Halluzinationen'],
   },
 ] as const;
+
+// Stable broad location IDs used to compare regions across UI text and AI output.
+export const BODY_LOCATION_IDS = [
+  'head',
+  'neck',
+  'chest',
+  'back',
+  'arms',
+  'abdomen',
+  'legs',
+] as const;
+
+export type BodyLocationId = (typeof BODY_LOCATION_IDS)[number];
+
+export const BODY_LOCATION_CONFIDENCE_LEVELS = ['none', 'low', 'medium', 'high'] as const;
+export type BodyLocationConfidence = (typeof BODY_LOCATION_CONFIDENCE_LEVELS)[number];
 
 export type SymptomRegionName = (typeof SYMPTOM_REGIONS)[number]['name'];
 
@@ -136,4 +186,24 @@ export function formatSymptomTaxonomyForPrompt(): string {
     const options = region.options.join(', ');
     return `${region.name}: ${options}.`;
   }).join('\n');
+}
+
+export function formatBodyLocationTaxonomyForPrompt(): string {
+  return SYMPTOM_REGIONS
+    .filter((region): region is typeof region & { locationId: BodyLocationId } => 'locationId' in region)
+    .map((region) => `${region.locationId}: ${region.name} (${region.options.join(', ')}).`)
+    .join('\n');
+}
+
+// Exposes labels and options from the central taxonomy for deterministic matching.
+export function getBodyLocationTaxonomy(): Array<{
+  id: BodyLocationId;
+  labels: string[];
+}> {
+  return SYMPTOM_REGIONS
+    .filter((region): region is typeof region & { locationId: BodyLocationId } => 'locationId' in region)
+    .map((region) => ({
+      id: region.locationId,
+      labels: [region.name, ...region.options],
+    }));
 }

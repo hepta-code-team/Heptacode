@@ -3,6 +3,7 @@ import { z } from 'zod'
 
 import { validateRequest } from '../../../../src/common/middleware/validateRequest.js'
 
+/** Minimal Fastify reply double for validation middleware assertions. */
 function createReply() {
   return {
     code: vi.fn().mockReturnThis(),
@@ -11,6 +12,7 @@ function createReply() {
 }
 
 describe('validateRequest', () => {
+  /** Valid request sections should be parsed and written back to the request object. */
   it('validiert und ersetzt body, params und query bei gueltigen Daten', async () => {
     const request = {
       body: { age: '42' },
@@ -31,6 +33,7 @@ describe('validateRequest', () => {
     expect(reply.send).not.toHaveBeenCalled()
   })
 
+  /** Invalid bodies should return the shared validation error response. */
   it('antwortet mit 400 bei ungueltigem Body', async () => {
     const request = {
       body: { age: 'abc' },
@@ -53,6 +56,7 @@ describe('validateRequest', () => {
     )
   })
 
+  /** Middleware without configured schemas should leave the request untouched. */
   it('laesst Requests ohne konfigurierte Schemas unveraendert durch', async () => {
     const request = {
       body: { age: '42' },
@@ -65,6 +69,7 @@ describe('validateRequest', () => {
     expect(reply.send).not.toHaveBeenCalled()
   })
 
+  /** Invalid route parameters should return the parameter-specific validation message. */
   it('antwortet mit 400 bei ungueltigen Parametern', async () => {
     const request = {
       params: { id: '' },
@@ -87,6 +92,7 @@ describe('validateRequest', () => {
     )
   })
 
+  /** Invalid query parameters should return the query-specific validation message. */
   it('antwortet mit 400 bei ungueltigen Query-Parametern', async () => {
     const request = {
       query: { page: 'abc' },

@@ -9,8 +9,19 @@ import type {
   TriageSymptom,
 } from './triage.types.js'
 import { triageAiResponseSchema } from '../../shared/validation.js'
+import {
+  getTriageAiPlausibilityIssues,
+  hasEmergencyTriagePattern,
+} from '../../shared/triageAiPlausibility.js'
 import type { SymptomInputType } from '../../../../shared/symptomExtraction.types.js'
 import { triageInstructions, createTriagePrompt } from '../prompt/triage.prompt.js'
+
+export type TriageEvaluationDiagnostics = {
+  aiResponse?: TriageResponse
+  finalResponse: TriageResponse
+  plausibilityIssues: string[]
+  fallbackType: 'none' | 'plausibility' | 'availability'
+}
 
 function createBadRequestError(message: string): Error & { statusCode: number } {
   return new ApiError(400, 'BAD_REQUEST', message) as Error & { statusCode: number }
@@ -66,13 +77,6 @@ function buildPatientDataLines(patientData?: PatientData): string[] {
     return ['Keine Stammdaten uebergeben.']
   }
 
-  const conditionDetails = Object.entries(patientData.conditionDetails)
-    .map(([condition, detail]) => {
-      const formattedDetail = formatConditionDetail(detail)
-      return formattedDetail ? `${condition}: ${formattedDetail}` : null
-    })
-    .filter((detail): detail is string => detail !== null)
-
   return [
     `Geburtsmonat: ${patientData.birthMonth}`,
     `Geburtsjahr: ${patientData.birthYear}`,
@@ -81,27 +85,12 @@ function buildPatientDataLines(patientData?: PatientData): string[] {
     `Geschlecht: ${patientData.gender}`,
     patientData.isPregnant ? 'Schwanger: Ja' : null,
     patientData.isBreastfeeding ? 'Stillend: Ja' : null,
-    hasText(patientData.allergies) ? `Allergien: ${patientData.allergies.trim()}` : null,
-    hasText(patientData.medications) ? `Medikamente: ${patientData.medications.trim()}` : null,
-    hasText(patientData.medicationDuration) ? `Einahmedauer Medikamente: ${patientData.medicationDuration.trim()}` : null,
-    hasText(patientData.substanceInfluence) && patientData.substanceInfluence.trim() !== 'Nein'
-      ? `Substanzbeeinflussung: ${patientData.substanceInfluence.trim()}`
-      : null,
-    patientData.recentAbroad
-      ? `Auslandsaufenthalt: ${hasText(patientData.recentAbroadDetails) ? patientData.recentAbroadDetails.trim() : 'Ja'}`
-      : null,
-    patientData.conditions.length > 0
-      ? `Vorerkrankungen: ${patientData.conditions.join(', ')}`
-      : null,
     patientData.isSmoker ? 'Raucher: Ja' : 'Raucher: Nein',
     patientData.isSmoker && hasText(patientData.smokingSinceYears)
       ? `Rauchdauer: ${patientData.smokingSinceYears.trim()} Jahre`
       : null,
     patientData.isSmoker && hasText(patientData.cigarettesPerDay)
       ? `Zigaretten pro Tag: ${patientData.cigarettesPerDay.trim()}`
-      : null,
-    conditionDetails.length > 0
-      ? `Details zu Vorerkrankungen: ${conditionDetails.join('; ')}`
       : null,
   ].filter((line): line is string => line !== null)
 }
@@ -116,6 +105,49 @@ function formatLocalDate(date: Date = new Date()): string {
 
 function formatPatientData(patientData?: PatientData): string {
   return buildPatientDataLines(patientData).join('\n')
+}
+
+/**
+ * Gives medication details a dedicated prompt section instead of burying them
+ * among demographic data. Missing duration remains explicit because it limits
+ * assessment of a temporal relationship with current symptoms.
+ */
+function formatMedicationContext(patientData?: PatientData): string {
+  if (!patientData || !hasText(patientData.medications)) {
+    return 'Keine aktuelle Medikation angegeben.'
+  }
+
+  return [
+    `Aktuelle Medikamente: ${patientData.medications.trim()}`,
+    `Einnahmedauer: ${hasText(patientData.medicationDuration) ? patientData.medicationDuration.trim() : 'Nicht angegeben'}`,
+  ].join('\n')
+}
+
+/**
+ * Keeps clinically relevant background data in a dedicated prompt section so
+ * the model evaluates it against symptoms instead of treating it as metadata.
+ */
+function formatMedicalRiskContext(patientData?: PatientData): string {
+  if (!patientData) {
+    return 'Kein medizinischer Risikokontext uebergeben.'
+  }
+
+  const conditionDetails = Object.entries(patientData.conditionDetails)
+    .map(([condition, detail]) => {
+      const formattedDetail = formatConditionDetail(detail)
+      return formattedDetail ? `${condition}: ${formattedDetail}` : null
+    })
+    .filter((detail): detail is string => detail !== null)
+
+  return [
+    `Allergien: ${hasText(patientData.allergies) ? patientData.allergies.trim() : 'Keine angegeben'}`,
+    `Einfluss durch Alkohol oder Drogen: ${hasText(patientData.substanceInfluence) ? patientData.substanceInfluence.trim() : 'Keine Angabe'}`,
+    `Auslandsaufenthalt in den letzten 3 Monaten: ${patientData.recentAbroad
+      ? hasText(patientData.recentAbroadDetails) ? patientData.recentAbroadDetails.trim() : 'Ja, keine Details angegeben'
+      : 'Nein'}`,
+    `Vorerkrankungen: ${patientData.conditions.length > 0 ? patientData.conditions.join(', ') : 'Keine angegeben'}`,
+    `Details und Dauer der Vorerkrankungen: ${conditionDetails.length > 0 ? conditionDetails.join('; ') : 'Keine angegeben'}`,
+  ].join('\n')
 }
 
 /**
@@ -218,10 +250,10 @@ function getComparableMeasurementValue(symptom: TriageSymptom): number {
  * The schema validation happens before the result leaves this function, so
  * downstream fallback logic only handles typed triage responses or known errors.
  */
-async function requestTriageFromAi(
+async function requestTriageFromAiWithDiagnostics(
   patientData: PatientData | undefined,
   symptoms: TriageSymptom[],
-): Promise<TriageResponse> {
+): Promise<TriageEvaluationDiagnostics> {
   const { data: parsed, model } = await requestStructuredAiResponseWithModel({
     messages: [
       { role: 'system', content: triageInstructions },
@@ -230,6 +262,8 @@ async function requestTriageFromAi(
         content: createTriagePrompt({
           currentDateText: formatLocalDate(),
           patientDataText: formatPatientData(patientData),
+          medicationContextText: formatMedicationContext(patientData),
+          medicalRiskContextText: formatMedicalRiskContext(patientData),
           symptomsText: formatSymptoms(symptoms),
         }),
       },
@@ -239,12 +273,37 @@ async function requestTriageFromAi(
     temperature: 0,
   })
 
-  const normalized = triageAiResponseSchema.parse(parsed) as Omit<TriageResponse, 'aiModel'>
-
-  return {
+  const normalized = triageAiResponseSchema.parse(parsed)
+  const plausibilityIssues = getTriageAiPlausibilityIssues(normalized, symptoms)
+  const aiResponse = {
     ...normalized,
     aiModel: model,
   }
+
+  if (plausibilityIssues.length > 0) {
+    return {
+      aiResponse,
+      finalResponse: createPlausibilityFallbackTriage(symptoms, plausibilityIssues),
+      plausibilityIssues,
+      fallbackType: 'plausibility',
+    }
+  }
+
+  return {
+    aiResponse,
+    finalResponse: aiResponse,
+    plausibilityIssues: [],
+    fallbackType: 'none',
+  }
+}
+
+async function requestTriageFromAi(
+  patientData: PatientData | undefined,
+  symptoms: TriageSymptom[],
+): Promise<TriageResponse> {
+  const diagnostics = await requestTriageFromAiWithDiagnostics(patientData, symptoms)
+
+  return diagnostics.finalResponse
 }
 
 /**
@@ -259,44 +318,7 @@ function createFallbackTriage(symptoms: TriageSymptom[]): TriageResponse {
     ...symptoms.map(getComparableMeasurementValue),
   )
 
-  // Mirror the most urgent local safety rules when the AI cannot classify the case.
-  const hasEmergencyPattern = symptoms.some((symptom) => {
-    const region = symptom.region.toLowerCase()
-    const side = symptom.side?.toLowerCase() ?? ''
-    const measurementValue = getComparableMeasurementValue(symptom)
-
-    if (region === 'psychische probleme' && side === 'suizidgedanken') {
-      return true
-    }
-
-    if (region === 'allgemein' && side === 'verwirrtheit') {
-      return true
-    }
-
-    if (region === 'brust') {
-      return (
-        measurementValue >= 5 ||
-        side === 'linksseitig' ||
-        side === 'brustmitte' ||
-        side === 'atemabhaengig' ||
-        side === 'atemabhängig'
-      )
-    }
-
-    return false
-  })
-
-  if (hasEmergencyPattern) {
-    return {
-      careLevel: 'emergency',
-      recommendedSpecialty: 'emergency_medicine',
-      reasons: [
-        'Die KI-Auswertung ist aktuell nicht verfuegbar.',
-        'Die uebergebenen Beschwerden enthalten ein Warnmuster, das vorsichtshalber als Notfall eingestuft wird.',
-      ],
-      aiUnavailable: true,
-    }
-  }
+  const hasEmergencyPattern = symptoms.some(hasEmergencyTriagePattern)
 
   if (strongestMeasurementValue >= 8) {
     return {
@@ -305,6 +327,18 @@ function createFallbackTriage(symptoms: TriageSymptom[]): TriageResponse {
       reasons: [
         'Die KI-Auswertung ist aktuell nicht verfuegbar.',
         'Aufgrund der sehr starken Beschwerden wird sicherheitshalber eine Notfallabklaerung empfohlen.',
+      ],
+      aiUnavailable: true,
+    }
+  }
+
+  if (hasEmergencyPattern) {
+    return {
+      careLevel: 'emergency',
+      recommendedSpecialty: 'emergency_medicine',
+      reasons: [
+        'Die KI-Auswertung ist aktuell nicht verfuegbar.',
+        'Die uebergebenen Beschwerden enthalten ein Warnmuster, das vorsichtshalber als Notfall eingestuft wird.',
       ],
       aiUnavailable: true,
     }
@@ -326,6 +360,26 @@ function createFallbackTriage(symptoms: TriageSymptom[]): TriageResponse {
     careLevel: 'selfcare',
     recommendedSpecialty: 'home_care',
     reasons: ['Die KI-Auswertung ist aktuell nicht verfuegbar. Ohne erkannte Symptome ist keine hoehere Dringlichkeit ableitbar.'],
+    aiUnavailable: true,
+  }
+}
+
+/**
+ * Uses deterministic triage when an AI answer is formally valid but medically contradictory.
+ */
+function createPlausibilityFallbackTriage(
+  symptoms: TriageSymptom[],
+  issues: string[],
+): TriageResponse {
+  const fallback = createFallbackTriage(symptoms)
+
+  return {
+    ...fallback,
+    reasons: [
+      'Die KI-Antwort wurde verworfen, weil sie die Plausibilitaetspruefung nicht bestanden hat.',
+      ...issues,
+      ...fallback.reasons.filter((reason) => !reason.includes('KI-Auswertung ist aktuell nicht verfuegbar')),
+    ],
     aiUnavailable: true,
   }
 }
@@ -366,6 +420,30 @@ async function requestTriageWithFallback(
     }
 
     return createFallbackTriage(symptoms)
+  }
+}
+
+/**
+ * Exposes the normalized AI answer and the final safety-filtered response for live evaluation.
+ */
+export async function evaluateTriageWithDiagnostics(
+  patientData: PatientData | undefined,
+  symptoms: TriageSymptom[],
+): Promise<TriageEvaluationDiagnostics> {
+  assertPatientDataIsPlausible(patientData, undefined, symptoms)
+
+  try {
+    return await requestTriageFromAiWithDiagnostics(patientData, symptoms)
+  } catch (error) {
+    if (!isAiRequestError(error)) {
+      throw error
+    }
+
+    return {
+      finalResponse: createFallbackTriage(symptoms),
+      plausibilityIssues: [],
+      fallbackType: 'availability',
+    }
   }
 }
 

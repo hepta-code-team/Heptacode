@@ -8,7 +8,12 @@ import PatientDataPage from '../../src/pages/PatientDataPage';
 import ResultPage from '../../src/pages/ResultPage';
 import SymptomDetailsPage from '../../src/pages/SymptomDetailsPage';
 import SymptomSelectionPage from '../../src/pages/SymptomSelectionPage';
-import { extractSymptomsFromText, validateSymptomDetailInput, validateSymptomInput } from '../../src/lib/symptomExtractionApi';
+import {
+  extractSymptomsFromText,
+  validateSymptomConsistency,
+  validateSymptomDetailInput,
+  validateSymptomInput,
+} from '../../src/lib/symptomExtractionApi';
 import type { PatientData } from '../../src/types/assessment';
 
 const navigateMock = vi.fn();
@@ -83,6 +88,7 @@ vi.mock('react-router', () => ({
 
 vi.mock('../../src/lib/symptomExtractionApi', () => ({
   extractSymptomsFromText: vi.fn(),
+  validateSymptomConsistency: vi.fn(),
   validateSymptomDetailInput: vi.fn(),
   validateSymptomInput: vi.fn(),
 }));
@@ -103,6 +109,7 @@ vi.mock('../../src/lib/AssessmentContext', () => ({
 }));
 
 const extractSymptomsFromTextMock = vi.mocked(extractSymptomsFromText);
+const validateSymptomConsistencyMock = vi.mocked(validateSymptomConsistency);
 const validateSymptomDetailInputMock = vi.mocked(validateSymptomDetailInput);
 const validateSymptomInputMock = vi.mocked(validateSymptomInput);
 
@@ -125,6 +132,14 @@ describe('page-level user flows', () => {
       text: 'Kopf',
       inputType: 'text',
       isValidMedicalInput: true,
+    });
+    validateSymptomConsistencyMock.mockResolvedValue({
+      isRegionMeaningful: true,
+      hasClearContradiction: false,
+      selectedLocationIds: [],
+      detailLocationIds: [],
+      selectedLocationConfidence: 'none',
+      detailLocationConfidence: 'none',
     });
     vi.unstubAllGlobals();
   });
@@ -381,6 +396,39 @@ describe('page-level user flows', () => {
     expect(navigateMock).toHaveBeenCalledWith('/result');
   });
 
+  it('blocks contradictory edited symptom region and details on the details page', async () => {
+    const user = userEvent.setup();
+    submitAssessmentMock.mockResolvedValue({});
+    validateSymptomConsistencyMock.mockResolvedValue({
+      isRegionMeaningful: true,
+      hasClearContradiction: true,
+      selectedLocationIds: ['legs'],
+      detailLocationIds: ['arms'],
+      selectedLocationConfidence: 'high',
+      detailLocationConfidence: 'high',
+      message: 'Bitte prüfen Sie Region und Zusatzdetails. Die Angaben widersprechen sich eindeutig.',
+    });
+    locationState.current = {
+      extractedSymptoms: [{ region: 'Unterarm', side: 'Hand/Handgelenk', details: 'Schnittwunde in der Hand' }],
+    };
+
+    render(<SymptomDetailsPage />);
+
+    await user.click(screen.getByRole('button', { name: 'Symptomname bearbeiten' }));
+    await user.clear(screen.getByLabelText('Symptomname bearbeiten'));
+    await user.type(screen.getByLabelText('Symptomname bearbeiten'), 'Bein');
+    await user.click(screen.getByRole('button', { name: 'Seit heute' }));
+    await user.click(screen.getAllByRole('button', { name: 'Weiter' }).at(-1)!);
+
+    expect(validateSymptomConsistencyMock).toHaveBeenCalledWith(
+      expect.objectContaining({ region: 'Bein', details: 'Schnittwunde in der Hand' }),
+      undefined,
+    );
+    expect(await screen.findByText('Bitte prüfen Sie Region und Zusatzdetails. Die Angaben widersprechen sich eindeutig.')).toBeInTheDocument();
+    expect(submitAssessmentMock).not.toHaveBeenCalled();
+    expect(navigateMock).not.toHaveBeenCalledWith('/result');
+  });
+
   it('opens result explanations, edits the medical summary and exports PDF payloads', async () => {
     const user = userEvent.setup();
     const createObjectUrlMock = vi.fn(() => 'blob:pdf');
@@ -445,10 +493,22 @@ describe('page-level user flows', () => {
 
     render(<ResultPage />);
 
+    const patientDataToggle = screen.getByRole('button', { name: 'Patientendaten' });
+    expect(patientDataToggle).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.queryByText('Geburtsdatum')).not.toBeInTheDocument();
+
+    await user.click(patientDataToggle);
+    expect(patientDataToggle).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.getByText('Geburtsdatum')).toBeInTheDocument();
+
+    await user.click(patientDataToggle);
+    expect(patientDataToggle).toHaveAttribute('aria-expanded', 'false');
+
     await user.click(screen.getByRole('button', { name: 'KI-Begründung anzeigen' }));
     expect(screen.getAllByText(/mock-model/).length).toBeGreaterThan(0);
 
     await user.click(screen.getByRole('button', { name: 'medical-summary-bearbeiten' }));
+    expect(patientDataToggle).toHaveAttribute('aria-expanded', 'true');
     await user.clear(screen.getByDisplayValue('1990'));
     await user.type(screen.getByLabelText('Geburtsjahr'), '1988');
     await user.clear(screen.getByLabelText('Beschwerden bearbeiten'));
@@ -479,6 +539,7 @@ describe('page-level user flows', () => {
       reviewSummary: {
         plainLanguage: 'Bitte ärztlich abklären lassen.',
       },
+      aiModel: 'mock-model',
       triage: {
         careLevel: 'doctor',
         recommendedSpecialty: 'general_practice',

@@ -13,6 +13,7 @@ vi.mock('../../../src/ai/llmAdapter.js', () => ({
 const requestStructuredAiResponseMock = vi.mocked(requestStructuredAiResponse)
 const requestStructuredAiResponseWithModelMock = vi.mocked(requestStructuredAiResponseWithModel)
 
+/** Shared patient fixture for route payloads that include demographics. */
 const malePatientData = {
   birthMonth: '05',
   birthYear: '1988',
@@ -33,6 +34,7 @@ const malePatientData = {
   conditionDetails: {},
 }
 
+/** Creates an isolated Fastify instance for each route test. */
 async function createApp(): Promise<FastifyInstance> {
   const app = await buildApp()
   await app.ready()
@@ -51,6 +53,7 @@ describe('POST /api/v1/triage/evaluate', () => {
     await app.close()
   })
 
+  /** Structured symptom input should pass through the triage route and model adapter. */
   it('bewertet strukturierte Symptome ueber die Triage-Pipeline', async () => {
     requestStructuredAiResponseWithModelMock.mockResolvedValueOnce({
       data: {
@@ -93,6 +96,7 @@ describe('POST /api/v1/triage/evaluate', () => {
     )
   })
 
+  /** Free-text input should be extracted before the extracted symptoms enter triage. */
   it('verbindet Freitext-Extraktion und anschliessende Triage', async () => {
     requestStructuredAiResponseMock
       .mockResolvedValueOnce({
@@ -137,6 +141,7 @@ describe('POST /api/v1/triage/evaluate', () => {
     expect(requestStructuredAiResponseWithModelMock).toHaveBeenCalledTimes(1)
   })
 
+  /** The emergency shortcut is deterministic and must not depend on AI availability. */
   it('liefert den Notfallmodus ohne KI-Aufruf direkt zurueck', async () => {
     const response = await app.inject({
       method: 'POST',
@@ -155,6 +160,7 @@ describe('POST /api/v1/triage/evaluate', () => {
     expect(requestStructuredAiResponseWithModelMock).not.toHaveBeenCalled()
   })
 
+  /** Empty triage payloads should fail at the request-validation boundary. */
   it('antwortet mit 400 bei ungueltigem Request-Body', async () => {
     const response = await app.inject({
       method: 'POST',
@@ -172,6 +178,7 @@ describe('POST /api/v1/triage/evaluate', () => {
     })
   })
 
+  /** Demographic contradictions should be rejected before model execution. */
   it('antwortet mit 400 bei logisch widerspruechlichen Schwangerschaftsangaben', async () => {
     const response = await app.inject({
       method: 'POST',
@@ -194,6 +201,7 @@ describe('POST /api/v1/triage/evaluate', () => {
     expect(requestStructuredAiResponseWithModelMock).not.toHaveBeenCalled()
   })
 
+  /** AI availability errors should surface as the controlled triage fallback response. */
   it('nutzt den kontrollierten Fallback, wenn die Triage-KI nicht antwortet', async () => {
     requestStructuredAiResponseWithModelMock.mockRejectedValueOnce(new AiResponseError('timeout'))
 
