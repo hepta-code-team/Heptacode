@@ -6,6 +6,7 @@ const pages = [
   { path: "/", name: "Symptome wählen" },
   { path: "/patient-data", name: "Stammdaten eingeben" },
   { path: "/medical-data", name: "Medizinische Angaben" },
+  { path: "/pre-existing-conditions", name: "Vorerkrankungen" },
   { path: "/symptom-selection", name: "Beschwerden" },
   { path: "/symptom-details", name: "Details" },
   { path: "/result", name: "Auswertung" },

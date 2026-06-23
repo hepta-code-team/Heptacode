@@ -4,6 +4,7 @@ import type { ReactElement } from "react";
 import LandingPage from "../pages/LandingPage";
 import PatientDataPage from "../pages/PatientDataPage";
 import MedicalDataPage from "../pages/MedicalDataPage";
+import PreExistingConditionsPage from "../pages/PreExistingConditionsPage";
 import SymptomSelectionPage from "../pages/SymptomSelectionPage";
 import SymptomDetailsPage from "../pages/SymptomDetailsPage";
 import ResultPage from "../pages/ResultPage";
@@ -56,6 +57,16 @@ export const router = createBrowserRouter([
       <PatientDataRequiredRoute>
         <PageRoute>
           <MedicalDataPage />
+        </PageRoute>
+      </PatientDataRequiredRoute>
+    ),
+  },
+  {
+    path: "/pre-existing-conditions",
+    element: (
+      <PatientDataRequiredRoute>
+        <PageRoute>
+          <PreExistingConditionsPage />
         </PageRoute>
       </PatientDataRequiredRoute>
     ),
