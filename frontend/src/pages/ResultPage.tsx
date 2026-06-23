@@ -372,7 +372,7 @@ function AcuteEmergencySummaryFlow({
 export default function ResultPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { patientData, setPatientData, symptomDetails, assessmentResult, setAssessmentResult, resetAssessment } = useAssessment();
+  const { patientData, setPatientData, symptomDetails, assessmentResult, setAssessmentResult, resetAssessment, symptomText } = useAssessment();
   const [isEditingSummary, setIsEditingSummary] = useState(false);
   const [patientDataDraft, setPatientDataDraft] = useState<PatientData | null>(null);
   const [conditionListDraft, setConditionListDraft] = useState("");
@@ -539,8 +539,6 @@ export default function ResultPage() {
     resetAssessment();
   };
 
-  const {symptomText} = useAssessment();
-
   const handleStartSummaryEdit = () => {
     const summaryDraft = parseMedicalSummarySections(displayedProfessionalSummary);
     const travelDetails = splitTravelDetails(patientData?.recentAbroadDetails ?? "");
@@ -625,12 +623,15 @@ export default function ResultPage() {
         ? [professionalSummaryDraft.complaints.trim()]
         : explanationReasons.slice(0, 5);
 
+      const symptomFreeText = symptomText.trim();
+
       // Keep the export payload conservative and schema-shaped even when the page is rendered from URL fallbacks.
       const pdfPayload = {
         reviewSummary: {
           plainLanguage: plainLanguageSummary,
           professionalSummary: displayedProfessionalSummary,
         },
+        ...(symptomFreeText ? { symptomText: symptomFreeText } : {}),
         ...(assessmentResult?.aiModel ? { aiModel: assessmentResult.aiModel } : {}),
         triage: {
           careLevel: safeCareLevel,

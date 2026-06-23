@@ -546,7 +546,7 @@ function cleanStructuredProfessionalSummary(summary: string): string {
 function summarizeCareReason(request: PdfExportRequest): string {
   const plainLanguageSummary = normalizeGermanText(request.reviewSummary.plainLanguage).trim()
   const specialtyLine = request.triage?.recommendedSpecialty
-    ? `Empfohlene Fachrichtung: ${MEDICAL_SPECIALTY_LABELS[request.triage.recommendedSpecialty]}\n`
+    ? `Empfohlene Fachrichtung: ${MEDICAL_SPECIALTY_LABELS[request.triage.recommendedSpecialty]}\n\n`
     : ''
 
   if (plainLanguageSummary.length > 0) {
@@ -570,6 +570,10 @@ function summarizeMedicalOverview(request: PdfExportRequest): string {
   const rawProfessionalSummary = normalizeGermanText(
     request.reviewSummary.professionalSummary,
   ).trim()
+  const symptomText = normalizeGermanText(request.symptomText ?? '').trim()
+  const symptomTextLines = symptomText.length > 0
+    ? ['', `Ihre Eingabe: „${symptomText}“`]
+    : []
 
   // Preserve clinician-edited structured summaries, but normalize them into the PDF section format.
   if (rawProfessionalSummary.length > 0 && hasMedicalSummaryStructure(rawProfessionalSummary)) {
@@ -581,7 +585,7 @@ function summarizeMedicalOverview(request: PdfExportRequest): string {
       '',
       'Beschwerden:',
       extractComplaintsFromStructuredSummary(rawProfessionalSummary),
-      '',
+      ...symptomTextLines,
       summarizeCareReason(request),
     ].join('\n')
   }
@@ -592,7 +596,7 @@ function summarizeMedicalOverview(request: PdfExportRequest): string {
     '',
     'Beschwerden:',
     summarizeSymptoms(request.symptoms),
-    '',
+    ...symptomTextLines,
     summarizeCareReason(request),
   ].join('\n')
 }
@@ -940,12 +944,22 @@ function renderTextWithLinks(
 }
 
 function measureSectionLines(doc: PdfDoc, lines: string[], width: number): number {
-  return lines.reduce((height, line) => {
+  return lines.reduce((height, line, index) => {
+    const addsCareReasonDivider =
+      /^(Empfohlene Fachrichtung|Begründung der Empfehlung):/i.test(line.trim()) &&
+      !lines
+        .slice(0, index)
+        .some((previousLine) =>
+          /^(Empfohlene Fachrichtung|Begründung der Empfehlung):/i.test(previousLine.trim()),
+        )
+
+    const dividerHeight = addsCareReasonDivider ? 32 : 0
+
     if (line.trim().length === 0) {
-      return height + doc.currentLineHeight(true)
+      return height + dividerHeight + doc.currentLineHeight(true)
     }
 
-    return height + doc.heightOfString(removeMarkdownLinkUrls(line), {
+    return height + dividerHeight + doc.heightOfString(removeMarkdownLinkUrls(line), {
       width,
       lineGap: 4,
     })
@@ -961,9 +975,52 @@ function renderSectionLines(
 ): number {
   doc.y = startY
 
-  lines.forEach((line) => {
+  lines.forEach((line, index) => {
+    const addsCareReasonDivider =
+      /^(Empfohlene Fachrichtung|Begründung der Empfehlung):/i.test(line.trim()) &&
+      !lines
+        .slice(0, index)
+        .some((previousLine) =>
+          /^(Empfohlene Fachrichtung|Begründung der Empfehlung):/i.test(previousLine.trim()),
+        )
+
+    if (addsCareReasonDivider) {
+      const dividerY = doc.y + 14
+
+      doc
+        .moveTo(contentX, dividerY)
+        .lineTo(contentX + contentWidth, dividerY)
+        .strokeColor(THEME.border)
+        .lineWidth(0.7)
+        .stroke()
+
+      doc.y = dividerY + 18
+    }
+
     if (line.trim().length === 0) {
       doc.moveDown(1)
+      return
+    }
+
+    const symptomTextMatch = line.trim().match(/^Ihre Eingabe:\s*„([\s\S]*)“$/)
+
+    if (symptomTextMatch) {
+      doc
+        .fillColor(THEME.text)
+        .font('Helvetica-Bold')
+        .fontSize(10)
+        .text('Ihre Eingabe: ', contentX, doc.y, {
+          width: contentWidth,
+          lineGap: 4,
+          continued: true,
+        })
+        .font('Helvetica-Oblique')
+        .text(`„${symptomTextMatch[1] ?? ''}“`, {
+          width: contentWidth,
+          lineGap: 4,
+        })
+
+      doc.fillColor(THEME.text).font('Helvetica').fontSize(10)
       return
     }
 

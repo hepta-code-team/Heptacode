@@ -10,6 +10,7 @@ describe('pdfExportRequestSchema', () => {
         plainLanguage: 'Die Beschwerden wurden zusammengefasst.',
         professionalSummary: 'Strukturierte medizinische Zusammenfassung.',
       },
+      symptomText: 'Ich habe seit gestern starke Kopfschmerzen.',
       patientData: {
         birthMonth: '01',
         birthYear: '1990',

@@ -10,6 +10,7 @@ describe('createPdfSummary', () => {
         plainLanguage: 'Ihre Angaben sprechen für eine hausärztliche Abklärung.',
         professionalSummary: 'Strukturierte medizinische Zusammenfassung.',
       },
+      symptomText: 'Ich habe seit gestern starke Kopfschmerzen.',
       aiModel: 'test-model',
       patientData: {
         birthMonth: '01',
@@ -40,6 +41,9 @@ describe('createPdfSummary', () => {
     expect(result.mimeType).toBe('application/pdf')
     expect(result.sections).toHaveLength(2)
     expect(result.sections[0]).toMatchObject({ title: 'Medizinische Übersicht' })
+    expect(result.sections[0]?.content).toContain(
+      'Ihre Eingabe: „Ich habe seit gestern starke Kopfschmerzen.“',
+    )
     expect(result.sections[1]).toMatchObject({ title: 'Wichtiger Hinweis' })
     expect(pdfContent.startsWith('%PDF-')).toBe(true)
   })
@@ -172,6 +176,9 @@ describe('createPdfSummary', () => {
     })
 
     expect(result.sections[0]?.content).toContain('Empfohlene Fachrichtung: Kardiologie')
+    expect(result.sections[0]?.content).toContain(
+      'Empfohlene Fachrichtung: Kardiologie\n\nBegründung der Empfehlung:',
+    )
   })
 
   /** Plain-language summaries should be used as the recommendation rationale when present. */
