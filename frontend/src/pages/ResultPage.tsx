@@ -695,7 +695,7 @@ export default function ResultPage() {
       subtitle="Basierend auf Ihren Angaben haben wir folgende Empfehlung für Sie."
     >
       <div
-        className="rounded-[16px] p-5 md:p-6 mb-4"
+        className="shadow-md rounded-[16px] p-5 md:p-6 mb-4"
         style={{ backgroundColor: config.bgColor }}
       >
         <div className="flex items-center gap-3 mb-3">
@@ -824,7 +824,7 @@ export default function ResultPage() {
       />
 
 
-      <div className="bg-white border-2 border-[#486284] rounded-[16px] p-5 md:p-6 mb-4">
+      <div className="shadow-md bg-white border-2 border-[#486284] rounded-[16px] p-5 md:p-6 mb-4">
         <div className="flex flex-col gap-3 mb-4 sm:flex-row sm:items-center sm:justify-between">
           <p className="font-['DM_Sans:Bold',sans-serif] font-bold text-app-text-primary text-lg">
             Ihre Angaben
@@ -1205,9 +1205,9 @@ export default function ResultPage() {
       </div>
 
 
-      <div className="mt-6 mb-6">
+      <div className="mt-6 mb-6 flex justify-end">
         <Button onClick={handleReset}>
-          <p className="font-['DM_Sans:Bold',sans-serif] font-bold text-base">
+          <p className="font-['DM_Sans:Bold',sans-serif] font-bold text-base ">
             Neue Bewertung starten
           </p>
         </Button>

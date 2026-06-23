@@ -932,7 +932,7 @@ export default function SymptomSelectionPage() {
       }`}
     >
       <div className="flex items-start gap-3">
-        <div className="flex size-11 flex-shrink-0 items-center justify-center rounded-full bg-[#486284] text-app-text-on-primary">
+        <div className="flex size-11 flex-shrink-0 items-center justify-center shadow-md rounded-full bg-[#486284] text-app-text-on-primary">
           <Mic className="size-5" aria-hidden="true" />
         </div>
         <div>
@@ -962,7 +962,7 @@ export default function SymptomSelectionPage() {
     >
       <div className="grid grid-cols-1 lg:grid-cols-[360px_minmax(0,1fr)] gap-5 xl:gap-6 items-start">
         <div>
-          <div className="rounded-[18px] bg-[#f5f7fa] border-2 border-[#486284FF] p-4">
+          <div className="shadow-md rounded-[18px] bg-[#f5f7fa] border-2 border-[#486284FF] p-4">
             <p
               className="mb-3 text-center font-['DM_Sans:Bold',sans-serif] font-bold text-app-text-primary text-sm"
               style={{ fontVariationSettings: "'opsz' 14" }}
@@ -1020,7 +1020,7 @@ export default function SymptomSelectionPage() {
         </div>
 
         <div>
-          <div className={`mb-4 rounded-[18px] border-2 bg-[#f5f7fa] p-3 transition-all ${selectedSymptoms.length > 0 ? "border-[#486284]" : "border-transparent"}`}>
+          <div className={`mb-4 shadow-md rounded-[18px] border-2 bg-[#f5f7fa] p-3 transition-all ${selectedSymptoms.length > 0 ? "border-[#486284]" : "border-transparent"}`}>
             <div className="mb-2 flex items-center justify-between">
               <p
                 className="font-['DM_Sans:Bold',sans-serif] font-bold text-app-text-primary text-sm"
