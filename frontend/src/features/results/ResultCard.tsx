@@ -1,4 +1,3 @@
-import type { ReactNode } from "react";
 import type { CareLevel, MedicalSpecialty, ResultConfig } from "../../../../shared/result.types";
 
 type ResultCardConfig = ResultConfig & {
@@ -9,13 +8,12 @@ interface ResultCardProps {
   config: ResultCardConfig;
   careLevel: CareLevel;
   recommendedSpecialty?: MedicalSpecialty;
-  children?: ReactNode;
 }
 
-export default function ResultCard({ config, careLevel, recommendedSpecialty, children }: ResultCardProps) {
+export default function ResultCard({ config, careLevel, recommendedSpecialty }: ResultCardProps) {
   return (
     <div
-      className="rounded-[16px] shadow-md p-5 md:p-6 mb-4"
+      className="rounded-[16px] p-5 md:p-6 mb-4"
       style={{ backgroundColor: config.bgColor }}
     >
       <div className="flex items-center gap-3 mb-3">
@@ -63,7 +61,6 @@ export default function ResultCard({ config, careLevel, recommendedSpecialty, ch
           </span>
         )}
       </p>
-      {children}
     </div>
   );
 }

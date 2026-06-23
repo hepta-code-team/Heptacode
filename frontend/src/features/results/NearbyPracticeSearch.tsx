@@ -946,7 +946,7 @@ export default function NearbyPracticeSearch({
 
   return (
     // Aeusserer Container der gesamten Suchkarte.
-    <div className="rounded-[16px] shadow-md bg-[#eff2f6] p-5 md:p-6 mb-4">
+    <div className="rounded-[16px] bg-[#eff2f6] p-5 md:p-6 mb-4">
       {/* Kopfbereich mit Icon, Titel und Erklaertext */}
       <div className="mb-4 flex items-start gap-3">
         <div className="flex size-11 flex-shrink-0 items-center justify-center rounded-full bg-white text-[#486284]">

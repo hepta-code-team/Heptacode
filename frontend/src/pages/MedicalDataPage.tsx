@@ -166,7 +166,7 @@ function MedicalAccordionPanel({
 }) {
   return (
     <div
-      className={`shadow-md rounded-[14px] border-2 p-3 transition-all ${
+      className={`rounded-[14px] border-2 p-3 transition-all ${
         isCompleted
           ? "border-[#486284] bg-[#eff2f6]"
           : "border-transparent bg-[#eff2f6]"
@@ -510,7 +510,7 @@ export default function MedicalDataPage() {
     >
       {(formData.gender === "Weiblich" || formData.gender === "Divers") && (
         <div
-          className={`shadow-md rounded-[14px] border-2 bg-[#eff2f6] p-3 transition-all ${
+          className={`rounded-[14px] border-2 bg-[#eff2f6] p-3 transition-all ${
             formData.isPregnant || formData.isBreastfeeding
               ? "border-[#486284]"
               : "border-transparent"
@@ -712,7 +712,7 @@ export default function MedicalDataPage() {
       </div>
 
       <div
-        className={`mt-4 shadow-md rounded-[14px] border-2 bg-[#eff2f6] p-3 transition-all ${
+        className={`mt-4 rounded-[14px] border-2 bg-[#eff2f6] p-3 transition-all ${
           smokingStatus !== "Nein" ? "border-[#486284]" : "border-transparent"
         }`}
       >

@@ -65,7 +65,7 @@ function clampNumber(value: number, min: number, max: number) {
 }
 
 function getRequiredFieldCardClass(isCompleted: boolean, spacingClass = "h-full", borderClassName = "border-gray-400") {
-  return `${spacingClass} shadow-md rounded-[14px] border-2 p-3 transition-all ${
+  return `${spacingClass} rounded-[14px] border-2 p-3 transition-all ${
     isCompleted ? `${borderClassName} bg-[#eff2f6]` : "border-transparent bg-[#eff2f6]"
   }`;
 }
