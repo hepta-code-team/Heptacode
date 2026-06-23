@@ -154,7 +154,7 @@ describe('createPdfSummary', () => {
     expect(result.sections[0]?.content).toContain('Geschlecht:')
     expect(result.sections[0]?.content).toContain('Reise ins Ausland: Ja')
     expect(result.sections[0]?.content).toContain(
-      'Vorerkrankung: Sonstige – Sonstige: Herzrhythmusstoerungen\nDauer: seit 6 Jahren',
+      'Vorerkrankung: Sonstige – Sonstige: Herzrhythmusstoerungen\nBekannt seit: seit 6 Jahren',
     )
     expect(result.sections[0]?.content).toContain('Raucher: Ja')
     expect(result.sections[0]?.content).toContain('Temperatur: 39.2')
