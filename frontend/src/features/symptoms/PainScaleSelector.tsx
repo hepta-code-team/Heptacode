@@ -103,7 +103,26 @@ export default function PainScaleSelector({ config, value, onValueChange }: Pain
             {value >= 42.5 ? ">42" : value.toFixed(1)} {config.unit}
           </p>
         </div>
-        <div className="flex gap-1 mb-2">
+        <div className="mb-2 flex h-12 overflow-hidden rounded-lg md:hidden">
+          {temperatureOptions.map((temperature) => {
+            const isSelected = value === temperature;
+            const label = temperature >= 42.5 ? ">42" : temperature.toFixed(1);
+
+            return (
+              <button
+                key={temperature}
+                onClick={() => onValueChange(temperature)}
+                className="h-12 flex-1 transition-all hover:opacity-90"
+                style={{
+                  backgroundColor: temperature > value ? "#E5E7EB" : getTemperatureColor(temperature),
+                }}
+                aria-label={`${label} ${config.unit}`}
+                aria-pressed={isSelected}
+              />
+            );
+          })}
+        </div>
+        <div className="mb-2 hidden gap-1 md:flex">
           {temperatureOptions.map((temperature) => {
             const isSelected = value === temperature;
             const label = temperature >= 42.5 ? ">42" : temperature.toFixed(1);
@@ -161,7 +180,20 @@ export default function PainScaleSelector({ config, value, onValueChange }: Pain
           {value}/10
         </p>
       </div>
-      <div className="flex gap-1 mb-2">
+      <div className="mb-2 flex h-12 overflow-hidden rounded-lg md:hidden">
+        {Array.from({ length: config.max - config.min + 1 }, (_, index) => config.min + index).map((level) => (
+          <button
+            key={level}
+            onClick={() => onValueChange(level)}
+            className="h-12 flex-1 transition-all hover:opacity-80"
+            style={{
+              backgroundColor: getButtonColor(level, value),
+            }}
+            aria-label={`${level} von ${config.max}`}
+          />
+        ))}
+      </div>
+      <div className="mb-2 hidden gap-1 md:flex">
         {Array.from({ length: config.max - config.min + 1 }, (_, index) => config.min + index).map((level) => (
           <button
             key={level}
