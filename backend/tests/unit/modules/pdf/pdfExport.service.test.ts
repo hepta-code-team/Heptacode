@@ -124,7 +124,7 @@ describe('createPdfSummary', () => {
           Sonstige: {
             condition: 'Sonstige',
             detail: 'Sonstige: Herzrhythmusstoerungen',
-            duration: '',
+            duration: 'seit 6 Jahren',
           },
         },
         medicationDuration: ''
@@ -153,6 +153,9 @@ describe('createPdfSummary', () => {
 
     expect(result.sections[0]?.content).toContain('Geschlecht:')
     expect(result.sections[0]?.content).toContain('Reise ins Ausland: Ja')
+    expect(result.sections[0]?.content).toContain(
+      'Vorerkrankung: Sonstige – Sonstige: Herzrhythmusstoerungen\nDauer: seit 6 Jahren',
+    )
     expect(result.sections[0]?.content).toContain('Raucher: Ja')
     expect(result.sections[0]?.content).toContain('Temperatur: 39.2')
     expect(result.sections[0]?.content).toContain('8/10')

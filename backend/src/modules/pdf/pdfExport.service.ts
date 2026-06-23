@@ -261,6 +261,19 @@ function summarizePatient(data?: PatientData): string {
     return 'Keine Stammdaten vorhanden.'
   }
 
+  const conditionLines = data.conditions.length > 0
+    ? data.conditions.flatMap((condition) => {
+        const conditionDetail = data.conditionDetails[condition]
+        const detail = conditionDetail?.detail.trim()
+        const duration = conditionDetail?.duration.trim()
+
+        return [
+          `Vorerkrankung: ${condition}${detail ? ` – ${detail}` : ''}`,
+          duration ? `Bekannt seit: ${duration}` : null,
+        ].filter((line): line is string => line !== null)
+      })
+    : ['Vorerkrankungen: —']
+
   return [
     `Geburtsdatum: ${formatValue(data.birthMonth)}/${formatValue(data.birthYear)}`,
     `Größe: ${formatValue(data.height)} cm`,
@@ -270,12 +283,10 @@ function summarizePatient(data?: PatientData): string {
     `Stillzeit: ${data.isBreastfeeding ? 'Ja' : 'Nein'}`,
     `Allergien: ${data.allergies || '-'}`,
     `Medikamente: ${data.medications || '-'}`,
-    `Einahmedauer Medikamente: ${data.medicationDuration || '-'}`,
+    `Einnahmedauer Medikamente: ${data.medicationDuration || '-'}`,
     `Substanzbeeinflussung: ${data.substanceInfluence || 'Nein'}`,
     `Reise ins Ausland: ${formatRecentAbroad(data)}`,
-    data.conditions.length > 0
-      ? `Vorerkrankungen: ${data.conditions.join(', ')}`
-      : 'Vorerkrankungen: —',
+    ...conditionLines,
     `Raucher: ${data.isSmoker ? 'Ja' : 'Nein'}`,
     data.isSmoker ? `Rauchdauer: ${data.smokingSinceYears || '—'}` : null,
     data.isSmoker ? `Zigaretten pro Tag: ${data.cigarettesPerDay || '—'}` : null,
