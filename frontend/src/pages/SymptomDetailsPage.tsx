@@ -80,6 +80,8 @@ export default function SymptomDetailsPage() {
         ? symptom.measurementValue
         : measurementConfig.defaultValue,
       isNameEditable,
+      isExtractedFromFreeText: isNameEditable ||
+        ("isExtractedFromFreeText" in symptom && symptom.isExtractedFromFreeText === true),
       ...(isNameEditable ? {
         sourceText: symptomText.trim(),
         originalRegion: symptom.region,
