@@ -4,36 +4,88 @@ export const SYMPTOM_REGIONS = [
     locationId: 'head',
     name: 'Kopf',
     options: ['Stirn', 'Schläfen', 'Hinterkopf', 'Gesicht'],
+    // Extra matching labels for validation; these do not add new UI options.
+    aliases: [
+      'Auge',
+      'Augen',
+      'Ohr',
+      'Ohren',
+      'Nase',
+      'Mund',
+      'Lippe',
+      'Lippen',
+      'Zunge',
+      'Zahn',
+      'Zähne',
+      'Kiefer',
+      'Wange',
+      'Wangen',
+      'Schädel',
+      'Kopfhaut',
+      'Schläfe',
+    ],
   },
   {
     locationId: 'neck',
     name: 'Hals',
     options: ['Hals', 'Rachen', 'Schluckbeschwerden', 'Nacken'],
+    aliases: ['Kehle', 'Kehlkopf', 'Mandeln', 'Halswirbelsäule', 'HWS'],
   },
   {
     locationId: 'chest',
     name: 'Brust',
     options: ['Brustmitte', 'Linksseitig', 'Rechtsseitig', 'Rippen', 'Atemabhängig'],
+    aliases: ['Brustkorb', 'Brustbein', 'Sternum', 'Rippe', 'Herzgegend'],
   },
   {
     locationId: 'back',
     name: 'Rücken',
     options: ['Nacken', 'Oberer Rücken', 'Mittlerer Rücken', 'Unterer Rücken', 'Steißbein'],
+    aliases: ['Wirbelsäule', 'Lendenwirbelsäule', 'Brustwirbelsäule', 'LWS', 'BWS'],
   },
   {
     locationId: 'arms',
     name: 'Arme',
     options: ['Schulter', 'Oberarm', 'Ellenbogen', 'Unterarm', 'Hand/Handgelenk', 'Finger'],
+    aliases: [
+      'Arm',
+      'Ellbogen',
+      'Hand',
+      'Handgelenk',
+      'Handfläche',
+      'Handrücken',
+      'Daumen',
+      'Zeigefinger',
+      'Mittelfinger',
+      'Ringfinger',
+      'Kleiner Finger',
+    ],
   },
   {
     locationId: 'abdomen',
     name: 'Bauch',
     options: ['Oberbauch', 'Unterbauch', 'Rechts oben', 'Rechts unten', 'Links oben', 'Links unten'],
+    aliases: ['Magen', 'Darm', 'Unterleib', 'Bauchdecke', 'Nabel', 'Flanke', 'Flanken'],
   },
   {
     locationId: 'legs',
     name: 'Beine',
     options: ['Hüfte', 'Oberschenkel', 'Knie', 'Wade', 'Fuß/Knöchel', 'Zehen'],
+    aliases: [
+      'Bein',
+      'Unterschenkel',
+      'Schienbein',
+      'Fuß',
+      'Fuss',
+      'Knöchel',
+      'Knoechel',
+      'Ferse',
+      'Zehe',
+      'Leiste',
+      'Gesäß',
+      'Gesaess',
+      'Po',
+    ],
   },
   {
     name: 'Verbrennung',
@@ -90,7 +142,10 @@ export function formatSymptomTaxonomyForPrompt(): string {
 export function formatBodyLocationTaxonomyForPrompt(): string {
   return SYMPTOM_REGIONS
     .filter((region): region is typeof region & { locationId: BodyLocationId } => 'locationId' in region)
-    .map((region) => `${region.locationId}: ${region.name} (${region.options.join(', ')}).`)
+    .map((region) => {
+      const labels = [...region.options, ...('aliases' in region ? region.aliases : [])]
+      return `${region.locationId}: ${region.name} (${labels.join(', ')}).`
+    })
     .join('\n');
 }
 
@@ -103,6 +158,6 @@ export function getBodyLocationTaxonomy(): Array<{
     .filter((region): region is typeof region & { locationId: BodyLocationId } => 'locationId' in region)
     .map((region) => ({
       id: region.locationId,
-      labels: [region.name, ...region.options],
+      labels: [region.name, ...region.options, ...('aliases' in region ? region.aliases : [])],
     }));
 }
