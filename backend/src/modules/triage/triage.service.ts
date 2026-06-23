@@ -107,6 +107,59 @@ function formatPatientData(patientData?: PatientData): string {
   return buildPatientDataLines(patientData).join('\n')
 }
 
+const TECHNICAL_REASON_TERMS: Array<[RegExp, string]> = [
+  [/\bcareLevel\b/g, 'Versorgungsebene'],
+  [/\brecommendedSpecialty\b/g, 'empfohlene Fachrichtung'],
+  [/\brecommendedSpecialties\b/g, 'empfohlene Fachrichtungen'],
+  [/\breasons\b/g, 'Begruendungen'],
+  [/\breason\b/g, 'Begruendung'],
+  [/\breviewSummary\b/g, 'Zusammenfassung'],
+  [/\bplainLanguage\b/g, 'verstaendliche Zusammenfassung'],
+  [/\bprofessionalSummary\b/g, 'medizinische Zusammenfassung'],
+  [/\baiUnavailable\b/g, 'KI-Verfuegbarkeit'],
+  [/\baiModel\b/g, 'KI-Modell'],
+  [/\bpatientData\b/g, 'Stammdaten'],
+  [/\bsymptoms\b/g, 'Symptome'],
+  [/\binputType\b/g, 'Eingabeart'],
+  [/\bemergencyFromLanding\b/g, 'Notfallauswahl'],
+  [/\bregion\b/g, 'Beschwerdebereich'],
+  [/\bside\b/g, 'Seite'],
+  [/\bdetails\b/g, 'Details'],
+  [/\bmeasurementType\b/g, 'Messart'],
+  [/\bmeasurementValue\b/g, 'Messwert'],
+  [/\bduration\b/g, 'Dauer'],
+  [/\bselfcare\b/g, 'Selbstversorgung'],
+  [/\bdoctor\b/g, 'aerztliche Abklaerung'],
+  [/\bspecialist\b/g, 'fachaerztliche Abklaerung'],
+  [/\bemergency\b/g, 'Notfallversorgung'],
+  [/\bhome_care\b/g, 'haeusliche Versorgung'],
+  [/\bemergency_medicine\b/g, 'Notfallmedizin'],
+  [/\bgeneral_practice\b/g, 'Allgemeinmedizin'],
+  [/\binternal_medicine\b/g, 'Innere Medizin'],
+  [/\bcardiology\b/g, 'Kardiologie'],
+  [/\bneurology\b/g, 'Neurologie'],
+  [/\borthopedics\b/g, 'Orthopaedie'],
+  [/\bgastroenterology\b/g, 'Gastroenterologie'],
+  [/\bpulmonology\b/g, 'Pneumologie'],
+  [/\bdermatology\b/g, 'Dermatologie'],
+  [/\burology\b/g, 'Urologie'],
+  [/\bgynecology\b/g, 'Gynaekologie'],
+  [/\bpsychiatry\b/g, 'Psychiatrie'],
+  [/\bpediatrics\b/g, 'Paediatrie'],
+  [/\bdentistry\b/g, 'Zahnmedizin'],
+  [/\bophthalmology\b/g, 'Augenheilkunde'],
+  [/\botolaryngology\b/g, 'HNO'],
+  [/\b[a-z]+(?:[A-Z][a-z0-9]*)+\b/g, 'technische Angabe'],
+  [/\b[a-z]+(?:_[a-z0-9]+)+\b/g, 'technische Angabe'],
+]
+
+function removeTechnicalReasonTerms(reason: string): string {
+  return TECHNICAL_REASON_TERMS.reduce(
+    (text, [term, replacement]) => text.replace(term, replacement),
+    reason,
+  )
+}
+
 /**
  * Gives medication details a dedicated prompt section instead of burying them
  * among demographic data. Missing duration remains explicit because it limits
@@ -277,6 +330,7 @@ async function requestTriageFromAiWithDiagnostics(
   const plausibilityIssues = getTriageAiPlausibilityIssues(normalized, symptoms)
   const aiResponse = {
     ...normalized,
+    reasons: normalized.reasons.map(removeTechnicalReasonTerms),
     aiModel: model,
   }
 
