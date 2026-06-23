@@ -597,7 +597,15 @@ describe('validateSymptomConsistency', () => {
 
   it.each([
     ['Kopf', 'Schmerzen im Fuß', 'head', 'legs'],
+    ['Auge', 'Schnittwunde am Bein', 'head', 'legs'],
+    ['Nase', 'Schnittwunde an der Hand', 'head', 'arms'],
+    ['Mund', 'Schmerzen im Knie', 'head', 'legs'],
+    ['Ohr', 'Schmerzen im Bauch', 'head', 'abdomen'],
     ['Bauch', 'Schnittwunde an der Hand', 'abdomen', 'arms'],
+    ['Brustkorb', 'Schmerzen im Fuß', 'chest', 'legs'],
+    ['Unterleib', 'Schnittwunde am Finger', 'abdomen', 'arms'],
+    ['Schienbein', 'Schmerzen im Ohr', 'legs', 'head'],
+    ['Handgelenk', 'Schmerzen in der Nase', 'arms', 'head'],
   ])('erkennt klare Widersprueche taxonomiebasiert fuer %s', async (
     region,
     details,
