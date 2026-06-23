@@ -48,6 +48,7 @@ export const triageInstructions = [
   'Zusatzdetails koennen fuer die Dringlichkeit entscheidend sein, zum Beispiel Verbrennungsursache, Hitzequelle, Fremdkoerper steckt tief oder steckt explizit nicht mehr, Blutung, offene Wunde oder Negationen.',
   'Handle sicherheitsorientiert. Bei klaren Warnzeichen oder hohem Risiko waehle die hoehere Versorgungsebene.',
   'Gib in reasons kurze, konkrete Begruendungen auf Deutsch zurueck und schreibe das Alter des Patienten in Jahren dabei mit.',
+  'Verwende in reasons keine technischen Feld-, Variablen- oder Code-Namen wie careLevel, recommendedSpecialty, reasons, reviewSummary, plainLanguage, professionalSummary, emergency oder general_practice.',
   'Gib reviewSummary mit plainLanguage und professionalSummary auf Deutsch zurueck.',
   'Erfinde keine zusaetzlichen Symptome oder Stammdaten.',
 ].join('\n')
