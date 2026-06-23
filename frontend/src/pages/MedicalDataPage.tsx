@@ -166,7 +166,7 @@ function MedicalAccordionPanel({
 }) {
   return (
     <div
-      className={`rounded-[14px] border-2 p-3 transition-all ${
+      className={`shadow-md rounded-[14px] border-2 p-3 transition-all ${
         isCompleted
           ? "border-[#486284] bg-[#eff2f6]"
           : "border-transparent bg-[#eff2f6]"
@@ -511,7 +511,7 @@ export default function MedicalDataPage() {
     >
       {(formData.gender === "Weiblich" || formData.gender === "Divers") && (
         <div
-          className={`rounded-[14px] border-2 bg-[#eff2f6] p-3 transition-all ${
+          className={`shadow-md rounded-[14px] border-2 bg-[#eff2f6] p-3 transition-all ${
             formData.isPregnant || formData.isBreastfeeding
               ? "border-[#486284]"
               : "border-transparent"

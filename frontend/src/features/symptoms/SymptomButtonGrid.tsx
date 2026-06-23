@@ -134,7 +134,7 @@ export default function SymptomButtonGrid({
         <div key={region.id} className="relative">
           <button
             onClick={() => handleRegionClick(region)}
-            className={`w-full bg-[#eff2f6] rounded-[16px] p-4 h-[120px] flex items-center justify-center text-center transition-all relative ${
+            className={`w-full bg-[#eff2f6] shadow-md rounded-[16px] p-4 h-[120px] flex items-center justify-center text-center transition-all relative ${
               isItemSelected(region)
                 ? "ring-4 ring-[#486284]"
                 : "hover:bg-[#dde3ea]"

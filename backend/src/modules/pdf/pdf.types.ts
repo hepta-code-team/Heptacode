@@ -21,6 +21,7 @@ export interface PdfTriageResult {
 
 export interface PdfExportRequest {
   reviewSummary: PdfReviewSummary
+  symptomText?: string
   aiModel?: string
   triage?: PdfTriageResult
   patientData?: PatientData
@@ -43,6 +44,7 @@ export const pdfTriageResultSchema = z.object({
 
 export const pdfExportRequestSchema = z.object({
   reviewSummary: reviewSummarySchema,
+  symptomText: z.string().trim().min(1).optional(),
   aiModel: z.string().trim().min(1).optional(),
   triage: pdfTriageResultSchema.optional(),
   patientData: patientDataSchema.optional(),

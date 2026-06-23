@@ -17,7 +17,6 @@ src/
 │   └── ResultPage.tsx
 ├── components/
 │   ├── Button.tsx
-│   ├── Card.tsx
 │   ├── Modal.tsx
 │   ├── MobileNavigation.tsx
 │   ├── PageShell.tsx
