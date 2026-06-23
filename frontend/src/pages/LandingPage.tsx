@@ -67,7 +67,7 @@ export default function LandingPage() {
                         </p>
                         <button
                             onClick={() => setIsDisclaimerOpen(false)}
-                            className="flex w-full items-center justify-center gap-2 rounded-[14px] bg-[#10B981] px-5 py-3 text-app-text-on-primary transition-all hover:bg-[#059669]"
+                            className="shadow-md flex w-full items-center justify-center gap-2 rounded-[14px] bg-[#10B981] px-5 py-3 text-app-text-on-primary transition-all hover:bg-[#059669]"
                         >
                             <CheckCircle2 className="size-5" aria-hidden="true"/>
                             <span
@@ -142,7 +142,7 @@ export default function LandingPage() {
                 <div className="flex justify-end">
                     <button
                         onClick={handleContinue}
-                        className="bg-[#ffcdcd] rounded-[16px] p-4 min-h-[80px] flex items-center justify-center hover:bg-[#ffb8b8] transition-all gap-2"
+                        className="shadow-md bg-[#ffcdcd] rounded-[16px] p-4 min-h-[80px] flex items-center justify-center hover:bg-[#ffb8b8] transition-all gap-2"
                     >
                         <X className="size-[38px] flex-shrink-0 text-app-text-emergency" strokeWidth={3}
                            aria-hidden="true"/>
@@ -176,7 +176,7 @@ export default function LandingPage() {
                     <button
                         type="button"
                         onClick={() => setIsEmergencyInfoOpen(false)}
-                        className="mt-2 w-full rounded-[14px] bg-[#486284] px-5 py-3 text-app-text-on-primary transition-all hover:bg-[#3a4d68]"
+                        className="shadow-md mt-2 w-full rounded-[14px] bg-[#486284] px-5 py-3 text-app-text-on-primary transition-all hover:bg-[#3a4d68]"
                     >
                         Verstanden
                     </button>

@@ -30,7 +30,7 @@ export default function DurationSelector({ selectedDuration, onDurationChange, s
           <button
             key={duration.id}
             onClick={() => onDurationChange(duration.id as TriageSymptomDuration)}
-            className={`p-3 rounded-[12px] transition-all ${
+            className={`shadow-md p-3 rounded-[12px] transition-all ${
               selectedDuration === duration.id
                 ? "bg-[#486284] text-app-text-on-primary"
                 : "bg-white text-app-text-body hover:bg-[#dde3ea]"

@@ -855,7 +855,7 @@ export default function ResultPage() {
                 type="button"
                 onClick={handleStartSummaryEdit}
                 aria-label="medical-summary-bearbeiten"
-                className="inline-flex items-center justify-center gap-2 rounded-[10px] border border-[#486284] px-4 py-2 text-sm font-bold text-[#486284] transition-all hover:bg-[#eff2f6]"
+                className="shadow-md inline-flex items-center justify-center gap-2 rounded-[10px] border border-[#486284] px-4 py-2 text-sm font-bold text-[#486284] transition-all hover:bg-[#eff2f6]"
               >
                 <Edit3 className="size-4" aria-hidden="true" />
                 Bearbeiten
@@ -866,7 +866,7 @@ export default function ResultPage() {
                 type="button"
                 onClick={handlePdfDownload}
                 aria-label="download-summary"
-                className="inline-flex items-center justify-center gap-2 bg-[#486284] text-app-text-on-primary rounded-[10px] px-4 py-2 hover:bg-[#3a4d68] transition-all"
+                className="shadow-md inline-flex items-center justify-center gap-2 bg-[#486284] text-app-text-on-primary rounded-[10px] px-4 py-2 hover:bg-[#3a4d68] transition-all"
               >
                 <Download className="size-4" aria-hidden="true" />
                 PDF

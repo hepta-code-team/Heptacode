@@ -971,7 +971,7 @@ export default function NearbyPracticeSearch({
               type="button"
               onClick={handleLocationRequest}
               disabled={isRequestingLocation}
-              className="flex min-h-[48px] shrink-0 items-center justify-center gap-2 rounded-[14px] bg-[#486284] px-5 py-3 text-white transition-all hover:bg-[#3a4d68] disabled:bg-gray-300 disabled:text-gray-500"
+              className="shadow-md flex min-h-[48px] shrink-0 items-center justify-center gap-2 rounded-[14px] bg-[#486284] px-5 py-3 text-white transition-all hover:bg-[#3a4d68] disabled:bg-gray-300 disabled:text-gray-500"
             >
               <LocateFixed className="size-5" aria-hidden="true" />
               <span className="font-['DM_Sans:Bold',sans-serif] font-bold text-sm">
@@ -1000,12 +1000,12 @@ export default function NearbyPracticeSearch({
                   onChange={(event) => setManualLocationQuery(event.target.value)}
                   placeholder="z. B. 68163 Mannheim"
                   disabled={isRequestingLocation}
-                  className="min-h-[48px] min-w-0 flex-1 rounded-[10px] border border-[#c8d2dc] bg-white px-3 py-2 text-sm font-medium text-[#3e3e3e] outline-none transition-all placeholder:text-[#7b8a8d] focus:border-[#486284] focus:ring-2 focus:ring-[#486284]/20 disabled:bg-gray-100 disabled:text-gray-500"
+                  className="shadow-md min-h-[48px] min-w-0 flex-1 rounded-[10px] border border-[#c8d2dc] bg-white px-3 py-2 text-sm font-medium text-[#3e3e3e] outline-none transition-all placeholder:text-[#7b8a8d] focus:border-[#486284] focus:ring-2 focus:ring-[#486284]/20 disabled:bg-gray-100 disabled:text-gray-500"
                 />
                 <button
                   type="submit"
                   disabled={isRequestingLocation || !manualLocationQuery.trim()}
-                  className="inline-flex min-h-[48px] items-center justify-center gap-2 rounded-[10px] bg-white px-4 py-2 text-sm font-bold text-[#486284] ring-1 ring-[#c8d2dc] transition-all hover:bg-[#dde3ea] disabled:bg-gray-100 disabled:text-gray-400"
+                  className="shadow-md inline-flex min-h-[48px] items-center justify-center gap-2 rounded-[10px] bg-white px-4 py-2 text-sm font-bold text-[#486284] ring-1 ring-[#c8d2dc] transition-all hover:bg-[#dde3ea] disabled:bg-gray-100 disabled:text-gray-400"
                 >
                   <Search className="size-4" aria-hidden="true" />
                   Suchen
