@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import LandingPage from '../../src/pages/LandingPage';
 import MedicalDataPage from '../../src/pages/MedicalDataPage';
+import MobileNavigation from '../../src/components/MobileNavigation';
 import PreExistingConditionsPage from '../../src/pages/PreExistingConditionsPage';
 import PatientDataPage from '../../src/pages/PatientDataPage';
 import ResultPage from '../../src/pages/ResultPage';
@@ -161,6 +162,13 @@ describe('page-level user flows', () => {
 
     await user.click(screen.getAllByRole('button', { name: /Keines davon/ })[0]);
     expect(navigateMock).toHaveBeenCalledWith('/patient-data');
+  });
+
+  it('shows seven mobile steps including pre-existing conditions', () => {
+    render(<MobileNavigation />);
+
+    expect(screen.getByText('Stammdaten eingeben')).toBeInTheDocument();
+    expect(screen.getByText('2 / 7')).toBeInTheDocument();
   });
 
   it('shows patient-data validation errors before saving and navigating', async () => {
