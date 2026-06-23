@@ -42,7 +42,7 @@ export default function SymptomDetailsForm({
   }, [isEditingDetails]);
 
   return (
-    <div className="bg-[#eff2f6] rounded-[16px] p-5 relative">
+    <div className="bg-[#eff2f6] shadow-md rounded-[16px] p-5 relative">
       {/* Top-right remove button */}
       <button
         onClick={onRemove}

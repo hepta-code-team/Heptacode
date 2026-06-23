@@ -215,10 +215,10 @@ export default function SymptomDetailsPage() {
                 showDurationError={showValidationErrors}
               />
             ) : (
-              <div className="bg-[#eff2f6] rounded-[16px] p-5">
+              <div className="bg-[#eff2f6] rounded-[16px] shadow-md p-5">
                 <button
                   onClick={() => setIsAddModalOpen(true)}
-                  className="w-full flex items-center justify-center py-12 hover:bg-[#dde3ea] transition-all rounded-[16px]"
+                  className="w-full flex items-center justify-center py-12 hover:bg-[#dde3ea] transition-all  rounded-[16px]"
                 >
                   <svg className="w-16 h-16 text-app-text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />

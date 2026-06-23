@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from "react-router";
 import { Check, ChevronDown, Download, Edit3, PhoneCall, X } from "lucide-react";
 import PageShell from "../components/PageShell";
 import NearbyPracticeSearch from "../features/results/NearbyPracticeSearch";
+import ResultCard from "../features/results/ResultCard";
 import Button from "../components/Button";
 import {
   createSpecialtyConfig,
@@ -694,56 +695,11 @@ export default function ResultPage() {
       title="Ihre Auswertung"
       subtitle="Basierend auf Ihren Angaben haben wir folgende Empfehlung für Sie."
     >
-      <div
-        className="rounded-[16px] p-5 md:p-6 mb-4"
-        style={{ backgroundColor: config.bgColor }}
+      <ResultCard
+        config={config}
+        careLevel={careLevel}
+        recommendedSpecialty={recommendedSpecialty}
       >
-        <div className="flex items-center gap-3 mb-3">
-          <div
-            className="w-14 h-14 rounded-full flex items-center justify-center flex-shrink-0"
-            style={{ backgroundColor: config.color }}
-          >
-            <p
-              className="font-['DM_Sans:Bold',sans-serif] font-bold text-app-text-on-primary text-xl"
-              style={{ fontVariationSettings: "'opsz' 14" }}
-            >
-              !
-            </p>
-          </div>
-          <p
-            className="font-['DM_Sans:Bold',sans-serif] font-bold text-xl md:text-2xl"
-            style={{ fontVariationSettings: "'opsz' 14", color: config.color }}
-          >
-            {config.title}
-            {config.titleSupplement && (
-              <span className="block font-['DM_Sans:Medium',sans-serif] font-light">
-                {" "}({config.titleSupplement})
-              </span>
-            )}
-          </p>
-        </div>
-
-        <p
-          className="font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-body text-sm md:text-base leading-relaxed"
-          style={{ fontVariationSettings: "'opsz' 14" }}
-        >
-          {config.description}
-          {careLevel === "doctor" && (
-            <span className="hidden md:inline">
-              {" "}
-              Bei weiteren Fragen oder Unsicherheiten kontaktieren Sie die{" "}
-              <strong>116 117</strong>.
-            </span>
-          )}
-          {recommendedSpecialty === "psychiatry" && (
-            <span className="hidden md:inline">
-              {" "}
-              Bei akuten Sorgen erreichen Sie die Telefonseelsorge unter{" "}
-              <strong>0800 1110111</strong>.
-            </span>
-          )}
-        </p>
-
         <div className="my-6 border-t border-black/10" />
 
         <p className="font-['DM_Sans:Bold',sans-serif] font-bold text-app-text-primary text-lg mb-3">
@@ -800,7 +756,7 @@ export default function ResultPage() {
             </div>
           </div>
         )}
-      </div>
+      </ResultCard>
 
       {callAction && (
           <a
@@ -824,7 +780,7 @@ export default function ResultPage() {
       />
 
 
-      <div className="bg-white border-2 border-[#486284] rounded-[16px] p-5 md:p-6 mb-4">
+      <div className="bg-white border-2 shadow-md border-[#486284] rounded-[16px] p-5 md:p-6 mb-4">
         <div className="flex flex-col gap-3 mb-4 sm:flex-row sm:items-center sm:justify-between">
           <p className="font-['DM_Sans:Bold',sans-serif] font-bold text-app-text-primary text-lg">
             Ihre Angaben
