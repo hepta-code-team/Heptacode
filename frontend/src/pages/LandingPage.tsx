@@ -4,15 +4,29 @@ import {AlertTriangle, CheckCircle2, CircleHelp, X} from "lucide-react";
 import PageShell from "../components/PageShell";
 import Modal from "../components/Modal";
 import EmergencySymptomGrid from "../features/emergency/EmergencySymptomGrid";
+import { useAssessment } from "../lib/AssessmentContext";
+
+type EmergencySymptomSelection = {
+    name: string;
+    descLong: string;
+};
 
 export default function LandingPage() {
     const navigate = useNavigate();
+    const { resetAssessment } = useAssessment();
     const [isDisclaimerOpen, setIsDisclaimerOpen] = useState(true);
     const [isEmergencyInfoOpen, setIsEmergencyInfoOpen] = useState(false);
 
-    const handleEmergencySymptom = () => {
+    const handleEmergencySymptom = (symptom: EmergencySymptomSelection) => {
         // Red Flag symptoms always lead to emergency
-        navigate("/result?emergency=true");
+        resetAssessment();
+        const params = new URLSearchParams({
+            emergency: "true",
+            acuteSymptom: symptom.name,
+            acuteSymptomDescription: symptom.descLong,
+        });
+
+        navigate(`/result?${params.toString()}`);
     };
 
     const handleContinue = () => {
@@ -67,7 +81,7 @@ export default function LandingPage() {
                 </div>
             )}
 
-            {/* Mobile */}
+            {/* Mobile layout */}
             <div className="block lg:hidden">
                 <div className="mb-3 flex items-start gap-2">
                     <h1 className="font-['DM_Sans:Bold',sans-serif] font-bold text-app-text-primary text-2xl"
@@ -98,7 +112,7 @@ export default function LandingPage() {
                 </button>
             </div>
 
-            {/* Desktop */}
+            {/* Desktop layout */}
             <div className="hidden lg:block">
                 <div className="mb-2 flex items-center gap-2">
                     <h1

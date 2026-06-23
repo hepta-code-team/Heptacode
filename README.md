@@ -86,6 +86,119 @@ git push
 
 ---
 
+## Einzelnes Docker Image
+
+### Notwendige `.env.local`
+
+Vor dem Start ist eine `.env.local` Datei notwendig. Ohne diese Datei fehlen dem Backend die KI-Server-Einstellungen und der Container kann nicht korrekt arbeiten.
+
+Wenn du im Repo arbeitest:
+
+```bash
+cp .env.example .env.local
+```
+
+Wenn du nur die `heptacode.tar` auf einem anderen Rechner hast, erstelle im gleichen Ordner wie die `.tar` Datei eine neue Datei namens `.env.local`.
+
+Minimaler Inhalt:
+
+```env
+# Adresse vom KI-Server
+AI_API_URL=http://dein-ki-server:4000
+
+# API-Key fuer den KI-Server
+AI_API_KEY=dummy
+
+# Hauptmodell
+AI_MODEL=medgemma:27b
+
+# Ersatzmodell
+FALLBACK_MODEL=medgemma:4b
+```
+
+Wenn das Programm als ein einziges Image laufen soll:
+
+```bash
+docker build -t heptacode:latest .
+docker run --rm -p 80:80 --env-file .env.local heptacode:latest
+```
+
+Danach ist die App unter http://localhost erreichbar. Das Image enthaelt das gebaute React-Frontend, Nginx als Webserver und die kompilierte Fastify-API.
+
+Image als Datei weitergeben:
+
+```bash
+docker save heptacode:latest -o heptacode.tar
+docker load -i heptacode.tar
+
+# starten, nachdem im gleichen Ordner eine .env.local erstellt wurde
+docker run --rm -p 80:80 --env-file .env.local heptacode:latest
+```
+
+### GitHub Release Download
+
+Bei jedem Push auf `main` baut GitHub Actions automatisch ein aktuelles Docker-Paket und haengt es an den Release `latest` an.
+
+Download auf GitHub:
+
+```text
+Releases -> Heptacode Docker Download -> heptacode-docker.zip
+```
+
+Die ZIP enthaelt:
+
+```text
+heptacode.tar
+.env.local.example
+INSTALLATION.md
+```
+
+Der Workflow kann auch manuell ueber `Actions -> Build Docker TAR Release -> Run workflow` gestartet werden.
+
+---
+
+## Produktiv mit Docker Compose
+
+Die Produktion kann alternativ ohne lokale Node-/npm-Installation ueber zwei Docker Images laufen:
+
+- `heptacode-frontend`: Nginx liefert das gebaute React-Frontend aus und leitet `/api/*` an das Backend weiter.
+- `heptacode-backend`: Node.js startet die kompilierte Fastify-API.
+
+Voraussetzungen:
+
+```bash
+cp .env.example .env.local
+# .env.local mit den echten AI_API_URL / AI_API_KEY Werten befuellen
+```
+
+Start:
+
+```bash
+docker compose up -d --build
+```
+
+Danach ist die App unter http://localhost erreichbar. Der Backend-Healthcheck ist unter http://localhost:3000/health und ueber den Frontend-Proxy unter http://localhost/api/health erreichbar.
+
+Stoppen:
+
+```bash
+docker compose down
+```
+
+Images separat bauen:
+
+```bash
+docker compose build
+```
+
+Falls Docker Desktop beim Buildx-Builder einen lokalen Worker-Fehler meldet, funktioniert als Fallback:
+
+```bash
+DOCKER_BUILDKIT=0 docker compose build
+```
+
+---
+
 
 ## Projektstruktur
 

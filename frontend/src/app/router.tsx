@@ -1,51 +1,105 @@
-import { createBrowserRouter, Navigate } from "react-router";
+import { useEffect } from "react";
+import { Navigate, createBrowserRouter, useLocation } from "react-router";
+import type { ReactElement } from "react";
 import LandingPage from "../pages/LandingPage";
 import PatientDataPage from "../pages/PatientDataPage";
 import MedicalDataPage from "../pages/MedicalDataPage";
+import PreExistingConditionsPage from "../pages/PreExistingConditionsPage";
 import SymptomSelectionPage from "../pages/SymptomSelectionPage";
 import SymptomDetailsPage from "../pages/SymptomDetailsPage";
 import ResultPage from "../pages/ResultPage";
+import { useAssessment } from "../lib/AssessmentContext";
+import { isValidPatientData } from "../lib/assessmentValidation";
+
+function PageRoute({ children }: { children: ReactElement }) {
+  const { pathname, search } = useLocation();
+
+  useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+  }, [pathname, search]);
+
+  return children;
+}
+
+function PatientDataRequiredRoute({ children }: { children: ReactElement }) {
+  const location = useLocation();
+  const { patientData } = useAssessment();
+  const isEmergencyResult =
+    location.pathname === "/result" && new URLSearchParams(location.search).get("emergency") === "true";
+
+  if (isEmergencyResult || isValidPatientData(patientData)) {
+    return children;
+  }
+
+  return <Navigate to="/patient-data" replace />;
+}
 
 export const router = createBrowserRouter([
   {
     path: "/",
-    element: <LandingPage />,
+    element: (
+      <PageRoute>
+        <LandingPage />
+      </PageRoute>
+    ),
   },
   {
     path: "/patient-data",
-    element: <PatientDataPage />,
+    element: (
+      <PageRoute>
+        <PatientDataPage />
+      </PageRoute>
+    ),
   },
   {
     path: "/medical-data",
-    element: <MedicalDataPage />,
+    element: (
+      <PatientDataRequiredRoute>
+        <PageRoute>
+          <MedicalDataPage />
+        </PageRoute>
+      </PatientDataRequiredRoute>
+    ),
   },
   {
-    path: "/body-area",
-    element: <Navigate to="/symptom-selection" replace />,
+    path: "/pre-existing-conditions",
+    element: (
+      <PatientDataRequiredRoute>
+        <PageRoute>
+          <PreExistingConditionsPage />
+        </PageRoute>
+      </PatientDataRequiredRoute>
+    ),
   },
   {
     path: "/symptom-selection",
-    element: <SymptomSelectionPage />,
+    element: (
+      <PatientDataRequiredRoute>
+        <PageRoute>
+          <SymptomSelectionPage />
+        </PageRoute>
+      </PatientDataRequiredRoute>
+    ),
   },
   {
     path: "/symptom-details",
-    element: <SymptomDetailsPage />,
+    element: (
+      <PatientDataRequiredRoute>
+        <PageRoute>
+          <SymptomDetailsPage />
+        </PageRoute>
+      </PatientDataRequiredRoute>
+    ),
   },
   {
     path: "/result",
-    element: <ResultPage />,
-  },
-  {
-    path: "/stammdaten",
-    element: <Navigate to="/patient-data" replace />,
-  },
-  {
-    path: "/body-regions",
-    element: <Navigate to="/symptom-selection" replace />,
-  },
-  {
-    path: "/evaluation",
-    element: <Navigate to="/result" replace />,
+    element: (
+      <PatientDataRequiredRoute>
+        <PageRoute>
+          <ResultPage />
+        </PageRoute>
+      </PatientDataRequiredRoute>
+    ),
   },
 ], {
   future: {

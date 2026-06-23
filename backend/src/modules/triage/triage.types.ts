@@ -64,6 +64,12 @@ export const reviewSummarySchema = z.object({
   professionalSummary: z.string().min(1),
 })
 
+export const conditionDetailSchema = z.object({
+  condition: z.string(),
+  detail: z.string(),
+  duration: z.string(),
+})
+
 export const patientDataSchema = z.object({
   birthMonth: z.string(),
   birthYear: z.string(),
@@ -74,6 +80,7 @@ export const patientDataSchema = z.object({
   isBreastfeeding: z.boolean(),
   allergies: z.string(),
   medications: z.string(),
+  medicationDuration: z.string().optional().default(""),
   substanceInfluence: z.string(),
   recentAbroad: z.boolean(),
   recentAbroadDetails: z.string(),
@@ -81,12 +88,13 @@ export const patientDataSchema = z.object({
   isSmoker: z.boolean(),
   smokingSinceYears: z.string(),
   cigarettesPerDay: z.string(),
-  conditionDetails: z.record(z.string(), z.string()),
+  conditionDetails: z.record(z.string(), conditionDetailSchema),
 })
 
 export const triageSymptomSchema = z.object({
   region: z.string().min(1),
   side: z.string().min(1).optional(),
+  details: z.string().min(1).optional(),
   measurementType: z.enum(SYMPTOM_MEASUREMENT_TYPES).optional(),
   measurementValue: z.number().optional(),
   duration: z.enum(TRIAGE_SYMPTOM_DURATIONS).optional(),
