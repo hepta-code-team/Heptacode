@@ -1,8 +1,8 @@
 services:
   frontend:
     build:
-      context: ./frontend
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: frontend/Dockerfile
     ports:
       - "80:80"
     depends_on:
@@ -14,13 +14,14 @@ services:
 
   backend:
     build:
-      context: ./backend
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: backend/Dockerfile
     ports:
       - "3000:3000"
     environment:
       - NODE_ENV=production
       - PORT=3000
+      - CORS_ORIGIN=http://localhost
     env_file:
       - .env.local
     healthcheck:
