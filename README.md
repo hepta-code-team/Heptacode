@@ -135,6 +135,26 @@ docker load -i heptacode.tar
 docker run --rm -p 80:80 --env-file .env.local heptacode:latest
 ```
 
+### GitHub Release Download
+
+Bei jedem Push auf `main` baut GitHub Actions automatisch ein aktuelles Docker-Paket und haengt es an den Release `latest` an.
+
+Download auf GitHub:
+
+```text
+Releases -> Heptacode Docker Download -> heptacode-docker.zip
+```
+
+Die ZIP enthaelt:
+
+```text
+heptacode.tar
+.env.local.example
+INSTALLATION.md
+```
+
+Der Workflow kann auch manuell ueber `Actions -> Build Docker TAR Release -> Run workflow` gestartet werden.
+
 ---
 
 ## Produktiv mit Docker Compose

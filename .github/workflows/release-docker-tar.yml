@@ -1,0 +1,47 @@
+name: Build Docker TAR Release
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Repo auschecken
+        uses: actions/checkout@v4
+
+      - name: Docker Image bauen
+        run: docker build -t heptacode:latest .
+
+      - name: Docker TAR erstellen
+        run: docker save heptacode:latest -o heptacode.tar
+
+      - name: Download-Paket vorbereiten
+        run: |
+          mkdir heptacode-docker
+          cp heptacode.tar heptacode-docker/
+          cp .env.example heptacode-docker/.env.local.example
+          cp docs/docker-release/INSTALLATION.md heptacode-docker/INSTALLATION.md
+          zip -r heptacode-docker.zip heptacode-docker
+
+      - name: latest Tag aktualisieren
+        run: |
+          git tag -f latest
+          git push origin latest --force
+
+      - name: GitHub Release erstellen oder aktualisieren
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release view latest || gh release create latest \
+            --title "Heptacode Docker Download" \
+            --notes "Automatisch erstelltes Docker-Paket fuer Heptacode."
+
+          gh release upload latest heptacode-docker.zip --clobber
