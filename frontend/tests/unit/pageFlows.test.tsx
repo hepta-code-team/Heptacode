@@ -164,11 +164,17 @@ describe('page-level user flows', () => {
     expect(navigateMock).toHaveBeenCalledWith('/patient-data');
   });
 
-  it('shows seven mobile steps including pre-existing conditions', () => {
+  it('shows the bottom mobile step navigation with arrows and only the active step name', () => {
     render(<MobileNavigation />);
 
-    expect(screen.getByText('Stammdaten eingeben')).toBeInTheDocument();
-    expect(screen.getByText('2 / 7')).toBeInTheDocument();
+    expect(screen.getByRole('navigation', { name: 'Mobile Schritte' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Zurück' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Weiter' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Gehe zu Stammdaten' })).toHaveAttribute('aria-current', 'step');
+    expect(screen.getByRole('button', { name: 'Gehe zu Vorerkrankungen' })).toBeInTheDocument();
+    expect(screen.queryByText('Stammdaten')).not.toBeInTheDocument();
+    expect(screen.queryByText('Vorerkrankungen')).not.toBeInTheDocument();
+    expect(screen.queryByAltText('HeptaCheck')).not.toBeInTheDocument();
   });
 
   it('shows patient-data validation errors before saving and navigating', async () => {
@@ -221,6 +227,8 @@ describe('page-level user flows', () => {
     await user.click(screen.getAllByRole('button', { name: 'Ja' })[0]);
     await user.type(screen.getByPlaceholderText('Land / Region, falls bekannt'), 'Italien');
     await user.click(screen.getAllByRole('button', { name: 'Ja' })[1]);
+    await user.click(screen.getByRole('button', { name: /Rauchen/ }));
+    await user.click(screen.getAllByRole('button', { name: 'Ja' }).at(-1)!);
     await user.click(screen.getByRole('button', { name: 'Rauchdauer erhöhen' }));
     await user.click(screen.getByRole('button', { name: 'Zigaretten pro Tag erhöhen' }));
     await user.click(screen.getAllByRole('button', { name: 'Weiter' }).at(-1)!);
