@@ -8,10 +8,10 @@ import type { SymptomMeasurementType } from "../../types/assessment";
 import headAcheIcon from "../../assets/symptoms/headache.png";
 import faceIcon from "../../assets/symptoms/face.png";
 import bleedingIcon from "../../assets/symptoms/bleeding.png";
-import lowerArmIcon from "../../assets/symptoms/lowerArm.png";
-import upperArmIcon from "../../assets/symptoms/upperArm.png";
-import upperLegIcon from "../../assets/symptoms/upperLeg.png";
-import lowerLegIcon from "../../assets/symptoms/lowerLeg.png";
+import lowerArmIcon from "../../assets/symptoms/lowerarm.png";
+import upperArmIcon from "../../assets/symptoms/upperarm.png";
+import upperLegIcon from "../../assets/symptoms/upperleg.png";
+import lowerLegIcon from "../../assets/symptoms/lowerleg.png";
 import hipPainIcon from "../../assets/symptoms/hip.png"
 import throatIcon from "../../assets/symptoms/throat.png";
 import nauseaIcon from "../../assets/symptoms/nausea.png";
