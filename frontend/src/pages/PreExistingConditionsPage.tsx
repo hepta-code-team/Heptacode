@@ -521,7 +521,7 @@ export default function PreExistingConditionsPage() {
         </button>
         <div
           ref={conditionsGridRef}
-          className="grid grid-cols-2 md:grid-cols-3 gap-2"
+          className="grid grid-cols-1 gap-2 md:grid-cols-3"
         >
           {PRE_EXISTING_CONDITIONS.map((condition, index) => {
             const Icon =
@@ -557,7 +557,7 @@ export default function PreExistingConditionsPage() {
                       event.preventDefault();
                       toggleConditionDropdown(condition);
                     }}
-                    className={`bg-[#eff2f6] rounded-[10px] p-2.5 h-[88px] flex flex-col justify-center gap-1.5 transition-all ${
+                    className={`bg-[#eff2f6] rounded-[10px] p-2.5 h-[78px] flex flex-col justify-center gap-1.5 transition-all ${
                       otherValue.trim() ? "ring-2 ring-[#486284]" : ""
                     }`}
                     aria-expanded={otherValue.trim() ? isOtherOpen : undefined}
@@ -652,7 +652,7 @@ export default function PreExistingConditionsPage() {
                 <button
                   type="button"
                   onClick={() => toggleConditionSelection(condition)}
-                  className={`bg-[#eff2f6] rounded-[10px] p-3 h-[88px] w-full flex flex-col items-center justify-center gap-1.5 text-center transition-all ${
+                  className={`bg-[#eff2f6] rounded-[10px] p-3 h-[78px] w-full flex flex-col items-center justify-center gap-1.5 text-center transition-all ${
                     isSelected ? "ring-2 ring-[#486284]" : "hover:bg-[#dde3ea]"
                   }`}
                   aria-expanded={isOpen}
@@ -663,21 +663,39 @@ export default function PreExistingConditionsPage() {
                     }`}
                     aria-hidden="true"
                   />
-                  <Icon
-                    className={`size-6 ${isSelected ? "text-app-text-primary" : "text-app-text-muted"}`}
-                    strokeWidth={2.2}
-                    aria-hidden="true"
-                  />
-                  <p
-                    className="font-['DM_Sans:Bold',sans-serif] font-bold text-app-text-body text-xs leading-tight"
-                    style={{ fontVariationSettings: "'opsz' 14" }}
-                  >
-                    {condition}
-                  </p>
-                  {detail && (
-                    <p className="max-h-8 max-w-full overflow-hidden whitespace-normal break-words text-xs font-medium leading-snug text-app-text-primary">
-                      {detail}
-                    </p>
+                  {detail ? (
+                    <>
+                      <Icon
+                        className="size-6 text-app-text-primary"
+                        strokeWidth={2.2}
+                        aria-hidden="true"
+                      />
+                      <span className="flex max-w-full min-w-0 flex-col items-center justify-center px-8 text-center">
+                        <span
+                          className="max-w-full truncate font-['DM_Sans:Bold',sans-serif] text-xs font-bold leading-tight text-app-text-body"
+                          style={{ fontVariationSettings: "'opsz' 14" }}
+                        >
+                          {condition}
+                        </span>
+                        <span className="max-w-full truncate text-xs font-medium leading-snug text-app-text-primary">
+                          {detail}
+                        </span>
+                      </span>
+                    </>
+                  ) : (
+                    <span className="flex flex-col items-center gap-2">
+                      <Icon
+                        className={`size-6 ${isSelected ? "text-app-text-primary" : "text-app-text-muted"}`}
+                        strokeWidth={2.2}
+                        aria-hidden="true"
+                      />
+                      <span
+                        className="font-['DM_Sans:Bold',sans-serif] font-bold text-app-text-body text-xs leading-tight"
+                        style={{ fontVariationSettings: "'opsz' 14" }}
+                      >
+                        {condition}
+                      </span>
+                    </span>
                   )}
                 </button>
 
@@ -714,7 +732,7 @@ export default function PreExistingConditionsPage() {
             );
           })}
         </div>
-        <div className="mt-4 flex justify-center lg:justify-end">
+        <div className="mt-4 flex justify-end">
           <Button onClick={handleContinue}>
             <p
               className="font-['DM_Sans:Bold',sans-serif] font-bold text-base"
