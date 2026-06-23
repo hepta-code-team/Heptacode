@@ -3,22 +3,17 @@ import type { ReactNode } from "react";
 import { useNavigate } from "react-router";
 import {
   Activity,
-  Baby,
   Brain,
   Check,
   ChevronDown,
-  Cigarette,
-  CircleAlert,
   CircleHelp,
   Droplets,
-  Globe2,
   HeartPulse,
   Pill,
   RotateCcw,
   ShieldAlert,
   Stethoscope,
   Wind,
-  Wine,
   X,
   type LucideIcon,
 } from "lucide-react";
@@ -255,17 +250,7 @@ export default function PreExistingConditionsPage() {
   const [formData, setFormData] = useState<PatientData>(() =>
     createInitialPatientData(patientData ?? undefined),
   );
-  const [smokingStatus, setSmokingStatus] = useState<SmokingStatus>(() =>
-    patientData?.isSmoker ? "Ja" : "Nein",
-  );
-  const [expandedMedicalSections, setExpandedMedicalSections] = useState<
-    Record<MedicalSection, boolean>
-  >({
-    allergies: false,
-    medications: false,
-    substance: false,
-    abroad: false,
-  });
+
   const [expandedConditionDetails, setExpandedConditionDetails] = useState<
     Record<string, boolean>
   >({});
@@ -290,12 +275,7 @@ export default function PreExistingConditionsPage() {
     setPatientData(formData);
   }, [formData, setPatientData]);
 
-  const toggleMedicalSection = (section: MedicalSection) => {
-    setExpandedMedicalSections((sections) => ({
-      ...sections,
-      [section]: !sections[section],
-    }));
-  };
+
 
   const toggleConditionDropdown = (condition: string) => {
     setExpandedConditionDetails((sections) => ({
@@ -521,9 +501,9 @@ export default function PreExistingConditionsPage() {
         </button>
         <div
           ref={conditionsGridRef}
-          className="grid grid-cols-2 md:grid-cols-3 gap-2"
+          className="grid grid-cols-2 md:grid-cols-3 gap-3"
         >
-          {PRE_EXISTING_CONDITIONS.map((condition, index) => {
+          {PRE_EXISTING_CONDITIONS.map((condition) => {
             const Icon =
               conditionIcons[condition as keyof typeof conditionIcons] ??
               CircleHelp;
@@ -557,7 +537,7 @@ export default function PreExistingConditionsPage() {
                       event.preventDefault();
                       toggleConditionDropdown(condition);
                     }}
-                    className={`bg-[#eff2f6] rounded-[10px] p-2.5 h-[88px] flex flex-col justify-center gap-1.5 transition-all ${
+                    className={`shadow-md bg-[#eff2f6] rounded-[10px] p-2.5 h-[88px] flex flex-col justify-center gap-1.5 transition-all ${
                       otherValue.trim() ? "ring-2 ring-[#486284]" : ""
                     }`}
                     aria-expanded={otherValue.trim() ? isOtherOpen : undefined}
@@ -652,7 +632,7 @@ export default function PreExistingConditionsPage() {
                 <button
                   type="button"
                   onClick={() => toggleConditionSelection(condition)}
-                  className={`bg-[#eff2f6] rounded-[10px] p-3 h-[88px] w-full flex flex-col items-center justify-center gap-1.5 text-center transition-all ${
+                  className={`shadow-md bg-[#eff2f6] rounded-[10px] p-3 h-[88px] w-full flex flex-col items-center justify-center gap-1.5 text-center transition-all ${
                     isSelected ? "ring-2 ring-[#486284]" : "hover:bg-[#dde3ea]"
                   }`}
                   aria-expanded={isOpen}
