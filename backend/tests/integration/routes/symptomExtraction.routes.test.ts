@@ -11,6 +11,28 @@ vi.mock('../../../src/ai/llmAdapter.js', () => ({
 
 const requestStructuredAiResponseMock = vi.mocked(requestStructuredAiResponse)
 
+/** Shared patient fixture for payloads that include demographics. */
+const malePatientData = {
+  birthMonth: '05',
+  birthYear: '1988',
+  height: '175',
+  weight: '78',
+  gender: 'Maennlich',
+  isPregnant: false,
+  isBreastfeeding: false,
+  allergies: '',
+  medications: '',
+  substanceInfluence: 'Nein',
+  recentAbroad: false,
+  recentAbroadDetails: '',
+  conditions: [],
+  isSmoker: false,
+  smokingSinceYears: '',
+  cigarettesPerDay: '',
+  conditionDetails: {},
+}
+
+/** Creates an isolated Fastify instance for each route test. */
 async function createApp(): Promise<FastifyInstance> {
   const app = await buildApp()
   await app.ready()
@@ -29,6 +51,7 @@ describe('POST /api/v1/symptoms/extraction', () => {
     await app.close()
   })
 
+  /** Medical free text should pass validation and return structured extracted symptoms. */
   it('extrahiert Symptome aus Freitext ueber die komplette HTTP-Route', async () => {
     requestStructuredAiResponseMock
       .mockResolvedValueOnce({
@@ -79,6 +102,48 @@ describe('POST /api/v1/symptoms/extraction', () => {
     )
   })
 
+  /** Injury descriptions outside the fixed taxonomy should remain available as free text. */
+  it('gibt nicht abgedeckte Verletzungsereignisse als Freitext-Symptom fuer die Detailseite zurueck', async () => {
+    requestStructuredAiResponseMock
+      .mockResolvedValueOnce({
+        isValidMedicalInput: true,
+        reason: 'Medizinischer Verletzungskontext erkannt.',
+      })
+      .mockResolvedValueOnce({
+        symptoms: [
+          {
+            region: 'In Nagel getreten',
+            side: 'Fuß',
+            details: 'Nagel steckt tief im Fuß',
+            measurementType: 'severity',
+          },
+        ],
+      })
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/v1/symptoms/extraction',
+      payload: {
+        text: 'Der Nagel steckt tief in meinem Fuß.',
+      },
+    })
+
+    expect(response.statusCode).toBe(200)
+    expect(response.json()).toEqual({
+      text: 'Der Nagel steckt tief in meinem Fuß.',
+      inputType: 'text',
+      symptoms: [
+        {
+          region: 'In Nagel getreten',
+          side: 'Fuß',
+          details: 'Nagel steckt tief im Fuß',
+          measurementType: 'severity',
+        },
+      ],
+    })
+  })
+
+  /** The legacy input field should remain compatible with the extraction contract. */
   it('akzeptiert input als kompatibles Eingabefeld', async () => {
     requestStructuredAiResponseMock
       .mockResolvedValueOnce({
@@ -101,10 +166,11 @@ describe('POST /api/v1/symptoms/extraction', () => {
     expect(response.json()).toEqual({
       text: 'Seit heute Bauchschmerzen.',
       inputType: 'text',
-      symptoms: [{ region: 'Bauch', measurementType: 'pain', duration: 'today' }],
+      symptoms: [{ region: 'Bauch', measurementType: 'pain', measurementValue: 5, duration: 'today' }],
     })
   })
 
+  /** Heuristically invalid text should be handled without model execution. */
   it('antwortet bei offensichtlich zu kurzer Eingabe kontrolliert ohne KI-Aufruf', async () => {
     const response = await app.inject({
       method: 'POST',
@@ -124,6 +190,29 @@ describe('POST /api/v1/symptoms/extraction', () => {
     expect(requestStructuredAiResponseMock).not.toHaveBeenCalled()
   })
 
+  /** Demographic contradictions should be returned as invalid input, not route errors. */
+  it('antwortet beim Freitext-Absenden mit invalidInput bei logisch widerspruechlichen Schwangerschaftsangaben', async () => {
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/v1/symptoms/extraction',
+      payload: {
+        symptomText: 'Ich waere schwanger und habe Wehen.',
+        patientData: malePatientData,
+      },
+    })
+
+    expect(response.statusCode).toBe(200)
+    expect(response.json()).toMatchObject({
+      text: 'Ich waere schwanger und habe Wehen.',
+      inputType: 'text',
+      symptoms: [],
+      invalidInput: true,
+      message: expect.stringContaining('passen logisch nicht zusammen'),
+    })
+    expect(requestStructuredAiResponseMock).not.toHaveBeenCalled()
+  })
+
+  /** Missing text fields should fail at the request-validation boundary. */
   it('antwortet mit 400 bei ungueltigem Request-Body', async () => {
     const response = await app.inject({
       method: 'POST',
@@ -141,6 +230,7 @@ describe('POST /api/v1/symptoms/extraction', () => {
     })
   })
 
+  /** Extraction-model failures should surface as a controlled aiUnavailable response. */
   it('liefert einen kontrollierten Fallback, wenn die Extraktions-KI nicht antwortet', async () => {
     requestStructuredAiResponseMock
       .mockResolvedValueOnce({
@@ -164,5 +254,126 @@ describe('POST /api/v1/symptoms/extraction', () => {
       symptoms: [],
       aiUnavailable: true,
     })
+  })
+
+  /** Edited symptom text should use the dedicated validation route contract. */
+  it('validiert bearbeitete Symptomtexte ueber eine eigene HTTP-Route', async () => {
+    requestStructuredAiResponseMock.mockResolvedValueOnce({
+      isValidMedicalInput: true,
+      reason: 'Medizinischer Kontext erkannt.',
+    })
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/v1/symptoms/validation',
+      payload: {
+        text: 'Verbrennung, kochendes Wasser ueber Arm geschuettet',
+      },
+    })
+
+    expect(response.statusCode).toBe(200)
+    expect(response.json()).toEqual({
+      text: 'Verbrennung, kochendes Wasser ueber Arm geschuettet',
+      inputType: 'text',
+      isValidMedicalInput: true,
+    })
+    expect(requestStructuredAiResponseMock).toHaveBeenCalledTimes(1)
+  })
+
+  /** Non-medical text is a domain-level rejection, not an HTTP error. */
+  it('lehnt nicht-medizinischen Kontext ueber die Validierungsroute ab', async () => {
+    requestStructuredAiResponseMock.mockResolvedValueOnce({
+      isValidMedicalInput: false,
+      reason: 'Der Text beschreibt keine gesundheitlichen Beschwerden.',
+    })
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/v1/symptoms/validation',
+      payload: {
+        text: 'Ich mag Pizza und Filme.',
+      },
+    })
+
+    expect(response.statusCode).toBe(200)
+    expect(response.json()).toEqual({
+      text: 'Ich mag Pizza und Filme.',
+      inputType: 'text',
+      isValidMedicalInput: false,
+      message: 'Der Text beschreibt keine gesundheitlichen Beschwerden.',
+    })
+  })
+
+  /** Clear taxonomy matches should be rejected without invoking the model. */
+  it('blockiert einen klaren Region-Detail-Widerspruch ueber die Konsistenzroute ohne KI', async () => {
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/v1/symptoms/consistency',
+      payload: {
+        region: 'Bein',
+        details: 'Schnittwunde in der Hand',
+      },
+    })
+
+    expect(response.statusCode).toBe(200)
+    expect(response.json()).toMatchObject({
+      isRegionMeaningful: true,
+      hasClearContradiction: true,
+      selectedLocationIds: ['legs'],
+      detailLocationIds: ['arms'],
+      selectedLocationConfidence: 'high',
+      detailLocationConfidence: 'high',
+    })
+    expect(requestStructuredAiResponseMock).not.toHaveBeenCalled()
+  })
+
+  /** Symptom detail validation should use the dedicated detail-validation route contract. */
+  it('validiert kurze Symptomdetails ueber die Detail-Validierungsroute', async () => {
+    requestStructuredAiResponseMock.mockResolvedValueOnce({
+      isValidMedicalInput: true,
+      reason: 'Kurzes medizinisches Detail erkannt.',
+    })
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/v1/symptoms/detail-validation',
+      payload: {
+        text: 'links',
+      },
+    })
+
+    expect(response.statusCode).toBe(200)
+    expect(response.json()).toEqual({
+      text: 'links',
+      inputType: 'text',
+      isValidMedicalInput: true,
+    })
+    expect(requestStructuredAiResponseMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        schemaName: 'symptom_detail_validation_result',
+        modelStrategy: 'fallback-only',
+      }),
+    )
+  })
+
+  /** Empty symptom details should fail at the request-validation boundary. */
+  it('antwortet mit 400 bei leerer Detailangabe', async () => {
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/v1/symptoms/detail-validation',
+      payload: {
+        text: '   ',
+      },
+    })
+
+    expect(response.statusCode).toBe(400)
+    expect(response.json()).toMatchObject({
+      success: false,
+      error: {
+        code: 'VALIDATION_ERROR',
+        message: 'Request body is invalid',
+      },
+    })
+    expect(requestStructuredAiResponseMock).not.toHaveBeenCalled()
   })
 })

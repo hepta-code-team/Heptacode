@@ -1,35 +1,23 @@
 import type { PatientData } from "../../../shared/patientData.types";
-import type {
-  CareLevel,
-  MedicalSpecialty,
-  RecommendedSpecialty,
-} from "../../../shared/result.types";
-import type {
-  SelectedSymptom,
-  SymptomMeasurementType,
-  TriageSymptom,
-  TriageSymptomDuration,
-} from "../../../shared/symptom.types";
-
 export type { PatientData } from "../../../shared/patientData.types";
-export type {
+import type {
   CareLevel,
   MedicalSpecialty,
   RecommendedSpecialty,
 } from "../../../shared/result.types";
+export type { CareLevel, MedicalSpecialty, RecommendedSpecialty } from "../../../shared/result.types";
+import type {
+  SelectedSymptom,
+  SymptomMeasurementType,
+  TriageSymptom,
+  TriageSymptomDuration,
+} from "../../../shared/symptom.types";
 export type {
   SelectedSymptom,
   SymptomMeasurementType,
   TriageSymptom,
   TriageSymptomDuration,
 } from "../../../shared/symptom.types";
-
-export interface ReviewSummary {
-  plainLanguage: string;
-  professionalSummary: string;
-}
-
-export type EditableReviewSummary = ReviewSummary;
 
 export interface SymptomDraft extends TriageSymptom {
   id: string;
@@ -37,6 +25,11 @@ export interface SymptomDraft extends TriageSymptom {
   measurementType: SymptomMeasurementType;
   measurementValue: number;
   isNameEditable?: boolean;
+  isExtractedFromFreeText?: boolean;
+  sourceText?: string;
+  originalRegion?: string;
+  originalSide?: string;
+  originalDetails?: string;
 }
 
 export interface SymptomDetailPayload extends TriageSymptom {
@@ -55,9 +48,14 @@ export interface AssessmentPayload {
   symptomDetails: SymptomDetailPayload[];
 }
 
+export interface ReviewSummary {
+  plainLanguage: string;
+  professionalSummary: string;
+}
+
 export interface AssessmentResult {
   careLevel: CareLevel;
-  recommendedSpecialty: MedicalSpecialty;
+  recommendedSpecialty?: MedicalSpecialty;
   reasons: string[];
   reviewSummary: ReviewSummary;
   recommendedSpecialties?: RecommendedSpecialty[];

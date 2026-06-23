@@ -8,15 +8,17 @@ import type { SymptomMeasurementType } from "../../types/assessment";
 import headAcheIcon from "../../assets/symptoms/headache.png";
 import faceIcon from "../../assets/symptoms/face.png";
 import bleedingIcon from "../../assets/symptoms/bleeding.png";
-import lowerArmIcon from "../../assets/symptoms/lowerArm.png";
-import upperArmIcon from "../../assets/symptoms/upperArm.png";
-import upperLegIcon from "../../assets/symptoms/upperLeg.png";
-import lowerLegIcon from "../../assets/symptoms/lowerLeg.png";
+import lowerArmIcon from "../../assets/symptoms/lowerarm.png";
+import upperArmIcon from "../../assets/symptoms/upperarm.png";
+import upperLegIcon from "../../assets/symptoms/upperleg.png";
+import lowerLegIcon from "../../assets/symptoms/lowerleg.png";
 import hipPainIcon from "../../assets/symptoms/hip.png"
+import throatIcon from "../../assets/symptoms/throat.png";
 import nauseaIcon from "../../assets/symptoms/nausea.png";
 import feverIcon from "../../assets/symptoms/fever.png";
 import weaknessIcon from "../../assets/symptoms/weakness.png";
 import confusionIcon from "../../assets/symptoms/confusion.png";
+
 
 export interface BodyRegion {
   id: string;
@@ -25,8 +27,13 @@ export interface BodyRegion {
   options?: string[];
 }
 
-export type BodyAreaCategory = "head" | "torso" | "arms" | "legs" | "mental" | "general";
+export type BodyAreaCategory = "headNeck" | "head" | "neck" | "torso" | "hips" | "arms" | "legs" | "mental" | "general";
 
+/**
+ * Canonical symptom regions shown in the manual selection flow.
+ * These names are also used by AI extraction and triage normalization, so
+ * display labels should only change together with the shared taxonomy.
+ */
 export const BODY_REGIONS: BodyRegion[] = [
   {
     id: "kopf",
@@ -39,6 +46,12 @@ export const BODY_REGIONS: BodyRegion[] = [
     name: "Gesicht",
     icon: faceIcon,
     options: ["Augen", "Ohren", "Nase", "Mund"],
+  },
+  {
+    id: "hals",
+    name: "Hals",
+    icon: throatIcon,
+    options: ["Hals", "Rachen", "Schluckbeschwerden", "Nacken"],
   },
   {
     id: "brust",
@@ -56,7 +69,7 @@ export const BODY_REGIONS: BodyRegion[] = [
     id: "huefte",
     name: "Hüfte",
     icon: hipPainIcon,
-    options: ["Leiste", "Gesäßschmerzen", "Hüfte", "Seitliche Hüfte"],
+    options: ["Leiste", "Hüfte", "Seitliche Hüfte","Gesäßschmerzen", "Genitalbereich"],
   },
   {
     id: "oberarm",
@@ -148,11 +161,24 @@ export const BODY_REGIONS: BodyRegion[] = [
   },
 ];
 
+/**
+ * Manual suboptions that immediately trigger the emergency path.
+ * The list is intentionally small because these options bypass the normal
+ * symptom-details step and should only include high-confidence red flags.
+ */
 export const EMERGENCY_SYMPTOM_OPTIONS = ["Suizidgedanken"];
 
+/**
+ * Maps coarse body areas to the detailed regions shown after selection.
+ * Shared injury types such as burns and cuts appear in multiple body areas
+ * because their location is less important than surfacing the symptom quickly.
+ */
 export const BODY_AREA_REGION_IDS: Record<BodyAreaCategory, string[]> = {
+  headNeck: ["kopf", "gesicht", "hals", "verbrennung", "schnittwunde"],
   head: ["kopf", "gesicht", "verbrennung", "schnittwunde"],
-  torso: ["brust", "bauch", "ruecken", "huefte", "verbrennung", "schnittwunde"],
+  neck: ["hals", "verbrennung", "schnittwunde"],
+  torso: ["brust", "bauch", "ruecken", "verbrennung", "schnittwunde"],
+  hips: ["huefte", "verbrennung", "schnittwunde"],
   arms: ["oberarm", "unterarm", "verbrennung", "schnittwunde"],
   legs: ["oberschenkel", "unterschenkel", "verbrennung", "schnittwunde"],
   mental: ["angst", "depression","halluzinationen", "suizidgedanken"],
@@ -160,8 +186,11 @@ export const BODY_AREA_REGION_IDS: Record<BodyAreaCategory, string[]> = {
 };
 
 export const BODY_AREA_LABELS: Record<BodyAreaCategory, string> = {
+  headNeck: "Kopf & Hals",
   head: "Kopf",
-  torso: "Torso und Hüfte",
+  neck: "Hals",
+  torso: "Torso",
+  hips: "Hüfte",
   arms: "Arme",
   legs: "Beine",
   mental: "Psyche",
@@ -211,20 +240,30 @@ export interface MeasurementConfig {
   step?: number;
   defaultValue: number;
   unit?: string;
-  minLabel: string;
-  maxLabel: string;
+  minLabel?: string;
+  maxLabel?: string;
+  scaleLabels?: Array<{
+    value: number;
+    label: string;
+  }>;
 }
 
 const MEASUREMENT_CONFIGS: Record<SymptomMeasurementType, MeasurementConfig> = {
   pain: {
     type: "pain",
     title: "Schmerzstärke",
-    min: 1,
+    min: 0,
     max: 10,
     defaultValue: 5,
-    minLabel: "Leicht",
-    maxLabel: "Sehr stark",
+    scaleLabels: [
+      { value: 0, label: "Kein Schmerz" },
+      { value: 3, label: "Leicht" },
+      { value: 4, label: "Mittel" },
+      { value: 7, label: "Stark" },
+      { value: 10, label: "Sehr stark" },
+    ],
   },
+
   temperature: {
     type: "temperature",
     title: "Temperatur",
@@ -242,8 +281,12 @@ const MEASUREMENT_CONFIGS: Record<SymptomMeasurementType, MeasurementConfig> = {
     min: 1,
     max: 10,
     defaultValue: 5,
-    minLabel: "Leicht",
-    maxLabel: "Sehr stark",
+    scaleLabels: [
+      { value: 1, label: "Leicht" },
+      { value: 4, label: "Mittel" },
+      { value: 7, label: "Stark" },
+      { value: 10, label: "Sehr stark" },
+    ],
   },
   severity: {
     type: "severity",
@@ -251,11 +294,20 @@ const MEASUREMENT_CONFIGS: Record<SymptomMeasurementType, MeasurementConfig> = {
     min: 1,
     max: 10,
     defaultValue: 5,
-    minLabel: "Leicht",
-    maxLabel: "Sehr stark",
+    scaleLabels: [
+      { value: 1, label: "Leicht" },
+      { value: 4, label: "Mittel" },
+      { value: 7, label: "Stark" },
+      { value: 10, label: "Sehr stark" },
+    ],
   },
 };
 
+/**
+ * Chooses the measurement UI based on the selected symptom region.
+ * Most symptoms use pain by default, while fever, mental-health symptoms, and
+ * general complaints need scales that better match their clinical meaning.
+ */
 export function getMeasurementConfig(region: string): MeasurementConfig {
     if (region === "Fieber") {
         return MEASUREMENT_CONFIGS.temperature;

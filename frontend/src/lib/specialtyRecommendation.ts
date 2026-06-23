@@ -2,15 +2,10 @@ import type { PatientData, SelectedSymptom, Symptom } from "../types/assessment"
 import {
   MEDICAL_SPECIALTY_LABELS,
   createSpecialtyConfig,
-  isMedicalSpecialty,
 } from "../types/triage";
-import type { DoctorSpecialty, RecommendedSpecialty, TriageResult } from "../types/triage";
+import type { MedicalSpecialty, RecommendedSpecialty, TriageResult } from "../types/triage";
 
-const SPECIALTY_LABELS: Record<DoctorSpecialty, string> = {
-  ...MEDICAL_SPECIALTY_LABELS,
-  primary_care: "Hausarzt / Allgemeinmedizin",
-  emergency: "Notaufnahme / Notruf",
-};
+const SPECIALTY_LABELS: Record<MedicalSpecialty, string> = MEDICAL_SPECIALTY_LABELS;
 
 function normalize(value: string) {
   return value.toLowerCase();
@@ -24,9 +19,15 @@ function textOf(symptom: Symptom | SelectedSymptom) {
   return normalize(`${symptom.region} ${symptom.side ?? ""}`);
 }
 
+/**
+ * Keeps the strongest reason for each specialty.
+ *
+ * Multiple keyword groups can point to the same specialty; priority decides
+ * which explanation should be displayed to the user.
+ */
 function addSpecialty(
-  map: Map<DoctorSpecialty, RecommendedSpecialty>,
-  specialty: DoctorSpecialty,
+  map: Map<MedicalSpecialty, RecommendedSpecialty>,
+  specialty: MedicalSpecialty,
   reason: string,
   priority: number
 ) {
@@ -62,6 +63,13 @@ function hasHighSuicidalIdeation(symptomDetails: Symptom[]) {
   return symptomDetails.some((symptom) => textOf(symptom).includes("suizid") && (symptom.measurementValue ?? 0) >= 8);
 }
 
+/**
+ * Builds a frontend-only specialty recommendation from selected symptoms.
+ *
+ * The backend triage remains authoritative for final assessment results, but
+ * this heuristic provides immediate guidance for UI states that do not yet have
+ * an AI-backed result.
+ */
 export function getFrontendTriageRecommendation({
   patientData,
   selectedSymptoms,
@@ -71,16 +79,17 @@ export function getFrontendTriageRecommendation({
   selectedSymptoms: SelectedSymptom[];
   symptomDetails: Symptom[];
 }): TriageResult {
-  const specialties = new Map<DoctorSpecialty, RecommendedSpecialty>();
+  const specialties = new Map<MedicalSpecialty, RecommendedSpecialty>();
   const allTexts = [...selectedSymptoms.map(textOf), ...symptomDetails.map(textOf)].join(" ");
   const maxValue = symptomDetails.length ? Math.max(...symptomDetails.map((symptom) => symptom.measurementValue ?? 0)) : 0;
 
   const administrativeRequest = hasAdministrativeRequest(allTexts);
 
+  // Administrative requests are routed to primary care before medical keyword scoring.
   if (administrativeRequest) {
     const recommendation: RecommendedSpecialty = {
-      specialty: "primary_care",
-      label: SPECIALTY_LABELS.primary_care,
+      specialty: "general_practice",
+      label: SPECIALTY_LABELS.general_practice,
       reason: "Für Rezeptverlängerungen oder Krankmeldungen ist der Hausarzt bzw. die Allgemeinmedizin die passende Anlaufstelle.",
       priority: 100,
     };
@@ -107,7 +116,8 @@ export function getFrontendTriageRecommendation({
     ]) ||
     hasHighSuicidalIdeation(symptomDetails)
   ) {
-    addSpecialty(specialties, "emergency", "Ein kritisches Warnsymptom wurde angegeben.", 100);
+    // Emergency evidence wins through priority, but other specialty matches are still collected.
+    addSpecialty(specialties, "emergency_medicine", "Ein kritisches Warnsymptom wurde angegeben.", 100);
   }
 
   if (
@@ -168,21 +178,22 @@ export function getFrontendTriageRecommendation({
   }
 
   if (specialties.size === 0) {
-    addSpecialty(specialties, "primary_care", "Keine eindeutige Fachrichtung erkennbar. Der Hausarzt ist als erste Anlaufstelle sinnvoll.", 30);
+    addSpecialty(specialties, "general_practice", "Keine eindeutige Fachrichtung erkennbar. Der Hausarzt ist als erste Anlaufstelle sinnvoll.", 30);
   }
 
   const recommendedSpecialties = Array.from(specialties.values()).sort((a, b) => b.priority - a.priority);
   const topSpecialty = recommendedSpecialties[0];
 
+  // Only primary-care recommendations can downgrade to selfcare; specialty matches stay specialist.
   const careLevel =
-    topSpecialty.specialty === "emergency"
+    topSpecialty.specialty === "emergency_medicine"
       ? "emergency"
-      : topSpecialty.specialty === "primary_care"
+      : topSpecialty.specialty === "general_practice"
         ? maxValue >= 5
           ? "doctor"
           : "selfcare"
         : "specialist";
-  const recommendedSpecialty = isMedicalSpecialty(topSpecialty.specialty) ? topSpecialty.specialty : undefined;
+  const recommendedSpecialty = careLevel === "specialist" ? topSpecialty.specialty : undefined;
   const specialtyConfig =
     careLevel === "specialist" && recommendedSpecialty ? createSpecialtyConfig(recommendedSpecialty) : null;
 

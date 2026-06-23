@@ -8,6 +8,9 @@
     "build": "tsc",
     "start": "node dist/index.js",
     "test": "vitest run",
+    "test:ai-triage": "vitest run --config vitest.live.config.ts",
+    "test:ai-triage:specialties": "vitest run --config vitest.live.config.ts tests/live/triage-specialty.live.test.ts",
+    "test:ai-triage:plausibility": "vitest run --config vitest.live.config.ts tests/live/triage-plausibility.live.test.ts",
     "test:watch": "vitest"
   },
   "dependencies": {
@@ -19,8 +22,10 @@
     "zod": "^3.25.76"
   },
   "devDependencies": {
+    "@types/fhir": "^0.0.44",
     "@types/node": "^20.14.12",
     "@types/pdfkit": "^0.17.6",
+    "@vitest/coverage-v8": "^4.1.6",
     "tsx": "^4.16.2",
     "typescript": "^5.5.3",
     "vitest": "^4.1.6"
