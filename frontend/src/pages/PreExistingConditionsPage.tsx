@@ -501,11 +501,7 @@ export default function PreExistingConditionsPage() {
         </button>
         <div
           ref={conditionsGridRef}
-<<<<<<< HEAD
-          className="grid grid-cols-1 gap-2 md:grid-cols-3"
-=======
           className="grid grid-cols-2 md:grid-cols-3 gap-3"
->>>>>>> dev
         >
           {PRE_EXISTING_CONDITIONS.map((condition) => {
             const Icon =
@@ -541,11 +537,7 @@ export default function PreExistingConditionsPage() {
                       event.preventDefault();
                       toggleConditionDropdown(condition);
                     }}
-<<<<<<< HEAD
-                    className={`bg-[#eff2f6] rounded-[10px] p-2.5 h-[78px] flex flex-col justify-center gap-1.5 transition-all ${
-=======
                     className={`shadow-md bg-[#eff2f6] rounded-[10px] p-2.5 h-[88px] flex flex-col justify-center gap-1.5 transition-all ${
->>>>>>> dev
                       otherValue.trim() ? "ring-2 ring-[#486284]" : ""
                     }`}
                     aria-expanded={otherValue.trim() ? isOtherOpen : undefined}
@@ -640,11 +632,7 @@ export default function PreExistingConditionsPage() {
                 <button
                   type="button"
                   onClick={() => toggleConditionSelection(condition)}
-<<<<<<< HEAD
-                  className={`bg-[#eff2f6] rounded-[10px] p-3 h-[78px] w-full flex flex-col items-center justify-center gap-1.5 text-center transition-all ${
-=======
                   className={`shadow-md bg-[#eff2f6] rounded-[10px] p-3 h-[88px] w-full flex flex-col items-center justify-center gap-1.5 text-center transition-all ${
->>>>>>> dev
                     isSelected ? "ring-2 ring-[#486284]" : "hover:bg-[#dde3ea]"
                   }`}
                   aria-expanded={isOpen}
