@@ -30,7 +30,7 @@ import { Label } from "../components/ui/label";
 import { PRE_EXISTING_CONDITIONS } from "../features/symptoms/symptoms.constants";
 import type { PatientData } from "../../../shared/patientData.types";
 
-type MedicalSection = "allergies" | "medications" | "substance" | "abroad";
+type MedicalSection = "allergies" | "medications" | "substance" | "abroad" | "smoking";
 type SmokingStatus = "Nein" | "Gelegentlich" | "Ja";
 
 const conditionIcons = {
@@ -265,6 +265,7 @@ export default function MedicalDataPage() {
     medications: false,
     substance: false,
     abroad: false,
+    smoking: false,
   });
   const [expandedConditionDetails, setExpandedConditionDetails] = useState<
     Record<string, boolean>
@@ -711,29 +712,20 @@ export default function MedicalDataPage() {
         </div>
       </div>
 
-      <div
-        className={`mt-4 rounded-[14px] border-2 bg-[#eff2f6] p-3 transition-all ${
-          smokingStatus !== "Nein" ? "border-[#486284]" : "border-transparent"
-        }`}
-      >
-        <div className="mb-3 flex items-start gap-3">
-          <span className="flex size-9 flex-shrink-0 items-center justify-center rounded-full bg-white text-app-text-primary">
-            <Cigarette className="size-5" aria-hidden="true" />
-          </span>
-          <div>
-            <p
-              className="font-['DM_Sans:Bold',sans-serif] font-bold text-app-text-body text-sm"
-              style={{ fontVariationSettings: "'opsz' 14" }}
-            >
-              Rauchen
-            </p>
-            <p className="font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-primary text-xs">
-              Optional, aber hilfreich für Atem-, Herz- und Gefäßbeschwerden.
-            </p>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+      <div className="mt-4">
+        <MedicalAccordionPanel
+          title="Rauchen"
+          icon={Cigarette}
+          isOpen={expandedMedicalSections.smoking}
+          onToggle={() => toggleMedicalSection("smoking")}
+          summary={
+            smokingStatus === "Gelegentlich"
+              ? "Gelegentlich ausgewählt"
+              : `${smokingStatus} ausgewählt`
+          }
+          isCompleted={smokingStatus !== "Nein"}
+        >
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
           {(["Nein", "Gelegentlich", "Ja"] as SmokingStatus[]).map((status) => (
             <OptionButton
               key={status}
@@ -795,7 +787,7 @@ export default function MedicalDataPage() {
                     })
                   }
                   placeholder="0"
-                  className="min-w-0 flex-1 bg-white px-3 text-center text-sm font-semibold outline-none"
+                  className="min-w-0 flex-1 bg-white px-3 text-center text-sm font-semibold outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                 />
                 <button
                   type="button"
@@ -850,7 +842,7 @@ export default function MedicalDataPage() {
                     })
                   }
                   placeholder="0"
-                  className="min-w-0 flex-1 bg-white px-3 text-center text-sm font-semibold outline-none"
+                  className="min-w-0 flex-1 bg-white px-3 text-center text-sm font-semibold outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                 />
                 <button
                   type="button"
@@ -871,9 +863,10 @@ export default function MedicalDataPage() {
             </div>
           </div>
         )}
+        </MedicalAccordionPanel>
       </div>
 
-      <div className="mt-4 flex justify-center lg:justify-end">
+      <div className="mt-4 flex justify-end">
         <Button onClick={handleContinue}>
           <p
             className="font-['DM_Sans:Bold',sans-serif] font-bold text-base"
