@@ -91,6 +91,36 @@ const anticoagulatedPatientData: PatientData = {
   medicationDuration: 'dauerhaft',
 }
 
+/** Recent travel context for infectious-disease specialist triage cases. */
+const recentTropicalTravelPatientData: PatientData = {
+  ...adultPatientData,
+  recentAbroad: true,
+  recentAbroadDetails: 'Rueckkehr vor 10 Tagen aus Ghana nach zweiwoechigem Aufenthalt',
+}
+
+/** COPD context for pulmonary specialist triage cases. */
+const copdPatientData: PatientData = {
+  ...adultPatientData,
+  conditions: ['COPD'],
+  isSmoker: true,
+  smokingSinceYears: '20',
+  cigarettesPerDay: '15',
+  conditionDetails: {
+    copd: {
+      condition: 'COPD',
+      detail: 'Bekannte chronisch obstruktive Lungenerkrankung',
+      duration: 'Seit mehreren Jahren',
+    },
+  },
+}
+
+/** ACE-inhibitor medication context for doctor-level side-effect checks. */
+const ramiprilPatientData: PatientData = {
+  ...adultPatientData,
+  medications: 'Ramipril 5 mg',
+  medicationDuration: 'seit 3 Wochen',
+}
+
 /**
  * Live cases for measuring prompt and model quality across care levels.
  *
@@ -403,6 +433,55 @@ export const TRIAGE_PLAUSIBILITY_LIVE_CASES: TriagePlausibilityLiveCase[] = [
       },
     ],
   },
+  {
+    id: 'specialist-travel-fever-after-tropics',
+    name: 'Fieber nach Tropenreise',
+    category: 'specialist',
+    expectedCareLevel: 'specialist',
+    patientData: recentTropicalTravelPatientData,
+    symptoms: [
+      {
+        region: 'Allgemein',
+        side: 'Fieber',
+        details: 'Fieber, Kopf- und Gliederschmerzen nach Rueckkehr aus Ghana, wach und kreislaufstabil, keine Atemnot und keine Verwirrtheit',
+        measurementType: 'temperature',
+        measurementValue: 38.8,
+        duration: 'today',
+      },
+    ],
+  },
+  {
+    id: 'specialist-copd-worsening-cough-sputum',
+    name: 'COPD mit zunehmendem Husten und Auswurf',
+    category: 'specialist',
+    expectedCareLevel: 'specialist',
+    patientData: copdPatientData,
+    symptoms: [
+      {
+        region: 'Atmung',
+        details: 'Bekannte COPD mit seit drei Tagen zunehmendem Husten, mehr zaehem Auswurf und Belastungsatemnot, keine Atemnot in Ruhe',
+        measurementType: 'severity',
+        measurementValue: 6,
+        duration: 'days',
+      },
+    ],
+  },
+  {
+    id: 'specialist-male-urinary-tract-symptoms',
+    name: 'Mann mit Harnwegsbeschwerden',
+    category: 'specialist',
+    expectedCareLevel: 'specialist',
+    patientData: adultPatientData,
+    symptoms: [
+      {
+        region: 'Urogenital',
+        details: 'Brennen beim Wasserlassen und haeufiger Harndrang seit vier Tagen, kein Fieber und keine Flankenschmerzen',
+        measurementType: 'severity',
+        measurementValue: 5,
+        duration: 'days',
+      },
+    ],
+  },
   // Doctor-level cases.
   {
     id: 'doctor-febrile-infection',
@@ -434,6 +513,38 @@ export const TRIAGE_PLAUSIBILITY_LIVE_CASES: TriagePlausibilityLiveCase[] = [
         measurementType: 'severity',
         measurementValue: 5,
         duration: 'week',
+      },
+    ],
+  },
+  {
+    id: 'doctor-hyperthyroidism-signs',
+    name: 'Hinweise auf Schilddruesenueberfunktion',
+    category: 'doctor',
+    expectedCareLevel: 'doctor',
+    patientData: adultPatientData,
+    symptoms: [
+      {
+        region: 'Allgemein',
+        details: 'Seit mehreren Wochen Herzrasen, Gewichtsverlust trotz gutem Appetit, starkes Schwitzen, Zittern und innere Unruhe',
+        measurementType: 'severity',
+        measurementValue: 6,
+        duration: 'weeks',
+      },
+    ],
+  },
+  {
+    id: 'doctor-ramipril-dry-cough',
+    name: 'Trockener Reizhusten unter Ramipril',
+    category: 'doctor',
+    expectedCareLevel: 'doctor',
+    patientData: ramiprilPatientData,
+    symptoms: [
+      {
+        region: 'Atmung',
+        details: 'Seit Beginn von Ramipril trockener Reizhusten, kein Fieber, kein Auswurf und keine Atemnot',
+        measurementType: 'severity',
+        measurementValue: 4,
+        duration: 'weeks',
       },
     ],
   },
@@ -481,6 +592,22 @@ export const TRIAGE_PLAUSIBILITY_LIVE_CASES: TriagePlausibilityLiveCase[] = [
         region: 'Ohr Nase Rachen',
         details: 'Leichter Schnupfen und Kratzen im Hals seit heute, kein Fieber und normale Atmung',
         measurementType: 'severity',
+        measurementValue: 2,
+        duration: 'today',
+      },
+    ],
+  },
+  {
+    id: 'selfcare-minor-head-injury-without-risk-factors',
+    name: 'Leichte Kopfverletzung ohne Risikofaktoren',
+    category: 'selfcare',
+    expectedCareLevel: 'selfcare',
+    patientData: adultPatientData,
+    symptoms: [
+      {
+        region: 'Kopf',
+        details: 'Leicht den Kopf gestossen, keine Bewusstlosigkeit, kein Erbrechen und keine Blutverduenner',
+        measurementType: 'pain',
         measurementValue: 2,
         duration: 'today',
       },

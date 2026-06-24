@@ -705,6 +705,85 @@ describe('getTriageAiPlausibilityIssues', () => {
     expect(issues).toEqual([])
   })
 
+  /** Migraine-like headache without infection or neurological warning signs should not become emergency. */
+  it('akzeptiert lichtempfindliche Kopfschmerzen ohne Meningitis- oder Schlaganfallzeichen als Doctor-Grenzfall', () => {
+    const issues = getTriageAiPlausibilityIssues(
+      plausibleDoctorResponse,
+      [
+        {
+          region: 'Kopf',
+          details: 'Einseitige Kopfschmerzen mit Lichtempfindlichkeit, kein Fieber, keine Nackensteifigkeit und keine Sprachstoerung',
+          measurementType: 'pain',
+          measurementValue: 6,
+          duration: 'today',
+        },
+      ],
+    )
+
+    expect(issues).toEqual([])
+  })
+
+  /** Diabetes symptoms without a full ketoacidosis cluster should be escalated, but not forced to emergency. */
+  it('akzeptiert Diabetes mit Durst ohne Ketoazidose-Warncluster als Doctor-Grenzfall', () => {
+    const issues = getTriageAiPlausibilityIssues(
+      plausibleDoctorResponse,
+      [
+        {
+          region: 'Allgemein',
+          details: 'Diabetes mit starkem Durst und haeufigem Wasserlassen, aber kein Erbrechen, keine tiefe Atmung und keine Verwirrtheit',
+          measurementType: 'severity',
+          measurementValue: 5,
+          duration: 'today',
+        },
+      ],
+    )
+
+    expect(issues).toEqual([])
+  })
+
+  /** A minor head bump without neurological symptoms or anticoagulants should stay below emergency. */
+  it('akzeptiert leichte Kopfverletzung ohne Risikofaktoren als Selfcare-Grenzfall', () => {
+    const issues = getTriageAiPlausibilityIssues(
+      {
+        careLevel: 'selfcare',
+        reasons: ['Die Kopfverletzung ist leicht und ohne erkennbare Warnzeichen beschrieben.'],
+        reviewSummary: {
+          plainLanguage: 'Die Beschwerden koennen zunaechst beobachtet werden.',
+          professionalSummary: 'Care Level: selfcare without neurological risk features.',
+        },
+      },
+      [
+        {
+          region: 'Kopf',
+          details: 'Leicht den Kopf gestossen, keine Bewusstlosigkeit, kein Erbrechen und keine Blutverduenner',
+          measurementType: 'pain',
+          measurementValue: 2,
+          duration: 'today',
+        },
+      ],
+    )
+
+    expect(issues).toEqual([])
+  })
+
+  /** Pregnancy-related abdominal discomfort without bleeding, shoulder pain, or collapse is ambiguous but not an emergency cluster. */
+  it('akzeptiert Schwangerschaft mit mildem Unterbauchziehen ohne Eileiterschwangerschaft-Warnzeichen als Doctor-Grenzfall', () => {
+    const issues = getTriageAiPlausibilityIssues(
+      plausibleDoctorResponse,
+      [
+        {
+          region: 'Unterbauch',
+          details: 'Schwanger mit mildem Unterbauchziehen, keine Blutung, kein Schulterschmerz und kein Schwindel',
+          measurementType: 'pain',
+          measurementValue: 4,
+          duration: 'days',
+        },
+      ],
+    )
+
+    expect(issues).toEqual([])
+  })
+
   /** Specialist responses should be plausible when the specialty is present and coherent. */
   it('akzeptiert Specialist-Antworten mit passender Fachrichtung', () => {
     const issues = getTriageAiPlausibilityIssues(
