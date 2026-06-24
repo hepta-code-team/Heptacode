@@ -19,6 +19,7 @@ describe('result and shared UI components', () => {
   afterEach(() => {
     vi.restoreAllMocks();
     vi.unstubAllGlobals();
+    vi.useRealTimers();
   });
 
   it('renders doctor and psychiatry guidance in result cards', () => {
@@ -43,6 +44,10 @@ describe('result and shared UI components', () => {
 
   it('requests location and shows sorted nearby facilities when permission succeeds', async () => {
     const user = userEvent.setup();
+    const today = new Intl.DateTimeFormat('de-DE', { weekday: 'long' }).format(new Date());
+    const otherDay = today === 'Dienstag' ? 'Mittwoch' : 'Dienstag';
+    const todayOpeningHours = `${today}: 10:00–16:00`;
+    const otherOpeningHours = `${otherDay}: 08:00–18:00`;
     const getCurrentPosition = vi.fn<Geolocation['getCurrentPosition']>((success) => {
       success({
         coords: {
@@ -68,18 +73,7 @@ describe('result and shared UI components', () => {
             primaryType: 'doctor',
             types: ['doctor', 'health'],
             openNow: true,
-            weekdayDescriptions: ['Montag: 08:00–18:00', 'Dienstag: 08:00–18:00'],
-          },
-          {
-            id: 'place-2',
-            name: 'Kardiologie Zentrum',
-            address: 'Hauptstraße 2, 68159 Mannheim',
-            latitude: 49.49,
-            longitude: 8.47,
-            primaryType: 'doctor',
-            types: ['doctor', 'health'],
-            openNow: false,
-            weekdayDescriptions: ['Montag: 09:00–17:00'],
+            weekdayDescriptions: [otherOpeningHours, todayOpeningHours],
           },
         ],
       }),
@@ -90,22 +84,22 @@ describe('result and shared UI components', () => {
     await user.click(screen.getByRole('button', { name: /Standort freigeben/ }));
 
     await waitFor(() => {
-      expect(screen.getByText(/2 Einrichtungen gefunden/)).toBeInTheDocument();
+      expect(screen.getByText(/1 Einrichtung gefunden/)).toBeInTheDocument();
     });
 
     expect(screen.getByText('Praxis Kardiologie am Stadtpark')).toBeInTheDocument();
-    expect(screen.getByText('Geschlossen')).toBeInTheDocument();
-    expect(screen.getByText('Dienstag: 08:00–18:00')).toBeInTheDocument();
+    expect(screen.getByText(todayOpeningHours)).toBeInTheDocument();
+    expect(screen.queryByText(otherOpeningHours)).not.toBeInTheDocument();
     expect(screen.getByText(/Datenquelle: Google Maps/)).toBeInTheDocument();
     expect(screen.getAllByRole('link')[0]).toHaveAttribute(
       'href',
       expect.stringContaining('google.com/maps/dir'),
     );
 
-    await user.click(screen.getByRole('button', { name: 'PLZ ändern' }));
-
-    expect(screen.getByLabelText('PLZ oder Adresse')).toHaveValue('');
-    expect(screen.queryByText('Praxis Kardiologie am Stadtpark')).not.toBeInTheDocument();
+    const manualLocationInput = screen.getByLabelText('PLZ oder Adresse');
+    expect(manualLocationInput).toHaveValue('');
+    await user.type(manualLocationInput, '68163 Mannheim');
+    expect(manualLocationInput).toHaveValue('68163 Mannheim');
   });
 
   it('shows a helpful message when geolocation is unavailable', async () => {

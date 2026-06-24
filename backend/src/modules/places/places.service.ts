@@ -78,21 +78,21 @@ type SearchConfig = {
 
 function getPrimarySearchConfig(request: NearbyPlacesRequest): SearchConfig | null {
   if (request.careLevel === 'emergency') {
-    return { query: 'Notaufnahme', includedType: 'hospital', radius: 12000 }
+    return { query: 'Notaufnahme', includedType: 'hospital', radius: 12000, openNow: true }
   }
 
   if (request.careLevel === 'selfcare') {
-    return { query: 'Apotheke', includedType: 'pharmacy', radius: 8000 }
+    return { query: 'Apotheke', includedType: 'pharmacy', radius: 8000, openNow: true }
   }
 
   if (request.careLevel === 'specialist') {
     const specialty = request.specialties?.find((value) => value !== 'dentistry')
     const query = specialty ? SPECIALTY_SEARCH_TERMS[specialty] : null
 
-    return query ? { query, includedType: 'doctor', radius: 15000 } : null
+    return query ? { query, includedType: 'doctor', radius: 15000, openNow: true } : null
   }
 
-  return { query: 'Hausarzt', includedType: 'doctor', radius: 8000 }
+  return { query: 'Hausarzt', includedType: 'doctor', radius: 8000, openNow: true }
 }
 
 function getSearchConfigs(request: NearbyPlacesRequest) {
@@ -142,6 +142,7 @@ function normalizePlace(place: GooglePlace, request: NearbyPlacesRequest): Nearb
     latitude === undefined ||
     longitude === undefined ||
     place.businessStatus === 'CLOSED_PERMANENTLY' ||
+    place.currentOpeningHours?.openNow === false ||
     !isRelevantPlace(place, request)
   ) {
     return null

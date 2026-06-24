@@ -346,6 +346,14 @@ function getGoogleOpeningHoursDisplay(facility: Facility, now = new Date()): Ope
   };
 }
 
+function getGoogleTodayOpeningHoursLine(facility: Facility, now = new Date()) {
+  const weekday = new Intl.DateTimeFormat("de-DE", { weekday: "long" }).format(now).toLowerCase();
+
+  return facility.weekdayDescriptions?.find((description) =>
+    description.toLowerCase().startsWith(weekday),
+  );
+}
+
 function getFacilityOpeningHoursDisplay(facility: Facility) {
   return facility.source === "google"
     ? getGoogleOpeningHoursDisplay(facility)
@@ -1090,13 +1098,6 @@ export default function NearbyPracticeSearch({
         ? "Adresse wird gesucht..."
         : "Standort wird angefragt...";
 
-  const handleChangeLocation = () => {
-    setLocationStatus("idle");
-    setFacilities([]);
-    setUserLocation(null);
-    setManualLocationQuery("");
-  };
-
   return (
     // Aeusserer Container der gesamten Suchkarte.
     <div className="rounded-[16px] bg-[#eff2f6] p-5 md:p-6 mb-4">
@@ -1113,107 +1114,95 @@ export default function NearbyPracticeSearch({
             {searchIntro}
           </p>
         </div>
-        {locationStatus === "ready" && (
-          <button
-            type="button"
-            onClick={handleChangeLocation}
-            className="shrink-0 rounded-[10px] bg-white px-3 py-2 text-sm font-bold text-[#486284] ring-1 ring-[#c8d2dc] transition-colors hover:bg-[#dde3ea]"
-          >
-            PLZ ändern
-          </button>
-        )}
       </div>
 
-      {/* Vor erfolgreicher Suche wird der Freigabe-Button mit passenden Statusmeldungen angezeigt. */}
-      {locationStatus !== "ready" ? (
-        <>
-          <div className="flex flex-col gap-3 md:flex-row md:items-end">
-            {/* Button fuer praezise Browser-Standortfreigabe */}
-            <button
-              type="button"
-              onClick={handleLocationRequest}
+      <div className="flex flex-col gap-3 md:flex-row md:items-end">
+        {/* Button fuer praezise Browser-Standortfreigabe */}
+        <button
+          type="button"
+          onClick={handleLocationRequest}
+          disabled={isRequestingLocation}
+          className="flex min-h-[48px] shrink-0 items-center justify-center gap-2 rounded-[14px] bg-[#486284] px-5 py-3 text-white transition-all hover:bg-[#3a4d68] disabled:bg-gray-300 disabled:text-gray-500"
+        >
+          <LocateFixed className="size-5" aria-hidden="true" />
+          <span className="font-['DM_Sans:Bold',sans-serif] font-bold text-sm">
+            {isRequestingLocation ? statusLabel : "Standort freigeben"}
+          </span>
+        </button>
+
+        <div className="hidden h-12 w-px shrink-0 bg-[#9aabc0] md:block" aria-hidden="true" />
+
+        {/* Alternative Suche per PLZ oder Adresse bleibt sichtbar, damit Nutzer den Suchort korrigieren koennen. */}
+        <form
+          onSubmit={handleManualLocationSearch}
+          className="min-w-0 flex-1"
+        >
+          <label
+            htmlFor="manual-location-query"
+            className="mb-2 block text-sm font-bold text-[#486284]"
+          >
+            PLZ oder Adresse
+          </label>
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <input
+              id="manual-location-query"
+              type="search"
+              value={manualLocationQuery}
+              onChange={(event) => setManualLocationQuery(event.target.value)}
+              placeholder="z. B. 68163 Mannheim"
               disabled={isRequestingLocation}
-              className="flex min-h-[48px] shrink-0 items-center justify-center gap-2 rounded-[14px] bg-[#486284] px-5 py-3 text-white transition-all hover:bg-[#3a4d68] disabled:bg-gray-300 disabled:text-gray-500"
+              className="min-h-[48px] min-w-0 flex-1 rounded-[10px] border border-[#c8d2dc] bg-white px-3 py-2 text-sm font-medium text-[#3e3e3e] outline-none transition-all placeholder:text-[#7b8a8d] focus:border-[#486284] focus:ring-2 focus:ring-[#486284]/20 disabled:bg-gray-100 disabled:text-gray-500"
+            />
+            <button
+              type="submit"
+              disabled={isRequestingLocation || !manualLocationQuery.trim()}
+              className="inline-flex min-h-[48px] items-center justify-center gap-2 rounded-[10px] bg-white px-4 py-2 text-sm font-bold text-[#486284] ring-1 ring-[#c8d2dc] transition-all hover:bg-[#dde3ea] disabled:bg-gray-100 disabled:text-gray-400"
             >
-              <LocateFixed className="size-5" aria-hidden="true" />
-              <span className="font-['DM_Sans:Bold',sans-serif] font-bold text-sm">
-                {isRequestingLocation ? statusLabel : "Standort freigeben"}
-              </span>
+              <Search className="size-4" aria-hidden="true" />
+              Suchen
             </button>
-
-            <div className="hidden h-12 w-px shrink-0 bg-[#9aabc0] md:block" aria-hidden="true" />
-
-            {/* Alternative Suche per PLZ oder Adresse */}
-            <form
-              onSubmit={handleManualLocationSearch}
-              className="min-w-0 flex-1"
-            >
-              <label
-                htmlFor="manual-location-query"
-                className="mb-2 block text-sm font-bold text-[#486284]"
-              >
-                PLZ oder Adresse
-              </label>
-              <div className="flex flex-col gap-2 sm:flex-row">
-                <input
-                  id="manual-location-query"
-                  type="search"
-                  value={manualLocationQuery}
-                  onChange={(event) => setManualLocationQuery(event.target.value)}
-                  placeholder="z. B. 68163 Mannheim"
-                  disabled={isRequestingLocation}
-                  className="min-h-[48px] min-w-0 flex-1 rounded-[10px] border border-[#c8d2dc] bg-white px-3 py-2 text-sm font-medium text-[#3e3e3e] outline-none transition-all placeholder:text-[#7b8a8d] focus:border-[#486284] focus:ring-2 focus:ring-[#486284]/20 disabled:bg-gray-100 disabled:text-gray-500"
-                />
-                <button
-                  type="submit"
-                  disabled={isRequestingLocation || !manualLocationQuery.trim()}
-                  className="inline-flex min-h-[48px] items-center justify-center gap-2 rounded-[10px] bg-white px-4 py-2 text-sm font-bold text-[#486284] ring-1 ring-[#c8d2dc] transition-all hover:bg-[#dde3ea] disabled:bg-gray-100 disabled:text-gray-400"
-                >
-                  <Search className="size-4" aria-hidden="true" />
-                  Suchen
-                </button>
-              </div>
-            </form>
           </div>
+        </form>
+      </div>
 
-          {/* Fehlermeldung, wenn Nutzer Browser-Standort abgelehnt hat */}
-          {locationStatus === "denied" && (
-            <p className="mt-3 rounded-[12px] bg-white px-4 py-3 text-sm font-medium text-[#8A4B16]">
-              Standortfreigabe wurde nicht erlaubt. Sie können die Freigabe in den Browser-Einstellungen aktivieren und es erneut versuchen.
-            </p>
-          )}
+      {/* Fehlermeldung, wenn Nutzer Browser-Standort abgelehnt hat */}
+      {locationStatus === "denied" && (
+        <p className="mt-3 rounded-[12px] bg-white px-4 py-3 text-sm font-medium text-[#8A4B16]">
+          Standortfreigabe wurde nicht erlaubt. Sie können die Freigabe in den Browser-Einstellungen aktivieren und es erneut versuchen.
+        </p>
+      )}
 
-          {/* Fehlermeldung, wenn Browser keine Geolocation anbietet */}
-          {locationStatus === "unsupported" && (
-            <p className="mt-3 rounded-[12px] bg-white px-4 py-3 text-sm font-medium text-[#8A4B16]">
-              Ihr Browser unterstützt keine Standortfreigabe.
-            </p>
-          )}
+      {/* Fehlermeldung, wenn Browser keine Geolocation anbietet */}
+      {locationStatus === "unsupported" && (
+        <p className="mt-3 rounded-[12px] bg-white px-4 py-3 text-sm font-medium text-[#8A4B16]">
+          Ihr Browser unterstützt keine Standortfreigabe.
+        </p>
+      )}
 
-          {/* Valider leerer Zustand: Suche erfolgreich, aber keine passenden Treffer */}
-          {locationStatus === "empty" && (
-            <p className="mt-3 rounded-[12px] bg-white px-4 py-3 text-sm font-medium text-[#8A4B16]">
-              {emptyMessage}
-            </p>
-          )}
+      {/* Valider leerer Zustand: Suche erfolgreich, aber keine passenden Treffer */}
+      {locationStatus === "empty" && (
+        <p className="mt-3 rounded-[12px] bg-white px-4 py-3 text-sm font-medium text-[#8A4B16]">
+          {emptyMessage}
+        </p>
+      )}
 
-          {/* Manuelle Adresse/PLZ konnte nicht in Koordinaten umgewandelt werden */}
-          {locationStatus === "not_found" && (
-            <p className="mt-3 rounded-[12px] bg-white px-4 py-3 text-sm font-medium text-[#8A4B16]">
-              Diese PLZ oder Adresse konnte nicht gefunden werden.
-            </p>
-          )}
+      {/* Manuelle Adresse/PLZ konnte nicht in Koordinaten umgewandelt werden */}
+      {locationStatus === "not_found" && (
+        <p className="mt-3 rounded-[12px] bg-white px-4 py-3 text-sm font-medium text-[#8A4B16]">
+          Diese PLZ oder Adresse konnte nicht gefunden werden.
+        </p>
+      )}
 
-          {/* Technischer Fehler bei Nominatim, Google Places oder Overpass */}
-          {locationStatus === "error" && (
-            <p className="mt-3 rounded-[12px] bg-white px-4 py-3 text-sm font-medium text-[#8A4B16]">
-              Die Kartensuche ist gerade nicht verfügbar. Bitte versuchen Sie es später erneut.
-            </p>
-          )}
-        </>
-      ) : (
+      {/* Technischer Fehler bei Nominatim, Google Places oder Overpass */}
+      {locationStatus === "error" && (
+        <p className="mt-3 rounded-[12px] bg-white px-4 py-3 text-sm font-medium text-[#8A4B16]">
+          Die Kartensuche ist gerade nicht verfügbar. Bitte versuchen Sie es später erneut.
+        </p>
+      )}
+
+      {locationStatus === "ready" && (
         // Sobald Treffer vorhanden sind, wird die Ergebnisliste gerendert.
-        <div>
+        <div className="mt-3">
           {/* Kurze Trefferzusammenfassung */}
           {userLocation && (
             <div className="mb-3 rounded-[12px] bg-white px-4 py-3 text-sm font-medium text-[#486284]">
@@ -1233,7 +1222,7 @@ export default function NearbyPracticeSearch({
               const openingHoursDisplay = getFacilityOpeningHoursDisplay(facility);
               const openingHoursLines =
                 facility.source === "google" && facility.weekdayDescriptions?.length
-                  ? facility.weekdayDescriptions
+                  ? [getGoogleTodayOpeningHoursLine(facility) ?? openingHoursDisplay.hoursLabel]
                   : [openingHoursDisplay.hoursLabel];
 
               return (

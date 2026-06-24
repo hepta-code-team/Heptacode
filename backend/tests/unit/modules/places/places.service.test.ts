@@ -10,7 +10,7 @@ describe('searchNearbyPlaces', () => {
     vi.unstubAllGlobals()
   })
 
-  it('sucht die empfohlene Fachrichtung und liefert offene sowie geschlossene Orte', async () => {
+  it('sucht die empfohlene Fachrichtung und liefert nur geoeffnete Orte', async () => {
     env.googleMapsApiKey = 'test-key'
     const fetchMock = vi.fn<typeof fetch>().mockResolvedValue({
       ok: true,
@@ -51,18 +51,17 @@ describe('searchNearbyPlaces', () => {
       specialties: ['cardiology'],
     })
 
-    expect(result.places).toHaveLength(2)
+    expect(result.places).toHaveLength(1)
     expect(result.places[0]?.name).toBe('Kardiologie Mannheim')
-    expect(result.places[1]).toMatchObject({ name: 'Geschlossene Praxis', openNow: false })
 
     const [, request] = fetchMock.mock.calls[0] ?? []
     const requestBody = JSON.parse(String(request?.body)) as Record<string, unknown>
     expect(requestBody).toMatchObject({
       textQuery: 'Kardiologe',
       includedType: 'doctor',
+      openNow: true,
       rankPreference: 'DISTANCE',
     })
-    expect(requestBody).not.toHaveProperty('openNow')
     expect(new Headers(request?.headers).get('X-Goog-Api-Key')).toBe('test-key')
   })
 
