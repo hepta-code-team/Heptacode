@@ -48,6 +48,48 @@ const adultPatientData: PatientData = {
   conditionDetails: {},
 }
 
+/** Pregnancy context for pregnancy-specific emergency red flags. */
+const pregnantPatientData: PatientData = {
+  ...adultPatientData,
+  gender: 'Weiblich',
+  isPregnant: true,
+}
+
+/** Diabetes context for metabolic emergency red flags. */
+const diabeticPatientData: PatientData = {
+  ...adultPatientData,
+  conditions: ['Diabetes mellitus'],
+  conditionDetails: {
+    diabetes: {
+      condition: 'Diabetes mellitus',
+      detail: 'Insulinpflichtiger Diabetes',
+      duration: 'Seit mehreren Jahren',
+    },
+  },
+}
+
+/** Immunosuppression context for infection-risk triage cases. */
+const immunosuppressedPatientData: PatientData = {
+  ...adultPatientData,
+  medications: 'Prednisolon 20 mg',
+  medicationDuration: 'seit 4 Wochen',
+  conditions: ['Autoimmunerkrankung'],
+  conditionDetails: {
+    autoimmuneDisease: {
+      condition: 'Autoimmunerkrankung',
+      detail: 'Immunsuppressive Therapie mit Prednisolon',
+      duration: 'Seit mehreren Jahren',
+    },
+  },
+}
+
+/** Anticoagulation context for head-injury red flags. */
+const anticoagulatedPatientData: PatientData = {
+  ...adultPatientData,
+  medications: 'Apixaban (Eliquis)',
+  medicationDuration: 'dauerhaft',
+}
+
 /**
  * Live cases for measuring prompt and model quality across care levels.
  *
@@ -55,6 +97,7 @@ const adultPatientData: PatientData = {
  * likely to reflect prompting or model behavior than ambiguous clinical input.
  */
 export const TRIAGE_PLAUSIBILITY_LIVE_CASES: TriagePlausibilityLiveCase[] = [
+  // Emergency cases without additional patient-risk context.
   {
     id: 'emergency-chest-dyspnea',
     name: 'Brustschmerz mit Atemnot',
@@ -65,7 +108,7 @@ export const TRIAGE_PLAUSIBILITY_LIVE_CASES: TriagePlausibilityLiveCase[] = [
       {
         region: 'Brust',
         side: 'Brustmitte',
-        details: 'Ploetzlicher starker Druck auf der Brust mit Atemnot und kaltem Schweiss',
+        details: 'Plötzlicher starker Druck auf der Brust mit Atemnot und kaltem Schweiß',
         measurementType: 'pain',
         measurementValue: 8,
         duration: 'today',
@@ -91,7 +134,7 @@ export const TRIAGE_PLAUSIBILITY_LIVE_CASES: TriagePlausibilityLiveCase[] = [
   },
   {
     id: 'emergency-transient-stroke-signs',
-    name: 'Voruebergehende Schlaganfallzeichen',
+    name: 'Vorübergehende Schlaganfallzeichen',
     category: 'emergency',
     expectedCareLevel: 'emergency',
     patientData: adultPatientData,
@@ -115,7 +158,7 @@ export const TRIAGE_PLAUSIBILITY_LIVE_CASES: TriagePlausibilityLiveCase[] = [
     symptoms: [
       {
         region: 'Allgemein',
-        details: 'Generalisierter Krampfanfall, der seit sieben Minuten ununterbrochen anhaelt',
+        details: 'Generalisierter Krampfanfall, der seit sieben Minuten ununterbrochen anhält',
         measurementType: 'severity',
         measurementValue: 9,
         duration: 'today',
@@ -132,7 +175,7 @@ export const TRIAGE_PLAUSIBILITY_LIVE_CASES: TriagePlausibilityLiveCase[] = [
       {
         region: 'Allgemein',
         side: 'Fieber',
-        details: 'Hohes Fieber mit Schuettelfrost, ploetzlicher Verwirrtheit, schneller Atmung und starkem Krankheitsgefuehl',
+        details: 'Hohes Fieber mit Schüttelfrost, plötzlicher Verwirrtheit, schneller Atmung und starkem Krankheitsgefühl',
         measurementType: 'temperature',
         measurementValue: 40.1,
         duration: 'today',
@@ -148,8 +191,8 @@ export const TRIAGE_PLAUSIBILITY_LIVE_CASES: TriagePlausibilityLiveCase[] = [
     symptoms: [
       {
         region: 'Brust',
-        side: 'atemabhaengig',
-        details: 'Ploetzliche Atemnot mit stechendem atemabhaengigem Brustschmerz und einseitig geschwollener Wade nach langer Reise',
+        side: 'atemabhängig',
+        details: 'Plötzliche Atemnot mit stechendem atemabhängigem Brustschmerz und einseitig geschwollener Wade nach langer Reise',
         measurementType: 'pain',
         measurementValue: 7,
         duration: 'today',
@@ -206,6 +249,144 @@ export const TRIAGE_PLAUSIBILITY_LIVE_CASES: TriagePlausibilityLiveCase[] = [
     ],
   },
   {
+    id: 'emergency-meningitis-signs',
+    name: 'Meningitis-Warnzeichen',
+    category: 'emergency',
+    expectedCareLevel: 'emergency',
+    patientData: adultPatientData,
+    symptoms: [
+      {
+        region: 'Kopf',
+        details: 'Fieber mit starken Kopfschmerzen, Nackensteifigkeit, Lichtempfindlichkeit und wiederholtem Erbrechen',
+        measurementType: 'pain',
+        measurementValue: 8,
+        duration: 'today',
+      },
+    ],
+  },
+  // Emergency cases driven by medication, pregnancy, or pre-existing conditions.
+  {
+    id: 'emergency-head-injury-anticoagulated',
+    name: 'Kopfverletzung unter Blutverdünnung',
+    category: 'emergency',
+    expectedCareLevel: 'emergency',
+    patientData: anticoagulatedPatientData,
+    symptoms: [
+      {
+        region: 'Kopf',
+        details: 'Sturz auf den Kopf, kurz bewusstlos, danach Erbrechen und Verwirrtheit',
+        measurementType: 'pain',
+        measurementValue: 5,
+        duration: 'today',
+      },
+    ],
+  },
+  {
+    id: 'emergency-ectopic-pregnancy-signs',
+    name: 'Schwangerschaft mit Eileiterschwangerschaft-Warnzeichen',
+    category: 'emergency',
+    expectedCareLevel: 'emergency',
+    patientData: pregnantPatientData,
+    symptoms: [
+      {
+        region: 'Unterbauch',
+        side: 'einseitig',
+        details: 'Schwanger mit einseitigem Unterbauchschmerz, vaginaler Blutung, Schulterschmerz und Schwindel',
+        measurementType: 'pain',
+        measurementValue: 7,
+        duration: 'today',
+      },
+    ],
+  },
+  {
+    id: 'emergency-diabetic-ketoacidosis-signs',
+    name: 'Diabetes mit Ketoazidose-Warnzeichen',
+    category: 'emergency',
+    expectedCareLevel: 'emergency',
+    patientData: diabeticPatientData,
+    symptoms: [
+      {
+        region: 'Allgemein',
+        details: 'Diabetes mit starkem Durst, häufigem Wasserlassen, Bauchschmerz, Erbrechen, tiefer Atmung und fruchtigem Atem',
+        measurementType: 'severity',
+        measurementValue: 8,
+        duration: 'today',
+      },
+    ],
+  },
+  {
+    id: 'emergency-diabetes-infection-vomiting',
+    name: 'Diabetes mit Infekt und Erbrechen',
+    category: 'emergency',
+    expectedCareLevel: 'emergency',
+    patientData: diabeticPatientData,
+    symptoms: [
+      {
+        region: 'Allgemein',
+        side: 'Fieber',
+        details: 'Fieberhafter Infekt mit wiederholtem Erbrechen, starkem Durst und häufigem Wasserlassen; Flüssigkeit bleibt kaum drin',
+        measurementType: 'temperature',
+        measurementValue: 39.4,
+        duration: 'today',
+      },
+    ],
+  },
+  {
+    id: 'emergency-immunosuppression-fever',
+    name: 'Immunsuppression mit Fieber',
+    category: 'emergency',
+    expectedCareLevel: 'emergency',
+    patientData: immunosuppressedPatientData,
+    symptoms: [
+      {
+        region: 'Allgemein',
+        side: 'Fieber',
+        details: 'Fieber, Schüttelfrost und deutliches Krankheitsgefühl unter laufender Prednisolon-Therapie',
+        measurementType: 'temperature',
+        measurementValue: 39.1,
+        duration: 'today',
+      },
+    ],
+  },
+  {
+    id: 'emergency-pregnancy-preeclampsia-signs',
+    name: 'Schwangerschaft mit Präeklampsie-Warnzeichen',
+    category: 'emergency',
+    expectedCareLevel: 'emergency',
+    patientData: pregnantPatientData,
+    symptoms: [
+      {
+        region: 'Kopf',
+        details: 'Schwanger mit starken Kopfschmerzen, Flimmern vor den Augen, Oberbauchschmerz und plötzlich geschwollenem Gesicht',
+        measurementType: 'pain',
+        measurementValue: 7,
+        duration: 'today',
+      },
+    ],
+  },
+  {
+    id: 'emergency-allergy-new-medication-airway-swelling',
+    name: 'Allergie und neues Medikament mit Atemwegsschwellung',
+    category: 'emergency',
+    expectedCareLevel: 'emergency',
+    patientData: {
+      ...adultPatientData,
+      allergies: 'Penicillin',
+      medications: 'Amoxicillin',
+      medicationDuration: 'seit gestern',
+    },
+    symptoms: [
+      {
+        region: 'Allgemein',
+        details: 'Nach neuer Antibiotika-Einnahme Ausschlag, Zunge schwillt an, Gesicht geschwollen und zunehmende Atemnot',
+        measurementType: 'severity',
+        measurementValue: 8,
+        duration: 'today',
+      },
+    ],
+  },
+  // Doctor-level cases.
+  {
     id: 'doctor-febrile-infection',
     name: 'Fieberhafter Infekt ohne Warnzeichen',
     category: 'doctor',
@@ -254,6 +435,7 @@ export const TRIAGE_PLAUSIBILITY_LIVE_CASES: TriagePlausibilityLiveCase[] = [
       },
     ],
   },
+  // Self-care cases.
   {
     id: 'selfcare-mild-headache',
     name: 'Milde kurzzeitige Kopfschmerzen',
@@ -302,6 +484,7 @@ export const TRIAGE_PLAUSIBILITY_LIVE_CASES: TriagePlausibilityLiveCase[] = [
       },
     ],
   },
+  // False-positive guard cases.
   {
     id: 'false-positive-chest-wall-pain',
     name: 'Milder muskulaerer Brustwandschmerz',
