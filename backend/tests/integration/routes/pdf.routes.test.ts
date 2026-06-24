@@ -18,6 +18,7 @@ function createPayload(): PdfExportRequest {
       plainLanguage: 'Die Beschwerden wurden zusammengefasst.',
       professionalSummary: 'Strukturierte medizinische Zusammenfassung.',
     },
+    symptomText: 'Ich habe seit gestern starke Kopfschmerzen.',
     triage: {
       careLevel: 'doctor',
       reasons: ['Die Beschwerden sollten aerztlich eingeordnet werden.'],

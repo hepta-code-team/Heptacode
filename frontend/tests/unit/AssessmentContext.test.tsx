@@ -1,7 +1,7 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useState } from 'react';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { AssessmentProvider, useAssessment } from '../../src/lib/AssessmentContext';
 import { apiClient } from '../../src/lib/apiClient';
 import type { PatientData } from '../../src/types/assessment';
@@ -13,6 +13,7 @@ vi.mock('../../src/lib/apiClient', () => ({
 }));
 
 const apiPostMock = vi.mocked(apiClient.post);
+const ASSESSMENT_STORAGE_KEY = 'heptacheck.assessment.v1';
 
 const patientData: PatientData = {
   birthMonth: '01',
@@ -77,7 +78,13 @@ function Harness() {
 }
 
 describe('AssessmentContext', () => {
-  it('stores wizard data, submits assessment payloads and resets state', async () => {
+  beforeEach(() => {
+    window.localStorage.clear();
+    window.sessionStorage.clear();
+    apiPostMock.mockReset();
+  });
+
+  it('stores wizard data, reuses identical results and resets state', async () => {
     const user = userEvent.setup();
     apiPostMock.mockResolvedValue({
       careLevel: 'doctor',
@@ -119,10 +126,41 @@ describe('AssessmentContext', () => {
       ],
     });
 
+    await user.click(screen.getByRole('button', { name: 'submit' }));
+    expect(apiPostMock).toHaveBeenCalledTimes(1);
+
     await user.click(screen.getByRole('button', { name: 'reset' }));
     expect(screen.getByText('Patient: none')).toBeInTheDocument();
     expect(screen.getByText('Symptoms: 0')).toBeInTheDocument();
     expect(screen.getByText('Result: none')).toBeInTheDocument();
+  });
+
+  it('discards persisted assessment data after its expiration time', () => {
+    const removeItemSpy = vi.spyOn(window.sessionStorage, 'removeItem');
+
+    window.sessionStorage.setItem(ASSESSMENT_STORAGE_KEY, JSON.stringify({
+      state: {
+        patientData,
+        selectedSymptoms: [{ region: 'Kopf' }],
+        symptomText: '',
+        symptomDetails: [],
+        assessmentResult: null,
+        assessmentRequestKey: null,
+      },
+      expiresAt: Date.now() - 1,
+    }));
+
+    render(
+      <AssessmentProvider>
+        <Harness />
+      </AssessmentProvider>,
+    );
+
+    expect(screen.getByText('Patient: none')).toBeInTheDocument();
+    expect(screen.getByText('Symptoms: 0')).toBeInTheDocument();
+    expect(removeItemSpy).toHaveBeenCalledWith(ASSESSMENT_STORAGE_KEY);
+
+    removeItemSpy.mockRestore();
   });
 
   it('throws a clear error when submitting without patient data', async () => {

@@ -3,7 +3,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { AiResponseError } from '../../../../src/ai/timeout.js'
 import { requestStructuredAiResponseWithModel } from '../../../../src/ai/llmAdapter.js'
 import { extractSymptoms } from '../../../../src/modules/symptom-extraction/symptomExtraction.service.js'
-import { evaluateTriage } from '../../../../src/modules/triage/triage.service.js'
+import {
+  evaluateTriage,
+  evaluateTriageWithDiagnostics,
+} from '../../../../src/modules/triage/triage.service.js'
 
 vi.mock('../../../../src/ai/llmAdapter.js', () => ({
   requestStructuredAiResponseWithModel: vi.fn(),
@@ -165,6 +168,128 @@ describe('evaluateTriage', () => {
     )
   })
 
+  it('hebt Medikamente und Einnahmedauer als eigenen Triage-Kontext hervor', async () => {
+    requestStructuredAiResponseWithModelMock.mockResolvedValueOnce({
+      data: {
+        careLevel: 'doctor',
+        reasons: ['Ein moeglicher zeitlicher Zusammenhang mit Ramipril sollte aerztlich geprueft werden.'],
+        reviewSummary: {
+          plainLanguage: 'Der Schwindel kann zeitlich mit Ramipril zusammenhaengen und sollte aerztlich geprueft werden.',
+          professionalSummary: 'Schwindel nach Beginn einer Ramipril-Einnahme; medikationsbezogene Abklaerung empfohlen.',
+        },
+      },
+      model: 'test-model',
+    })
+
+    await evaluateTriage({
+      ...malePatientData,
+      medications: 'Ramipril 5 mg',
+      medicationDuration: 'seit 3 Tagen',
+    }, [
+      { region: 'Allgemein', side: 'Schwindel', measurementType: 'severity', measurementValue: 5, duration: 'days' },
+    ])
+
+    expect(requestStructuredAiResponseWithModelMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        messages: expect.arrayContaining([
+          expect.objectContaining({
+            role: 'system',
+            content: expect.stringMatching(/Medikationskontext aktiv[\s\S]*zeitlichen Zusammenhang/),
+          }),
+          expect.objectContaining({
+            role: 'user',
+            content: expect.stringContaining(
+              'Medikationskontext (bei der Triage aktiv pruefen):\nAktuelle Medikamente: Ramipril 5 mg\nEinnahmedauer: seit 3 Tagen',
+            ),
+          }),
+        ]),
+      }),
+    )
+  })
+
+  it('kennzeichnet eine fehlende Einnahmedauer im Medikationskontext', async () => {
+    requestStructuredAiResponseWithModelMock.mockResolvedValueOnce({
+      data: {
+        careLevel: 'doctor',
+        reasons: ['Aerztliche Abklaerung empfohlen.'],
+        reviewSummary: {
+          plainLanguage: 'Bitte lassen Sie die Beschwerden aerztlich abklaeren.',
+          professionalSummary: 'Care Level: doctor.',
+        },
+      },
+      model: 'test-model',
+    })
+
+    await evaluateTriage({
+      ...malePatientData,
+      medications: 'Metformin',
+    }, [
+      { region: 'Bauch', measurementType: 'pain', measurementValue: 5, duration: 'days' },
+    ])
+
+    expect(requestStructuredAiResponseWithModelMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        messages: expect.arrayContaining([
+          expect.objectContaining({
+            role: 'user',
+            content: expect.stringContaining('Aktuelle Medikamente: Metformin\nEinnahmedauer: Nicht angegeben'),
+          }),
+        ]),
+      }),
+    )
+  })
+
+  it('hebt Allergien, Substanzeinfluss, Reisen und Vorerkrankungen als Risikokontext hervor', async () => {
+    requestStructuredAiResponseWithModelMock.mockResolvedValueOnce({
+      data: {
+        careLevel: 'doctor',
+        reasons: ['Die Vorerkrankungen und der kuerzliche Auslandsaufenthalt sollten aerztlich eingeordnet werden.'],
+        reviewSummary: {
+          plainLanguage: 'Bitte lassen Sie die Beschwerden unter Beruecksichtigung Ihrer Vorerkrankungen aerztlich abklaeren.',
+          professionalSummary: 'Relevanter Reise- und Vorerkrankungskontext; aerztliche Abklaerung empfohlen.',
+        },
+      },
+      model: 'test-model',
+    })
+
+    await evaluateTriage({
+      ...malePatientData,
+      allergies: 'Penicillin',
+      substanceInfluence: 'Alkohol',
+      recentAbroad: true,
+      recentAbroadDetails: 'Thailand, Rueckkehr vor 5 Tagen',
+      conditions: ['Asthma', 'Diabetes'],
+      conditionDetails: {
+        Asthma: { condition: 'Asthma', detail: 'allergisches Asthma', duration: 'seit 10 Jahren' },
+        Diabetes: { condition: 'Diabetes', detail: 'Typ 2', duration: 'seit 4 Jahren' },
+      },
+    }, [
+      { region: 'Allgemein', side: 'Fieber', measurementType: 'temperature', measurementValue: 39, duration: 'days' },
+    ])
+
+    expect(requestStructuredAiResponseWithModelMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        messages: expect.arrayContaining([
+          expect.objectContaining({
+            role: 'system',
+            content: expect.stringMatching(/medizinischen Risikokontext[\s\S]*Allergien[\s\S]*Alkohol[\s\S]*Auslandsaufenthalt[\s\S]*Vorerkrankungen/),
+          }),
+          expect.objectContaining({
+            role: 'user',
+            content: expect.stringContaining([
+              'Medizinischer Risikokontext (bei der Triage aktiv pruefen):',
+              'Allergien: Penicillin',
+              'Einfluss durch Alkohol oder Drogen: Alkohol',
+              'Auslandsaufenthalt in den letzten 3 Monaten: Thailand, Rueckkehr vor 5 Tagen',
+              'Vorerkrankungen: Asthma, Diabetes',
+              'Details und Dauer der Vorerkrankungen: Asthma: allergisches Asthma, Dauer: seit 10 Jahren; Diabetes: Typ 2, Dauer: seit 4 Jahren',
+            ].join('\n')),
+          }),
+        ]),
+      }),
+    )
+  })
+
   /** AI request availability failures should use the conservative local triage fallback. */
   it('nutzt den Fallback, wenn die KI-Anfrage fehlschlaegt', async () => {
     requestStructuredAiResponseWithModelMock.mockRejectedValueOnce(new AiResponseError('timeout'))
@@ -216,6 +341,119 @@ describe('evaluateTriage', () => {
         'Warnsymptome dürfen nicht als selfcare eingestuft werden.',
       ]),
     )
+  })
+
+  /** Diagnostic evaluation should preserve the rejected AI answer and the final safety fallback. */
+  it('stellt direkte KI-Antwort und finales Fallback getrennt bereit', async () => {
+    requestStructuredAiResponseWithModelMock.mockResolvedValueOnce({
+      data: {
+        careLevel: 'selfcare',
+        reasons: ['Die Beschwerden koennen zunaechst beobachtet werden.'],
+        reviewSummary: {
+          plainLanguage: 'Die Beschwerden koennen zunaechst beobachtet werden.',
+          professionalSummary: 'Care Level: selfcare.',
+        },
+      },
+      model: 'test-model',
+    })
+
+    const diagnostics = await evaluateTriageWithDiagnostics(undefined, [
+      {
+        region: 'Brust',
+        details: 'Druckgefuehl mit Atemnot',
+        measurementType: 'pain',
+        measurementValue: 5,
+        duration: 'today',
+      },
+    ])
+
+    expect(diagnostics).toMatchObject({
+      aiResponse: {
+        careLevel: 'selfcare',
+        aiModel: 'test-model',
+      },
+      finalResponse: {
+        careLevel: 'emergency',
+        aiUnavailable: true,
+      },
+      fallbackType: 'plausibility',
+    })
+    expect(diagnostics.plausibilityIssues).toContain(
+      'Warnsymptome dürfen nicht als selfcare eingestuft werden.',
+    )
+  })
+
+  /** Diagnostic evaluation should keep matching AI and system results without a fallback. */
+  it('meldet bei plausibler KI-Antwort keinen Fallback', async () => {
+    requestStructuredAiResponseWithModelMock.mockResolvedValueOnce({
+      data: {
+        careLevel: 'doctor',
+        reasons: ['Die Beschwerden sollten aerztlich eingeordnet werden.'],
+        reviewSummary: {
+          plainLanguage: 'Bitte lassen Sie die Beschwerden aerztlich einordnen.',
+          professionalSummary: 'Care Level: doctor.',
+        },
+      },
+      model: 'test-model',
+    })
+
+    const diagnostics = await evaluateTriageWithDiagnostics(undefined, [
+      {
+        region: 'Bauch',
+        measurementType: 'pain',
+        measurementValue: 5,
+        duration: 'days',
+      },
+    ])
+
+    expect(diagnostics).toMatchObject({
+      aiResponse: {
+        careLevel: 'doctor',
+        aiModel: 'test-model',
+      },
+      finalResponse: {
+        careLevel: 'doctor',
+        aiModel: 'test-model',
+      },
+      plausibilityIssues: [],
+      fallbackType: 'none',
+    })
+  })
+
+  /** Negated dyspnea should not turn mild chest-wall pain into an emergency fallback. */
+  it('behaelt Selfcare bei mildem Brustwandschmerz ohne Atemnot bei', async () => {
+    requestStructuredAiResponseWithModelMock.mockResolvedValueOnce({
+      data: {
+        careLevel: 'selfcare',
+        reasons: ['Die Beschwerden entsprechen einem milden Muskelkater ohne Warnzeichen.'],
+        reviewSummary: {
+          plainLanguage: 'Der milde Muskelkater kann zunächst selbst beobachtet werden.',
+          professionalSummary: 'Care Level: selfcare without warning signs.',
+        },
+      },
+      model: 'test-model',
+    })
+
+    const diagnostics = await evaluateTriageWithDiagnostics(undefined, [
+      {
+        region: 'Brust',
+        details: 'Leichter Muskelkater nach Liegestuetzen ohne Atemnot',
+        measurementType: 'pain',
+        measurementValue: 2,
+        duration: 'today',
+      },
+    ])
+
+    expect(diagnostics).toMatchObject({
+      aiResponse: {
+        careLevel: 'selfcare',
+      },
+      finalResponse: {
+        careLevel: 'selfcare',
+      },
+      plausibilityIssues: [],
+      fallbackType: 'none',
+    })
   })
 
   /** Plausibility checks should reject emergency escalation for clearly mild symptoms. */

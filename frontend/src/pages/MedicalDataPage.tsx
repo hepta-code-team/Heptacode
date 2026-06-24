@@ -166,7 +166,7 @@ function MedicalAccordionPanel({
 }) {
   return (
     <div
-      className={`rounded-[14px] border-2 p-3 transition-all ${
+      className={`shadow-md rounded-[14px] border-2 p-3 transition-all ${
         isCompleted
           ? "border-[#486284] bg-[#eff2f6]"
           : "border-transparent bg-[#eff2f6]"
@@ -494,11 +494,11 @@ export default function MedicalDataPage() {
 
   const handleContinue = () => {
     setPatientData(formData);
-    navigate("/symptom-selection");
+    navigate("/pre-existing-conditions");
   };
 
   const handleSkip = () => {
-    navigate("/symptom-selection");
+    navigate("/pre-existing-conditions");
   };
 
   return (
@@ -510,7 +510,7 @@ export default function MedicalDataPage() {
     >
       {(formData.gender === "Weiblich" || formData.gender === "Divers") && (
         <div
-          className={`rounded-[14px] border-2 bg-[#eff2f6] p-3 transition-all ${
+          className={`shadow-md rounded-[14px] border-2 bg-[#eff2f6] p-3 transition-all ${
             formData.isPregnant || formData.isBreastfeeding
               ? "border-[#486284]"
               : "border-transparent"
@@ -617,7 +617,7 @@ export default function MedicalDataPage() {
               <Input
                 id="medicationDuration"
                 value={formData.medicationDuration}
-                onChange={(event) => 
+                onChange={(event) =>
                   setFormData({ ...formData, medicationDuration: event.target.value})
                 }
                 placeholder="z.b.B seit 2021, seit 3 Wochen, unbekannt"
@@ -712,7 +712,7 @@ export default function MedicalDataPage() {
       </div>
 
       <div
-        className={`mt-4 rounded-[14px] border-2 bg-[#eff2f6] p-3 transition-all ${
+        className={`mt-4 shadow-md rounded-[14px] border-2 bg-[#eff2f6] p-3 transition-all ${
           smokingStatus !== "Nein" ? "border-[#486284]" : "border-transparent"
         }`}
       >
@@ -873,231 +873,15 @@ export default function MedicalDataPage() {
         )}
       </div>
 
-      <div className="mt-4">
-        <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+      <div className="mt-4 flex justify-center lg:justify-end">
+        <Button onClick={handleContinue}>
           <p
-            className="font-['DM_Sans:Bold',sans-serif] font-bold text-app-text-primary text-lg"
+            className="font-['DM_Sans:Bold',sans-serif] font-bold text-base"
             style={{ fontVariationSettings: "'opsz' 14" }}
           >
-            Vorerkrankungen
+            Weiter
           </p>
-          <button
-            type="button"
-            onClick={clearAllConditionSelections}
-            disabled={formData.conditions.length === 0}
-            className="rounded-[10px] bg-white p-2 text-app-text-primary transition-all hover:bg-[#dde3ea] disabled:cursor-not-allowed disabled:opacity-50"
-            aria-label="Alle Auswahlen aufheben"
-            title="Alle Auswahlen aufheben"
-          >
-            <RotateCcw className="size-4" aria-hidden="true" />
-          </button>
-        </div>
-
-        <div
-          ref={conditionsGridRef}
-          className="grid grid-cols-2 md:grid-cols-3 gap-2"
-        >
-          {PRE_EXISTING_CONDITIONS.map((condition, index) => {
-            const Icon =
-              conditionIcons[condition as keyof typeof conditionIcons] ??
-              CircleHelp;
-            const isSelected = formData.conditions.includes(condition);
-            const otherValue =
-              formData.conditionDetails?.Sonstige?.detail ?? "";
-            const config = CONDITION_DETAIL_CONFIGS[condition];
-            const detail = formData.conditionDetails?.[condition]?.detail ?? "";
-            const isOpen = expandedConditionDetails[condition] ?? false;
-            const opensUpward = true;
-
-            if (condition === "Sonstige") {
-              const isOtherOpen =
-                expandedConditionDetails.Sonstige ?? false;
-
-              return (
-                <div key={condition} className="relative">
-                  <div
-                    role="button"
-                    tabIndex={0}
-                    onClick={() => {
-                      if (otherValue.trim()) toggleConditionDropdown(condition);
-                    }}
-                    onKeyDown={(event) => {
-                      if (
-                        !otherValue.trim() ||
-                        (event.key !== "Enter" && event.key !== " ")
-                      ) {
-                        return;
-                      }
-                      event.preventDefault();
-                      toggleConditionDropdown(condition);
-                    }}
-                    className={`bg-[#eff2f6] rounded-[10px] p-2.5 min-h-[88px] flex flex-col justify-center gap-1.5 transition-all ${
-                      otherValue.trim() ? "ring-2 ring-[#486284]" : ""
-                    }`}
-                    aria-expanded={otherValue.trim() ? isOtherOpen : undefined}
-                  >
-                    <ChevronDown
-                      className={`absolute right-3 top-3 size-4 text-app-text-primary/60 transition-transform ${
-                        isOtherOpen ? "rotate-180" : ""
-                      } ${otherValue.trim() ? "" : "opacity-0"}`}
-                      aria-hidden="true"
-                    />
-                    <div className="flex items-center gap-2">
-                      <Icon
-                        className={`size-5 ${otherValue.trim() ? "text-app-text-primary" : "text-app-text-muted"}`}
-                        strokeWidth={2.2}
-                        aria-hidden="true"
-                      />
-                      <Label
-                        htmlFor="otherCondition"
-                        className="font-['DM_Sans:Bold',sans-serif] font-bold text-app-text-body text-xs leading-tight"
-                        style={{ fontVariationSettings: "'opsz' 14" }}
-                      >
-                        Sonstige
-                      </Label>
-                    </div>
-                    <div className="relative">
-                      <Input
-                        id="otherCondition"
-                        value={otherValue}
-                        onChange={(event) =>
-                          updateOtherCondition(event.target.value)
-                        }
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          setExpandedConditionDetails(
-                            otherValue.trim() ? { Sonstige: true } : {},
-                          );
-                        }}
-                        onFocus={() =>
-                          setExpandedConditionDetails(
-                            otherValue.trim() ? { Sonstige: true } : {},
-                          )
-                        }
-                        onKeyDown={(event) => event.stopPropagation()}
-                        placeholder="Freitext"
-                        className="h-8 border-none bg-white pr-8 text-xs"
-                      />
-                      {otherValue.trim() && (
-                        <button
-                          type="button"
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            clearOtherConditionSelection();
-                          }}
-                          className="absolute right-1 top-1/2 flex size-7 -translate-y-1/2 items-center justify-center rounded-[8px] text-red-600 transition-all hover:bg-[#eff2f6]"
-                          aria-label="Sonstige Angabe löschen"
-                          title="Sonstige Angabe löschen"
-                        >
-                          <X className="size-4" aria-hidden="true" />
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                  {otherValue.trim() && isOtherOpen && (
-                    <div
-                      className={`absolute z-10 left-0 right-0 max-h-[calc(100dvh-12rem)] overflow-y-auto rounded-[12px] border-2 border-[#486284] bg-white shadow-lg ${
-                        opensUpward ? "bottom-full mb-1" : "top-full mt-1"
-                      }`}
-                    >
-                      {renderConditionDurationField(condition)}
-                    </div>
-                  )}
-                </div>
-              );
-            }
-
-            return (
-              <div key={condition} className="relative">
-                {isSelected && (
-                  <button
-                    type="button"
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      clearConditionSelection(condition);
-                    }}
-                    className="absolute left-2 top-2 z-[1] flex size-7 items-center justify-center rounded-[8px] text-app-text-primary transition-all hover:bg-white"
-                    aria-label={`${condition} aufheben`}
-                    title={`${condition} aufheben`}
-                  >
-                    <X className="size-4 text-red-600" aria-hidden="true" />
-                  </button>
-                )}
-                <button
-                  type="button"
-                  onClick={() => toggleConditionSelection(condition)}
-                  className={`bg-[#eff2f6] rounded-[10px] p-3 min-h-[88px] w-full flex flex-col items-center justify-center gap-1.5 text-center transition-all ${
-                    isSelected ? "ring-2 ring-[#486284]" : "hover:bg-[#dde3ea]"
-                  }`}
-                  aria-expanded={isOpen}
-                >
-                  <ChevronDown
-                    className={`absolute right-3 top-3 size-4 text-app-text-primary/60 transition-transform ${
-                      isOpen ? "rotate-180" : ""
-                    }`}
-                    aria-hidden="true"
-                  />
-                  <Icon
-                    className={`size-6 ${isSelected ? "text-app-text-primary" : "text-app-text-muted"}`}
-                    strokeWidth={2.2}
-                    aria-hidden="true"
-                  />
-                  <p
-                    className="font-['DM_Sans:Bold',sans-serif] font-bold text-app-text-body text-xs leading-tight"
-                    style={{ fontVariationSettings: "'opsz' 14" }}
-                  >
-                    {condition}
-                  </p>
-                  {detail && (
-                    <p className="max-w-full whitespace-normal break-words text-xs font-medium leading-snug text-app-text-primary">
-                      {detail}
-                    </p>
-                  )}
-                </button>
-
-                {isOpen && config && (
-                  <div
-                    className={`absolute z-10 left-0 right-0 max-h-[calc(100dvh-12rem)] overflow-y-auto bg-white border-2 border-[#486284] rounded-[12px] shadow-lg ${
-                      opensUpward ? "bottom-full mb-1" : "top-full mt-1"
-                    }`}
-                  >
-                    {config.options.map((option) => (
-                      <button
-                        key={option}
-                        type="button"
-                        onClick={() => selectConditionDetail(condition, option)}
-                        className="flex w-full items-center justify-between gap-3 border-b border-gray-200 p-3 text-left transition-all last:border-b-0 hover:bg-[#eff2f6]"
-                        aria-pressed={detail === option}
-                      >
-                        <span className="font-['DM_Sans:Medium',sans-serif] font-medium text-sm text-app-text-body">
-                          {option}
-                        </span>
-                        {detail === option && (
-                          <Check
-                            className="size-5 shrink-0 text-app-text-primary"
-                            strokeWidth={3}
-                            aria-hidden="true"
-                          />
-                        )}
-                      </button>
-                    ))}
-                    {renderConditionDurationField(condition)}
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-        <div className="mt-4 flex justify-center lg:justify-end">
-          <Button onClick={handleContinue}>
-            <p
-              className="font-['DM_Sans:Bold',sans-serif] font-bold text-base"
-              style={{ fontVariationSettings: "'opsz' 14" }}
-            >
-              Weiter
-            </p>
-          </Button>
-        </div>
+        </Button>
       </div>
     </PageShell>
   );

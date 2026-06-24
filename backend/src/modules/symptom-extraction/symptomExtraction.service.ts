@@ -1,19 +1,26 @@
 import { requestStructuredAiResponse } from '../../ai/llmAdapter.js'
 import { isAiRequestError } from '../../ai/timeout.js'
 import { getPatientPlausibilityError } from '../../common/patientPlausibility.js'
-import type { SymptomExtractionResponse } from './symptomExtraction.types.js'
+import type { SymptomConsistencyResponse, SymptomExtractionResponse } from './symptomExtraction.types.js'
 import type { PatientData } from '../../../../shared/patientData.types.js'
 import type { SymptomInputType } from '../../../../shared/symptomExtraction.types.js'
 import {
+  getBodyLocationTaxonomy,
+  type BodyLocationId,
+} from '../../../../shared/symptomTaxonomy.js'
+import {
   type SymptomInputValidationResponse,
   symptomExtractionAiResultSchema,
+  symptomConsistencyAiResultSchema,
   symptomInputValidationAiResultSchema,
 } from './symptomExtraction.types.js'
 import {
   createSymptomExtractionPrompt,
+  createSymptomConsistencyPrompt,
   createSymptomDetailValidationPrompt,
   createSymptomValidationPrompt,
   symptomExtractionInstructions,
+  symptomConsistencyInstructions,
   symptomDetailValidationInstructions,
   symptomValidationInstructions,
 } from '../prompt/symptomExtraction.prompt.js'
@@ -32,6 +39,47 @@ function splitWords(text: string): string[] {
   return normalizeText(text)
     .split(/[^a-z0-9]+/)
     .filter((part) => part.length > 0)
+}
+
+// Add common German singular variants without maintaining a separate alias list.
+function addSingularVariants(aliases: Set<string>, value: string): void {
+  aliases.add(value)
+
+  if (value.endsWith('e') && value.length > 3) {
+    aliases.add(value.slice(0, -1))
+  }
+
+  if (value.endsWith('en') && value.length > 4) {
+    aliases.add(value.slice(0, -1))
+    aliases.add(value.slice(0, -2))
+  }
+}
+
+// Build all deterministic aliases from the shared taxonomy.
+const bodyLocationAliases = getBodyLocationTaxonomy().map(({ id, labels }) => {
+  const aliases = new Set<string>()
+
+  labels.forEach((label) => {
+    label.split('/').forEach((part) => {
+      const normalizedPart = normalizeText(part)
+
+      if (normalizedPart && !normalizedPart.includes(' ')) {
+        addSingularVariants(aliases, normalizedPart)
+      }
+    })
+  })
+
+  return { id, aliases: [...aliases] }
+})
+
+function extractExplicitBodyLocationIds(text: string): BodyLocationId[] {
+  const words = splitWords(text)
+
+  return bodyLocationAliases
+    .filter(({ aliases }) => aliases.some((alias) =>
+      words.some((word) => word === alias || (alias.length >= 4 && word.startsWith(alias))),
+    ))
+    .map(({ id }) => id)
 }
 
 /**
@@ -108,6 +156,109 @@ async function requestDetailValidationFromAi(text: string, inputType: SymptomInp
     temperature: 0,
     modelStrategy: 'fallback-only',
   })
+}
+
+async function requestSymptomConsistencyFromAi(input: {
+  region: string
+  side?: string
+  details?: string
+}) {
+  return requestStructuredAiResponse({
+    messages: [
+      { role: 'system', content: symptomConsistencyInstructions },
+      { role: 'user', content: createSymptomConsistencyPrompt(input) },
+    ],
+    schema: symptomConsistencyAiResultSchema,
+    schemaName: 'symptom_consistency_result',
+    temperature: 0,
+    modelStrategy: 'fallback-only',
+  })
+}
+
+export async function validateSymptomConsistency(
+  input: { region: string; side?: string; details?: string },
+): Promise<SymptomConsistencyResponse> {
+  const explicitSelectedLocationIds = extractExplicitBodyLocationIds(
+    [input.region, input.side].filter(Boolean).join(' '),
+  )
+  const explicitDetailLocationIds = extractExplicitBodyLocationIds(input.details ?? '')
+
+  // Exact matches are reliable enough to compare without an AI request.
+  if (explicitSelectedLocationIds.length > 0 && explicitDetailLocationIds.length > 0) {
+    const hasCompatibleLocation = explicitSelectedLocationIds.some((locationId) =>
+      explicitDetailLocationIds.includes(locationId),
+    )
+    const hasClearContradiction = !hasCompatibleLocation
+
+    return {
+      isRegionMeaningful: true,
+      hasClearContradiction,
+      selectedLocationIds: explicitSelectedLocationIds,
+      detailLocationIds: explicitDetailLocationIds,
+      selectedLocationConfidence: 'high',
+      detailLocationConfidence: 'high',
+      message: hasClearContradiction
+        ? 'Symptom/Region und Details nennen eindeutig unterschiedliche Körperbereiche.'
+        : undefined,
+    }
+  }
+
+  // Use the fallback model only when one side cannot be resolved deterministically.
+  try {
+    const result = await requestSymptomConsistencyFromAi(input)
+    const selectedLocationIds = explicitSelectedLocationIds.length > 0
+      ? explicitSelectedLocationIds
+      : [...new Set(result.selectedLocationIds)]
+    const detailLocationIds = explicitDetailLocationIds.length > 0
+      ? explicitDetailLocationIds
+      : [...new Set(result.detailLocationIds)]
+    const selectedLocationConfidence = explicitSelectedLocationIds.length > 0
+      ? 'high'
+      : result.selectedLocationConfidence
+    const detailLocationConfidence = explicitDetailLocationIds.length > 0
+      ? 'high'
+      : result.detailLocationConfidence
+    // Block only when both extracted locations are explicit and highly confident.
+    const hasHighConfidenceLocations =
+      selectedLocationConfidence === 'high' &&
+      detailLocationConfidence === 'high' &&
+      selectedLocationIds.length > 0 &&
+      detailLocationIds.length > 0
+    const hasCompatibleLocation = selectedLocationIds.some((locationId) =>
+      detailLocationIds.includes(locationId),
+    )
+    const hasClearContradiction = hasHighConfidenceLocations && !hasCompatibleLocation
+    const isValid = result.isRegionMeaningful && !hasClearContradiction
+    const message = !result.isRegionMeaningful
+      ? result.reason
+      : hasClearContradiction
+        ? 'Symptom/Region und Details nennen eindeutig unterschiedliche Körperbereiche.'
+        : undefined
+
+    return {
+      isRegionMeaningful: result.isRegionMeaningful,
+      hasClearContradiction,
+      selectedLocationIds,
+      detailLocationIds,
+      selectedLocationConfidence,
+      detailLocationConfidence,
+      message: isValid ? undefined : message,
+    }
+  } catch (error) {
+    if (!isAiRequestError(error)) {
+      throw error
+    }
+
+    return {
+      isRegionMeaningful: true,
+      hasClearContradiction: false,
+      selectedLocationIds: [],
+      detailLocationIds: [],
+      selectedLocationConfidence: 'none',
+      detailLocationConfidence: 'none',
+      aiUnavailable: true,
+    }
+  }
 }
 
 export async function validateSymptomInput(

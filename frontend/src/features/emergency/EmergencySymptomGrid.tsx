@@ -91,11 +91,11 @@ export default function EmergencySymptomGrid({ onSymptomClick, variant = "mobile
   // Desktop variant
   return (
     <div className="grid grid-cols-2 gap-3 mb-4">
-      {symptoms.slice(0, 5).map((symptom) => (
+      {symptoms.slice(0, 6).map((symptom) => (
         <button
           key={symptom.name}
           onClick={() => onSymptomClick(symptom)}
-          className="bg-[#eff2f6] rounded-[16px] p-3 min-h-[140px] flex items-start gap-3 hover:bg-[#dde3ea] transition-all"
+          className="bg-[#eff2f6] shadow-md rounded-[16px] p-3 min-h-[140px] flex items-start gap-3 hover:bg-[#dde3ea] transition-all"
         >
           <img
             alt=""
@@ -120,32 +120,6 @@ export default function EmergencySymptomGrid({ onSymptomClick, variant = "mobile
         </button>
       ))}
 
-      {/* Dedicated desktop layout for severe headache. */}
-      <button
-        onClick={() => onSymptomClick(severeHeadache)}
-        className="bg-[#eff2f6] rounded-[16px] p-3 min-h-[140px] flex items-start gap-3 hover:bg-[#dde3ea] transition-all"
-      >
-        <img
-          alt=""
-          className="size-20 flex-shrink-0 object-contain"
-          src={imgHeadache}
-          aria-hidden="true"
-        />
-        <div className="flex-1 text-left">
-          <p
-            className="font-['DM_Sans:Bold',sans-serif] font-bold text-app-text-body text-lg mb-1"
-            style={{ fontVariationSettings: "'opsz' 14" }}
-          >
-            Starke Kopfschmerzen
-          </p>
-          <p
-            className="font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-body text-sm leading-snug"
-            style={{ fontVariationSettings: "'opsz' 14" }}
-          >
-            Sehr starke, ungewohnte oder plötzlich einsetzende Kopfschmerzen. Besonders auffällig, wenn sie anders sind als sonst oder sehr heftig beginnen.
-          </p>
-        </div>
-      </button>
     </div>
   );
 }

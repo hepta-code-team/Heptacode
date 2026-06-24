@@ -84,18 +84,52 @@ function escapeRegExp(value: string): string {
  * Requires specialty wording to appear near an actual recommendation phrase.
  */
 function hasSpecialtyRecommendationContext(responseText: string, keyword: string): boolean {
-  const specialtyPattern = `(^|[^a-z])${escapeRegExp(keyword)}[a-z]*`
+  const specialtyPattern = new RegExp(
+    `(^|[^a-z])(${escapeRegExp(keyword)}[a-z]*)`,
+    'gi',
+  )
   const recommendationPattern = `(?:${SPECIALTY_RECOMMENDATION_KEYWORDS.join('|')})[a-z]*`
-  const beforeSpecialty = new RegExp(
-    `${recommendationPattern}[^.!?\\n]{0,60}${specialtyPattern}`,
+  const recommendationBefore = new RegExp(
+    `${recommendationPattern}[^.!?;\\n]{0,60}$`,
     'i',
   )
-  const afterSpecialty = new RegExp(
-    `${specialtyPattern}[^.!?\\n]{0,60}${recommendationPattern}`,
+  const recommendationAfter = new RegExp(
+    `^[^.!?;\\n]{0,60}${recommendationPattern}`,
     'i',
   )
+  let match: RegExpExecArray | null
 
-  return beforeSpecialty.test(responseText) || afterSpecialty.test(responseText)
+  while ((match = specialtyPattern.exec(responseText)) !== null) {
+    const boundaryLength = match[1]?.length ?? 0
+    const specialtyText = match[2] ?? ''
+    const specialtyIndex = match.index + boundaryLength
+    const beforeSpecialty = responseText.slice(
+      Math.max(0, specialtyIndex - 80),
+      specialtyIndex,
+    )
+    const afterSpecialty = responseText.slice(
+      specialtyIndex + specialtyText.length,
+      specialtyIndex + specialtyText.length + 80,
+    )
+    const negatedBefore =
+      /\b(?:kein[a-z]*|weder)\b[^.!?;\n]{0,75}$/i.test(beforeSpecialty)
+    const negatedAfter =
+      /^[^.!?;\n]{0,50}\b(?:nicht|kein[a-z]*)\b[^.!?;\n]{0,30}\b(?:indiziert|erforderlich|notwendig|empfohlen|angezeigt|vorgesehen)\b/i
+        .test(afterSpecialty)
+
+    if (
+      !negatedBefore &&
+      !negatedAfter &&
+      (
+        recommendationBefore.test(beforeSpecialty) ||
+        recommendationAfter.test(afterSpecialty)
+      )
+    ) {
+      return true
+    }
+  }
+
+  return false
 }
 
 function findRecommendedSpecialties(response: PlausibilityTriageResponse): MedicalSpecialty[] {
@@ -137,6 +171,81 @@ function getComparableMeasurementValue(symptom: TriageSymptom): number {
 }
 
 /**
+ * Detects a warning term only when its local sentence context does not negate it.
+ */
+function hasAffirmedWarningTerm(text: string, terms: string[]): boolean {
+  return terms.some((term) => {
+    let searchIndex = 0
+
+    while (searchIndex < text.length) {
+      const termIndex = text.indexOf(term, searchIndex)
+
+      if (termIndex === -1) {
+        return false
+      }
+
+      const beforeTerm = text.slice(Math.max(0, termIndex - 40), termIndex)
+      const afterTerm = text.slice(termIndex + term.length, termIndex + term.length + 32)
+      const negatedBefore = /\b(?:kein[a-z]*|ohne|weder)\b[^.!?,;]{0,35}$/i.test(beforeTerm)
+      const negatedAfter =
+        /^[^.!?,;]{0,24}\b(?:besteht|ist|liegt|tritt|vorhanden|war)\b[^.!?,;]{0,12}\bnicht\b/i
+          .test(afterTerm) ||
+        /^[^.!?,;]{0,12}\bnicht mehr\b/i.test(afterTerm)
+
+      if (!negatedBefore && !negatedAfter) {
+        return true
+      }
+
+      searchIndex = termIndex + term.length
+    }
+
+    return false
+  })
+}
+
+/**
+ * Keeps transient focal neurological deficits urgent even after they resolve.
+ */
+function hasTransientNeurologicalWarningPattern(text: string): boolean {
+  const hasNeurologicalDeficit = [
+    'sprach',
+    'laehmung',
+    'lahmung',
+    'halbseit',
+    'schwaeche',
+    'schwache',
+  ].some((term) => text.includes(term))
+  const hasTransientCourse = [
+    'vorubergehend',
+    'kurzzeitig',
+    'inzwischen',
+    'abgeklungen',
+    'verschwunden',
+    'wieder normal',
+    'nicht mehr',
+  ].some((term) => text.includes(term))
+
+  return hasNeurologicalDeficit && hasTransientCourse
+}
+
+/**
+ * Detects descriptions of a seizure continuing beyond the five-minute threshold.
+ */
+function hasProlongedSeizurePattern(text: string): boolean {
+  const hasSeizure = [
+    'krampfanfall',
+    'epileptischer anfall',
+    'konvulsion',
+  ].some((term) => text.includes(term))
+  const hasProlongedCourse =
+    /\bseit\b[^.!?,;]{0,20}\b(?:5|funf|6|sechs|7|sieben|8|acht|9|neun|10|zehn)\b[^.!?,;]{0,10}\bminut/.test(text) ||
+    /\b(?:langer|mehr)\s+als\s+(?:5|funf)\b[^.!?,;]{0,10}\bminut/.test(text) ||
+    /\b(?:anhaltend|halt[^.!?,;]{0,12}\ban)\b/.test(text)
+
+  return hasSeizure && hasProlongedCourse
+}
+
+/**
  * Detects high-risk symptom patterns that should not be classified as self-care.
  */
 export function hasEmergencyTriagePattern(symptom: TriageSymptom): boolean {
@@ -147,31 +256,37 @@ export function hasEmergencyTriagePattern(symptom: TriageSymptom): boolean {
   const measurementValue = getComparableMeasurementValue(symptom)
 
   if (
-    combinedText.includes('suizid') ||
-    combinedText.includes('selbstverletz') ||
-    combinedText.includes('selbsttoet') ||
-    combinedText.includes('selbsttot')
+    hasTransientNeurologicalWarningPattern(combinedText) ||
+    hasProlongedSeizurePattern(combinedText)
   ) {
     return true
   }
 
-  if (
-    combinedText.includes('verwirr') ||
-    combinedText.includes('sprach') ||
-    combinedText.includes('laehmung') ||
-    combinedText.includes('lahmung') ||
-    combinedText.includes('halbseit') ||
-    combinedText.includes('schwaeche') ||
-    combinedText.includes('schwache')
-  ) {
+  if (hasAffirmedWarningTerm(combinedText, [
+    'suizid',
+    'selbstverletz',
+    'selbsttoet',
+    'selbsttot',
+  ])) {
+    return true
+  }
+
+  if (hasAffirmedWarningTerm(combinedText, [
+    'verwirr',
+    'sprach',
+    'laehmung',
+    'lahmung',
+    'halbseit',
+    'schwaeche',
+    'schwache',
+  ])) {
     return true
   }
 
   if (
-    combinedText.includes('anaphylax') ||
-    combinedText.includes('allergische reaktion') ||
-    ((combinedText.includes('zunge') || combinedText.includes('hals') || combinedText.includes('gesicht')) &&
-      (combinedText.includes('schwell') || combinedText.includes('schwill') || combinedText.includes('zugeschwollen')))
+    hasAffirmedWarningTerm(combinedText, ['anaphylax', 'allergische reaktion']) ||
+    (hasAffirmedWarningTerm(combinedText, ['zunge', 'hals', 'gesicht']) &&
+      hasAffirmedWarningTerm(combinedText, ['schwell', 'schwill', 'zugeschwollen']))
   ) {
     return true
   }
@@ -182,27 +297,28 @@ export function hasEmergencyTriagePattern(symptom: TriageSymptom): boolean {
       side.includes('links') ||
       side.includes('brustmitte') ||
       side.includes('atem') ||
-      details.includes('atemnot') ||
-      details.includes('luftnot')
+      hasAffirmedWarningTerm(details, ['atemnot', 'luftnot'])
     )
   }
 
   return (
     measurementValue >= 8 ||
-    combinedText.includes('atemnot') ||
-    combinedText.includes('luftnot') ||
-    combinedText.includes('bewusstlos') ||
-    combinedText.includes('starke blutung') ||
-    combinedText.includes('blutet stark') ||
-    combinedText.includes('viel blut') ||
-    combinedText.includes('starker blutverlust') ||
-    combinedText.includes('blutiges erbrechen') ||
-    combinedText.includes('bluterbrechen') ||
-    combinedText.includes('kaffeesatz') ||
-    combinedText.includes('bluthusten') ||
-    combinedText.includes('blutiger auswurf') ||
-    combinedText.includes('schwarzer stuhl') ||
-    combinedText.includes('teerstuhl')
+    hasAffirmedWarningTerm(combinedText, [
+      'atemnot',
+      'luftnot',
+      'bewusstlos',
+      'starke blutung',
+      'blutet stark',
+      'viel blut',
+      'starker blutverlust',
+      'blutiges erbrechen',
+      'bluterbrechen',
+      'kaffeesatz',
+      'bluthusten',
+      'blutiger auswurf',
+      'schwarzer stuhl',
+      'teerstuhl',
+    ])
   )
 }
 

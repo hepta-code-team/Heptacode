@@ -25,6 +25,7 @@ export interface SymptomDraft extends TriageSymptom {
   measurementType: SymptomMeasurementType;
   measurementValue: number;
   isNameEditable?: boolean;
+  isExtractedFromFreeText?: boolean;
   sourceText?: string;
   originalRegion?: string;
   originalSide?: string;
