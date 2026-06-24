@@ -358,7 +358,7 @@ function AcuteEmergencySummaryFlow({
         specialties={["emergency_medicine"]}
       />
 
-      <div className="mt-6 mb-6">
+      <div className="mt-6 mb-6 flex justify-end">
         <Button onClick={onReset}>
           <p className="font-['DM_Sans:Bold',sans-serif] font-bold text-base">
             Neue Bewertung starten
