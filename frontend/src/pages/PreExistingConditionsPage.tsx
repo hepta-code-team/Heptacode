@@ -538,7 +538,7 @@ export default function PreExistingConditionsPage() {
                       event.preventDefault();
                       toggleConditionDropdown(condition);
                     }}
-                    className={`shadow-md bg-[#eff2f6] rounded-[10px] p-2.5 h-16 sm:h-[88px] flex flex-col justify-center gap-1.5 transition-all ${
+                    className={`shadow-md bg-[#eff2f6] rounded-[10px] p-2.5 h-[80px] flex flex-col justify-center gap-1.5 transition-all ${
                       otherValue.trim() ? "ring-2 ring-[#486284]" : ""
                     }`}
                     aria-expanded={otherValue.trim() ? isOtherOpen : undefined}
@@ -633,9 +633,9 @@ export default function PreExistingConditionsPage() {
                 <button
                   type="button"
                   onClick={() => toggleConditionSelection(condition)}
-                  className={`shadow-md bg-[#eff2f6] rounded-[10px] p-3 h-16 sm:h-[88px] w-full flex flex-row sm:flex-col items-center justify-start sm:justify-center gap-3 sm:gap-1.5 text-left sm:text-center transition-all ${
+                  className={`shadow-md bg-[#eff2f6] rounded-[10px] p-3 h-[80px] w-full flex flex-col items-center justify-center gap-1.5 text-center transition-all ${
                     isSelected
-                      ? "pl-11 ring-2 ring-[#486284] sm:pl-3"
+                      ? "ring-2 ring-[#486284]"
                       : "hover:bg-[#dde3ea]"
                   }`}
                   aria-expanded={isOpen}
@@ -653,7 +653,7 @@ export default function PreExistingConditionsPage() {
                         strokeWidth={2.2}
                         aria-hidden="true"
                       />
-                      <span className="flex max-w-full min-w-0 flex-col items-start sm:items-center justify-center pr-8 sm:px-8 text-left sm:text-center">
+                      <span className="flex max-w-full min-w-0 flex-col items-center justify-center px-8 text-center">
                         <span
                           className="max-w-full truncate font-['DM_Sans:Bold',sans-serif] text-xs font-bold leading-tight text-app-text-body"
                           style={{ fontVariationSettings: "'opsz' 14" }}
@@ -666,7 +666,7 @@ export default function PreExistingConditionsPage() {
                       </span>
                     </>
                   ) : (
-                    <span className="flex min-w-0 flex-row sm:flex-col items-center gap-3 sm:gap-2">
+                    <span className="flex min-w-0 flex-col items-center gap-2">
                       <Icon
                         className={`size-6 ${isSelected ? "text-app-text-primary" : "text-app-text-muted"}`}
                         strokeWidth={2.2}
