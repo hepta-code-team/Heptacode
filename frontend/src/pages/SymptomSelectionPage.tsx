@@ -1105,7 +1105,7 @@ export default function SymptomSelectionPage() {
               />
             </>
           ) : (
-            <div className="flex min-h-[220px] items-center justify-center rounded-[18px] border-2 border-dashed border-[#cfd5dd] bg-[#f5f7fa] p-6 text-center">
+            <div className="shadow-md flex min-h-[220px] items-center justify-center rounded-[18px] border-2 border-dashed border-[#cfd5dd] bg-[#f5f7fa] p-6 text-center">
               <p
                 className="max-w-md font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-primary text-sm leading-relaxed"
                 style={{ fontVariationSettings: "'opsz' 14" }}
