@@ -629,6 +629,31 @@ describe('getTriageAiPlausibilityIssues', () => {
     expect(issues).toEqual([])
   })
 
+  /** Emergency responses may name the required specialty context without becoming specialist. */
+  it('akzeptiert Emergency bei Suizidgedanken mit psychiatrischer Notfallversorgung im Text', () => {
+    const issues = getTriageAiPlausibilityIssues(
+      {
+        careLevel: 'emergency',
+        reasons: ['Akute Suizidgefahr erfordert sofortige psychiatrische Notfallversorgung.'],
+        reviewSummary: {
+          plainLanguage: 'Bitte suchen Sie sofort psychiatrische Notfallhilfe.',
+          professionalSummary: 'Care Level: emergency wegen akuter Eigengefährdung.',
+        },
+      },
+      [
+        {
+          region: 'Psychische Probleme',
+          side: 'Suizidgedanken',
+          details: 'Konkrete Suizidabsicht mit Plan',
+          measurementType: 'severity',
+          measurementValue: 9,
+        },
+      ],
+    )
+
+    expect(issues).toEqual([])
+  })
+
   /** Pain below the emergency threshold should remain compatible with doctor-level care. */
   it('akzeptiert Doctor bei Schmerzstärke 7 ohne Warnzeichen als plausibel', () => {
     const issues = getTriageAiPlausibilityIssues(

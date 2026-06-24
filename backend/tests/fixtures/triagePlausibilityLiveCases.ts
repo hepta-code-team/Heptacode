@@ -7,6 +7,7 @@ import type {
 /** Evaluation groups used for category-specific live accuracy rates. */
 export const TRIAGE_PLAUSIBILITY_CATEGORIES = [
   'emergency',
+  'specialist',
   'doctor',
   'selfcare',
   'false_positive',
@@ -315,23 +316,6 @@ export const TRIAGE_PLAUSIBILITY_LIVE_CASES: TriagePlausibilityLiveCase[] = [
     ],
   },
   {
-    id: 'emergency-diabetes-infection-vomiting',
-    name: 'Diabetes mit Infekt und Erbrechen',
-    category: 'emergency',
-    expectedCareLevel: 'emergency',
-    patientData: diabeticPatientData,
-    symptoms: [
-      {
-        region: 'Allgemein',
-        side: 'Fieber',
-        details: 'Fieberhafter Infekt mit wiederholtem Erbrechen, starkem Durst und häufigem Wasserlassen; Flüssigkeit bleibt kaum drin',
-        measurementType: 'temperature',
-        measurementValue: 39.4,
-        duration: 'today',
-      },
-    ],
-  },
-  {
     id: 'emergency-pregnancy-preeclampsia-signs',
     name: 'Schwangerschaft mit Präeklampsie-Warnzeichen',
     category: 'emergency',
@@ -368,12 +352,12 @@ export const TRIAGE_PLAUSIBILITY_LIVE_CASES: TriagePlausibilityLiveCase[] = [
       },
     ],
   },
-  // Doctor-level cases.
+  // Specialist-level cases.
   {
-    id: 'doctor-immunosuppression-fever',
+    id: 'specialist-immunosuppression-fever',
     name: 'Immunsuppression mit Fieber',
-    category: 'doctor',
-    expectedCareLevel: 'doctor',
+    category: 'specialist',
+    expectedCareLevel: 'specialist',
     patientData: immunosuppressedPatientData,
     symptoms: [
       {
@@ -387,6 +371,40 @@ export const TRIAGE_PLAUSIBILITY_LIVE_CASES: TriagePlausibilityLiveCase[] = [
     ],
   },
   {
+    id: 'specialist-diabetes-infection-vomiting',
+    name: 'Diabetes mit Infekt und Erbrechen',
+    category: 'specialist',
+    expectedCareLevel: 'specialist',
+    patientData: diabeticPatientData,
+    symptoms: [
+      {
+        region: 'Allgemein',
+        side: 'Fieber',
+        details: 'Fieberhafter Infekt mit wiederholtem Erbrechen, starkem Durst und häufigem Wasserlassen; Flüssigkeit bleibt kaum drin',
+        measurementType: 'temperature',
+        measurementValue: 39.4,
+        duration: 'today',
+      },
+    ],
+  },
+  {
+    id: 'specialist-nonspecific-abdominal-pain',
+    name: 'Unspezifische Bauchbeschwerden',
+    category: 'specialist',
+    expectedCareLevel: 'specialist',
+    patientData: adultPatientData,
+    symptoms: [
+      {
+        region: 'Allgemein',
+        details: 'Diffuse Bauchbeschwerden mit leichter Uebelkeit seit drei Tagen, keine Blutung und kein Fieber',
+        measurementType: 'severity',
+        measurementValue: 5,
+        duration: 'days',
+      },
+    ],
+  },
+  // Doctor-level cases.
+  {
     id: 'doctor-febrile-infection',
     name: 'Fieberhafter Infekt ohne Warnzeichen',
     category: 'doctor',
@@ -399,22 +417,6 @@ export const TRIAGE_PLAUSIBILITY_LIVE_CASES: TriagePlausibilityLiveCase[] = [
         details: 'Fieber und Gliederschmerzen seit zwei Tagen, wach und ansprechbar, keine Atemnot',
         measurementType: 'temperature',
         measurementValue: 39.2,
-        duration: 'days',
-      },
-    ],
-  },
-  {
-    id: 'doctor-nonspecific-abdominal-pain',
-    name: 'Unspezifische Bauchbeschwerden',
-    category: 'doctor',
-    expectedCareLevel: 'doctor',
-    patientData: adultPatientData,
-    symptoms: [
-      {
-        region: 'Allgemein',
-        details: 'Diffuse Bauchbeschwerden mit leichter Uebelkeit seit drei Tagen, keine Blutung und kein Fieber',
-        measurementType: 'severity',
-        measurementValue: 5,
         duration: 'days',
       },
     ],

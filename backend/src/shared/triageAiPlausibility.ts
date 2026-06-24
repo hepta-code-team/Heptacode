@@ -500,6 +500,7 @@ export function getTriageAiPlausibilityIssues(
 
   if (
     response.careLevel !== 'specialist' &&
+    response.careLevel !== 'emergency' &&
     recommendedSpecialties.length > 0
   ) {
     issues.push('Wenn eine Fachrichtung genannt wird, muss diese auch als Empfehlung eingestuft werden.')
