@@ -332,23 +332,6 @@ export const TRIAGE_PLAUSIBILITY_LIVE_CASES: TriagePlausibilityLiveCase[] = [
     ],
   },
   {
-    id: 'emergency-immunosuppression-fever',
-    name: 'Immunsuppression mit Fieber',
-    category: 'emergency',
-    expectedCareLevel: 'emergency',
-    patientData: immunosuppressedPatientData,
-    symptoms: [
-      {
-        region: 'Allgemein',
-        side: 'Fieber',
-        details: 'Fieber, Schüttelfrost und deutliches Krankheitsgefühl unter laufender Prednisolon-Therapie',
-        measurementType: 'temperature',
-        measurementValue: 39.1,
-        duration: 'today',
-      },
-    ],
-  },
-  {
     id: 'emergency-pregnancy-preeclampsia-signs',
     name: 'Schwangerschaft mit Präeklampsie-Warnzeichen',
     category: 'emergency',
@@ -386,6 +369,23 @@ export const TRIAGE_PLAUSIBILITY_LIVE_CASES: TriagePlausibilityLiveCase[] = [
     ],
   },
   // Doctor-level cases.
+  {
+    id: 'doctor-immunosuppression-fever',
+    name: 'Immunsuppression mit Fieber',
+    category: 'doctor',
+    expectedCareLevel: 'doctor',
+    patientData: immunosuppressedPatientData,
+    symptoms: [
+      {
+        region: 'Allgemein',
+        side: 'Fieber',
+        details: 'Fieber, Schüttelfrost und deutliches Krankheitsgefühl unter laufender Prednisolon-Therapie',
+        measurementType: 'temperature',
+        measurementValue: 39.1,
+        duration: 'today',
+      },
+    ],
+  },
   {
     id: 'doctor-febrile-infection',
     name: 'Fieberhafter Infekt ohne Warnzeichen',
