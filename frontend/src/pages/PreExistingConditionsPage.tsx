@@ -538,7 +538,7 @@ export default function PreExistingConditionsPage() {
                       event.preventDefault();
                       toggleConditionDropdown(condition);
                     }}
-                    className={`shadow-md bg-[#eff2f6] rounded-[10px] p-2.5 h-[80px] flex flex-col justify-center gap-1.5 transition-all ${
+                    className={`shadow-md bg-[#eff2f6] rounded-[10px] p-2.5 h-[80px] sm:h-[88px] flex flex-col justify-center gap-1.5 transition-all ${
                       otherValue.trim() ? "ring-2 ring-[#486284]" : ""
                     }`}
                     aria-expanded={otherValue.trim() ? isOtherOpen : undefined}
@@ -633,7 +633,7 @@ export default function PreExistingConditionsPage() {
                 <button
                   type="button"
                   onClick={() => toggleConditionSelection(condition)}
-                  className={`shadow-md bg-[#eff2f6] rounded-[10px] p-3 h-[80px] w-full flex flex-col items-center justify-center gap-1.5 text-center transition-all ${
+                  className={`shadow-md bg-[#eff2f6] rounded-[10px] p-3 h-[80px] sm:h-[88px] w-full flex flex-col items-center justify-center gap-1.5 text-center transition-all ${
                     isSelected
                       ? "ring-2 ring-[#486284]"
                       : "hover:bg-[#dde3ea]"
