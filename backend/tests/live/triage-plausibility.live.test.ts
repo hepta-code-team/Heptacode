@@ -13,6 +13,14 @@ import {
 /** Live AI evaluations are opt-in because they call an external model. */
 const runLiveAiEval = process.env.RUN_AI_TRIAGE_EVAL === 'true' || process.env.RUN_AI_TRIAGE_EVAL === '1'
 const itLive = runLiveAiEval ? it : it.skip
+const selectedCaseId = process.env.TRIAGE_LIVE_CASE_ID?.trim()
+const selectedLiveCases = selectedCaseId
+  ? TRIAGE_PLAUSIBILITY_LIVE_CASES.filter((testCase) => testCase.id === selectedCaseId)
+  : TRIAGE_PLAUSIBILITY_LIVE_CASES
+const hasInvalidSelectedCaseId = selectedCaseId !== undefined && selectedLiveCases.length === 0
+const liveCasesToEvaluate = hasInvalidSelectedCaseId
+  ? TRIAGE_PLAUSIBILITY_LIVE_CASES.slice(0, 1)
+  : selectedLiveCases
 
 /** Captures one evaluated case for the final accuracy report. */
 type EvaluationResult = {
@@ -122,7 +130,11 @@ describe('live AI triage plausibility evaluation', () => {
       return
     }
 
-    const firstCase = TRIAGE_PLAUSIBILITY_LIVE_CASES[0]
+    if (hasInvalidSelectedCaseId) {
+      throw new Error(`No live AI triage plausibility case found for TRIAGE_LIVE_CASE_ID=${selectedCaseId}`)
+    }
+
+    const firstCase = liveCasesToEvaluate[0]
 
     if (!firstCase) {
       throw new Error('No live AI triage plausibility cases configured')
@@ -148,7 +160,7 @@ describe('live AI triage plausibility evaluation', () => {
   })
 
   /** Each case should be classified by the AI without a local availability or plausibility fallback. */
-  itLive.each(TRIAGE_PLAUSIBILITY_LIVE_CASES)(
+  itLive.each(liveCasesToEvaluate)(
     'ordnet $category: $name korrekt zu',
     async ({ id, name, category, expectedCareLevel, patientData, symptoms }) => {
       try {
