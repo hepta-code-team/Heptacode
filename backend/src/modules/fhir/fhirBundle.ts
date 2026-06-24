@@ -374,6 +374,7 @@ export function summarizeFhirBundleForLog(bundle: fhir4.Bundle): FhirBundleLogSu
 }
 
 // Development/debug output: this contains clinical content and should not be used for production logs.
+// this is for showcase purposes only
 export function formatFhirBundleForDebugLog(bundle: fhir4.Bundle): string {
   const summary = summarizeFhirBundleForLog(bundle)
 
