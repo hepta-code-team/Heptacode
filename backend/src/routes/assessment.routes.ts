@@ -3,6 +3,7 @@ import { evaluateAssessmentWithAi } from '../modules/assessment/assessment.servi
 import { assessmentPayloadSchema } from '../modules/assessment/assessment.types.js'
 import {
   buildFhirBundle,
+  formatFhirBundleForDebugLog,
   summarizeFhirBundleForLog,
 } from '../modules/fhir/fhirBundle.js'
 
@@ -33,6 +34,7 @@ export const assessmentRoutes: FastifyPluginAsync = async (app) => {
       { fhirBundle: summarizeFhirBundleForLog(fhirBundle) },
       'FHIR bundle generated for assessment',
     )
+    console.info(formatFhirBundleForDebugLog(fhirBundle))
 
     void reply.send(result)
   })
