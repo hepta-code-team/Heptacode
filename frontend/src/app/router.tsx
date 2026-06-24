@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { Navigate, Outlet, createBrowserRouter, useLocation, useNavigate } from "react-router";
+import { Navigate, Outlet, createBrowserRouter, useLocation } from "react-router";
 import type { ReactElement } from "react";
 import LandingPage from "../pages/LandingPage";
 import PatientDataPage from "../pages/PatientDataPage";
@@ -13,7 +13,7 @@ import { isValidPatientData } from "../lib/assessmentValidation";
 import Modal from "../components/Modal";
 
 function AssessmentExpiryRoute() {
-  const navigate = useNavigate();
+  const location = useLocation();
   const {
     expiryWarningSecondsRemaining,
     hasAssessmentExpired,
@@ -22,16 +22,15 @@ function AssessmentExpiryRoute() {
   } = useAssessment();
 
   useEffect(() => {
-    if (!hasAssessmentExpired) {
+    if (!hasAssessmentExpired || location.pathname !== "/") {
       return;
     }
 
-    navigate("/", { replace: true });
     acknowledgeAssessmentExpiry();
-  }, [acknowledgeAssessmentExpiry, hasAssessmentExpired, navigate]);
+  }, [acknowledgeAssessmentExpiry, hasAssessmentExpired, location.pathname]);
 
-  if (hasAssessmentExpired) {
-    return null;
+  if (hasAssessmentExpired && location.pathname !== "/") {
+    return <Navigate to="/" replace />;
   }
 
   return (
