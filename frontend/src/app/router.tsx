@@ -33,6 +33,10 @@ function AssessmentExpiryRoute() {
     setShouldReturnHome(false);
   }, [acknowledgeAssessmentExpiry, location.pathname, shouldRedirectHome]);
 
+  const handleKeepSession = () => {
+    refreshAssessmentExpiry();
+  };
+
   const handleEndSession = () => {
     resetAssessment();
     setShouldReturnHome(true);
@@ -62,7 +66,7 @@ function AssessmentExpiryRoute() {
           <div className="flex flex-col gap-3">
             <button
               type="button"
-              onClick={refreshAssessmentExpiry}
+              onClick={handleKeepSession}
               className="inline-flex min-h-[56px] w-full items-center justify-center rounded-[18px] bg-[#2f3e68] px-5 py-3 font-['DM_Sans:Bold',sans-serif] text-base font-bold text-white shadow-sm transition-all hover:bg-[#263457] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2f3e68]/40"
             >
               Sitzung behalten

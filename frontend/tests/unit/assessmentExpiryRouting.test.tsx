@@ -1,4 +1,4 @@
-import { act, render } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { PatientData } from '../../src/types/assessment';
 
@@ -80,5 +80,32 @@ describe('assessment expiry routing', () => {
     });
 
     expect(window.location.pathname).toBe('/');
+  });
+
+  it('keeps the current assessment when the keep-session button is clicked', async () => {
+    vi.useFakeTimers();
+    window.scrollTo = vi.fn();
+    window.history.pushState({}, '', '/patient-data');
+    storeActiveAssessment();
+
+    const { default: App } = await import('../../src/app/App');
+
+    render(<App />);
+
+    await act(async () => {
+      vi.advanceTimersByTime(ASSESSMENT_STORAGE_TTL_MS - 30_000);
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Sitzung behalten' }));
+
+    expect(window.location.pathname).toBe('/patient-data');
+    expect(screen.queryByRole('button', { name: 'Sitzung behalten' })).not.toBeInTheDocument();
+    expect(window.sessionStorage.getItem(ASSESSMENT_STORAGE_KEY)).not.toBeNull();
+
+    await act(async () => {
+      vi.advanceTimersByTime(30_000);
+    });
+
+    expect(window.location.pathname).toBe('/patient-data');
   });
 });

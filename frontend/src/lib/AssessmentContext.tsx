@@ -5,7 +5,7 @@ import { apiClient } from "./apiClient";
 import { hasCompleteSymptomDetails, hasRequiredSymptoms, isValidPatientData } from "./assessmentValidation";
 
 const ASSESSMENT_STORAGE_KEY = "heptacheck.assessment.v1";
-const ASSESSMENT_STORAGE_TTL_MS = 60 * 1000;
+const ASSESSMENT_STORAGE_TTL_MS = 10 * 60 * 1000;
 const ASSESSMENT_EXPIRY_WARNING_MS = 30 * 1000;
 
 interface PersistedAssessmentState {
