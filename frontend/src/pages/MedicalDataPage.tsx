@@ -335,7 +335,7 @@ export default function MedicalDataPage() {
             onToggle={() => toggleMedicalSection("substance")}
             summary={
               formData.substanceInfluence === "Nein"
-                ? "Nein ausgewählt"
+                ? "Optional ergänzen"
                 : formData.substanceInfluence
             }
             isCompleted={formData.substanceInfluence !== "Nein"}
@@ -366,7 +366,7 @@ export default function MedicalDataPage() {
             summary={
               formData.recentAbroad
                 ? formData.recentAbroadDetails || "Ja ausgewählt"
-                : "Nein ausgewählt"
+                : "Optional ergänzen"
             }
             isCompleted={formData.recentAbroad}
           >
@@ -421,7 +421,7 @@ export default function MedicalDataPage() {
           onToggle={() => toggleMedicalSection("smoking")}
           summary={
             smokingStatus === "Nein"
-              ? "Optional, aber hilfreich für Atem-, Herz- und Gefäßbeschwerden."
+              ? "Optional ergänzen"
               : smokingStatus === "Gelegentlich"
                 ? "Gelegentlich ausgewählt"
                 : "Ja ausgewählt"
