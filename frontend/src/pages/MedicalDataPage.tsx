@@ -28,10 +28,9 @@ import { useAssessment } from "../lib/AssessmentContext";
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
 import { PRE_EXISTING_CONDITIONS } from "../features/symptoms/symptoms.constants";
-import type { PatientData } from "../../../shared/patientData.types";
+import type { PatientData, SmokingStatus } from "../../../shared/patientData.types";
 
 type MedicalSection = "allergies" | "medications" | "substance" | "abroad";
-type SmokingStatus = "Nein" | "Gelegentlich" | "Ja";
 
 const conditionIcons = {
   Diabetes: Droplets,
@@ -134,12 +133,17 @@ const createInitialPatientData = (
   recentAbroad: false,
   recentAbroadDetails: "",
   conditions: [],
+  smokingStatus: "Nein",
   isSmoker: false,
   smokingSinceYears: "",
   cigarettesPerDay: "",
   conditionDetails: {},
   ...patientData,
 });
+
+function getSmokingStatus(patientData?: Partial<PatientData>): SmokingStatus {
+  return patientData?.smokingStatus ?? (patientData?.isSmoker ? "Ja" : "Nein");
+}
 
 /**
  * Reusable disclosure panel for optional medical sections.
@@ -256,7 +260,7 @@ export default function MedicalDataPage() {
     createInitialPatientData(patientData ?? undefined),
   );
   const [smokingStatus, setSmokingStatus] = useState<SmokingStatus>(() =>
-    patientData?.isSmoker ? "Ja" : "Nein",
+    getSmokingStatus(patientData ?? undefined),
   );
   const [expandedMedicalSections, setExpandedMedicalSections] = useState<
     Record<MedicalSection, boolean>
@@ -743,6 +747,7 @@ export default function MedicalDataPage() {
                 setSmokingStatus(status);
                 setFormData({
                   ...formData,
+                  smokingStatus: status,
                   isSmoker: status !== "Nein",
                   smokingSinceYears:
                     status === "Nein" ? "" : formData.smokingSinceYears,
