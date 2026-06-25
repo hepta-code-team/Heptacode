@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Navigate, Outlet, createBrowserRouter, useLocation } from "react-router";
 import type { ReactElement } from "react";
 import LandingPage from "../pages/LandingPage";
@@ -14,22 +14,31 @@ import Modal from "../components/Modal";
 
 function AssessmentExpiryRoute() {
   const location = useLocation();
+  const [shouldReturnHome, setShouldReturnHome] = useState(false);
   const {
     expiryWarningSecondsRemaining,
     hasAssessmentExpired,
+    resetAssessment,
     refreshAssessmentExpiry,
     acknowledgeAssessmentExpiry,
   } = useAssessment();
+  const shouldRedirectHome = hasAssessmentExpired || shouldReturnHome;
 
   useEffect(() => {
-    if (!hasAssessmentExpired || location.pathname !== "/") {
+    if (!shouldRedirectHome || location.pathname !== "/") {
       return;
     }
 
     acknowledgeAssessmentExpiry();
-  }, [acknowledgeAssessmentExpiry, hasAssessmentExpired, location.pathname]);
+    setShouldReturnHome(false);
+  }, [acknowledgeAssessmentExpiry, location.pathname, shouldRedirectHome]);
 
-  if (hasAssessmentExpired && location.pathname !== "/") {
+  const handleEndSession = () => {
+    resetAssessment();
+    setShouldReturnHome(true);
+  };
+
+  if (shouldRedirectHome && location.pathname !== "/") {
     return <Navigate to="/" replace />;
   }
 
@@ -40,20 +49,32 @@ function AssessmentExpiryRoute() {
         isOpen={expiryWarningSecondsRemaining !== null}
         onClose={refreshAssessmentExpiry}
         title="Sitzung läuft ab"
-        subtitle="Ihre Angaben werden aus Datenschutzgründen gleich gelöscht."
+        subtitle="Ihre Angaben werden aus Datenschutzgründen automatisch in Kürze gelöscht."
         maxWidth="max-w-sm"
-        showCloseButton
       >
         <div className="text-center">
           <div
-            className="mx-auto mb-4 flex size-20 items-center justify-center rounded-full bg-[#FEF3C7] font-['DM_Sans:Bold',sans-serif] text-3xl font-bold text-app-text-warning"
+            className="mx-auto mb-6 flex size-20 items-center justify-center rounded-full bg-[#FEF3C7] font-['DM_Sans:Bold',sans-serif] text-3xl font-bold text-app-text-warning"
             aria-live="polite"
           >
             {expiryWarningSecondsRemaining ?? 0}
           </div>
-          <p className="font-['DM_Sans:Medium',sans-serif] text-sm font-medium leading-relaxed text-app-text-body">
-            Schließen Sie dieses Fenster, um den Timer zurückzusetzen. Nach Ablauf werden die Daten gelöscht und Sie kommen zurück zur Startseite.
-          </p>
+          <div className="flex flex-col gap-3">
+            <button
+              type="button"
+              onClick={refreshAssessmentExpiry}
+              className="inline-flex min-h-[56px] w-full items-center justify-center rounded-[18px] bg-[#2f3e68] px-5 py-3 font-['DM_Sans:Bold',sans-serif] text-base font-bold text-white shadow-sm transition-all hover:bg-[#263457] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2f3e68]/40"
+            >
+              Sitzung behalten
+            </button>
+            <button
+              type="button"
+              onClick={handleEndSession}
+              className="inline-flex min-h-[56px] w-full items-center justify-center rounded-[18px] bg-[#df6662] px-5 py-3 font-['DM_Sans:Bold',sans-serif] text-base font-bold text-white shadow-sm transition-all hover:bg-[#cf5551] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#df6662]/40"
+            >
+              Sitzung beenden
+            </button>
+          </div>
         </div>
       </Modal>
     </>
