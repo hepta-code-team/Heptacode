@@ -246,6 +246,140 @@ function hasProlongedSeizurePattern(text: string): boolean {
 }
 
 /**
+ * Detects symptom clusters compatible with meningitis or meningeal irritation.
+ */
+function hasMeningitisWarningPattern(text: string): boolean {
+  const hasFeverOrSevereHeadache = [
+    'fieber',
+    'hohe temperatur',
+    'starker kopfschmerz',
+    'starke kopfschmerzen',
+    'schlimmer kopfschmerz',
+    'schlimme kopfschmerzen',
+  ].some((term) => text.includes(term))
+  const hasMeningealSign = [
+    'nackensteif',
+    'steifer nacken',
+    'lichtempfind',
+    'photophob',
+    'nicht wegdruckbar',
+    'glas test',
+  ].some((term) => text.includes(term))
+  const hasNeurologicalOrSystemicWarning = [
+    'verwirr',
+    'benommen',
+    'schwer weckbar',
+    'kaum weckbar',
+    'krampfanfall',
+    'erbrechen',
+  ].some((term) => text.includes(term))
+
+  return hasFeverOrSevereHeadache && hasMeningealSign && hasNeurologicalOrSystemicWarning
+}
+
+/**
+ * Detects head injury descriptions with neurological or bleeding-risk warning signs.
+ */
+function hasHeadInjuryWarningPattern(text: string): boolean {
+  const hasHeadInjury = [
+    'kopfverletz',
+    'sturz auf den kopf',
+    'kopf angeschlagen',
+    'schlag auf den kopf',
+    'unfall mit kopf',
+  ].some((term) => text.includes(term))
+  const hasRiskFeature = [
+    'bewusstlos',
+    'ohnmacht',
+    'erbrechen',
+    'verwirr',
+    'gedachtnisverlust',
+    'erinnerungsluck',
+    'blutverdunn',
+    'apixaban',
+    'eliquis',
+    'rivaroxaban',
+    'xarelto',
+    'edoxaban',
+    'lixiana',
+    'savaysa',
+    'dabigatran',
+    'pradaxa',
+    'acetylsalicylsaure',
+    'ass',
+    'aspirin',
+    'warfarin',
+    'marcumar',
+  ].some((term) => text.includes(term))
+
+  return hasHeadInjury && hasRiskFeature
+}
+
+/**
+ * Detects ectopic-pregnancy warning clusters from symptom text.
+ */
+function hasEctopicPregnancyWarningPattern(text: string): boolean {
+  const hasPregnancyContext = [
+    'schwanger',
+    'schwangerschaft',
+    'positive schwangerschaftstest',
+    'positiver schwangerschaftstest',
+  ].some((term) => text.includes(term))
+  const hasLowerAbdominalPain = [
+    'unterbauch',
+    'bauchschmerz',
+    'abdominalschmerz',
+  ].some((term) => text.includes(term))
+  const hasBleedingOrReferredPain = [
+    'vaginale blutung',
+    'scheidenblutung',
+    'blutung',
+    'schulterschmerz',
+    'schulterspitzenschmerz',
+    'schwindel',
+    'kollaps',
+    'ohnmacht',
+  ].some((term) => text.includes(term))
+
+  return hasPregnancyContext && hasLowerAbdominalPain && hasBleedingOrReferredPain
+}
+
+/**
+ * Detects diabetic ketoacidosis warning clusters from symptom text.
+ */
+function hasDiabeticKetoacidosisWarningPattern(text: string): boolean {
+  const hasDiabetesContext = [
+    'diabetes',
+    'diabet',
+    'insulin',
+    'blutzucker',
+    'ketoazidose',
+  ].some((term) => text.includes(term))
+  const hasMetabolicSymptoms = [
+    'starker durst',
+    'viel durst',
+    'haufig',
+    'oft wasserlassen',
+    'fruchtiger atem',
+    'azetongeruch',
+    'acetongeruch',
+    'tiefe atmung',
+    'kussmaul',
+  ].some((term) => text.includes(term))
+  const hasSystemicSymptoms = [
+    'erbrechen',
+    'ubelkeit',
+    'uebelkeit',
+    'bauchschmerz',
+    'verwirr',
+    'benommen',
+    'schwach',
+  ].some((term) => text.includes(term))
+
+  return hasDiabetesContext && hasMetabolicSymptoms && hasSystemicSymptoms
+}
+
+/**
  * Detects high-risk symptom patterns that should not be classified as self-care.
  */
 export function hasEmergencyTriagePattern(symptom: TriageSymptom): boolean {
@@ -257,7 +391,11 @@ export function hasEmergencyTriagePattern(symptom: TriageSymptom): boolean {
 
   if (
     hasTransientNeurologicalWarningPattern(combinedText) ||
-    hasProlongedSeizurePattern(combinedText)
+    hasProlongedSeizurePattern(combinedText) ||
+    hasMeningitisWarningPattern(combinedText) ||
+    hasHeadInjuryWarningPattern(combinedText) ||
+    hasEctopicPregnancyWarningPattern(combinedText) ||
+    hasDiabeticKetoacidosisWarningPattern(combinedText)
   ) {
     return true
   }
@@ -362,6 +500,7 @@ export function getTriageAiPlausibilityIssues(
 
   if (
     response.careLevel !== 'specialist' &&
+    response.careLevel !== 'emergency' &&
     recommendedSpecialties.length > 0
   ) {
     issues.push('Wenn eine Fachrichtung genannt wird, muss diese auch als Empfehlung eingestuft werden.')
