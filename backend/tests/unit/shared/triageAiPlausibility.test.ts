@@ -913,6 +913,33 @@ describe('getTriageAiPlausibilityIssues', () => {
     expect(issues).toEqual([])
   })
 
+  /** Deferred specialist context should remain compatible with doctor-level first contact. */
+  it('akzeptiert Doctor-Antworten mit spaeter moeglicher Fachrichtung und Hausarzt als Erstanlaufstelle', () => {
+    const issues = getTriageAiPlausibilityIssues(
+      {
+        careLevel: 'doctor',
+        reasons: [
+          'Eine ernsthafte Grunderkrankung wie Schilddruesenfunktion, Angststoerung oder neurologische Erkrankung sollte ausgeschlossen werden. Eine spezialisierte Fachrichtung wie Kardiologie, Neurologie oder Innere Medizin koennte spaeter notwendig sein, aber die erste Anlaufstelle sollte der Hausarzt sein.',
+        ],
+        reviewSummary: {
+          plainLanguage: 'Bitte stellen Sie sich zunaechst beim Hausarzt vor.',
+          professionalSummary: 'Care Level: doctor. Fachrichtungen koennen spaeter geprueft werden.',
+        },
+      },
+      [
+        {
+          region: 'Allgemein',
+          details: 'Herzrasen, Schwitzen, Zittern und Gewichtsverlust seit mehreren Wochen',
+          measurementType: 'severity',
+          measurementValue: 6,
+          duration: 'weeks',
+        },
+      ],
+    )
+
+    expect(issues).toEqual([])
+  })
+
   /** Descriptive specialty wording should not be mistaken for a specialist recommendation. */
   it('akzeptiert psychiatrischen Notfalltext ohne Facharztempfehlung', () => {
     const issues = getTriageAiPlausibilityIssues(
