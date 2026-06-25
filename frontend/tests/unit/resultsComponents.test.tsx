@@ -56,36 +56,31 @@ describe('result and shared UI components', () => {
     vi.stubGlobal('fetch', vi.fn<typeof fetch>().mockResolvedValue({
       ok: true,
       json: async () => ({
-        elements: [
+        facilities: [
           {
-            type: 'node',
-            id: 1,
-            lat: 49.487,
-            lon: 8.466,
-            tags: {
-              name: 'Praxis Kardiologie am Stadtpark',
-              healthcare: 'doctor',
-              opening_hours: '24/7',
-              'addr:street': 'Parkstraße',
-              'addr:housenumber': '1',
-              'addr:postcode': '68161',
-              'addr:city': 'Mannheim',
-            },
+            id: 'google-1',
+            name: 'Praxis Kardiologie am Stadtpark',
+            hasKnownName: true,
+            type: 'Kardiologie',
+            latitude: 49.487,
+            longitude: 8.466,
+            openingHours: '24/7',
+            openingHoursText: ['Donnerstag: 08:00–18:00'],
+            address: 'Parkstraße 1, 68161 Mannheim',
+            priority: 'recommended',
+            distanceMeters: 600,
           },
           {
-            type: 'node',
-            id: 2,
-            lat: 49.49,
-            lon: 8.47,
-            tags: {
-              name: 'Kardiologie Zentrum',
-              healthcare: 'doctor',
-              opening_hours: '24/7',
-              'addr:street': 'Hauptstraße',
-              'addr:housenumber': '2',
-              'addr:postcode': '68159',
-              'addr:city': 'Mannheim',
-            },
+            id: 'google-2',
+            name: 'Kardiologie Zentrum',
+            hasKnownName: true,
+            type: 'Kardiologie',
+            latitude: 49.49,
+            longitude: 8.47,
+            openingHours: '24/7',
+            address: 'Hauptstraße 2, 68159 Mannheim',
+            priority: 'recommended',
+            distanceMeters: 900,
           },
         ],
       }),
@@ -99,6 +94,9 @@ describe('result and shared UI components', () => {
       expect(screen.getByText(/2 offene Einrichtungen gefunden/)).toBeInTheDocument();
     });
 
+    expect(screen.getByRole('button', { name: /Standort aktualisieren/ })).toBeInTheDocument();
+    expect(screen.getByRole('searchbox', { name: /PLZ oder Adresse/ })).toBeInTheDocument();
+    expect(screen.getByText('Datenquelle: Google Maps')).toBeInTheDocument();
     expect(screen.getByText('Praxis Kardiologie am Stadtpark')).toBeInTheDocument();
     expect(screen.getAllByRole('link')[0]).toHaveAttribute(
       'href',

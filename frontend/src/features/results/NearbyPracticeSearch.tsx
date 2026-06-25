@@ -2,6 +2,7 @@ import { useState } from "react";
 import type { FormEvent } from "react";
 import { Clock, LocateFixed, MapPin, Navigation, Search } from "lucide-react";
 import { MEDICAL_SPECIALTY_LABELS } from "./result.config";
+import { apiClient } from "../../lib/apiClient";
 import type { CareLevel, MedicalSpecialty } from "../../types/triage";
 
 // Gesamtlogik dieser Komponente:
@@ -26,10 +27,14 @@ type Facility = {
   latitude: number;
   longitude: number;
   openingHours: string;
+  openingHoursText?: string[];
   address: string;
   priority: "recommended" | "additional";
   distanceMeters: number;
 };
+
+type FacilityDataProvider = "auto" | "google" | "osm";
+type ActiveFacilityDataProvider = "google" | "osm";
 
 // Die einzelnen Statuswerte trennen Standortabfrage, externe Suche und Fehlermeldungen sauber.
 type LocationStatus =
@@ -113,6 +118,16 @@ const OSM_DAY_LABELS: Record<string, string> = {
   Su: "So",
   PH: "Feiertage",
 };
+
+const GOOGLE_WEEKDAY_LABELS = [
+  "Sonntag",
+  "Montag",
+  "Dienstag",
+  "Mittwoch",
+  "Donnerstag",
+  "Freitag",
+  "Samstag",
+];
 
 function localizeOpeningHoursPart(value: string) {
   // OSM nutzt englische Tageskuerzel; die UI soll deutsche Kuerzel anzeigen.
@@ -213,18 +228,43 @@ function dayMatches(ruleDays: string | undefined, currentDay: number) {
   });
 }
 
+type OpeningHoursLine = {
+  dayLabel: string;
+  timeLabel: string;
+};
+
 type OpeningHoursDisplay = {
-  hoursLabel: string;
+  hoursLines: OpeningHoursLine[];
   statusLabel: "Geöffnet" | "Schließt bald";
   statusColor: string;
 };
+
+function formatOpeningTimeRange(timeRange: string) {
+  return timeRange.trim().replace(/\s*[-–—]\s*/g, " - ");
+}
+
+function createOpeningHoursLines(dayLabel: string, displayTimes: string[]) {
+  const timeRanges = displayTimes
+    .flatMap((times) => times.split(","))
+    .map(formatOpeningTimeRange)
+    .filter(Boolean);
+
+  if (timeRanges.length === 0) {
+    return [{ dayLabel: `${dayLabel}:`, timeLabel: "Geöffnet" }];
+  }
+
+  return [
+    { dayLabel: `${dayLabel}:`, timeLabel: timeRanges[0] },
+    ...timeRanges.slice(1).map((timeLabel) => ({ dayLabel: "", timeLabel })),
+  ];
+}
 
 function getOpeningHoursDisplay(openingHours: string, now = new Date()): OpeningHoursDisplay {
   const normalizedOpeningHours = openingHours.trim();
 
   if (normalizedOpeningHours === "24/7") {
     return {
-      hoursLabel: "Heute: Durchgehend geöffnet",
+      hoursLines: [{ dayLabel: "Heute:", timeLabel: "Durchgehend geöffnet" }],
       statusLabel: "Geöffnet",
       statusColor: "#65A30D",
     };
@@ -291,10 +331,44 @@ function getOpeningHoursDisplay(openingHours: string, now = new Date()): Opening
   const closesSoon = minutesUntilClosing !== null && minutesUntilClosing <= 60;
 
   return {
-    hoursLabel: `${todayLabel}: ${displayTimes.join(", ") || "Geöffnet"}`,
+    hoursLines: createOpeningHoursLines(todayLabel, displayTimes),
     statusLabel: closesSoon ? "Schließt bald" : "Geöffnet",
     statusColor: closesSoon ? "#EAB308" : "#65A30D",
   };
+}
+
+function getGoogleOpeningHoursDisplay(openingHoursText: string[], now = new Date()): OpeningHoursDisplay {
+  const todayLabel = GOOGLE_WEEKDAY_LABELS[now.getDay()];
+  const todayText = openingHoursText.find((line) => line.toLowerCase().startsWith(`${todayLabel.toLowerCase()}:`));
+
+  if (!todayText) {
+    return {
+      hoursLines: [{ dayLabel: "Heute:", timeLabel: "Geöffnet" }],
+      statusLabel: "Geöffnet",
+      statusColor: "#65A30D",
+    };
+  }
+
+  const separatorIndex = todayText.indexOf(":");
+  const timeText = separatorIndex >= 0 ? todayText.slice(separatorIndex + 1).trim() : todayText;
+  const timeRanges = timeText
+    .split(",")
+    .map(formatOpeningTimeRange)
+    .filter(Boolean);
+
+  return {
+    hoursLines: createOpeningHoursLines(OSM_DAY_LABELS[Object.keys(WEEKDAY_INDEX).find((day) => WEEKDAY_INDEX[day] === now.getDay()) ?? ""] ?? "Heute", timeRanges),
+    statusLabel: "Geöffnet",
+    statusColor: "#65A30D",
+  };
+}
+
+function getFacilityOpeningHoursDisplay(facility: Facility) {
+  if (facility.openingHoursText && facility.openingHoursText.length > 0) {
+    return getGoogleOpeningHoursDisplay(facility.openingHoursText);
+  }
+
+  return getOpeningHoursDisplay(facility.openingHours);
 }
 
 function isOpenNow(openingHours: string | undefined, now = new Date()) {
@@ -405,6 +479,20 @@ const OVERPASS_API_URLS = [
 ];
 
 const NOMINATIM_SEARCH_URL = "https://nominatim.openstreetmap.org/search";
+const FACILITY_DATA_PROVIDER_SETTING = readFacilityDataProvider(import.meta.env.VITE_FACILITY_DATA_PROVIDER);
+const FACILITY_DATA_PROVIDER_LABELS: Record<ActiveFacilityDataProvider | "auto", string> = {
+  auto: "Automatisch",
+  google: "Google Maps",
+  osm: "OpenStreetMap",
+};
+
+function readFacilityDataProvider(value: string | undefined): FacilityDataProvider {
+  const normalizedValue = value?.trim().toLowerCase();
+
+  if (normalizedValue === "google" || normalizedValue === "googlemaps") return "google";
+  if (normalizedValue === "osm" || normalizedValue === "overpass") return "osm";
+  return "auto";
+}
 // Stammdatenregel fuer die BDZ Ludwigshafen.
 // Die Regel ist eng ueber Name/Adresse begrenzt und betrifft keine anderen Einrichtungen.
 const BDZ_LUDWIGSHAFEN_OPENING_HOURS = "Mo off; Tu off; We 14:00-22:00; Th off; Fr 16:00-22:00; Sa-Su 09:00-22:00";
@@ -701,7 +789,30 @@ async function fetchOverpassData(query: string): Promise<OverpassResponse> {
   throw lastError instanceof Error ? lastError : new Error("Overpass request failed.");
 }
 
-async function fetchNearbyFacilities(
+type NearbyPlacesResponse = {
+  facilities: Facility[];
+};
+
+async function fetchGoogleNearbyFacilities(
+  location: UserLocation,
+  careLevel: CareLevel,
+  specialties: MedicalSpecialty[],
+): Promise<Facility[]> {
+  const specialtyLabel = careLevel === "specialist" && specialties.length > 0
+    ? MEDICAL_SPECIALTY_LABELS[specialties[0]]
+    : undefined;
+
+  const response = await apiClient.post<NearbyPlacesResponse>("/places/nearby", {
+    latitude: location.latitude,
+    longitude: location.longitude,
+    careLevel,
+    specialtyLabel,
+  });
+
+  return response.facilities;
+}
+
+async function fetchOsmNearbyFacilities(
   location: UserLocation,
   careLevel: CareLevel,
   specialties: MedicalSpecialty[],
@@ -808,6 +919,44 @@ async function fetchNearbyFacilities(
     });
 }
 
+async function fetchNearbyFacilities(
+  location: UserLocation,
+  careLevel: CareLevel,
+  specialties: MedicalSpecialty[],
+): Promise<{ facilities: Facility[]; provider: ActiveFacilityDataProvider }> {
+  if (FACILITY_DATA_PROVIDER_SETTING === "osm") {
+    return {
+      facilities: await fetchOsmNearbyFacilities(location, careLevel, specialties),
+      provider: "osm",
+    };
+  }
+
+  if (FACILITY_DATA_PROVIDER_SETTING === "google") {
+    return {
+      facilities: await fetchGoogleNearbyFacilities(location, careLevel, specialties),
+      provider: "google",
+    };
+  }
+
+  try {
+    const googleFacilities = await fetchGoogleNearbyFacilities(location, careLevel, specialties);
+
+    if (googleFacilities.length > 0) {
+      return {
+        facilities: googleFacilities,
+        provider: "google",
+      };
+    }
+  } catch (error) {
+    console.info("Google Places unavailable, falling back to OpenStreetMap.", error);
+  }
+
+  return {
+    facilities: await fetchOsmNearbyFacilities(location, careLevel, specialties),
+    provider: "osm",
+  };
+}
+
 export default function NearbyPracticeSearch({
   // careLevel kommt als Prop von der Ergebnis-Seite.
   careLevel,
@@ -823,6 +972,7 @@ export default function NearbyPracticeSearch({
   const [userLocation, setUserLocation] = useState<UserLocation | null>(null);
   // facilities enthaelt die bereits gefilterten und sortierten Treffer fuer die UI.
   const [facilities, setFacilities] = useState<Facility[]>([]);
+  const [activeDataProvider, setActiveDataProvider] = useState<ActiveFacilityDataProvider | null>(null);
   // manualLocationQuery ist der kontrollierte Wert des PLZ-/Adressfelds.
   const [manualLocationQuery, setManualLocationQuery] = useState("");
   // Nachts werden fuer Nicht-Notfall-Ebenen Apotheken als Zusatzoption einbezogen.
@@ -839,17 +989,19 @@ export default function NearbyPracticeSearch({
 
     try {
       // Einrichtungen fuer den Suchmittelpunkt laden.
-      const nextFacilities = await fetchNearbyFacilities(location, careLevel, specialties);
+      const result = await fetchNearbyFacilities(location, careLevel, specialties);
 
       // Treffer im State ablegen, damit React die Liste rendert.
-      setFacilities(nextFacilities);
+      setFacilities(result.facilities);
+      setActiveDataProvider(result.provider);
       // "empty" ist kein technischer Fehler, sondern ein valider leerer Suchzustand.
-      setLocationStatus(nextFacilities.length > 0 ? "ready" : "empty");
+      setLocationStatus(result.facilities.length > 0 ? "ready" : "empty");
     } catch (error) {
       // Fehler wird fuer Entwickler sichtbar geloggt.
       console.error(error);
       // Alte Treffer entfernen, damit keine veralteten Daten angezeigt werden.
       setFacilities([]);
+      setActiveDataProvider(null);
       // UI zeigt technische Fehlermeldung.
       setLocationStatus("error");
     }
@@ -861,6 +1013,7 @@ export default function NearbyPracticeSearch({
     setLocationStatus("loading");
     // Vor einer neuen Suche werden alte Treffer geloescht.
     setFacilities([]);
+    setActiveDataProvider(null);
 
     // Manche Browser/Umgebungen unterstuetzen Geolocation nicht.
     if (!navigator.geolocation) {
@@ -905,6 +1058,7 @@ export default function NearbyPracticeSearch({
     setLocationStatus("geocoding");
     // Alte Treffer entfernen.
     setFacilities([]);
+    setActiveDataProvider(null);
 
     try {
       // Erst wird die Eingabe in Koordinaten umgewandelt, danach laeuft dieselbe
@@ -914,6 +1068,7 @@ export default function NearbyPracticeSearch({
       // Wenn Nominatim nichts findet, zeigen wir "not_found".
       if (!nextLocation) {
         setUserLocation(null);
+        setActiveDataProvider(null);
         setLocationStatus("not_found");
         return;
       }
@@ -929,6 +1084,7 @@ export default function NearbyPracticeSearch({
       setUserLocation(null);
       // Alte Treffer entfernen.
       setFacilities([]);
+      setActiveDataProvider(null);
       // UI zeigt technische Fehlermeldung.
       setLocationStatus("error");
     }
@@ -937,12 +1093,16 @@ export default function NearbyPracticeSearch({
   // Beide Zwischenzustaende deaktivieren den Button, damit keine parallelen Suchen starten.
   const isRequestingLocation =
     locationStatus === "loading" || locationStatus === "geocoding" || locationStatus === "searching";
+  const hasReadyResults = locationStatus === "ready";
   const statusLabel =
     locationStatus === "searching"
       ? "Einrichtungen werden gesucht..."
       : locationStatus === "geocoding"
         ? "Adresse wird gesucht..."
         : "Standort wird angefragt...";
+  const dataProviderLabel = activeDataProvider
+    ? FACILITY_DATA_PROVIDER_LABELS[activeDataProvider]
+    : FACILITY_DATA_PROVIDER_LABELS[FACILITY_DATA_PROVIDER_SETTING];
 
   return (
     // Aeusserer Container der gesamten Suchkarte.
@@ -962,107 +1122,111 @@ export default function NearbyPracticeSearch({
         </div>
       </div>
 
-      {/* Vor erfolgreicher Suche wird der Freigabe-Button mit passenden Statusmeldungen angezeigt. */}
-      {locationStatus !== "ready" ? (
-        <>
-          <div className="flex flex-col gap-3 md:flex-row md:items-end">
-            {/* Button fuer praezise Browser-Standortfreigabe */}
-            <button
-              type="button"
-              onClick={handleLocationRequest}
-              disabled={isRequestingLocation}
-              className="shadow-md flex min-h-[48px] shrink-0 items-center justify-center gap-2 rounded-[14px] bg-[#486284] px-5 py-3 text-white transition-all hover:bg-[#3a4d68] disabled:bg-gray-300 disabled:text-gray-500"
-            >
-              <LocateFixed className="size-5" aria-hidden="true" />
-              <span className="font-['DM_Sans:Bold',sans-serif] font-bold text-sm">
-                {isRequestingLocation ? statusLabel : "Standort freigeben"}
-              </span>
-            </button>
+      {/* Standort- und Adresssuche bleibt sichtbar, damit Nutzer die Suche korrigieren koennen. */}
+      <div className="mb-3 rounded-[12px] bg-white px-5 py-3">
+        <div className="mb-3 flex flex-col gap-1 text-xs font-medium text-[#52676B] sm:flex-row sm:items-center sm:gap-3">
+          {hasReadyResults && userLocation && (
+            <p className="font-bold text-[#486284]">
+              {facilities.length} offene Einrichtungen gefunden.
+            </p>
+          )}
+          {hasReadyResults && userLocation && activeDataProvider && (
+            <p>Datenquelle: {dataProviderLabel}</p>
+          )}
+        </div>
 
-            <div className="hidden h-12 w-px shrink-0 bg-[#9aabc0] md:block" aria-hidden="true" />
+        <div className="flex flex-col gap-3 md:flex-row md:items-end">
+          {/* Button fuer praezise Browser-Standortfreigabe */}
+          <button
+            type="button"
+            onClick={handleLocationRequest}
+            disabled={isRequestingLocation}
+            className="w-full shadow-md flex min-h-[48px] shrink-0 items-center justify-center gap-2 rounded-[14px] bg-[#486284] px-5 py-3 text-white transition-all hover:bg-[#3a4d68] disabled:bg-gray-300 disabled:text-gray-500 md:w-auto"
+          >
+            <LocateFixed className="size-5" aria-hidden="true" />
+            <span className="font-['DM_Sans:Bold',sans-serif] font-bold text-sm">
+              {isRequestingLocation ? statusLabel : hasReadyResults ? "Standort aktualisieren" : "Standort freigeben"}
+            </span>
+          </button>
 
-            {/* Alternative Suche per PLZ oder Adresse */}
-            <form
-              onSubmit={handleManualLocationSearch}
-              className="min-w-0 flex-1"
+          <div className="hidden h-12 w-px shrink-0 bg-[#9aabc0] md:block" aria-hidden="true" />
+
+          {/* Alternative Suche per PLZ oder Adresse */}
+          <form
+            onSubmit={handleManualLocationSearch}
+            className="min-w-0 flex-1"
+          >
+            <label
+              htmlFor="manual-location-query"
+              className="mb-2 block text-sm font-bold text-[#486284]"
             >
-              <label
-                htmlFor="manual-location-query"
-                className="mb-2 block text-sm font-bold text-[#486284]"
+              PLZ oder Adresse
+            </label>
+            <div className="flex flex-col gap-2 sm:flex-row">
+              <input
+                id="manual-location-query"
+                type="search"
+                value={manualLocationQuery}
+                onChange={(event) => setManualLocationQuery(event.target.value)}
+                placeholder="z. B. 68163 Mannheim"
+                disabled={isRequestingLocation}
+                className="shadow-md min-h-[48px] min-w-0 w-full flex-1 rounded-[10px] border border-[#c8d2dc] bg-white px-3 py-2 text-sm font-medium text-[#3e3e3e] outline-none transition-all placeholder:text-[#7b8a8d] focus:border-[#486284] focus:ring-2 focus:ring-[#486284]/20 disabled:bg-gray-100 disabled:text-gray-500"
+              />
+              <button
+                type="submit"
+                disabled={isRequestingLocation || !manualLocationQuery.trim()}
+                className="shadow-md inline-flex min-h-[48px] w-full items-center justify-center gap-2 rounded-[10px] bg-white px-4 py-2 text-sm font-bold text-[#486284] ring-1 ring-[#c8d2dc] transition-all hover:bg-[#dde3ea] disabled:bg-gray-100 disabled:text-gray-400 sm:w-auto"
               >
-                PLZ oder Adresse
-              </label>
-              <div className="flex flex-col gap-2 sm:flex-row">
-                <input
-                  id="manual-location-query"
-                  type="search"
-                  value={manualLocationQuery}
-                  onChange={(event) => setManualLocationQuery(event.target.value)}
-                  placeholder="z. B. 68163 Mannheim"
-                  disabled={isRequestingLocation}
-                  className="shadow-md min-h-[48px] min-w-0 flex-1 rounded-[10px] border border-[#c8d2dc] bg-white px-3 py-2 text-sm font-medium text-[#3e3e3e] outline-none transition-all placeholder:text-[#7b8a8d] focus:border-[#486284] focus:ring-2 focus:ring-[#486284]/20 disabled:bg-gray-100 disabled:text-gray-500"
-                />
-                <button
-                  type="submit"
-                  disabled={isRequestingLocation || !manualLocationQuery.trim()}
-                  className="shadow-md inline-flex min-h-[48px] items-center justify-center gap-2 rounded-[10px] bg-white px-4 py-2 text-sm font-bold text-[#486284] ring-1 ring-[#c8d2dc] transition-all hover:bg-[#dde3ea] disabled:bg-gray-100 disabled:text-gray-400"
-                >
-                  <Search className="size-4" aria-hidden="true" />
-                  Suchen
-                </button>
-              </div>
-            </form>
-          </div>
+                <Search className="size-4" aria-hidden="true" />
+                Suchen
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
 
-          {/* Fehlermeldung, wenn Nutzer Browser-Standort abgelehnt hat */}
-          {locationStatus === "denied" && (
-            <p className="mt-3 rounded-[12px] bg-white px-4 py-3 text-sm font-medium text-[#8A4B16]">
-              Standortfreigabe wurde nicht erlaubt. Sie können die Freigabe in den Browser-Einstellungen aktivieren und es erneut versuchen.
-            </p>
-          )}
+      {/* Fehlermeldung, wenn Nutzer Browser-Standort abgelehnt hat */}
+      {locationStatus === "denied" && (
+        <p className="mt-3 rounded-[12px] bg-white px-4 py-3 text-sm font-medium text-[#8A4B16]">
+          Standortfreigabe wurde nicht erlaubt. Sie können die Freigabe in den Browser-Einstellungen aktivieren und es erneut versuchen.
+        </p>
+      )}
 
-          {/* Fehlermeldung, wenn Browser keine Geolocation anbietet */}
-          {locationStatus === "unsupported" && (
-            <p className="mt-3 rounded-[12px] bg-white px-4 py-3 text-sm font-medium text-[#8A4B16]">
-              Ihr Browser unterstützt keine Standortfreigabe.
-            </p>
-          )}
+      {/* Fehlermeldung, wenn Browser keine Geolocation anbietet */}
+      {locationStatus === "unsupported" && (
+        <p className="mt-3 rounded-[12px] bg-white px-4 py-3 text-sm font-medium text-[#8A4B16]">
+          Ihr Browser unterstützt keine Standortfreigabe.
+        </p>
+      )}
 
-          {/* Valider leerer Zustand: Suche erfolgreich, aber keine passenden Treffer */}
-          {locationStatus === "empty" && (
-            <p className="mt-3 rounded-[12px] bg-white px-4 py-3 text-sm font-medium text-[#8A4B16]">
-              {emptyMessage}
-            </p>
-          )}
+      {/* Valider leerer Zustand: Suche erfolgreich, aber keine passenden Treffer */}
+      {locationStatus === "empty" && (
+        <p className="mt-3 rounded-[12px] bg-white px-4 py-3 text-sm font-medium text-[#8A4B16]">
+          {emptyMessage}
+        </p>
+      )}
 
-          {/* Manuelle Adresse/PLZ konnte nicht in Koordinaten umgewandelt werden */}
-          {locationStatus === "not_found" && (
-            <p className="mt-3 rounded-[12px] bg-white px-4 py-3 text-sm font-medium text-[#8A4B16]">
-              Diese PLZ oder Adresse konnte nicht gefunden werden.
-            </p>
-          )}
+      {/* Manuelle Adresse/PLZ konnte nicht in Koordinaten umgewandelt werden */}
+      {locationStatus === "not_found" && (
+        <p className="mt-3 rounded-[12px] bg-white px-4 py-3 text-sm font-medium text-[#8A4B16]">
+          Diese PLZ oder Adresse konnte nicht gefunden werden.
+        </p>
+      )}
 
-          {/* Technischer Fehler bei Nominatim oder Overpass */}
-          {locationStatus === "error" && (
-            <p className="mt-3 rounded-[12px] bg-white px-4 py-3 text-sm font-medium text-[#8A4B16]">
-              Die Kartensuche ist gerade überlastet. Bitte versuchen Sie es erneut oder öffnen Sie direkt eine Karten-App.
-            </p>
-          )}
-        </>
-      ) : (
+      {/* Technischer Fehler bei Nominatim oder Overpass */}
+      {locationStatus === "error" && (
+        <p className="mt-3 rounded-[12px] bg-white px-4 py-3 text-sm font-medium text-[#8A4B16]">
+          Die Kartensuche ist gerade überlastet. Bitte versuchen Sie es erneut oder öffnen Sie direkt eine Karten-App.
+        </p>
+      )}
+
+      {hasReadyResults && (
         // Sobald Treffer vorhanden sind, wird die Ergebnisliste gerendert.
         <div>
-          {/* Kurze Trefferzusammenfassung */}
-          {userLocation && (
-            <div className="mb-3 rounded-[12px] bg-white px-4 py-3 text-sm font-medium text-[#486284]">
-              {facilities.length} offene Einrichtungen gefunden.
-            </div>
-          )}
-
           {/* Ergebnisliste */}
           <div className="grid grid-cols-1 gap-3">
             {facilities.map((facility) => {
-              const openingHoursDisplay = getOpeningHoursDisplay(facility.openingHours);
+              const openingHoursDisplay = getFacilityOpeningHoursDisplay(facility);
 
               return (
                 // Einzelne Einrichtungskarte.
@@ -1086,18 +1250,25 @@ export default function NearbyPracticeSearch({
                 </div>
 
                 {/* Oeffnungszeitenblock */}
-                <div className="mt-3 flex min-w-0 items-start gap-2 text-xs font-medium text-[#3e3e3e]">
-                  <Clock className="mt-0.5 size-4 flex-shrink-0 text-[#486284]" aria-hidden="true" />
-                  <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1">
-                    <p className="min-w-0 break-words">{openingHoursDisplay.hoursLabel}</p>
-                    <span className="inline-flex items-center gap-1.5 font-bold">
-                      <span
-                        className="size-2 rounded-full"
-                        style={{ backgroundColor: openingHoursDisplay.statusColor }}
-                        aria-hidden="true"
-                      />
-                      {openingHoursDisplay.statusLabel}
-                    </span>
+                <div className="mt-2 text-xs font-medium text-[#3e3e3e]">
+                  <div className="grid min-w-0 grid-cols-[1rem_1fr] gap-x-2 gap-y-1">
+                    <span
+                      className="mt-1.5 size-2 justify-self-center rounded-full"
+                      style={{ backgroundColor: openingHoursDisplay.statusColor }}
+                      aria-hidden="true"
+                    />
+                    <span className="font-bold leading-5">{openingHoursDisplay.statusLabel}</span>
+                    <Clock className="size-4 text-[#486284]" aria-hidden="true" />
+                    <div className="grid min-w-0 grid-cols-[auto_1fr] gap-x-1 tabular-nums leading-5">
+                      {openingHoursDisplay.hoursLines.map((line, index) => {
+                        return (
+                          <div key={`${line.dayLabel}-${line.timeLabel}-${index}`} className="contents">
+                            <span className="whitespace-nowrap">{line.dayLabel}</span>
+                            <span className="min-w-0 whitespace-nowrap">{line.timeLabel}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
                 </div>
 
