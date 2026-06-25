@@ -482,7 +482,7 @@ export default function PreExistingConditionsPage() {
   };
 
   const getConditionNameSize = (isConditionSelected: boolean) =>
-    isConditionSelected ? "text-xs" : "text-sm sm:text-xs";
+    isConditionSelected ? "text-xs" : "text-sm md:text-xs";
 
   return (
     <PageShell
