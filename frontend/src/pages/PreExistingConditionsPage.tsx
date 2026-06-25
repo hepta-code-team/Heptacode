@@ -481,6 +481,9 @@ export default function PreExistingConditionsPage() {
     navigate("/symptom-selection");
   };
 
+  const getConditionNameSize = (isConditionSelected: boolean) =>
+    isConditionSelected ? "text-xs" : "text-sm sm:text-xs";
+
   return (
     <PageShell
       title="Vorerkrankungen"
@@ -557,7 +560,7 @@ export default function PreExistingConditionsPage() {
                       />
                       <Label
                         htmlFor="otherCondition"
-                        className="font-['DM_Sans:Bold',sans-serif] font-bold text-app-text-body text-xs leading-tight"
+                        className={`font-['DM_Sans:Bold',sans-serif] font-bold text-app-text-body leading-tight ${getConditionNameSize(Boolean(otherValue.trim()))}`}
                         style={{ fontVariationSettings: "'opsz' 14" }}
                       >
                         Sonstige
@@ -673,7 +676,7 @@ export default function PreExistingConditionsPage() {
                         aria-hidden="true"
                       />
                       <span
-                        className="font-['DM_Sans:Bold',sans-serif] font-bold text-app-text-body text-xs leading-tight"
+                        className={`font-['DM_Sans:Bold',sans-serif] font-bold text-app-text-body leading-tight ${getConditionNameSize(isSelected)}`}
                         style={{ fontVariationSettings: "'opsz' 14" }}
                       >
                         {condition}
