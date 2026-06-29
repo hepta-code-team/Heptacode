@@ -1,6 +1,6 @@
 import { useState } from "react";
 import type { FormEvent } from "react";
-import { Clock, LocateFixed, MapPin, Navigation, Search } from "lucide-react";
+import { ChevronDown, Clock, LocateFixed, MapPin, Navigation, Search } from "lucide-react";
 import { MEDICAL_SPECIALTY_LABELS } from "./result.config";
 import { apiClient } from "../../lib/apiClient";
 import type { CareLevel, MedicalSpecialty } from "../../types/triage";
@@ -480,11 +480,6 @@ const OVERPASS_API_URLS = [
 
 const NOMINATIM_SEARCH_URL = "https://nominatim.openstreetmap.org/search";
 const FACILITY_DATA_PROVIDER_SETTING = readFacilityDataProvider(import.meta.env.VITE_FACILITY_DATA_PROVIDER);
-const FACILITY_DATA_PROVIDER_LABELS: Record<ActiveFacilityDataProvider | "auto", string> = {
-  auto: "Automatisch",
-  google: "Google Maps",
-  osm: "OpenStreetMap",
-};
 
 function readFacilityDataProvider(value: string | undefined): FacilityDataProvider {
   const normalizedValue = value?.trim().toLowerCase();
@@ -972,7 +967,8 @@ export default function NearbyPracticeSearch({
   const [userLocation, setUserLocation] = useState<UserLocation | null>(null);
   // facilities enthaelt die bereits gefilterten und sortierten Treffer fuer die UI.
   const [facilities, setFacilities] = useState<Facility[]>([]);
-  const [activeDataProvider, setActiveDataProvider] = useState<ActiveFacilityDataProvider | null>(null);
+  // Nach einer Suche sind die Treffer sichtbar und koennen bei Bedarf platzsparend eingeklappt werden.
+  const [areFacilitiesVisible, setAreFacilitiesVisible] = useState(true);
   // manualLocationQuery ist der kontrollierte Wert des PLZ-/Adressfelds.
   const [manualLocationQuery, setManualLocationQuery] = useState("");
   // Nachts werden fuer Nicht-Notfall-Ebenen Apotheken als Zusatzoption einbezogen.
@@ -993,7 +989,7 @@ export default function NearbyPracticeSearch({
 
       // Treffer im State ablegen, damit React die Liste rendert.
       setFacilities(result.facilities);
-      setActiveDataProvider(result.provider);
+      setAreFacilitiesVisible(true);
       // "empty" ist kein technischer Fehler, sondern ein valider leerer Suchzustand.
       setLocationStatus(result.facilities.length > 0 ? "ready" : "empty");
     } catch (error) {
@@ -1001,7 +997,6 @@ export default function NearbyPracticeSearch({
       console.error(error);
       // Alte Treffer entfernen, damit keine veralteten Daten angezeigt werden.
       setFacilities([]);
-      setActiveDataProvider(null);
       // UI zeigt technische Fehlermeldung.
       setLocationStatus("error");
     }
@@ -1013,7 +1008,6 @@ export default function NearbyPracticeSearch({
     setLocationStatus("loading");
     // Vor einer neuen Suche werden alte Treffer geloescht.
     setFacilities([]);
-    setActiveDataProvider(null);
 
     // Manche Browser/Umgebungen unterstuetzen Geolocation nicht.
     if (!navigator.geolocation) {
@@ -1058,7 +1052,6 @@ export default function NearbyPracticeSearch({
     setLocationStatus("geocoding");
     // Alte Treffer entfernen.
     setFacilities([]);
-    setActiveDataProvider(null);
 
     try {
       // Erst wird die Eingabe in Koordinaten umgewandelt, danach laeuft dieselbe
@@ -1068,7 +1061,6 @@ export default function NearbyPracticeSearch({
       // Wenn Nominatim nichts findet, zeigen wir "not_found".
       if (!nextLocation) {
         setUserLocation(null);
-        setActiveDataProvider(null);
         setLocationStatus("not_found");
         return;
       }
@@ -1084,7 +1076,6 @@ export default function NearbyPracticeSearch({
       setUserLocation(null);
       // Alte Treffer entfernen.
       setFacilities([]);
-      setActiveDataProvider(null);
       // UI zeigt technische Fehlermeldung.
       setLocationStatus("error");
     }
@@ -1100,9 +1091,6 @@ export default function NearbyPracticeSearch({
       : locationStatus === "geocoding"
         ? "Adresse wird gesucht..."
         : "Standort wird angefragt...";
-  const dataProviderLabel = activeDataProvider
-    ? FACILITY_DATA_PROVIDER_LABELS[activeDataProvider]
-    : FACILITY_DATA_PROVIDER_LABELS[FACILITY_DATA_PROVIDER_SETTING];
 
   return (
     // Aeusserer Container der gesamten Suchkarte.
@@ -1124,17 +1112,6 @@ export default function NearbyPracticeSearch({
 
       {/* Standort- und Adresssuche bleibt sichtbar, damit Nutzer die Suche korrigieren koennen. */}
       <div className="mb-3 rounded-[12px] bg-white px-5 py-3">
-        <div className="mb-3 flex flex-col gap-1 text-xs font-medium text-[#52676B] sm:flex-row sm:items-center sm:gap-3">
-          {hasReadyResults && userLocation && (
-            <p className="font-bold text-[#486284]">
-              {facilities.length} offene Einrichtungen gefunden.
-            </p>
-          )}
-          {hasReadyResults && userLocation && activeDataProvider && (
-            <p>Datenquelle: {dataProviderLabel}</p>
-          )}
-        </div>
-
         <div className="flex flex-col gap-3 md:flex-row md:items-end">
           {/* Button fuer praezise Browser-Standortfreigabe */}
           <button
@@ -1223,8 +1200,29 @@ export default function NearbyPracticeSearch({
       {hasReadyResults && (
         // Sobald Treffer vorhanden sind, wird die Ergebnisliste gerendert.
         <div>
+          <button
+            type="button"
+            aria-expanded={areFacilitiesVisible}
+            aria-controls="nearby-facilities-list"
+            onClick={() => setAreFacilitiesVisible((isVisible) => !isVisible)}
+            className="mb-3 flex min-h-[42px] w-full items-center justify-between gap-4 rounded-[8px] border border-transparent bg-white px-4 py-2 text-left text-sm font-medium text-[#24364b] transition-all hover:border-[#486284] hover:bg-[#f7f9fc] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#486284] focus-visible:ring-offset-2"
+          >
+            <span>
+              {facilities.length} offene {facilities.length === 1 ? "Einrichtung" : "Einrichtungen"}{" "}
+              {areFacilitiesVisible ? "ausblenden" : "einblenden"}
+            </span>
+            <ChevronDown
+              className={`size-4 flex-shrink-0 transition-transform ${areFacilitiesVisible ? "rotate-180" : ""}`}
+              aria-hidden="true"
+            />
+          </button>
+
           {/* Ergebnisliste */}
-          <div className="grid grid-cols-1 gap-3">
+          <div
+            id="nearby-facilities-list"
+            hidden={!areFacilitiesVisible}
+            className="grid grid-cols-1 gap-3"
+          >
             {facilities.map((facility) => {
               const openingHoursDisplay = getFacilityOpeningHoursDisplay(facility);
 

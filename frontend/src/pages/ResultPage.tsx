@@ -262,46 +262,6 @@ function formatTravelDisplay(value: string) {
   return country || startDate || endDate || value;
 }
 
-function NearbyPracticeAccordion({
-  careLevel,
-  specialties,
-  defaultOpen = true,
-}: {
-  careLevel: CareLevel;
-  specialties: MedicalSpecialty[];
-  defaultOpen?: boolean;
-}) {
-  const [isOpen, setIsOpen] = useState(defaultOpen);
-
-  return (
-    <div className="mb-4 rounded-[10px] border border-[#d8e0ea] bg-white">
-      <button
-        type="button"
-        onClick={() => setIsOpen((nextIsOpen) => !nextIsOpen)}
-        className="flex w-full items-center justify-between gap-3 p-3 text-left"
-        aria-expanded={isOpen}
-        aria-controls="result-nearby-practices"
-      >
-        <span className="font-['DM_Sans:Bold',sans-serif] text-sm font-bold text-app-text-primary">
-          Ärztliche Anlaufstellen
-        </span>
-        <span className="flex size-7 flex-shrink-0 items-center justify-center rounded-lg bg-[#486284] text-white">
-          <ChevronDown
-            className={`size-5 transition-transform ${isOpen ? "rotate-180" : ""}`}
-            aria-hidden="true"
-          />
-        </span>
-      </button>
-
-      {isOpen && (
-        <div id="result-nearby-practices" className="border-t border-[#d8e0ea] p-3">
-          <NearbyPracticeSearch careLevel={careLevel} specialties={specialties} />
-        </div>
-      )}
-    </div>
-  );
-}
-
 function AcuteEmergencySummaryFlow({
   acuteSymptomName,
   acuteSymptomDescription,
@@ -393,7 +353,7 @@ function AcuteEmergencySummaryFlow({
         </span>
       </a>
 
-      <NearbyPracticeAccordion
+      <NearbyPracticeSearch
         careLevel="emergency"
         specialties={["emergency_medicine"]}
       />
@@ -857,7 +817,7 @@ export default function ResultPage() {
             <span className="sr-only">{callAction.description}</span>
           </a>
       )}
-      <NearbyPracticeAccordion
+      <NearbyPracticeSearch
         careLevel={careLevel}
         specialties={
           assessmentResult?.recommendedSpecialties?.map((specialty) => specialty.specialty) ?? [recommendedSpecialty]

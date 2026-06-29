@@ -91,13 +91,35 @@ describe('result and shared UI components', () => {
     await user.click(screen.getByRole('button', { name: /Standort freigeben/ }));
 
     await waitFor(() => {
-      expect(screen.getByText(/2 offene Einrichtungen gefunden/)).toBeInTheDocument();
+      expect(screen.getByRole('button', {
+        name: '2 offene Einrichtungen ausblenden',
+      })).toBeInTheDocument();
     });
 
     expect(screen.getByRole('button', { name: /Standort aktualisieren/ })).toBeInTheDocument();
     expect(screen.getByRole('searchbox', { name: /PLZ oder Adresse/ })).toBeInTheDocument();
-    expect(screen.getByText('Datenquelle: Google Maps')).toBeInTheDocument();
+    expect(screen.queryByText(/offene Einrichtungen gefunden/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Datenquelle:/)).not.toBeInTheDocument();
     expect(screen.getByText('Praxis Kardiologie am Stadtpark')).toBeInTheDocument();
+    const facilitiesToggle = screen.getByRole('button', {
+      name: '2 offene Einrichtungen ausblenden',
+    });
+    expect(facilitiesToggle).toHaveAttribute('aria-expanded', 'true');
+
+    await user.click(facilitiesToggle);
+
+    expect(screen.queryByText('Praxis Kardiologie am Stadtpark')).not.toBeVisible();
+    expect(screen.getByRole('button', { name: /Standort aktualisieren/ })).toBeVisible();
+    expect(screen.getByRole('searchbox', { name: /PLZ oder Adresse/ })).toBeVisible();
+    expect(screen.getByRole('button', {
+      name: '2 offene Einrichtungen einblenden',
+    })).toHaveAttribute('aria-expanded', 'false');
+
+    await user.click(screen.getByRole('button', {
+      name: '2 offene Einrichtungen einblenden',
+    }));
+
+    expect(screen.getByText('Praxis Kardiologie am Stadtpark')).toBeVisible();
     expect(screen.getAllByRole('link')[0]).toHaveAttribute(
       'href',
       expect.stringContaining('google.com/maps/dir'),
