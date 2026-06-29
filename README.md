@@ -1,4 +1,4 @@
-# Heptacode
+<img width="1923" height="612" alt="heptacheck-logo" src="https://github.com/user-attachments/assets/4be4ba44-f875-48ca-b1ea-a2811dddf38c" />
 
 KI-basierte Patientensteuerung zur Effizienzsteigerung im Gesundheitswesen.  
 Patienten werden sicher, schnell und laienverständlich durch das Gesundheitssystem geleitet — mit KI-basierter Triage.
@@ -50,6 +50,25 @@ Patienten werden sicher, schnell und laienverständlich durch das Gesundheitssys
 
 ---
 
+## Aktueller API-Stand
+
+Das Backend registriert aktuell diese HTTP-Endpunkte:
+
+| Methode | Pfad | Zweck |
+|---|---|---|
+| `GET` | `/health` | Backend-Erreichbarkeit |
+| `POST` | `/assessments` | Frontend-kompatible Assessment-Auswertung inklusive FHIR-Bundle-Erzeugung |
+| `POST` | `/api/v1/symptoms/extraction` | Symptome aus Freitext extrahieren |
+| `POST` | `/api/v1/symptoms/validation` | Symptom-Eingaben validieren |
+| `POST` | `/api/v1/symptoms/detail-validation` | Symptom-Details validieren |
+| `POST` | `/api/v1/symptoms/consistency` | Symptom-Konsistenz pruefen |
+| `POST` | `/api/v1/triage/evaluate` | Triage bewerten |
+| `POST` | `/api/v1/pdf/export` | Assessment-PDF erzeugen |
+
+Details stehen in [docs/FRONTEND_BACKEND_SCHNITTSTELLE.md](docs/FRONTEND_BACKEND_SCHNITTSTELLE.md) und in den Backend-Moduldokumenten unter [backend/docs](backend/docs).
+
+---
+
 ## Täglicher Workflow
 - siehe [docs/Workflow.md](docs/Workflow.md) für genaueres
 ```bash
@@ -83,6 +102,47 @@ git push
 | Logs | `make logs` | `docker compose -f docker-compose.dev.yml logs -f` |
 | Prod Build | `make prod` | `docker compose up --build -d` |
 | Alles löschen | `make clean` | `docker compose down --rmi all --volumes` |
+
+---
+
+## Tests und Checks
+
+Frontend:
+
+```bash
+cd frontend
+npm run check
+npm test -- --run
+npm run test:coverage -- --run
+```
+
+Backend:
+
+```bash
+cd backend
+npm run build
+npm test
+```
+
+Live-Tests gegen den echten KI-Server laufen separat und brauchen eine passende `.env.local`:
+
+```bash
+cd backend
+npm run test:ai-triage
+```
+
+---
+
+## Deployment-Optionen
+
+| Option | Wann verwenden | Start |
+|---|---|---|
+| Entwicklung mit Hot Reload | Lokale Entwicklung an Frontend und Backend | `make dev` |
+| Docker Compose Produktion | Lokaler oder Server-Betrieb mit getrennten Frontend-/Backend-Images | `make prod` oder `docker compose up -d --build` |
+| Einzelnes Docker Image | Weitergabe als ein Image oder TAR-Datei | `docker build -t heptacode:latest .` |
+| GitHub Release Download | Fertiges Docker-Paket aus GitHub Actions herunterladen | `Releases -> Heptacode Docker Download` |
+
+Alle Produktionsvarianten brauchen eine `.env.local` mit mindestens `AI_API_URL`, `AI_API_KEY`, `AI_MODEL` und `FALLBACK_MODEL`.
 
 ---
 
@@ -217,19 +277,29 @@ heptacode/
 ├── .env.example                # Vorlage — nie echte Werte eintragen
 ├── .env.local                  # Echte Werte — NIEMALS in Git!
 ├── Makefile
+├── Dockerfile                  # Einzelnes kombiniertes Docker Image
+├── .github/
+│   ├── ISSUE_TEMPLATE/
+│   ├── PULL_REQUEST_TEMPLATE.md
+│   └── workflows/
 ├── docs/
-│   └── FRONTEND_BACKEND_SCHNITTSTELLE.md
+│   ├── FRONTEND_BACKEND_SCHNITTSTELLE.md
+│   ├── GRAPHIFY.md
+│   └── docker-release/
 ├── shared/                     # Geteilte Typen zwischen Frontend und Backend
+│   ├── package.json
 │   ├── patientData.types.ts
 │   ├── result.types.ts
 │   ├── symptom.types.ts
-│   └── symptomExtraction.types.ts
+│   ├── symptomExtraction.types.ts
+│   └── symptomTaxonomy.ts
 │
 ├── frontend/                   # React + TypeScript + Vite
 │   ├── Dockerfile
 │   ├── Dockerfile.dev
 │   ├── ARCHITECTURE.md
-│   ├── guidelines/
+│   ├── README.md
+│   ├── nginx.conf
 │   ├── src/
 │   │   ├── app/
 │   │   │   ├── App.tsx
@@ -242,14 +312,19 @@ heptacode/
 │   │   ├── styles/
 │   │   ├── types/
 │   │   └── main.tsx
-│   ├── postcss.config.mjs
+│   ├── tests/
 │   ├── vite.config.ts
+│   ├── package.json
 │   └── tsconfig.json
 │
 └── backend/                    # Node.js + Fastify + Zod
     ├── Dockerfile
     ├── Dockerfile.dev
     ├── docs/
+    │   ├── FHIR.md
+    │   ├── ki-nutzung-doc.md
+    │   ├── symptom-extraction-doc.md
+    │   └── triage-doc.md
     ├── src/
     │   ├── ai/
     │   │   ├── client.ts       # LLM-Client
@@ -259,6 +334,7 @@ heptacode/
     │   │   └── env.ts
     │   ├── modules/
     │   │   ├── assessment/
+    │   │   ├── fhir/
     │   │   ├── pdf/
     │   │   ├── prompt/
     │   │   ├── symptom-extraction/
@@ -270,8 +346,22 @@ heptacode/
     │   │   └── triage.routes.ts
     │   ├── app.ts
     │   └── index.ts
+    ├── tests/
+    │   ├── integration/
+    │   ├── live/
+    │   └── unit/
+    ├── package.json
     └── tsconfig.json
 ```
+
+---
+
+## Bekannte Einschränkungen
+
+- Ohne erreichbaren KI-Server funktionieren Triage, Symptom-Extraktion und Assessment-Auswertung nur eingeschraenkt oder gar nicht.
+- Die Live-KI-Tests rufen echte Modelle auf und sind nicht Teil der normalen deterministischen Test-Suite.
+- Das Frontend nutzt fuer die Umgebungssuche externe Overpass-/OpenStreetMap-Endpunkte. Diese Abfragen koennen durch Netzwerk, Rate Limits oder Browser-Berechtigungen fehlschlagen.
+- `.env.local` ist lokal notwendig, darf aber nicht committet werden.
 
 ---
 
