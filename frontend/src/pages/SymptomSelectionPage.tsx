@@ -235,6 +235,12 @@ function formatSelectedCategoryLabel(category: BodyAreaCategory | null, selected
   return BODY_AREA_LABELS[category];
 }
 
+/**
+ * Maps a selected symptom back to the body-area tab that can show it again.
+ *
+ * This keeps filled selection slots useful after click, because users return to
+ * the same category instead of only seeing a static summary chip.
+ */
 function getBodyAreaCategoryForSymptom(symptom: SelectedSymptom): BodyAreaCategory | null {
   const matchingRegion = BODY_REGIONS.find((region) => region.name === symptom.region);
 
@@ -247,6 +253,9 @@ function getBodyAreaCategoryForSymptom(symptom: SelectedSymptom): BodyAreaCatego
   return preferredCategories.find((category) => BODY_AREA_REGION_IDS[category].includes(matchingRegion.id)) ?? null;
 }
 
+/**
+ * Restores the selected body side when a slot contains an arm or leg symptom.
+ */
 function getBodySideSelectionForSymptom(
   category: BodyAreaCategory | null,
   symptom: SelectedSymptom,
@@ -909,6 +918,12 @@ export default function SymptomSelectionPage() {
     }
   };
 
+  /**
+   * Keeps automatic scrolling mobile-only.
+   *
+   * Desktop users can already see the options next to the body figure, while
+   * mobile users need the viewport moved after a category or slot click.
+   */
   const scrollToSymptomOptions = () => {
     if (window.innerWidth >= 768) {
       return;
@@ -919,6 +934,12 @@ export default function SymptomSelectionPage() {
     }, 80);
   };
 
+  /**
+   * Turns the three selection cards into real symptom slots.
+   *
+   * Empty slots guide users to add another symptom; filled slots reopen the
+   * related category so the existing choice is visible in context.
+   */
   const focusSelectionSlot = (index: number) => {
     setInputMode("body");
     setActiveSelectionSlotIndex(index);
@@ -942,6 +963,9 @@ export default function SymptomSelectionPage() {
     scrollToSymptomOptions();
   };
 
+  /**
+   * Gives clickable symptom slots the same keyboard behavior as buttons.
+   */
   const handleSelectionSlotKeyDown = (event: KeyboardEvent<HTMLDivElement>, index: number) => {
     if (event.key === "Enter" || event.key === " ") {
       event.preventDefault();
@@ -1040,8 +1064,8 @@ export default function SymptomSelectionPage() {
   /**
    * Sends free-text symptoms to the extraction API and opens the details step.
    *
-   * Invalid or unavailable extraction stays in the modal so users can refine the
-   * same text instead of losing context by navigating away.
+   * Invalid or unavailable extraction stays on the same tab so users can refine
+   * the same text instead of losing context by navigating away.
    */
   const handleApplySymptomText = async () => {
     stopSymptomRecording();
@@ -1126,6 +1150,7 @@ export default function SymptomSelectionPage() {
       onBack={() => navigate("/pre-existing-conditions")}
     >
       <div className="mb-5 rounded-[20px] border border-[#d7dee7] bg-[#f5f7fa] p-2 shadow-sm">
+        {/* The segmented tabs make the two mutually exclusive input modes explicit. */}
         <div className="grid grid-cols-2 gap-2" role="tablist" aria-label="Eingabemodus wählen">
           <button
             type="button"
@@ -1274,6 +1299,7 @@ export default function SymptomSelectionPage() {
                   {selectedSymptoms.length}/{MAX_SYMPTOMS}
                 </p>
               </div>
+              {/* Selection slots are interactive so users can add or revisit up to three symptoms. */}
               <div className="flex flex-wrap gap-2 md:grid md:grid-cols-3">
                 {Array.from({ length: MAX_SYMPTOMS }).map((_, index) => {
                   const symptom = selectedSymptoms[index];
