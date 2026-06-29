@@ -18,7 +18,7 @@ import Button from "../components/Button";
 import { useAssessment } from "../lib/AssessmentContext";
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
-import type { PatientData } from "../../../shared/patientData.types";
+import type { PatientData, SmokingStatus } from "../../../shared/patientData.types";
 
 type MedicalSection =
   | "allergies"
@@ -26,8 +26,6 @@ type MedicalSection =
   | "substance"
   | "abroad"
   | "smoking";
-type SmokingStatus = "Nein" | "Gelegentlich" | "Ja";
-
 /**
  * Creates the medical-data form state with persisted values applied.
  *
@@ -56,6 +54,7 @@ const createInitialPatientData = (
   recentAbroad: false,
   recentAbroadDetails: "",
   conditions: [],
+  smokingStatus: "Nein",
   isSmoker: false,
   smokingSinceYears: "",
   cigarettesPerDay: "",
@@ -65,6 +64,10 @@ const createInitialPatientData = (
 
 function hasSubstance(value: string | undefined, substance: "Alkohol" | "Drogen") {
   return Boolean(value?.toLowerCase().includes(substance.toLowerCase()));
+}
+
+function getSmokingStatus(patientData?: Partial<PatientData>): SmokingStatus {
+  return patientData?.smokingStatus ?? (patientData?.isSmoker ? "Ja" : "Nein");
 }
 
 function buildSubstanceInfluence(
@@ -218,7 +221,7 @@ export default function MedicalDataPage() {
     createInitialPatientData(patientData ?? undefined),
   );
   const [smokingStatus, setSmokingStatus] = useState<SmokingStatus>(() =>
-    patientData?.isSmoker ? "Ja" : "Nein",
+    getSmokingStatus(patientData ?? undefined),
   );
   const [expandedMedicalSections, setExpandedMedicalSections] = useState<
     Record<MedicalSection, boolean>
@@ -827,6 +830,7 @@ export default function MedicalDataPage() {
                     setSmokingStatus(status);
                     setFormData({
                       ...formData,
+                      smokingStatus: status,
                       isSmoker: status !== "Nein",
                       smokingSinceYears:
                         status === "Nein" ? "" : formData.smokingSinceYears,
