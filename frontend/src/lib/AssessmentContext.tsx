@@ -6,6 +6,7 @@ import { hasCompleteSymptomDetails, hasRequiredSymptoms, isValidPatientData } fr
 
 const ASSESSMENT_STORAGE_KEY = "heptacheck.assessment.v1";
 const ASSESSMENT_STORAGE_TTL_MS = 10 * 60 * 1000;
+const ASSESSMENT_EXPIRY_WARNING_MS = 30 * 1000;
 
 interface PersistedAssessmentState {
   patientData: PatientData | null;
@@ -94,6 +95,17 @@ function normalizePersistedAssessmentState(state: PersistedAssessmentState): Per
   };
 }
 
+function hasPersistableAssessmentData(state: PersistedAssessmentState) {
+  return Boolean(
+    state.patientData ||
+      state.selectedSymptoms.length > 0 ||
+      state.symptomText.trim() ||
+      state.symptomDetails.length > 0 ||
+      state.assessmentResult ||
+      state.assessmentRequestKey,
+  );
+}
+
 function readPersistedAssessmentState(): PersistedAssessmentState {
   try {
     window.localStorage.removeItem(ASSESSMENT_STORAGE_KEY);
@@ -142,21 +154,25 @@ function readPersistedAssessmentState(): PersistedAssessmentState {
 
 function writePersistedAssessmentState(state: PersistedAssessmentState) {
   if (!isBrowserStorageAvailable()) {
-    return;
+    return null;
   }
 
   try {
+    const expiresAt = Date.now() + ASSESSMENT_STORAGE_TTL_MS;
     const storedAssessment: StoredAssessment = {
       state: normalizePersistedAssessmentState(state),
-      expiresAt: Date.now() + ASSESSMENT_STORAGE_TTL_MS,
+      expiresAt,
     };
 
     window.sessionStorage.setItem(
       ASSESSMENT_STORAGE_KEY,
       JSON.stringify(storedAssessment),
     );
+
+    return expiresAt;
   } catch (error) {
     console.warn("Ersteinschätzung konnte nicht im Browser gespeichert werden.", error);
+    return null;
   }
 }
 
@@ -183,10 +199,14 @@ interface AssessmentContextType {
   setSymptomDetails: (details: Symptom[]) => void;
   assessmentResult: AssessmentResult | null;
   setAssessmentResult: (result: AssessmentResult | null) => void;
+  expiryWarningSecondsRemaining: number | null;
+  hasAssessmentExpired: boolean;
   evaluationProgress: number;
   isEvaluating: boolean;
   submitAssessment: (details: Symptom[]) => Promise<AssessmentResult>;
   resetAssessment: () => void;
+  refreshAssessmentExpiry: () => void;
+  acknowledgeAssessmentExpiry: () => void;
 }
 
 const AssessmentContext = createContext<AssessmentContextType | undefined>(undefined);
@@ -208,7 +228,64 @@ export function AssessmentProvider({ children }: { children: ReactNode }) {
   );
   const [evaluationProgress, setEvaluationProgress] = useState(0);
   const [isEvaluating, setIsEvaluating] = useState(false);
+  const [expiryWarningSecondsRemaining, setExpiryWarningSecondsRemaining] = useState<number | null>(null);
+  const [hasAssessmentExpired, setHasAssessmentExpired] = useState(false);
   const assessmentRequestVersion = useRef(0);
+  const expiryTimeoutId = useRef<number | null>(null);
+  const expiryWarningTimeoutId = useRef<number | null>(null);
+  const expiryCountdownIntervalId = useRef<number | null>(null);
+
+  const clearExpiryTimers = () => {
+    if (expiryTimeoutId.current !== null) {
+      window.clearTimeout(expiryTimeoutId.current);
+      expiryTimeoutId.current = null;
+    }
+
+    if (expiryWarningTimeoutId.current !== null) {
+      window.clearTimeout(expiryWarningTimeoutId.current);
+      expiryWarningTimeoutId.current = null;
+    }
+
+    if (expiryCountdownIntervalId.current !== null) {
+      window.clearInterval(expiryCountdownIntervalId.current);
+      expiryCountdownIntervalId.current = null;
+    }
+  };
+
+  const startExpiryWarning = (expiresAt: number) => {
+    const updateCountdown = () => {
+      setExpiryWarningSecondsRemaining(Math.max(0, Math.ceil((expiresAt - Date.now()) / 1000)));
+    };
+
+    updateCountdown();
+    expiryCountdownIntervalId.current = window.setInterval(updateCountdown, 1000);
+  };
+
+  const scheduleAssessmentExpiry = (expiresAt: number) => {
+    clearExpiryTimers();
+    setExpiryWarningSecondsRemaining(null);
+
+    const remainingTime = expiresAt - Date.now();
+
+    if (remainingTime <= 0) {
+      expireAssessment();
+      return;
+    }
+
+    const warningDelay = remainingTime - ASSESSMENT_EXPIRY_WARNING_MS;
+
+    if (warningDelay <= 0) {
+      startExpiryWarning(expiresAt);
+    } else {
+      expiryWarningTimeoutId.current = window.setTimeout(() => {
+        startExpiryWarning(expiresAt);
+      }, warningDelay);
+    }
+
+    expiryTimeoutId.current = window.setTimeout(() => {
+      expireAssessment();
+    }, remainingTime);
+  };
 
   useEffect(() => {
     if (!shouldPersistAssessmentState.current) {
@@ -216,14 +293,29 @@ export function AssessmentProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    writePersistedAssessmentState({
+    const nextPersistedState = {
       patientData,
       selectedSymptoms,
       symptomText,
       symptomDetails,
       assessmentResult,
       assessmentRequestKey,
-    });
+    };
+
+    if (!hasPersistableAssessmentData(nextPersistedState)) {
+      clearExpiryTimers();
+      setExpiryWarningSecondsRemaining(null);
+      clearPersistedAssessmentState();
+      return clearExpiryTimers;
+    }
+
+    const expiresAt = writePersistedAssessmentState(nextPersistedState);
+
+    if (expiresAt !== null) {
+      scheduleAssessmentExpiry(expiresAt);
+    }
+
+    return clearExpiryTimers;
   }, [patientData, selectedSymptoms, symptomText, symptomDetails, assessmentResult, assessmentRequestKey]);
 
   const invalidateAssessmentResult = () => {
@@ -335,10 +427,13 @@ export function AssessmentProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const resetAssessment = () => {
+  function clearAssessmentState(markExpired: boolean) {
     assessmentRequestVersion.current += 1;
     shouldPersistAssessmentState.current = false;
+    clearExpiryTimers();
     clearPersistedAssessmentState();
+    setExpiryWarningSecondsRemaining(null);
+    setHasAssessmentExpired(markExpired);
     setPatientDataState(null);
     setSelectedSymptomsState([]);
     setSymptomText("");
@@ -347,6 +442,42 @@ export function AssessmentProvider({ children }: { children: ReactNode }) {
     setAssessmentRequestKey(null);
     setEvaluationProgress(0);
     setIsEvaluating(false);
+  }
+
+  function resetAssessment() {
+    clearAssessmentState(false);
+  }
+
+  function expireAssessment() {
+    clearAssessmentState(true);
+  }
+
+  function refreshAssessmentExpiry() {
+    const nextPersistedState = {
+      patientData,
+      selectedSymptoms,
+      symptomText,
+      symptomDetails,
+      assessmentResult,
+      assessmentRequestKey,
+    };
+
+    if (!hasPersistableAssessmentData(nextPersistedState)) {
+      clearExpiryTimers();
+      setExpiryWarningSecondsRemaining(null);
+      clearPersistedAssessmentState();
+      return;
+    }
+
+    const expiresAt = writePersistedAssessmentState(nextPersistedState);
+
+    if (expiresAt !== null) {
+      scheduleAssessmentExpiry(expiresAt);
+    }
+  }
+
+  const acknowledgeAssessmentExpiry = () => {
+    setHasAssessmentExpired(false);
   };
 
   return (
@@ -362,10 +493,14 @@ export function AssessmentProvider({ children }: { children: ReactNode }) {
         setSymptomDetails,
         assessmentResult,
         setAssessmentResult,
+        expiryWarningSecondsRemaining,
+        hasAssessmentExpired,
         evaluationProgress,
         isEvaluating,
         submitAssessment,
         resetAssessment,
+        refreshAssessmentExpiry,
+        acknowledgeAssessmentExpiry,
       }}
     >
       {children}
