@@ -403,11 +403,11 @@ describe('page-level user flows', () => {
 
     render(<SymptomSelectionPage />);
 
-    await user.click(screen.getAllByRole('button', { name: /Symptome beschreiben/ })[0]);
+    await user.click(screen.getByRole('tab', { name: /Frei beschreiben/ }));
     expect(screen.getByRole('button', { name: 'Symptombeschreibung übernehmen' })).toBeDisabled();
 
     await user.type(
-      screen.getByPlaceholderText(/Ich habe seit 3 Tagen/),
+      screen.getByPlaceholderText(/Seit 3 Tagen/),
       'Ich habe starke Kopfschmerzen und Bauchschmerzen.',
     );
     await user.click(screen.getByRole('button', { name: 'Symptombeschreibung übernehmen' }));
@@ -433,7 +433,7 @@ describe('page-level user flows', () => {
     });
   });
 
-  it('keeps users in the free-text modal when extraction returns invalid input', async () => {
+  it('keeps users in the free-text tab when extraction returns invalid input', async () => {
     const user = userEvent.setup();
     extractSymptomsFromTextMock.mockResolvedValue({
       text: 'hallo',
@@ -445,8 +445,8 @@ describe('page-level user flows', () => {
 
     render(<SymptomSelectionPage />);
 
-    await user.click(screen.getAllByRole('button', { name: /Symptome beschreiben/ })[0]);
-    await user.type(screen.getByPlaceholderText(/Ich habe seit 3 Tagen/), 'hallo');
+    await user.click(screen.getByRole('tab', { name: /Frei beschreiben/ }));
+    await user.type(screen.getByPlaceholderText(/Seit 3 Tagen/), 'hallo');
     await user.click(screen.getByRole('button', { name: 'Symptombeschreibung übernehmen' }));
 
     expect(await screen.findByText('Bitte medizinische Beschwerden beschreiben.')).toBeInTheDocument();

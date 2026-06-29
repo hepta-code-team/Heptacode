@@ -172,7 +172,9 @@
 
   html {
     font-size: var(--font-size);
-    font-family: ui-sans-serif, system-ui, sans-serif;  }
+    font-family: ui-sans-serif, system-ui, sans-serif;
+    scrollbar-gutter: stable;
+  }
 
   h1 {
     font-size: var(--text-2xl);

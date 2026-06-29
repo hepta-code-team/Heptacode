@@ -2,156 +2,188 @@
 
 ### Zuständigkeiten
 
-`symptom-extraction` ist für die strukturierte Aufbereitung von Eingaben zuständig:
+`symptom-extraction` bereitet Freitext- und Spracheingaben fuer die weitere medizinische Ersteinschaetzung auf.
+
+Das Modul uebernimmt:
 
 - formale Request-Validierung
-- heuristische Vorprüfung auf offensichtlichen Unsinn
-- KI-gestützte Prüfung, ob überhaupt medizinisch sinnvoller Inhalt vorliegt
-- KI-gestützte Extraktion von bis zu drei frontend-kompatiblen Symptomen
+- Plausibilitaetspruefung gegen Stammdaten
+- heuristische Vorpruefung auf offensichtlichen Unsinn
+- KI-gestuetzte Pruefung, ob medizinisch sinnvoller Inhalt vorliegt
+- KI-gestuetzte Extraktion von bis zu drei strukturierten Symptomen
+- Validierung einzelner Freitextangaben auf der Detailseite
+- Konsistenzpruefung zwischen ausgewaehlter Region und Zusatzdetails
+- kontrollierte Fallback-Antworten bei KI-Verfuegbarkeitsproblemen
 
 ### Strukturierte AI-Antworten
 
-In [backend/src/ai/llmAdapter.ts] kapselt `requestStructuredAiResponse(...)` den eigentlichen KI-Aufruf.
+In [backend/src/ai/llmAdapter.ts] kapseln `requestStructuredAiResponse(...)` und `requestStructuredAiResponseWithModel(...)` die KI-Aufrufe.
 
-Die Funktion übernimmt:
+Die Funktionen nutzen zuerst strukturierte OpenAI-Antworten mit `zodResponseFormat(...)`. Wenn die strukturierte Parse-Variante aus einem nicht-verfuegbarkeitsbezogenen Grund scheitert, versucht der Adapter JSON-Modus plus lokale Zod-Validierung. Bei Verfuegbarkeitsfehlern kann auf das konfigurierte Fallback-Modell gewechselt werden.
 
-- `messages`: Chat-Nachrichten für System- und User-Prompt
-- `schema`: ein Zod-Schema für die erwartete Antwort
-- `schemaName`: Name des Ausgabeformats
-- `temperature`: optional, Standard `0.2`
-
-Intern wird `aiClient.beta.chat.completions.parse(...)` mit `zodResponseFormat(...)` genutzt. Dadurch wird die Antwort direkt gegen ein Zod-Schema geparst. Wenn keine geparste Antwort vorliegt, wirft die Funktion einen Fehler.
-
-Diese Kapselung hat zwei Vorteile:
-
-- alle strukturierten KI-Antworten laufen über denselben Integrationspunkt
-- die Module bekommen bereits validierte Daten zurück statt freie Textantworten
+Validierungsnahe Aufrufe in diesem Modul verwenden `modelStrategy: 'fallback-only'`.
 
 ### Ziel
 
-Das Modul übersetzt deutschen medizinischen Freitext in eine kleine, stabile und frontend-kompatible Symptomliste.
+Das Modul uebersetzt deutschen medizinischen Freitext in eine kleine, stabile und frontend-kompatible Symptomliste.
 
-Die Ausgabe ist absichtlich eng begrenzt:
+Die Ausgabe ist begrenzt auf:
 
 - maximal drei Symptome
-- nur bekannte Regionen und Unteroptionen
-- optionale Schmerzstärke als ganzzahliger Wert von `1` bis `10`
-- optionale Dauer als eine von `today`, `days`, `week`, `weeks`
+- bekannte Regionen und Unteroptionen aus der Symptomtaxonomie, wenn sie passen
+- freie, kurze medizinische `region`-Namen, wenn die Taxonomie eine Beschwerde nicht ausreichend abbildet
+- optionale Zusatzdetails
+- optionale Messart und Messwert
+- optionale Dauer als `today`, `days`, `week` oder `weeks`
 
-### HTTP-Endpunkt
+### HTTP-Endpunkte
 
-Die Route befindet sich in [backend/src/routes/symptomExtraction.routes.ts]
+Die Routen befinden sich in [backend/src/routes/symptomExtraction.routes.ts].
 
-Pfad:
+#### `POST /api/v1/symptoms/extraction`
 
-```text
-POST /api/v1/symptoms/extraction
-```
+Extrahiert Symptome aus Freitext oder Spracheingabe.
 
-Die Route validiert den Request-Body per `symptomExtractionRequestSchema` und ruft anschließend `extractSymptoms(...)` auf.
+#### `POST /api/v1/symptoms/validation`
+
+Prueft, ob ein Freitext als medizinischer Input verwertbar ist. Es werden keine Symptome extrahiert.
+
+#### `POST /api/v1/symptoms/detail-validation`
+
+Prueft eine einzelne Angabe von der Symptom-Detailseite. Dieser Pfad ist bewusst toleranter als die allgemeine Freitextvalidierung, weil dort auch kurze Stichworte, Koerperstellen, Seitenangaben, Verletzungsmechanismen oder Negationen valide sein koennen.
+
+#### `POST /api/v1/symptoms/consistency`
+
+Prueft, ob eine ausgewaehlte Region und optionale Details eindeutig widerspruechliche Koerperbereiche nennen.
 
 ### Request-Schema
 
-Das Schema steht in [backend/src/modules/symptom-extraction/symptomExtraction.types.ts]
+Das Schema steht in [backend/src/modules/symptom-extraction/symptomExtraction.types.ts].
 
-Erlaubte Felder:
+Fuer Extraktion und Validierung sind erlaubt:
 
+- `symptomText?: string`
 - `text?: string`
 - `input?: string`
 - `inputType?: 'text' | 'speech'`
+- `patientData?: PatientData`
 
-Besonderheiten:
+Mindestens eines der Textfelder muss befuellt sein. Der Route-Handler verwendet die Prioritaet:
 
-- `text` und `input` sind alternativ nutzbar.
-- Mindestens eines von beiden muss befüllt sein.
-- Der Route-Handler übergibt `body.text ?? body.input ?? ''` an den Service.
+```ts
+body.symptomText ?? body.text ?? body.input ?? ''
+```
 
-Der Alias `input` wirkt wie ein Kompatibilitäts- oder Übergangsfeld für bestehende Clients.
+`symptomText` ist das aktuelle fachliche Feld. `text` und `input` bleiben als kompatible Alternativen erlaubt.
 
-### Response-Schema
+Fuer die Konsistenzpruefung sind erlaubt:
 
-Die Service-Funktion liefert ein Objekt vom Typ `SymptomExtractionResponse`:
+- `region: string`
+- `side?: string`
+- `details?: string`
+- `patientData?: PatientData`
+
+### Response-Schemas
+
+#### Symptom-Extraktion
+
+`extractSymptoms(...)` liefert `SymptomExtractionResponse`:
 
 - `text`: der originale Freitext
 - `inputType`: `text` oder `speech`
 - `symptoms`: extrahierte Symptomliste
-- `invalidInput?`: Kennzeichnung für ungültige Eingaben
-- `message?`: fachliche Rückmeldung bei ungültiger Eingabe
+- `invalidInput?`: Kennzeichnung fachlich ungueltiger Eingaben
+- `aiUnavailable?`: Kennzeichnung, dass keine rechtzeitige oder strukturierte KI-Antwort verfuegbar war
+- `message?`: Benutzer-Nachricht bei ungueltiger Eingabe oder KI-Ausfall
 
-Wichtig ist, dass ungültiger medizinischer Freitext nicht als HTTP-Fehler behandelt wird. Stattdessen liefert das Modul regulär eine Antwort mit:
+Fachlich ungueltiger Freitext ist kein HTTP-Fehler. Der Endpunkt antwortet regulaer mit leerer Symptomliste und `invalidInput: true`.
 
-- leerer `symptoms`-Liste
-- `invalidInput: true`
-- einer Benutzer-Nachricht in `message`
+#### Input-Validierung
+
+`validateSymptomInput(...)` und `validateSymptomDetailInput(...)` liefern:
+
+- `text`
+- `inputType`
+- `isValidMedicalInput`
+- `aiUnavailable?`
+- `message?`
+
+#### Konsistenzpruefung
+
+`validateSymptomConsistency(...)` liefert:
+
+- `isRegionMeaningful`
+- `hasClearContradiction`
+- `selectedLocationIds`
+- `detailLocationIds`
+- `selectedLocationConfidence`
+- `detailLocationConfidence`
+- `aiUnavailable?`
+- `message?`
 
 ### Datenmodell der Symptome
 
-Ein einzelnes Symptom hat folgende Struktur:
+Ein extrahiertes Symptom entspricht `TriageSymptom`:
 
 ```ts
 {
   region: string
   side?: string
-  painLevel?: number
+  details?: string
+  measurementType?: 'pain' | 'temperature' | 'feeling' | 'severity'
+  measurementValue?: number
   duration?: 'today' | 'days' | 'week' | 'weeks'
 }
 ```
 
-Die eigentliche KI-Ausgabe wird über `symptomExtractionAiResultSchema` eingeschränkt:
+`painLevel` wird nicht mehr verwendet. Die Intensitaet wird ueber `measurementType` und `measurementValue` modelliert.
 
-- `symptoms` ist ein Array
-- maximal `3` Einträge
-- jeder Eintrag muss `selectedSymptomSchema` erfüllen
+### Normalisierung der KI-Ausgabe
+
+Die KI-Ausgabe wird ueber `symptomExtractionAiResultSchema` validiert und transformiert.
+
+Wichtige Normalisierungen:
+
+- bekannte Regionen werden auf kanonische Regionsnamen gemappt
+- bekannte Unteroptionen koennen aus `region` oder `side` erkannt und in `region`/`side` ueberfuehrt werden
+- leere Strings und `null` werden bei optionalen Feldern entfernt
+- lokalisierte Messwerte wie `38,5 °C` werden numerisch normalisiert
+- `temperature` bleibt nur fuer Fieber oder gemessene Koerpertemperatur erhalten
+- Dauer- und Staerkeangaben werden aus `details` entfernt, weil sie eigene Felder haben
+- redundante Details wie ein erneut genannter Regionsname werden entfernt
 
 ### Ablauf im Service
 
-Die Kernlogik steht in [backend/src/modules/symptom-extraction/symptomExtraction.service.ts]
+Die Kernlogik steht in [backend/src/modules/symptom-extraction/symptomExtraction.service.ts].
 
-Der Ablauf ist mehrstufig:
+#### 1. Plausibilitaetspruefung gegen Stammdaten
 
-1. heuristische Vorprüfung
-2. KI-Validierung des Freitexts
-3. KI-Extraktion der Symptome
-4. Rückgabe der strukturierten Liste
+Wenn `patientData` uebergeben wird, prueft `getPatientPlausibilityError(...)` logische Widersprueche. Aktuell wird insbesondere abgefangen, wenn bei maennlichem Geschlecht Schwangerschaft, Wehen oder Schwangerschaftsstatus angegeben werden.
 
-#### 1. Heuristische Vorprüfung
-
-`detectHeuristicInvalidInput(...)` fängt klar ungeeignete Eingaben schon ohne KI-Aufruf ab.
-
-Verwendete Hilfsfunktionen:
-
-- `normalizeText(...)`
-- `splitWords(...)`
-
-Geprüft werden unter anderem:
-
-- sehr kurze Eingaben
-- nur ein einzelnes, nicht-medizinisches Wort
-- stark repetitiver Buchstabensalat
-- reine Satzzeichen- oder Zahleneingaben
-
-Ziel dieser Heuristik:
-
-- Kosten sparen
-- Latenz reduzieren
-- triviale Unsinnseingaben früh abweisen
-
-Wenn die Heuristik anschlägt, liefert der Service sofort:
+Bei einem Widerspruch liefert das Modul eine fachliche Antwort mit:
 
 - `invalidInput: true`
 - `symptoms: []`
-- eine konkrete Benutzer-Nachricht
+- `message` mit der Plausibilitaetsmeldung
 
-#### 2. KI-Validierung des Freitexts
+#### 2. Heuristische Vorpruefung
 
-Wenn die Heuristik den Text nicht verwirft, ruft das Modul `requestInputValidationFromAi(...)` auf.
+`detectHeuristicInvalidInput(...)` faengt klar ungeeignete Eingaben ohne KI-Aufruf ab.
 
-Die KI bekommt:
+Geprueft werden unter anderem:
 
-- einen System-Prompt zur Trennung zwischen medizinisch sinnvollem und unsinnigem Freitext
-- einen User-Prompt mit `Input-Typ` und `Freitext`
+- sehr kurze Eingaben
+- einzelne unzureichende Woerter
+- stark repetitiver Buchstabensalat
+- reine Satzzeichen- oder Zahleneingaben
 
-Die strukturierte Antwort muss dem Schema `symptomInputValidationAiResultSchema` entsprechen:
+Ziel ist, Kosten und Latenz fuer triviale Unsinnseingaben zu reduzieren.
+
+#### 3. KI-Validierung des Freitexts
+
+Wenn die Heuristik nicht verwirft, ruft das Modul `requestInputValidationFromAi(...)` auf.
+
+Die strukturierte Antwort hat die Form:
 
 ```ts
 {
@@ -160,54 +192,73 @@ Die strukturierte Antwort muss dem Schema `symptomInputValidationAiResultSchema`
 }
 ```
 
-Wenn `isValidMedicalInput` `false` ist, liefert der Service wieder eine reguläre Antwort mit:
+Wenn `isValidMedicalInput` `false` ist, endet der Ablauf mit `invalidInput: true`.
 
-- `invalidInput: true`
+Falls dieser Validierungs-KI-Aufruf wegen Verfuegbarkeit scheitert, versucht `extractSymptoms(...)` trotzdem die eigentliche Extraktion. Ein transienter Validierungsausfall blockiert die Extraktion also nicht automatisch.
+
+#### 4. KI-Extraktion der Symptome
+
+Nur medizinisch sinnvoller Input wird extrahiert. Der Prompt erlaubt sowohl Taxonomie-Mapping als auch freie medizinische Symptomnamen, wenn die feste Liste sonst relevante Information verlieren wuerde.
+
+Die Extraktion erfasst:
+
+- Beschwerden, Symptome und Verletzungen
+- Unfaelle, Wunden, Fremdkoerper, Vergiftungen, Blutungen und Verbrennungen
+- Funktionsverluste, Gefuehlsstoerungen und Abtrennungen
+- relevante Zusatzdetails wie Ursache, Mechanismus, Blutung, offene Wunde oder Negationen
+
+Wenn die Extraktions-KI wegen Verfuegbarkeit scheitert, liefert der Service keinen HTTP-500, sondern:
+
 - `symptoms: []`
-- `message: reason`
+- `aiUnavailable: true`
+- eine Benutzer-Nachricht mit Hinweis auf erneuten Versuch oder manuelle Symptomauswahl
 
-#### 3. KI-Extraktion der Symptome
+Unbekannte Fehler werden weiterhin geworfen.
 
-Nur wenn der Text fachlich valide wirkt, ruft das Modul `requestSymptomsFromAi(...)` auf.
+### Detailvalidierung
 
-Der Prompt erzwingt eine sehr enge Taxonomie:
+`validateSymptomDetailInput(...)` nutzt einen eigenen Prompt fuer Detailseiten-Eingaben. Er ist lockerer als die allgemeine Freitextvalidierung:
 
-- nur bekannte Regionen
-- nur definierte Unteroptionen
-- optionale Schmerzstärke nur als ganze Zahl von `1` bis `10`
-- Dauer nur aus einer festen Auswahlliste
-- keine erfundenen Symptome
-- maximal drei Symptome
+- einzelne Woerter koennen gueltig sein
+- anatomische Regionen koennen gueltig sein
+- kurze Fragmente, Ursachen, Materialien oder Negationen koennen gueltig sein
+- unspezifische Koerperregionen sind nicht automatisch ungueltig
 
-Die strukturierte Antwort wird über `symptomExtractionAiResultSchema` validiert.
+Leere Eingaben werden direkt mit `Bitte geben Sie eine Angabe ein.` abgelehnt.
 
-#### 4. Rückgabe
+### Konsistenzpruefung Region/Details
 
-Die Rückgabe enthält:
+`validateSymptomConsistency(...)` prueft, ob `region`/`side` und `details` eindeutig unterschiedliche Koerperbereiche nennen.
 
-- den ursprünglichen `text`
-- `inputType`
-- die extrahierten `symptoms`
+Der Ablauf:
 
-Wenn der Text gültig war, enthält die Antwort kein `invalidInput`.
+- bekannte Koerperbereiche werden zunaechst deterministisch aus der gemeinsamen Taxonomie erkannt
+- wenn beide Seiten eindeutig erkannt wurden, entscheidet der Service ohne KI
+- wenn eine Seite nicht deterministisch aufloesbar ist, wird eine KI-Konsistenzpruefung genutzt
+- blockiert wird nur bei hochsicheren, expliziten und nicht kompatiblen Koerperbereichen
+- bei KI-Verfuegbarkeitsfehlern wird nicht blockiert, sondern `aiUnavailable: true` zurueckgegeben
 
 ### Fachliche Leitplanken
 
-Das Modul ist nicht als freies NLU-System ausgelegt, sondern als Übersetzer in eine feste Frontend-Symptomtaxonomie.
+Das Modul ist kein freies Diagnose-System. Es uebersetzt Eingaben in eine triagefaehige Struktur.
 
-Wichtige Konsequenzen:
+Konsequenzen:
 
-- Nicht jedes medizinisch sinnvolle Detail wird übernommen.
-- Das Modul priorisiert Kompatibilität mit der UI über Vollständigkeit.
-- Symptome außerhalb der hinterlegten Taxonomie werden nicht frei modelliert.
-- Schmerzstärke und Dauer werden nur übernommen, wenn sie klar erkennbar sind.
+- maximal drei Beschwerden werden uebernommen
+- UI-kompatible Taxonomie hat Vorrang, solange kein relevanter Inhalt verloren geht
+- freie `region`-Namen sind erlaubt, wenn eine Beschwerde sonst zu grob wuerde
+- Messwerte werden nur uebernommen, wenn sie ausdruecklich genannt sind
+- Dauer wird nur gesetzt, wenn sie sicher einer der vier Optionen zuordenbar ist
+- medizinisch relevante Negationen in Details sollen erhalten bleiben
 
 ### Fehlerverhalten
 
-Mögliche Fehlerfälle:
+Mögliche technische Fehler:
 
-- formale Request-Validierung schlägt fehl: HTTP `400`
-- KI-Client ist falsch konfiguriert oder nicht erreichbar: HTTP `500`
-- KI liefert keine parsebare strukturierte Antwort: HTTP `500`
+- formale Request-Validierung schlaegt fehl: HTTP `400`
+- unbekannte Service- oder Programmierfehler: HTTP `500`
 
-Fachlich ungültiger Freitext ist dagegen kein technischer Fehler, sondern Teil des normalen Antwortvertrags.
+Kontrollierte fachliche oder externe Fehler werden als normale Antwort modelliert:
+
+- ungueltiger medizinischer Freitext: `invalidInput: true`
+- KI-Verfuegbarkeitsproblem: `aiUnavailable: true`
