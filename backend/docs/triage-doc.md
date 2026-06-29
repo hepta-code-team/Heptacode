@@ -2,48 +2,47 @@
 
 ### Zuständigkeiten
 
-`triage` ist für die medizinische Einordnung zuständig:
+`triage` ist fuer die medizinische Einordnung strukturierter Beschwerden zustaendig.
+
+Das Modul uebernimmt:
 
 - formale Request-Validierung
-- Unterstützung für zwei Eingangswege:
-  - direkte strukturierte Symptome
-  - Freitext, der intern zuerst durch `symptom-extraction` läuft
-- KI-gestützte Auswahl von Versorgungsebene und Fachrichtung
-- Nachkorrektur der Versorgungsebene, damit sie immer zur empfohlenen Fachrichtung passt
+- Plausibilitaetspruefung gegen Stammdaten
+- Unterstuetzung fuer strukturierte Symptome
+- Unterstuetzung fuer Freitext, der intern zuerst durch `symptom-extraction` laeuft
+- Notfall-Bypass ueber `emergencyFromLanding`
+- KI-gestuetzte Auswahl der Versorgungsebene
+- optionale KI-gestuetzte Auswahl einer Fachrichtung bei `specialist`
+- Plausibilitaetspruefung der KI-Antwort
+- lokale Fallback-Triage bei KI-Verfuegbarkeitsproblemen oder verworfenen KI-Antworten
 
 ### Strukturierte AI-Antworten
 
-In [backend/src/ai/llmAdapter.ts] kapselt `requestStructuredAiResponse(...)` den eigentlichen KI-Aufruf.
+In [backend/src/ai/llmAdapter.ts] kapseln `requestStructuredAiResponse(...)` und `requestStructuredAiResponseWithModel(...)` den eigentlichen KI-Aufruf.
 
-Die Funktion übernimmt:
+Die Triage nutzt `requestStructuredAiResponseWithModel(...)`, weil das verwendete Modell im Ergebnis als `aiModel` transparent gemacht werden kann.
 
-- `messages`: Chat-Nachrichten für System- und User-Prompt
-- `schema`: ein Zod-Schema für die erwartete Antwort
-- `schemaName`: Name des Ausgabeformats
-- `temperature`: optional, Standard `0.2`
+Der Adapter:
 
-Intern wird `aiClient.beta.chat.completions.parse(...)` mit `zodResponseFormat(...)` genutzt. Dadurch wird die Antwort direkt gegen ein Zod-Schema geparst. Wenn keine geparste Antwort vorliegt, wirft die Funktion einen Fehler.
-
-Diese Kapselung hat zwei Vorteile:
-
-- alle strukturierten KI-Antworten laufen über denselben Integrationspunkt
-- die Module bekommen bereits validierte Daten zurück statt freie Textantworten
-
+- versucht strukturierte OpenAI-Antworten mit `zodResponseFormat(...)`
+- faellt bei nicht-verfuegbarkeitsbezogenen Parse-Problemen auf JSON-Modus plus lokale Zod-Validierung zurueck
+- nutzt bei Verfuegbarkeitsfehlern ein konfiguriertes Fallback-Modell, sofern vorhanden
+- wirft einen Fehler, wenn keine valide strukturierte Antwort entsteht
 
 ### Ziel
 
-Das Modul `triage` bewertet Symptome im Hinblick auf die richtige Versorgungsebene und eine empfohlene medizinische Fachrichtung.
+Das Modul bewertet Beschwerden im Hinblick auf eine Versorgungsebene:
 
-Die Triage kann zwei Arten von Eingaben verarbeiten:
+- `selfcare`
+- `doctor`
+- `specialist`
+- `emergency`
 
-- bereits strukturierte Symptome
-- medizinischen Freitext
-
-Der Freitextpfad nutzt intern das Modul `symptom-extraction`.
+Eine konkrete fachaerztliche `recommendedSpecialty` wird nur bei `specialist` gefuehrt. `emergency_medicine`, `general_practice` und `home_care` sind System-Zielwerte fuer Notfall-, Hausarzt- oder Selbstversorgungsfaelle und koennen in normalisierten oder lokalen Antworten weiterhin gesetzt werden.
 
 ### HTTP-Endpunkt
 
-Die Route befindet sich in [backend/src/routes/triage.routes.ts]
+Die Route befindet sich in [backend/src/routes/triage.routes.ts].
 
 Pfad:
 
@@ -55,7 +54,7 @@ Die Route validiert den Request per `triageRequestSchema` und ruft danach `evalu
 
 ### Request-Schema
 
-Das Schema steht in [backend/src/modules/triage/triage.types.ts]
+Das Schema steht in [backend/src/modules/triage/triage.types.ts].
 
 Erlaubte Felder:
 
@@ -65,15 +64,17 @@ Erlaubte Felder:
 - `inputType?: 'text' | 'speech'`
 - `emergencyFromLanding?: boolean`
 
-Wichtige Validierungsregel:
+Mindestens eine dieser Bedingungen muss erfuellt sein:
 
-- Es muss entweder `text` gesetzt sein oder `symptoms` müssen mindestens einen Eintrag enthalten.
+- `text` ist gesetzt
+- `symptoms` enthaelt mindestens einen Eintrag
+- `emergencyFromLanding` ist `true`
 
-`symptoms` sind zusätzlich auf maximal drei Einträge begrenzt.
+`symptoms` sind auf maximal drei Eintraege begrenzt.
 
 ### PatientData
 
-Die Stammdaten bestehen aus:
+Die Stammdaten bestehen aktuell aus:
 
 - `birthMonth`
 - `birthYear`
@@ -84,37 +85,59 @@ Die Stammdaten bestehen aus:
 - `isBreastfeeding`
 - `allergies`
 - `medications`
+- `medicationDuration`
 - `substanceInfluence`
 - `recentAbroad`
 - `recentAbroadDetails`
 - `conditions`
+- `isSmoker`
+- `smokingSinceYears`
+- `cigarettesPerDay`
+- `conditionDetails`
 
-Die Werte werden aktuell als Strings und Booleans entgegengenommen und im Triage-Prompt als Text serialisiert. Es gibt in diesem Modul keine weitergehende semantische Validierung, etwa für realistische Größen- oder Gewichtsbereiche.
+Die meisten Werte werden als Strings und Booleans entgegengenommen und fuer den Prompt textuell serialisiert.
+
+Es gibt eine gezielte Plausibilitaetspruefung: Bei maennlichem Geschlecht werden Schwangerschaft, Wehen oder Schwangerschaftsstatus als logischer Widerspruch abgelehnt. Weitere semantische Wertebereiche wie realistische Groesse oder realistisches Gewicht werden in diesem Modul nicht geprueft.
 
 ### TriageSymptom
 
-Das Symptommodell entspricht inhaltlich der Struktur aus `symptom-extraction`:
+Das Symptommodell kommt aus dem gemeinsamen Typ `TriageSymptom`:
 
 ```ts
 {
   region: string
   side?: string
-  painLevel?: number
+  details?: string
+  measurementType?: 'pain' | 'temperature' | 'feeling' | 'severity'
+  measurementValue?: number
   duration?: 'today' | 'days' | 'week' | 'weeks'
 }
 ```
 
-Damit kann `triage` die Ergebnisse der Symptom-Extraktion direkt weiterverwenden.
+`painLevel` ist veraltet. Intensitaet und Messwerte werden ueber `measurementType` und `measurementValue` uebergeben.
 
 ### Response-Schema
 
-Die Triage liefert ein Objekt vom Typ `TriageResponse`:
+Die Triage liefert `TriageResponse`:
 
-- `careLevel`: `emergency | doctor | selfcare`
-- `recommendedSpecialty`: medizinische Fachrichtung
-- `reasons`: Liste kurzer Begründungen
+- `careLevel`: `selfcare | doctor | specialist | emergency`
+- `recommendedSpecialty?`: fachaerztliche Disziplin oder System-Zielwert wie `emergency_medicine`, `general_practice` oder `home_care`
+- `recommendedSpecialties?`: Liste priorisierter Fachrichtungen, aktuell im Service nicht aktiv befuellt
+- `reasons`: kurze deutsche Begruendungen
+- `reviewSummary?`: Zusammenfassung fuer Patientensprache und fachlichere Darstellung
+- `aiUnavailable?`: Kennzeichnung fuer lokale Fallbacks bei KI-Ausfall oder verworfener KI-Antwort
+- `aiModel?`: Modellname der erfolgreichen KI-Antwort
 
-Erlaubte Fachrichtungen sind durch `medicalSpecialtySchema` fest definiert, unter anderem:
+`reviewSummary` hat die Form:
+
+```ts
+{
+  plainLanguage: string
+  professionalSummary: string
+}
+```
+
+Erlaubte Fachrichtungen sind durch `medicalSpecialtySchema` fest definiert:
 
 - `home_care`
 - `emergency_medicine`
@@ -136,291 +159,177 @@ Erlaubte Fachrichtungen sind durch `medicalSpecialtySchema` fest definiert, unte
 
 ### Ablauf im Service
 
-Die Kernlogik steht in [backend/src/modules/triage/triage.service.ts]
+Die Kernlogik steht in [backend/src/modules/triage/triage.service.ts].
 
-#### 1. Notfall-Bypass über `emergencyFromLanding`
+#### 1. Plausibilitaetspruefung
 
-Wenn `emergencyFromLanding` gesetzt ist, gibt das Modul sofort eine feste Notfallantwort zurück:
+`assertPatientDataIsPlausible(...)` prueft vor allen Pfaden die Stammdaten gegen Freitext oder strukturierte Symptome.
+
+Aktuell wird insbesondere verhindert, dass bei maennlichem Geschlecht Schwangerschaft, Wehen oder Schwangerschaftsstatus verarbeitet werden. Ein Widerspruch fuehrt zu HTTP `400`.
+
+#### 2. Notfall-Bypass ueber `emergencyFromLanding`
+
+Wenn `emergencyFromLanding` gesetzt ist, gibt das Modul sofort eine feste Notfallantwort zurueck:
 
 - `careLevel: 'emergency'`
 - `recommendedSpecialty: 'emergency_medicine'`
 - `reasons: ['Notfallmodus ueber die Startseite ausgewaehlt.']`
+- `reviewSummary` mit laienverstaendlicher und fachlicher Kurzfassung
 
 In diesem Pfad wird keine KI aufgerufen.
 
-#### 2. Freitextpfad
+#### 3. Freitextpfad
 
-Wenn `text` gesetzt ist, läuft die Triage nicht direkt auf dem Rohtext, sondern zuerst über:
+Wenn `text` gesetzt ist, laeuft die Triage nicht direkt auf dem Rohtext. Stattdessen ruft sie zuerst:
 
 ```ts
 extractSymptoms(text, inputType)
 ```
 
-Das ist eine zentrale Designentscheidung:
-
-- nur eine Stelle im Backend transformiert Freitext in strukturierte Symptome
-- die eigentliche Triage arbeitet bevorzugt mit einer standardisierten Symptomstruktur
-
-Wenn die Symptom-Extraktion `invalidInput` zurückliefert, verwandelt `triage` das Ergebnis in einen HTTP-`400`-Fehler. Das geschieht über `createBadRequestError(...)`.
+Wenn die Symptom-Extraktion `invalidInput` zurueckliefert, verwandelt `triage` das Ergebnis in einen HTTP-`400`-Fehler.
 
 Wichtig ist der Unterschied zum direkten `symptom-extraction`-Endpunkt:
 
-- `symptom-extraction` liefert bei ungültigem medizinischem Freitext eine reguläre Fachantwort
-- `triage` behandelt denselben Fall als ungültige Anfrage
+- `symptom-extraction` liefert bei ungueltigem medizinischem Freitext eine regulaere Fachantwort
+- `triage` behandelt denselben Fall als ungueltige Anfrage
 
-Diese Entscheidung ist konsistent mit der Aufgabe des Endpunkts: Triage soll nur auf verwertbaren Beschwerdeangaben arbeiten.
+Wenn die Freitext-Extraktion wegen KI-Verfuegbarkeit keine Symptome liefern kann, gibt `triage` einen kontrollierten Fallback zurueck:
 
-#### 3. Pfad mit strukturierten Symptomen
+- `careLevel: 'doctor'`
+- `recommendedSpecialty: 'general_practice'`
+- `aiUnavailable: true`
+- Hinweis, Symptome manuell auszuwaehlen oder Beschwerden aerztlich einschaetzen zu lassen
+
+#### 4. Pfad mit strukturierten Symptomen
 
 Wenn kein `text` vorhanden ist, nutzt der Service `symptoms ?? []`.
 
-Wenn die Symptomliste leer ist, gibt der Service ohne KI-Aufruf sofort zurück:
+Wenn die Symptomliste leer ist, gibt der Service ohne KI-Aufruf zurueck:
 
 - `careLevel: 'selfcare'`
 - `recommendedSpecialty: 'home_care'`
 - `reasons: []`
+- `reviewSummary` mit Hinweis auf fehlende konkrete Beschwerden
 
-Auch das ist ein bewusst gesetzter Short-Circuit.
+#### 5. KI-Triage
 
-#### 4. KI-Triage
+Sobald verwertbare Symptome vorliegen, ruft das Modul `requestTriageFromAiWithDiagnostics(...)` auf.
 
-Sobald verwertbare Symptome vorliegen, ruft das Modul `requestTriageFromAi(...)` auf.
+Dazu werden die Daten in mehrere Prompt-Abschnitte formatiert:
 
-Dazu werden die Daten zunächst textuell formatiert:
+- aktuelles lokales Datum
+- Stammdaten
+- Medikationskontext
+- medizinischer Risikokontext
+- nummerierte Symptomliste
 
-- `formatPatientData(...)`
-- `formatSymptoms(...)`
+`formatSymptoms(...)` beruecksichtigt:
 
-`formatSymptoms(...)` setzt die Dauerwerte in lesbare deutsche Labels um:
+- `region` und optionale `side`
+- `details`
+- `measurementType` und `measurementValue`
+- `duration`
+
+Dauerwerte werden deutsch gelabelt:
 
 - `today` -> `Seit heute`
 - `days` -> `Seit ein paar Tagen`
 - `week` -> `Seit einer Woche`
 - `weeks` -> `Seit mehr als 2 Wochen`
 
+Messwerte werden je nach Messart formatiert:
+
+- `temperature` als Temperatur in Grad Celsius
+- `pain`, `feeling` und `severity` als normalisierte Skala `/10`
+
 Der Prompt fordert die KI unter anderem dazu auf:
 
-- genau eine Versorgungsebene zuzuordnen
-- genau eine erlaubte Fachrichtung zu wählen
-- sicherheitsorientiert zu handeln
-- keine zusätzlichen Symptome oder Stammdaten zu erfinden
-- kurze deutsche Begründungen zu liefern
+- genau eine Versorgungsebene zu waehlen
+- `recommendedSpecialty` nur bei `specialist` zu setzen
+- direkte fachaerztliche Abklaerung gegen Allgemeinmedizin abzuwägen
+- Medikationskontext aktiv zu pruefen
+- Allergien, Substanzeinfluss, Auslandsaufenthalte und Vorerkrankungen zu beruecksichtigen
+- keine Dosierungen, Wechselwirkungen, Nebenwirkungen, Symptome oder Stammdaten zu erfinden
+- keine technischen Feldnamen in `reasons` zu verwenden
+- `reviewSummary` auf Deutsch zu liefern
 
-Die KI-Antwort muss `triageAiResultSchema` entsprechen:
+### Validierung und Normalisierung der KI-Antwort
+
+Die KI-Antwort muss `triageAiResponseSchema` aus [backend/src/shared/validation.ts] entsprechen:
 
 ```ts
 {
-  careLevel: 'emergency' | 'doctor' | 'selfcare'
-  recommendedSpecialty: MedicalSpecialty
-  reasons: string[]
+  careLevel: 'selfcare' | 'doctor' | 'specialist' | 'emergency'
+  recommendedSpecialty?: MedicalSpecialty
+  reasons: string[] | string
+  reviewSummary: {
+    plainLanguage: string
+    professionalSummary: string
+  }
 }
 ```
 
-### Nachkorrektur der Versorgungsebene
+Die Schema-Transformation normalisiert:
 
-Die KI darf zwar `careLevel` liefern, das Ergebnis wird aber anschließend mit `ensureConsistentCareLevel(...)` normalisiert.
+- `reasons` kann als String oder Liste kommen und wird als Liste ausgegeben
+- bei `emergency` wird `recommendedSpecialty` auf `emergency_medicine` gesetzt
+- bei `specialist` ist eine fachaerztliche `recommendedSpecialty` Pflicht
+- bei nicht-`specialist` wird eine fachaerztliche Empfehlung in `careLevel: 'specialist'` umgewandelt
+- bei `doctor` und `selfcare` wird `recommendedSpecialty` entfernt
 
-Die eigentliche Logik dafür steckt in `toCareLevel(...)`:
+Zusätzlich werden technische Begriffe in `reasons` durch nutzerverstaendlichere Begriffe ersetzt.
 
-- `emergency_medicine` -> `emergency`
-- `home_care` -> `selfcare`
-- alles andere -> `doctor`
+### Plausibilitaetsfilter fuer KI-Antworten
 
-Das ist ein wichtiger Schutzmechanismus gegen widersprüchliche KI-Antworten, etwa:
+Nach der Schema-Validierung prueft `getTriageAiPlausibilityIssues(...)`, ob die KI-Antwort medizinisch oder strukturell widerspruechlich wirkt.
 
-- `recommendedSpecialty: emergency_medicine`
-- `careLevel: doctor`
+Der Filter betrachtet unter anderem:
 
-Nach der Nachkorrektur ist dieser Widerspruch ausgeschlossen.
+- starke Messwerte
+- Fieberwerte
+- Warnmuster in Symptomen und Details
+- genannte Fachrichtungen in Gruenden oder Zusammenfassungen
+- Plausibilitaet zwischen `careLevel`, Fachrichtung und Antworttext
+
+Wenn Issues gefunden werden, wird die KI-Antwort verworfen und eine lokale Plausibilitaets-Fallback-Triage erzeugt. Die Antwort enthaelt dann:
+
+- `aiUnavailable: true`
+- eine Begruendung, dass die KI-Antwort die Plausibilitaetspruefung nicht bestanden hat
+- die gefundenen Plausibilitaets-Issues
+- eine konservative lokale Versorgungsempfehlung
+
+### Lokale Fallback-Triage
+
+Bei bekannten KI-Verfuegbarkeitsfehlern nutzt `requestTriageWithFallback(...)` eine deterministische lokale Einstufung.
+
+Die Fallback-Logik:
+
+- konvertiert Fieberwerte in eine vergleichbare Schweregradskala
+- wertet hohe Messwerte ab `8` als Notfall
+- wertet erkannte Warnmuster als Notfall
+- empfiehlt bei vorhandenen, aber nicht notfallartigen Symptomen `doctor` mit `general_practice`
+- empfiehlt bei leerer Symptomliste `selfcare` mit `home_care`
+
+Fallback-Antworten tragen `aiUnavailable: true`.
+
+### Diagnostikpfad fuer Tests und Live-Evaluation
+
+`evaluateTriageWithDiagnostics(...)` gibt neben der finalen Antwort auch Diagnosedaten zurueck:
+
+- urspruengliche KI-Antwort, falls vorhanden
+- finale Antwort nach Plausibilitaetsfilter
+- Plausibilitaets-Issues
+- Fallback-Typ: `none`, `plausibility` oder `availability`
+
+Dieser Pfad wird fuer Live- und Plausibilitaetstests genutzt.
 
 ### Fehlerverhalten
 
 Mögliche Fehlerfälle:
 
-- formale Request-Validierung schlägt fehl: HTTP `400`
-- Freitext ist fachlich unbrauchbar: HTTP `400`
-- KI-Backend nicht erreichbar oder falsch konfiguriert: HTTP `500`
-- KI liefert keine parsebare strukturierte Antwort: HTTP `500`
+- formale Request-Validierung schlaegt fehl: HTTP `400`
+- Plausibilitaetswiderspruch in Stammdaten und Beschwerden: HTTP `400`
+- ungueltiger Freitext im Triage-Pfad: HTTP `400`
+- unbekannte Service- oder Programmierfehler: HTTP `500`
 
-## Zusammenspiel mit symptom-extraction
-
-Die Module sind bewusst kaskadiert:
-
-1. Freitext wird zuerst in eine stabile Symptomstruktur überführt.
-2. Die Triage bewertet bevorzugt diese strukturierte Form.
-
-Das reduziert Varianz in der Triage, weil das Modell nicht gleichzeitig:
-
-- Rohtext interpretieren
-- Symptome extrahieren
-- Versorgung ableiten
-
-muss.
-
-Stattdessen werden diese Aufgaben getrennt:
-
-- `symptom-extraction` reduziert Freitext auf ein kleines, kontrolliertes Schema
-- `triage` trifft darauf aufbauend die Versorgungsentscheidung
-
-## API-Beispiele
-
-### Beispiel 1: Direkte Symptom-Extraktion
-
-Request:
-
-```json
-{
-  "text": "Ich habe seit ein paar Tagen starke Kopfschmerzen, etwa 7 von 10, und leichte Übelkeit.",
-  "inputType": "text"
-}
-```
-
-Mögliche Antwort:
-
-```json
-{
-  "text": "Ich habe seit ein paar Tagen starke Kopfschmerzen, etwa 7 von 10, und leichte Übelkeit.",
-  "inputType": "text",
-  "symptoms": [
-    {
-      "region": "Kopf",
-      "painLevel": 7,
-      "duration": "days"
-    },
-    {
-      "region": "Allgemein",
-      "side": "Übelkeit/Schwindel"
-    }
-  ]
-}
-```
-
-### Beispiel 2: Triage mit strukturierter Symptomliste
-
-Request:
-
-```json
-{
-  "patientData": {
-    "birthMonth": "05",
-    "birthYear": "1988",
-    "height": "175",
-    "weight": "78",
-    "gender": "männlich",
-    "isPregnant": false,
-    "isBreastfeeding": false,
-    "allergies": "",
-    "medications": "",
-    "substanceInfluence": "Nein",
-    "recentAbroad": false,
-    "recentAbroadDetails": "",
-    "conditions": []
-  },
-  "symptoms": [
-    {
-      "region": "Kopf",
-      "painLevel": 7,
-      "duration": "days"
-    },
-    {
-      "region": "Allgemein",
-      "side": "Übelkeit/Schwindel"
-    }
-  ]
-}
-```
-
-Mögliche Antwort:
-
-```json
-{
-  "careLevel": "doctor",
-  "recommendedSpecialty": "neurology",
-  "reasons": [
-    "Die Beschwerden sollten zeitnah ärztlich abgeklärt werden."
-  ]
-}
-```
-
-### Beispiel 3: Triage mit Freitext
-
-Request:
-
-```json
-{
-  "patientData": {
-    "birthMonth": "05",
-    "birthYear": "1988",
-    "height": "175",
-    "weight": "78",
-    "gender": "männlich",
-    "isPregnant": false,
-    "isBreastfeeding": false,
-    "allergies": "",
-    "medications": "",
-    "substanceInfluence": "Nein",
-    "recentAbroad": false,
-    "recentAbroadDetails": "",
-    "conditions": []
-  },
-  "text": "Ich habe seit ein paar Tagen starke Kopfschmerzen, etwa 7 von 10, und leichte Übelkeit."
-}
-```
-
-Interner Ablauf:
-
-- `triage` ruft `extractSymptoms(...)` auf
-- das Ergebnis wird an `requestTriageFromAi(...)` übergeben
-- das Ergebnis wird per `ensureConsistentCareLevel(...)` nachkorrigiert
-
-## Betrieb, Debugging und Grenzen
-
-### Anforderungen an das Modell
-
-Das Modell muss OpenAI-kompatible strukturierte Antworten liefern, die mit `beta.chat.completions.parse(...)` und `zodResponseFormat(...)` funktionieren.
-
-Praktisch bedeutet das:
-
-- das Modell oder Gateway muss JSON-Ausgaben zuverlässig erzeugen
-- die Antwort muss das jeweilige Zod-Schema erfüllen
-- ungeeignete Modelle führen eher zu Parse-Fehlern oder inkonsistenten Fachantworten
-
-### Was die Module nicht tun
-
-Die Module leisten derzeit nicht:
-
-- persistente Speicherung von Requests oder Ergebnissen
-- Authentifizierung oder Autorisierung
-- medizinische Enddiagnostik
-- Rückgabe freier, beliebig detaillierter Symptomstrukturen
-- tiefe Plausibilitätsprüfung der Stammdaten
-
-### Debugging-Hinweise
-
-Bei Problemen helfen diese Prüfpunkte:
-
-- Läuft `/health`?
-- Sind `AI_API_URL`, `AI_API_KEY` und `AI_MODEL` korrekt gesetzt?
-- Ist das AI-Backend OpenAI-kompatibel erreichbar?
-- Liefert das Modell strukturierte Antworten, die zum Zod-Schema passen?
-- Tritt der Fehler schon in der Heuristik auf, erst in der KI-Validierung oder erst in der eigentlichen Triage?
-
-### Erweiterungspunkte
-
-Sinnvolle Erweiterungen wären:
-
-- zusätzliche automatisierte Tests für Heuristik und Invalid-Input-Pfade
-- verbesserte Prompt-Templates
-- Logging oder Tracing rund um KI-Requests und Parse-Fehler
-- explizite Metriken für Invalid-Input-Raten, KI-Latenz und Fehlerraten
-
-## Fazit
-
-`symptom-extraction` und `triage` bilden zusammen eine klar getrennte Pipeline:
-
-- Freitext wird zuerst validiert und in eine kontrollierte Symptomstruktur überführt.
-- Die Triage trifft auf Basis dieser Struktur eine Versorgungsempfehlung.
-- Technische Integrität wird durch Zod-Schemas und strukturierte KI-Antworten abgesichert.
-- Fachliche Konsistenz wird zusätzlich durch Heuristiken, feste Taxonomien und eine Nachkorrektur des `careLevel` geschützt.
-
-Für Weiterentwicklungen ist besonders wichtig, diese Trennung beizubehalten. Sobald Triage und Freitextinterpretation wieder vermischt werden, steigen Varianz, Debugging-Aufwand und das Risiko inkonsistenter Antworten deutlich.
+Bekannte KI-Verfuegbarkeitsprobleme werden nicht als technischer Fehler an den Client durchgereicht. Sie erzeugen kontrollierte Antworten mit `aiUnavailable: true`.
