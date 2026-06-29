@@ -94,7 +94,16 @@ export default function SymptomDetailsPage() {
   const buildInitialSymptomDetails = (): SymptomDraft[] => {
     const activeSymptoms = (() => {
       if (routeState?.extractedSymptoms && routeState.extractedSymptoms.length > 0 && contextDetails.length === 0) {
-        return routeState.extractedSymptoms.map((symptom, index) => normalizeSymptom(symptom, index, true));
+        const extractedSymptomsByKey = new Map(
+          routeState.extractedSymptoms.map((symptom) => [getSymptomKey(symptom), symptom] as const),
+        );
+        const symptomsForDetails = selectedSymptoms.length > 0 ? selectedSymptoms : routeState.extractedSymptoms;
+
+        return symptomsForDetails.map((symptom, index) => {
+          const extractedSymptom = extractedSymptomsByKey.get(getSymptomKey(symptom));
+
+          return normalizeSymptom(extractedSymptom ?? symptom, index, Boolean(extractedSymptom));
+        });
       }
 
       if (selectedSymptoms.length === 0) {

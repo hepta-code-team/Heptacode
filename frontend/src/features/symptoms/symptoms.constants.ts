@@ -45,7 +45,7 @@ export const BODY_REGIONS: BodyRegion[] = [
     id: "gesicht",
     name: "Gesicht",
     icon: faceIcon,
-    options: ["Augen", "Ohren", "Nase", "Mund"],
+    options: ["Augen", "Ohren", "Nase", "Mund", "Zähne", "Zahnschmerzen"],
   },
   {
     id: "hals",
@@ -75,31 +75,31 @@ export const BODY_REGIONS: BodyRegion[] = [
     id: "oberarm",
     name: "Oberarm",
     icon: upperArmIcon,
-    options: ["Schulter", "Oberarm", "Ellenbogen"],
+    options: ["Schulter", "Oberarm", "Ellenbogen", "Muskelkrämpfe"],
   },
   {
     id: "unterarm",
     name: "Unterarm",
     icon: lowerArmIcon,
-    options: ["Unterarm", "Hand/Handgelenk", "Finger"],
+    options: ["Unterarm", "Hand/Handgelenk", "Finger", "Muskelkrämpfe"],
   },
   {
     id: "bauch",
     name: "Bauch",
     icon: stomachPainIcon,
-    options: ["Oberbauch", "Unterbauch", "Rechts oben", "Rechts unten", "Links oben", "Links unten"],
+    options: ["Oberbauch", "Unterbauch", "Rechts oben", "Rechts unten", "Links oben", "Links unten", "Bauchkrämpfe"],
   },
   {
     id: "oberschenkel",
     name: "Oberschenkel",
     icon: upperLegIcon,
-    options: ["Hüfte", "Oberschenkel", "Knie"],
+    options: ["Hüfte", "Oberschenkel", "Knie", "Muskelkrämpfe"],
   },
   {
     id: "unterschenkel",
     name: "Unterschenkel",
     icon: lowerLegIcon,
-    options: ["Wade", "Fuß/Knöchel", "Zehen"],
+    options: ["Wade", "Fuß/Knöchel", "Zehen", "Muskelkrämpfe"],
   },
   {
     id: "verbrennung",
@@ -118,6 +118,12 @@ export const BODY_REGIONS: BodyRegion[] = [
     name: "Allgemein",
     icon: overallPainIcon,
     options: ["Fieber", "Übelkeit/Schwindel", "Schwäche", "Verwirrtheit"],
+  },
+  {
+    id: "haut",
+    name: "Haut",
+    icon: overallPainIcon,
+    options: ["Hautausschlag", "Juckreiz", "Rötung", "Schwellung", "Bläschen", "Quaddeln", "Trockene Haut"],
   },
   {
     id: "fieber",
@@ -182,7 +188,7 @@ export const BODY_AREA_REGION_IDS: Record<BodyAreaCategory, string[]> = {
   arms: ["oberarm", "unterarm", "verbrennung", "schnittwunde"],
   legs: ["oberschenkel", "unterschenkel", "verbrennung", "schnittwunde"],
   mental: ["angst", "depression","halluzinationen", "suizidgedanken"],
-  general: ["fieber", "schwaeche", "uebelkeit", "verwirrtheit"],
+  general: ["fieber", "schwaeche", "uebelkeit", "verwirrtheit", "haut"],
 };
 
 export const BODY_AREA_LABELS: Record<BodyAreaCategory, string> = {
