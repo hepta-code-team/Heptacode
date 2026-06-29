@@ -234,10 +234,18 @@ export default function MedicalDataPage() {
   }, [formData, setPatientData]);
 
   const toggleMedicalSection = (section: MedicalSection) => {
-    setExpandedMedicalSections((sections) => ({
-      ...sections,
-      [section]: !sections[section],
-    }));
+    setExpandedMedicalSections((sections) => {
+      const shouldOpenSection = !sections[section];
+
+      return {
+        allergies: false,
+        medications: false,
+        substance: false,
+        abroad: false,
+        smoking: false,
+        [section]: shouldOpenSection,
+      };
+    });
   };
 
   const toggleConditionDropdown = (condition: string) => {
