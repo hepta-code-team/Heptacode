@@ -16,9 +16,9 @@ Diese Dokumentation beschreibt die HTTP-Schnittstelle zwischen dem React/Vite-Fr
 
 ## Aktueller Integrationsstand
 
-Das Backend stellt die dokumentierten `/api/v1/...`-Endpunkte bereit. Das Frontend besitzt einen generischen `apiClient`, der Requests an `VITE_API_BASE_URL` sendet und JSON-Fehlernachrichten aus `message` oder `error` liest.
+Das Backend stellt die fachlichen `/api/v1/...`-Endpunkte und zusaetzlich den Frontend-kompatiblen Adapter `POST /assessments` bereit. Das Frontend besitzt einen generischen `apiClient`, der Requests an `VITE_API_BASE_URL` sendet und JSON-Fehlernachrichten aus `message`, `error` oder `error.message` liest.
 
-Wichtig: Der aktuell im Frontend verdrahtete Assessment-Submit ruft `POST /assessments` auf. Dieser Endpunkt existiert im Backend derzeit nicht. Für die fachliche Triage ist aktuell der Backend-Endpunkt `POST /api/v1/triage/evaluate` vorgesehen. Bei einer Anbindung sollte das Frontend entweder auf diesen Endpunkt umgestellt werden oder das Backend muss einen kompatiblen `/assessments`-Adapter bereitstellen.
+Wichtig: Der aktuell im Frontend verdrahtete Assessment-Submit ruft `POST /assessments` auf. Dieser Endpunkt existiert im Backend und wandelt die Assessment-Daten intern in eine KI-Auswertung inklusive FHIR-Bundle-Erzeugung um. Fuer direkte fachliche Triage-Aufrufe ist weiterhin `POST /api/v1/triage/evaluate` vorgesehen.
 
 ## Gemeinsame HTTP-Regeln
 
@@ -61,7 +61,7 @@ Es gibt aktuell zwei Fehlerformate:
 }
 ```
 
-Der aktuelle Frontend-Client liest nur `message` oder einen stringartigen `error` direkt auf Top-Level. Für Summary-Fehler mit `error.message` müsste die Fehlerauswertung erweitert werden, falls diese Endpunkte direkt über den bestehenden Client angebunden werden.
+Der aktuelle Frontend-Client liest `message`, einen stringartigen `error` direkt auf Top-Level oder `error.message`.
 
 ### Wichtige Statuscodes
 
@@ -170,7 +170,9 @@ Geeignet für Eingaben wie Freitext oder Sprache-zu-Text, bevor Symptome in der 
 
 ---
 
-### Red-Flag-Prüfung
+### Red-Flag-Prüfung (historisch, aktuell nicht registriert)
+
+Dieser Abschnitt beschreibt einen frueher geplanten Endpunkt. Im aktuellen Backend ist diese Route nicht registriert; die Red-Flag-Logik laeuft ueber `POST /api/v1/triage/evaluate`.
 
 ```http
 POST /api/v1/triage/redflags
@@ -357,7 +359,9 @@ curl -X POST http://localhost:3000/api/v1/pdf/export \
 
 ---
 
-### Strukturierte Summary erstellen
+### Strukturierte Summary erstellen (historisch, aktuell nicht registriert)
+
+Dieser Abschnitt beschreibt einen frueher geplanten Endpunkt. Im aktuellen Backend ist diese Route nicht registriert; fuer PDF-Erzeugung wird aktuell `POST /api/v1/pdf/export` verwendet.
 
 ```http
 POST /api/v1/summary
@@ -441,7 +445,9 @@ curl -X POST http://localhost:3000/api/v1/summary \
 
 ---
 
-### Summary-PDF herunterladen
+### Summary-PDF herunterladen (historisch, aktuell nicht registriert)
+
+Dieser Abschnitt beschreibt einen frueher geplanten Endpunkt. Im aktuellen Backend ist diese Route nicht registriert.
 
 ```http
 GET /api/v1/summary/pdf?summaryId=<summaryId>
@@ -550,7 +556,6 @@ const result = await apiClient.post<TriageResponse>("/api/v1/triage/evaluate", r
 - Triage-Antworten sind Orientierung und ersetzen keine ärztliche Diagnose.
 - Bei `careLevel: "emergency"` sollte das Frontend prominent auf Notruf `112` bzw. Notaufnahme hinweisen.
 - Bei KI-Fehlern sollte das Frontend eine verständliche Fehlermeldung anzeigen und keine medizinische Entwarnung suggerieren.
-- Summary-Daten werden aktuell nur im Speicher gehalten und sind nicht persistent.
 - PDF-Downloads enthalten medizinische Angaben und sollten im Frontend bewusst als sensible Daten behandelt werden.
 
 ## Kurzreferenz aller Backend-Endpunkte
@@ -558,9 +563,10 @@ const result = await apiClient.post<TriageResponse>("/api/v1/triage/evaluate", r
 | Methode | Pfad | Zweck | Antwort |
 |---|---|---|---|
 | `GET` | `/health` | Backend-Erreichbarkeit | JSON |
+| `POST` | `/assessments` | Frontend-kompatible Assessment-Auswertung | JSON |
 | `POST` | `/api/v1/symptoms/extraction` | Symptome aus Freitext extrahieren | JSON |
-| `POST` | `/api/v1/triage/redflags` | Red-Flag-Keywords prüfen | JSON |
+| `POST` | `/api/v1/symptoms/validation` | Symptom-Eingaben validieren | JSON |
+| `POST` | `/api/v1/symptoms/detail-validation` | Symptom-Details validieren | JSON |
+| `POST` | `/api/v1/symptoms/consistency` | Symptom-Konsistenz pruefen | JSON |
 | `POST` | `/api/v1/triage/evaluate` | Triage bewerten | JSON |
 | `POST` | `/api/v1/pdf/export` | Assessment-PDF erzeugen | PDF |
-| `POST` | `/api/v1/summary` | Strukturierte Summary erzeugen | JSON |
-| `GET` | `/api/v1/summary/pdf` | Summary-PDF herunterladen | PDF |

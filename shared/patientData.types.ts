@@ -5,8 +5,6 @@ export interface ConditionDetail {
     duration: string
 }
 
-export type SmokingStatus = "Nein" | "Gelegentlich" | "Ja"
-
 // Patient data collected before the symptom assessment.
 export interface PatientData {
     birthMonth: string
@@ -26,11 +24,10 @@ export interface PatientData {
     drugDetails?: string
     drugSince?: string
     drugFrequencyPerDay?: string
-    recentAbroad: boolean
+    recentAbroad: string
     recentAbroadDetails: string
     conditions: string[]
-    smokingStatus?: SmokingStatus
-    isSmoker: boolean
+    isSmoker: string
     smokingSinceYears: string
     cigarettesPerDay: string
     conditionDetails: Record<string, ConditionDetail>

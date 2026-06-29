@@ -37,11 +37,11 @@ const basePatientData: PatientData = {
   allergies: '',
   medications: '',
   medicationDuration: '',
-  substanceInfluence: 'Nein',
-  recentAbroad: false,
+  substanceInfluence: '',
+  recentAbroad: '',
   recentAbroadDetails: '',
   conditions: [],
-  isSmoker: false,
+  isSmoker: '',
   smokingSinceYears: '',
   cigarettesPerDay: '',
   conditionDetails: {},
@@ -275,11 +275,10 @@ describe('page-level user flows', () => {
       allergies: 'Penicillin',
       medications: 'Ibuprofen',
       substanceInfluence: 'Alkohol',
-      recentAbroad: true,
+      recentAbroad: "Ja",
       recentAbroadDetails: 'Italien',
       isPregnant: true,
-      smokingStatus: 'Ja',
-      isSmoker: true,
+      isSmoker: "Ja",
       smokingSinceYears: '1',
       cigarettesPerDay: '1',
     }));
@@ -296,14 +295,12 @@ describe('page-level user flows', () => {
     await user.click(screen.getByRole('button', { name: 'Gelegentlich' }));
 
     expect(setPatientDataMock).toHaveBeenCalledWith(expect.objectContaining({
-      smokingStatus: 'Gelegentlich',
-      isSmoker: true,
+      isSmoker: 'Gelegentlich',
     }));
 
     assessmentState.patientData = {
       ...basePatientData,
-      smokingStatus: 'Gelegentlich',
-      isSmoker: true,
+      isSmoker: 'Gelegentlich',
     };
 
     unmount();
@@ -562,7 +559,7 @@ describe('page-level user flows', () => {
           duration: '',
         },
       },
-      recentAbroad: true,
+      recentAbroad: "Ja",
       recentAbroadDetails: 'Italien | 2026-01-01 | 2026-01-10',
     };
     assessmentState.symptomDetails = [

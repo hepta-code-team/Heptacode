@@ -18,7 +18,7 @@ import Button from "../components/Button";
 import { useAssessment } from "../lib/AssessmentContext";
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
-import type { PatientData, SmokingStatus } from "../../../shared/patientData.types";
+import type { PatientData } from "../../../shared/patientData.types";
 
 type MedicalSection =
   | "allergies"
@@ -45,17 +45,16 @@ const createInitialPatientData = (
   allergies: "",
   medications: "",
   medicationDuration: "",
-  substanceInfluence: "Nein",
+  substanceInfluence: "",
   alcoholSince: "",
   alcoholFrequencyPerDay: "",
   drugDetails: "",
   drugSince: "",
   drugFrequencyPerDay: "",
-  recentAbroad: false,
+  recentAbroad: "",
   recentAbroadDetails: "",
   conditions: [],
-  smokingStatus: "Nein",
-  isSmoker: false,
+  isSmoker: "",
   smokingSinceYears: "",
   cigarettesPerDay: "",
   conditionDetails: {},
@@ -64,10 +63,6 @@ const createInitialPatientData = (
 
 function hasSubstance(value: string | undefined, substance: "Alkohol" | "Drogen") {
   return Boolean(value?.toLowerCase().includes(substance.toLowerCase()));
-}
-
-function getSmokingStatus(patientData?: Partial<PatientData>): SmokingStatus {
-  return patientData?.smokingStatus ?? (patientData?.isSmoker ? "Ja" : "Nein");
 }
 
 function buildSubstanceInfluence(
@@ -98,7 +93,7 @@ function buildSubstanceInfluence(
     parts.push(details.length > 0 ? `Drogen (${details.join(", ")})` : "Drogen");
   }
 
-  return parts.length > 0 ? parts.join("; ") : "Nein";
+  return parts.length > 0 ? parts.join("; ") : "";
 }
 
 function getSubstanceSummary(data: PatientData) {
@@ -220,9 +215,6 @@ export default function MedicalDataPage() {
   const [formData, setFormData] = useState<PatientData>(() =>
     createInitialPatientData(patientData ?? undefined),
   );
-  const [smokingStatus, setSmokingStatus] = useState<SmokingStatus>(() =>
-    getSmokingStatus(patientData ?? undefined),
-  );
   const [expandedMedicalSections, setExpandedMedicalSections] = useState<
     Record<MedicalSection, boolean>
   >({
@@ -232,18 +224,24 @@ export default function MedicalDataPage() {
     abroad: false,
     smoking: false,
   });
-  const [expandedConditionDetails, setExpandedConditionDetails] = useState<
-    Record<string, boolean>
-  >({});
+  const [, setExpandedConditionDetails] = useState<Record<string, boolean>>({});
   useEffect(() => {
     setPatientData(formData);
   }, [formData, setPatientData]);
 
   const toggleMedicalSection = (section: MedicalSection) => {
-    setExpandedMedicalSections((sections) => ({
-      ...sections,
-      [section]: !sections[section],
-    }));
+    setExpandedMedicalSections((sections) => {
+      const shouldOpenSection = !sections[section];
+
+      return {
+        allergies: false,
+        medications: false,
+        substance: false,
+        abroad: false,
+        smoking: false,
+        [section]: shouldOpenSection,
+      };
+    });
   };
 
   const toggleConditionDropdown = (condition: string) => {
@@ -755,16 +753,18 @@ export default function MedicalDataPage() {
             isOpen={expandedMedicalSections.abroad}
             onToggle={() => toggleMedicalSection("abroad")}
             summary={
-              formData.recentAbroad
+              formData.recentAbroad === "Ja"
                 ? formData.recentAbroadDetails || "Ja ausgewählt"
-                : "Optional ergänzen"
+                : formData.recentAbroad === "Nein"
+                  ? "Nein ausgewählt"
+                  : "Optional ergänzen"
             }
-            isCompleted={formData.recentAbroad}
+            isCompleted={formData.recentAbroad !== ""}
           >
             <div className="grid grid-cols-2 gap-2 mb-2">
               {[
-                { label: "Nein", value: false },
-                { label: "Ja", value: true },
+                { label: "Nein", value: "Nein" },
+                { label: "Ja", value: "Ja" },
               ].map((option) => {
                 const isSelected = formData.recentAbroad === option.value;
 
@@ -773,20 +773,22 @@ export default function MedicalDataPage() {
                     key={option.label}
                     label={option.label}
                     selected={isSelected}
-                    onClick={() =>
+                    onClick={() => {
+                      const nextRecentAbroad = formData.recentAbroad === option.value ? "" : option.value;
+
                       setFormData({
                         ...formData,
-                        recentAbroad: option.value,
-                        recentAbroadDetails: option.value
+                        recentAbroad: nextRecentAbroad,
+                        recentAbroadDetails: nextRecentAbroad === "Ja"
                           ? formData.recentAbroadDetails
                           : "",
-                      })
-                    }
+                      });
+                    }}
                   />
                 );
               })}
             </div>
-            {formData.recentAbroad && (
+            {formData.recentAbroad === "Ja" && (
               <Input
                 id="recentAbroadDetails"
                 value={formData.recentAbroadDetails}
@@ -811,39 +813,39 @@ export default function MedicalDataPage() {
           isOpen={expandedMedicalSections.smoking}
           onToggle={() => toggleMedicalSection("smoking")}
           summary={
-            smokingStatus === "Nein"
+            formData.isSmoker === ""
               ? "Optional ergänzen"
-              : smokingStatus === "Gelegentlich"
+              : formData.isSmoker === "Nein"
+                ? "Nein ausgewählt"
+                : formData.isSmoker === "Gelegentlich"
                 ? "Gelegentlich ausgewählt"
                 : "Ja ausgewählt"
           }
-          isCompleted={smokingStatus !== "Nein"}
+          isCompleted={formData.isSmoker !== ""}
         >
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-            {(["Nein", "Gelegentlich", "Ja"] as SmokingStatus[]).map(
-              (status) => (
-                <OptionButton
-                  key={status}
-                  label={status}
-                  selected={smokingStatus === status}
-                  onClick={() => {
-                    setSmokingStatus(status);
-                    setFormData({
-                      ...formData,
-                      smokingStatus: status,
-                      isSmoker: status !== "Nein",
-                      smokingSinceYears:
-                        status === "Nein" ? "" : formData.smokingSinceYears,
-                      cigarettesPerDay:
-                        status === "Nein" ? "" : formData.cigarettesPerDay,
-                    });
-                  }}
-                />
-              ),
-            )}
+            {(["Nein", "Gelegentlich", "Ja"] as const).map((status) => (
+              <OptionButton
+                key={status}
+                label={status}
+                selected={formData.isSmoker === status}
+                onClick={() => {
+                  const nextIsSmoker = formData.isSmoker === status ? "" : status;
+
+                  setFormData({
+                    ...formData,
+                    isSmoker: nextIsSmoker,
+                    smokingSinceYears:
+                      nextIsSmoker === "" || nextIsSmoker === "Nein" ? "" : formData.smokingSinceYears,
+                    cigarettesPerDay:
+                      nextIsSmoker === "" || nextIsSmoker === "Nein" ? "" : formData.cigarettesPerDay,
+                  });
+                }}
+              />
+            ))}
           </div>
 
-          {smokingStatus !== "Nein" && (
+          {formData.isSmoker !== "" && formData.isSmoker !== "Nein" && (
             <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2">
               <div>
                 <Label

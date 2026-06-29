@@ -19,10 +19,10 @@ const basePatient: PatientData = {
   medications: '',
   medicationDuration: '',
   substanceInfluence: '',
-  recentAbroad: false,
+  recentAbroad: '',
   recentAbroadDetails: '',
   conditions: [],
-  isSmoker: false,
+  isSmoker: '',
   smokingSinceYears: '',
   cigarettesPerDay: '',
   conditionDetails: {},
@@ -98,4 +98,3 @@ describe('recommendation helpers', () => {
     expect(selfcare.recommendedSpecialties?.[0].specialty).toBe('general_practice');
   });
 });
-
