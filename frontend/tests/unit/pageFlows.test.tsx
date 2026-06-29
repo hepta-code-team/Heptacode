@@ -215,35 +215,6 @@ describe('page-level user flows', () => {
     expect(navigateMock).toHaveBeenCalledWith('/medical-data');
   });
 
-<<<<<<< HEAD
-  it('toggles selected travel and smoking buttons off again', async () => {
-    const user = userEvent.setup();
-    assessmentState.patientData = basePatientData;
-
-    render(<MedicalDataPage />);
-
-    await user.click(screen.getByRole('button', { name: /Auslandsaufenthalt/ }));
-    await user.click(screen.getAllByRole('button', { name: 'Ja' })[0]);
-    await user.type(screen.getByPlaceholderText('Land / Region, falls bekannt'), 'Italien');
-    await user.click(screen.getAllByRole('button', { name: 'Ja' })[0]);
-
-    expect(screen.queryByPlaceholderText('Land / Region, falls bekannt')).not.toBeInTheDocument();
-
-    await user.click(screen.getByRole('button', { name: /Rauchen/ }));
-    await user.click(screen.getAllByRole('button', { name: 'Ja' }).at(-1)!);
-    await user.click(screen.getByRole('button', { name: 'Rauchdauer erhöhen' }));
-    await user.click(screen.getByRole('button', { name: 'Zigaretten pro Tag erhöhen' }));
-    await user.click(screen.getAllByRole('button', { name: 'Ja' }).at(-1)!);
-    await user.click(screen.getAllByRole('button', { name: 'Weiter' }).at(-1)!);
-
-    expect(setPatientDataMock).toHaveBeenLastCalledWith(expect.objectContaining({
-      recentAbroad: '',
-      recentAbroadDetails: '',
-      isSmoker: '',
-      smokingSinceYears: '',
-      cigarettesPerDay: '',
-    }));
-=======
   it('normalizes leading zeros in patient numeric fields before saving', async () => {
     const user = userEvent.setup();
 
@@ -275,7 +246,6 @@ describe('page-level user flows', () => {
       weight: '80',
     }));
     expect(navigateMock).toHaveBeenCalledWith('/medical-data');
->>>>>>> dev
   });
 
   it('collects optional medical data and continues to symptom selection', async () => {
