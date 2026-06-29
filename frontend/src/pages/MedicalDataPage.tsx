@@ -804,14 +804,15 @@ export default function MedicalDataPage() {
                 <div className="space-y-2">
                   <div className="space-y-1">
                     <Label htmlFor="drugDetails" className="text-xs font-medium text-app-text-subtle">
-                      Welche Substanz(en)?
+                      Welche Drogen oder Substanzen nehmen Sie ein?
                     </Label>
-                    <Input
+                    <textarea
                       id="drugDetails"
                       value={formData.drugDetails ?? ""}
                       onChange={(event) => updateSubstanceDetails({ drugDetails: event.target.value })}
-                      placeholder="z. B. Cannabis, Kokain, Amphetamine"
-                      className="!bg-[#f8fafc]"
+                      placeholder="Freitext, z. B. Cannabis, Kokain oder Amphetamine"
+                      rows={3}
+                      className="w-full resize-y rounded-[10px] border border-[#d8e0ea] bg-[#f8fafc] px-3 py-2 text-sm text-app-text-body outline-none transition-all placeholder:text-app-text-muted focus:border-[#486284] focus:ring-2 focus:ring-[#486284]/20"
                     />
                   </div>
                   <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
