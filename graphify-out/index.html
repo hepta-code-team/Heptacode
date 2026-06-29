@@ -1,0 +1,242 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Heptacode Graphify Overview</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f6f7f9;
+      --panel: #ffffff;
+      --text: #17202a;
+      --muted: #657080;
+      --line: #d9dee7;
+      --accent: #0b7285;
+      --accent-soft: #e3f6f8;
+      --warn-soft: #fff4d6;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+    }
+
+    main {
+      max-width: 1120px;
+      margin: 0 auto;
+      padding: 32px 20px 56px;
+    }
+
+    header {
+      border-bottom: 1px solid var(--line);
+      padding-bottom: 20px;
+      margin-bottom: 24px;
+    }
+
+    h1 {
+      margin: 0 0 8px;
+      font-size: 34px;
+      letter-spacing: 0;
+    }
+
+    h2 {
+      margin: 28px 0 12px;
+      font-size: 21px;
+      letter-spacing: 0;
+    }
+
+    p {
+      margin: 0;
+      color: var(--muted);
+    }
+
+    a {
+      color: var(--accent);
+      text-decoration: none;
+      font-weight: 650;
+    }
+
+    a:hover {
+      text-decoration: underline;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+      gap: 14px;
+    }
+
+    .card {
+      display: block;
+      min-height: 150px;
+      padding: 18px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--panel);
+      box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04);
+    }
+
+    .card strong {
+      display: block;
+      margin-bottom: 8px;
+      color: var(--text);
+      font-size: 18px;
+    }
+
+    .card span {
+      display: block;
+      color: var(--muted);
+      font-weight: 400;
+    }
+
+    .map {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 14px;
+    }
+
+    .panel {
+      padding: 18px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--panel);
+    }
+
+    .panel h3 {
+      margin: 0 0 10px;
+      font-size: 17px;
+    }
+
+    ul {
+      margin: 0;
+      padding-left: 18px;
+      color: var(--muted);
+    }
+
+    li + li {
+      margin-top: 5px;
+    }
+
+    code {
+      border-radius: 4px;
+      background: #eef1f5;
+      padding: 2px 5px;
+      font-family: "Cascadia Code", Consolas, monospace;
+      font-size: 0.92em;
+    }
+
+    pre {
+      overflow-x: auto;
+      margin: 0;
+      padding: 14px;
+      border-radius: 8px;
+      background: #17202a;
+      color: #edf2f7;
+      font-family: "Cascadia Code", Consolas, monospace;
+      font-size: 13px;
+    }
+
+    .note {
+      padding: 14px;
+      border: 1px solid #f0d58a;
+      border-radius: 8px;
+      background: var(--warn-soft);
+      color: #5c4813;
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <h1>Heptacode Graphify Overview</h1>
+      <p>Readable entry points for the code-only knowledge graph.</p>
+    </header>
+
+    <section>
+      <h2>Start Here</h2>
+      <div class="grid">
+        <a class="card" href="GRAPH_TREE.html">
+          <strong>Tree View</strong>
+          <span>Cleanest first view. Expand folders and inspect graph nodes without the crowded network layout.</span>
+        </a>
+        <a class="card" href="Heptacode-callflow.html">
+          <strong>Call Flow</strong>
+          <span>Best architecture view. Mermaid diagrams and call tables for the main code sections.</span>
+        </a>
+        <a class="card" href="START_HERE.md">
+          <strong>Text Guide</strong>
+          <span>Short project map, hotspot files, and useful Graphify commands.</span>
+        </a>
+        <a class="card" href="graph.html">
+          <strong>Full Graph</strong>
+          <span>The dense raw network view. Useful once you know what you are looking for.</span>
+        </a>
+      </div>
+    </section>
+
+    <section>
+      <h2>Project Map</h2>
+      <div class="map">
+        <div class="panel">
+          <h3>Frontend</h3>
+          <ul>
+            <li><code>app</code>: React shell and routing.</li>
+            <li><code>pages</code>: wizard and result pages.</li>
+            <li><code>features</code>: symptoms, emergency UI, result/practice search.</li>
+            <li><code>lib</code>: API helpers, assessment context, validation.</li>
+          </ul>
+        </div>
+        <div class="panel">
+          <h3>Backend</h3>
+          <ul>
+            <li><code>routes</code>: HTTP entry points.</li>
+            <li><code>modules/assessment</code>: assessment logic.</li>
+            <li><code>modules/triage</code>: care level and specialty logic.</li>
+            <li><code>modules/pdf</code> and <code>modules/fhir</code>: exports.</li>
+          </ul>
+        </div>
+        <div class="panel">
+          <h3>Shared</h3>
+          <ul>
+            <li><code>PatientData</code>: central patient model.</li>
+            <li><code>TriageSymptom</code>: central symptom model.</li>
+            <li><code>CareLevel</code> and <code>MedicalSpecialty</code>: result types.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2>Main Flow</h2>
+      <pre>Frontend pages
+  -> frontend API helpers
+  -> backend routes
+  -> backend modules
+  -> AI client or local logic
+  -> shared result types
+  -> result page / PDF / FHIR output</pre>
+    </section>
+
+    <section>
+      <h2>Ask The Graph</h2>
+      <pre>graphify query "Wie laeuft ein Assessment vom Frontend ins Backend?" --budget 1200
+graphify query "Welche Dateien haengen an PatientData?" --budget 1200
+graphify query "Wie entsteht das PDF?" --budget 1200
+graphify explain "useAssessment()"</pre>
+    </section>
+
+    <section>
+      <h2>Build Note</h2>
+      <p class="note">This graph is code-only. Docs, PDFs, images, and YAML are ignored so Graphify can run without an LLM API key.</p>
+    </section>
+  </main>
+</body>
+</html>

@@ -1,0 +1,17 @@
+# Code-only graphify build: semantic files need an LLM API key.
+*.md
+*.mdx
+*.txt
+*.rst
+*.html
+*.yml
+*.yaml
+*.pdf
+*.png
+*.jpg
+*.jpeg
+*.webp
+*.gif
+*.bmp
+*.tiff
+*.svg

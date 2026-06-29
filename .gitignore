@@ -8,4 +8,8 @@ backend/coverage/
 Thumbs.db
 .idea/
 **/.idea/
-.codex-backups
+
+# Graphify cache/local cost files. The graph/report/html files may be committed
+# if the team wants a shared, prebuilt code graph.
+graphify-out/cache/
+graphify-out/cost.json
