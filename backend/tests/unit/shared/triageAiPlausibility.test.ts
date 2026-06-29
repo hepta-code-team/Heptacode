@@ -102,7 +102,7 @@ describe('getTriageAiPlausibilityIssues', () => {
   /** Time-critical warning scenarios should remain incompatible with self-care. */
   it.each([
     {
-      name: 'voruebergehenden Schlaganfallzeichen',
+      name: 'vorübergehenden Schlaganfallzeichen',
       symptom: {
         region: 'Gesicht',
         side: 'halbseitig',
@@ -113,10 +113,10 @@ describe('getTriageAiPlausibilityIssues', () => {
       },
     },
     {
-      name: 'einem mehr als fuenf Minuten anhaltenden Krampfanfall',
+      name: 'einem mehr als fünf Minuten anhaltenden Krampfanfall',
       symptom: {
         region: 'Allgemein',
-        details: 'Generalisierter Krampfanfall, der seit sieben Minuten ununterbrochen anhaelt',
+        details: 'Generalisierter Krampfanfall, der seit sieben Minuten ununterbrochen anhält',
         measurementType: 'severity' as const,
         measurementValue: 7,
         duration: 'today' as const,
@@ -127,7 +127,7 @@ describe('getTriageAiPlausibilityIssues', () => {
       symptom: {
         region: 'Allgemein',
         side: 'Fieber',
-        details: 'Hohes Fieber mit Schuettelfrost, ploetzlicher Verwirrtheit und schneller Atmung',
+        details: 'Hohes Fieber mit Schüttelfrost, plötzlicher Verwirrtheit und schneller Atmung',
         measurementType: 'temperature' as const,
         measurementValue: 40.1,
         duration: 'today' as const,
@@ -137,10 +137,51 @@ describe('getTriageAiPlausibilityIssues', () => {
       name: 'Hinweisen auf eine Lungenembolie',
       symptom: {
         region: 'Brust',
-        side: 'atemabhaengig',
-        details: 'Ploetzliche Atemnot mit stechendem Brustschmerz und einseitig geschwollener Wade',
+        side: 'atemabhängig',
+        details: 'Plötzliche Atemnot mit stechendem Brustschmerz und einseitig geschwollener Wade',
         measurementType: 'pain' as const,
         measurementValue: 7,
+        duration: 'today' as const,
+      },
+    },
+    {
+      name: 'Meningitis-Warnzeichen',
+      symptom: {
+        region: 'Kopf',
+        details: 'Fieber mit starken Kopfschmerzen, Nackensteifigkeit, Lichtempfindlichkeit und Erbrechen',
+        measurementType: 'pain' as const,
+        measurementValue: 7,
+        duration: 'today' as const,
+      },
+    },
+    {
+      name: 'Kopfverletzung mit Bewusstlosigkeit',
+      symptom: {
+        region: 'Kopf',
+        details: 'Sturz auf den Kopf mit kurzer Bewusstlosigkeit, danach Erbrechen und Verwirrtheit',
+        measurementType: 'pain' as const,
+        measurementValue: 5,
+        duration: 'today' as const,
+      },
+    },
+    {
+      name: 'Eileiterschwangerschaft-Warnzeichen',
+      symptom: {
+        region: 'Unterbauch',
+        side: 'einseitig',
+        details: 'Schwanger mit einseitigem Unterbauchschmerz, vaginaler Blutung, Schulterschmerz und Schwindel',
+        measurementType: 'pain' as const,
+        measurementValue: 7,
+        duration: 'today' as const,
+      },
+    },
+    {
+      name: 'diabetischer Ketoazidose',
+      symptom: {
+        region: 'Allgemein',
+        details: 'Diabetes mit starkem Durst, häufigem Wasserlassen, Bauchschmerz, Erbrechen, tiefer Atmung und fruchtigem Atem',
+        measurementType: 'severity' as const,
+        measurementValue: 8,
         duration: 'today' as const,
       },
     },
@@ -148,13 +189,51 @@ describe('getTriageAiPlausibilityIssues', () => {
     const issues = getTriageAiPlausibilityIssues(
       {
         careLevel: 'selfcare',
-        reasons: ['Die Beschwerden koennen zunaechst beobachtet werden.'],
+        reasons: ['Die Beschwerden können zunächst beobachtet werden.'],
         reviewSummary: {
-          plainLanguage: 'Die Beschwerden koennen zunaechst selbst beobachtet werden.',
+          plainLanguage: 'Die Beschwerden können zunächst selbst beobachtet werden.',
           professionalSummary: 'Care Level: selfcare.',
         },
       },
       [symptom],
+    )
+
+    expect(issues).toContainEqual(expect.stringContaining('selfcare'))
+  })
+
+  /** Common anticoagulants and antiplatelet drugs should count as head-injury risk factors. */
+  it.each([
+    'Apixaban',
+    'Eliquis',
+    'Rivaroxaban',
+    'Xarelto',
+    'Edoxaban',
+    'Lixiana',
+    'Savaysa',
+    'Dabigatran',
+    'Pradaxa',
+    'Acetylsalicylsäure',
+    'ASS',
+    'Aspirin',
+  ])('markiert Selfcare bei Kopfverletzung unter %s als unplausibel', (medication) => {
+    const issues = getTriageAiPlausibilityIssues(
+      {
+        careLevel: 'selfcare',
+        reasons: ['Die Beschwerden können zunächst beobachtet werden.'],
+        reviewSummary: {
+          plainLanguage: 'Die Beschwerden können zunächst selbst beobachtet werden.',
+          professionalSummary: 'Care Level: selfcare.',
+        },
+      },
+      [
+        {
+          region: 'Kopf',
+          details: `Sturz auf den Kopf unter ${medication}`,
+          measurementType: 'pain',
+          measurementValue: 3,
+          duration: 'today',
+        },
+      ],
     )
 
     expect(issues).toContainEqual(expect.stringContaining('selfcare'))
@@ -394,9 +473,9 @@ describe('getTriageAiPlausibilityIssues', () => {
     const issues = getTriageAiPlausibilityIssues(
       {
         careLevel: 'selfcare',
-        reasons: ['Die Beschwerden koennen zunaechst beobachtet werden.'],
+        reasons: ['Die Beschwerden können zunächst beobachtet werden.'],
         reviewSummary: {
-          plainLanguage: 'Die Beschwerden koennen zunaechst beobachtet werden.',
+          plainLanguage: 'Die Beschwerden können zunächst beobachtet werden.',
           professionalSummary: 'Care Level: selfcare.',
         },
       },
@@ -420,7 +499,7 @@ describe('getTriageAiPlausibilityIssues', () => {
         careLevel: 'selfcare',
         reasons: ['Die Beschwerden sind mild und ohne erkennbare Warnzeichen.'],
         reviewSummary: {
-          plainLanguage: 'Die Beschwerden koennen zunaechst beobachtet werden.',
+          plainLanguage: 'Die Beschwerden können zunächst beobachtet werden.',
           professionalSummary: 'Care Level: selfcare.',
         },
       },
@@ -470,9 +549,9 @@ describe('getTriageAiPlausibilityIssues', () => {
     const issues = getTriageAiPlausibilityIssues(
       {
         careLevel: 'selfcare',
-        reasons: ['Die Beschwerden koennen zunaechst beobachtet werden.'],
+        reasons: ['Die Beschwerden können zunächst beobachtet werden.'],
         reviewSummary: {
-          plainLanguage: 'Die Beschwerden koennen zunaechst beobachtet werden.',
+          plainLanguage: 'Die Beschwerden können zunächst beobachtet werden.',
           professionalSummary: 'Care Level: selfcare.',
         },
       },
@@ -543,6 +622,31 @@ describe('getTriageAiPlausibilityIssues', () => {
           side: 'Suizidgedanken',
           measurementType: 'severity',
           measurementValue: 7,
+        },
+      ],
+    )
+
+    expect(issues).toEqual([])
+  })
+
+  /** Emergency responses may name the required specialty context without becoming specialist. */
+  it('akzeptiert Emergency bei Suizidgedanken mit psychiatrischer Notfallversorgung im Text', () => {
+    const issues = getTriageAiPlausibilityIssues(
+      {
+        careLevel: 'emergency',
+        reasons: ['Akute Suizidgefahr erfordert sofortige psychiatrische Notfallversorgung.'],
+        reviewSummary: {
+          plainLanguage: 'Bitte suchen Sie sofort psychiatrische Notfallhilfe.',
+          professionalSummary: 'Care Level: emergency wegen akuter Eigengefährdung.',
+        },
+      },
+      [
+        {
+          region: 'Psychische Probleme',
+          side: 'Suizidgedanken',
+          details: 'Konkrete Suizidabsicht mit Plan',
+          measurementType: 'severity',
+          measurementValue: 9,
         },
       ],
     )

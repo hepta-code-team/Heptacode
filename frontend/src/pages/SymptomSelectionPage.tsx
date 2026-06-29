@@ -235,6 +235,26 @@ function getUniqueExtractedSymptoms(symptoms: TriageSymptom[]): TriageSymptom[] 
   return uniqueSymptoms;
 }
 
+function mergeSelectedSymptoms(existingSymptoms: SelectedSymptom[], incomingSymptoms: SelectedSymptom[]) {
+  const mergedSymptoms = [...existingSymptoms];
+  const seenSymptomKeys = new Set(existingSymptoms.map(getSymptomKey));
+
+  for (const symptom of incomingSymptoms) {
+    const symptomKey = getSymptomKey(symptom);
+
+    if (!seenSymptomKeys.has(symptomKey)) {
+      mergedSymptoms.push(symptom);
+      seenSymptomKeys.add(symptomKey);
+    }
+
+    if (mergedSymptoms.length >= MAX_SYMPTOMS) {
+      break;
+    }
+  }
+
+  return mergedSymptoms.slice(0, MAX_SYMPTOMS);
+}
+
 /**
  * Validates the category query parameter before it is used as state.
  *
@@ -242,6 +262,47 @@ function getUniqueExtractedSymptoms(symptoms: TriageSymptom[]): TriageSymptom[] 
  */
 function isBodyAreaCategory(value: string | null): value is BodyAreaCategory {
   return Boolean(value && value in BODY_AREA_REGION_IDS);
+}
+
+type BodySide = "Links" | "Rechts";
+type SideAwareBodyAreaCategory = Extract<BodyAreaCategory, "arms" | "legs">;
+type BodySideSelection = {
+  category: SideAwareBodyAreaCategory;
+  side: BodySide;
+};
+
+const BODY_SIDE_LABELS: Record<BodySide, string> = {
+  Links: "Linke Körperseite",
+  Rechts: "Rechte Körperseite",
+};
+
+const BODY_SIDE_TITLE_LABELS: Record<BodySide, string> = {
+  Links: "links",
+  Rechts: "rechts",
+};
+
+function isBodySide(value: string | null): value is BodySide {
+  return value === "Links" || value === "Rechts";
+}
+
+function isSideAwareCategory(category: BodyAreaCategory | null): category is SideAwareBodyAreaCategory {
+  return category === "arms" || category === "legs";
+}
+
+function formatSelectedCategoryLabel(category: BodyAreaCategory | null, selectedBodySide: BodySideSelection | null) {
+  if (!category) {
+    return "";
+  }
+
+  if (selectedBodySide?.category === "arms" && category === "arms") {
+    return `Arm ${BODY_SIDE_TITLE_LABELS[selectedBodySide.side]}`;
+  }
+
+  if (selectedBodySide?.category === "legs" && category === "legs") {
+    return `Bein ${BODY_SIDE_TITLE_LABELS[selectedBodySide.side]}`;
+  }
+
+  return BODY_AREA_LABELS[category];
 }
 
 /**
@@ -252,19 +313,48 @@ function isBodyAreaCategory(value: string | null): value is BodyAreaCategory {
  */
 function AnatomyFigure({
   selectedCategory,
+  selectedBodySide,
   onSelect,
 }: {
   selectedCategory: BodyAreaCategory | null;
-  onSelect: (category: BodyAreaCategory) => void;
+  selectedBodySide: BodySideSelection | null;
+  onSelect: (category: BodyAreaCategory, side?: BodySide) => void;
 }) {
+  const [hoveredSideCategory, setHoveredSideCategory] = useState<SideAwareBodyAreaCategory | null>(null);
   const partFill = (category: BodyAreaCategory) => selectedCategory === category ? "#486284" : "#ffffff";
   const partStroke = (category: BodyAreaCategory) => selectedCategory === category ? "#486284" : "#d7dee7";
   const labelFill = (category: BodyAreaCategory) => selectedCategory === category ? "#ffffff" : "#486284";
+  const isSideSelected = (category: SideAwareBodyAreaCategory, side: BodySide) => {
+    if (selectedCategory !== category) {
+      return false;
+    }
+
+    return selectedBodySide?.category === category ? selectedBodySide.side === side : true;
+  };
+  const isSideMarked = (category: SideAwareBodyAreaCategory, side: BodySide) => {
+    if (isSideSelected(category, side)) {
+      return true;
+    }
+
+    return hoveredSideCategory === category && selectedBodySide?.category !== category;
+  };
+  const sidePartFill = (category: SideAwareBodyAreaCategory, side: BodySide) =>
+    isSideMarked(category, side) ? "#486284" : "#ffffff";
+  const sidePartStroke = (category: SideAwareBodyAreaCategory, side: BodySide) =>
+    isSideMarked(category, side) ? "#486284" : "#d7dee7";
+  const sideLabelFill = (category: SideAwareBodyAreaCategory, side: BodySide) =>
+    isSideMarked(category, side) ? "#ffffff" : "#486284";
 
   const activate = (category: BodyAreaCategory) => (event: KeyboardEvent<SVGGElement>) => {
     if (event.key === "Enter" || event.key === " ") {
       event.preventDefault();
       onSelect(category);
+    }
+  };
+  const activateSide = (category: SideAwareBodyAreaCategory, side: BodySide) => (event: KeyboardEvent<SVGGElement>) => {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      onSelect(category, side);
     }
   };
 
@@ -284,57 +374,93 @@ function AnatomyFigure({
       </defs>
 
       <g
-        role="button"
-        tabIndex={0}
-        aria-label="Arme auswählen"
-        aria-pressed={selectedCategory === "arms"}
-        onClick={() => onSelect("arms")}
-        onKeyDown={activate("arms")}
-        className={interactiveClass}
+        onMouseEnter={() => setHoveredSideCategory("arms")}
+        onMouseLeave={() => setHoveredSideCategory(null)}
+        onFocus={() => setHoveredSideCategory("arms")}
+        onBlur={() => setHoveredSideCategory(null)}
       >
-        <path
-          d="M55 103 C47 109 43 119 42 132 L37 203 C36 218 43 228 54 228 C65 228 70 219 70 205 L75 135 C76 121 81 109 90 102 L90 93 Z"
-          fill={partFill("arms")}
-          stroke={partStroke("arms")}
-          strokeWidth="4"
-          filter="url(#body-shadow)"
-        />
-        <path
-          d="M165 103 C173 109 177 119 178 132 L183 203 C184 218 177 228 166 228 C155 228 150 219 150 205 L145 135 C144 121 139 109 130 102 L130 93 Z"
-          fill={partFill("arms")}
-          stroke={partStroke("arms")}
-          strokeWidth="4"
-          filter="url(#body-shadow)"
-        />
-        <text x="54" y="168" textAnchor="middle" fill={labelFill("arms")} fontSize="13" fontWeight="700" transform="rotate(-86 54 168)">Arm</text>
-        <text x="166" y="168" textAnchor="middle" fill={labelFill("arms")} fontSize="13" fontWeight="700" transform="rotate(86 166 168)">Arm</text>
+        <g
+          role="button"
+          tabIndex={0}
+          aria-label="Rechten Arm auswählen"
+          aria-pressed={isSideSelected("arms", "Rechts")}
+          onClick={() => onSelect("arms", "Rechts")}
+          onKeyDown={activateSide("arms", "Rechts")}
+          className={interactiveClass}
+        >
+          <path
+            d="M55 103 C47 109 43 119 42 132 L37 203 C36 218 43 228 54 228 C65 228 70 219 70 205 L75 135 C76 121 81 109 90 102 L90 93 Z"
+            fill={sidePartFill("arms", "Rechts")}
+            stroke={sidePartStroke("arms", "Rechts")}
+            strokeWidth="4"
+            filter="url(#body-shadow)"
+          />
+          <text x="54" y="168" textAnchor="middle" fill={sideLabelFill("arms", "Rechts")} fontSize="11" fontWeight="700" transform="rotate(-86 54 168)">Arm (R)</text>
+        </g>
+
+        <g
+          role="button"
+          tabIndex={0}
+          aria-label="Linken Arm auswählen"
+          aria-pressed={isSideSelected("arms", "Links")}
+          onClick={() => onSelect("arms", "Links")}
+          onKeyDown={activateSide("arms", "Links")}
+          className={interactiveClass}
+        >
+          <path
+            d="M165 103 C173 109 177 119 178 132 L183 203 C184 218 177 228 166 228 C155 228 150 219 150 205 L145 135 C144 121 139 109 130 102 L130 93 Z"
+            fill={sidePartFill("arms", "Links")}
+            stroke={sidePartStroke("arms", "Links")}
+            strokeWidth="4"
+            filter="url(#body-shadow)"
+          />
+          <text x="166" y="168" textAnchor="middle" fill={sideLabelFill("arms", "Links")} fontSize="11" fontWeight="700" transform="rotate(86 166 168)">Arm (L)</text>
+        </g>
       </g>
 
       <g
-        role="button"
-        tabIndex={0}
-        aria-label="Beine auswählen"
-        aria-pressed={selectedCategory === "legs"}
-        onClick={() => onSelect("legs")}
-        onKeyDown={activate("legs")}
-        className={interactiveClass}
+        onMouseEnter={() => setHoveredSideCategory("legs")}
+        onMouseLeave={() => setHoveredSideCategory(null)}
+        onFocus={() => setHoveredSideCategory("legs")}
+        onBlur={() => setHoveredSideCategory(null)}
       >
-        <path
-          d="M66 217 H104 L101 318 C101 333 92 343 80 343 C68 343 61 333 62 318 Z"
-          fill={partFill("legs")}
-          stroke={partStroke("legs")}
-          strokeWidth="4"
-          filter="url(#body-shadow)"
-        />
-        <path
-          d="M116 217 H154 L158 318 C159 333 152 343 140 343 C128 343 119 333 119 318 Z"
-          fill={partFill("legs")}
-          stroke={partStroke("legs")}
-          strokeWidth="4"
-          filter="url(#body-shadow)"
-        />
-        <text x="82" y="282" textAnchor="middle" fill={labelFill("legs")} fontSize="13" fontWeight="700" transform="rotate(-90 82 282)">Bein</text>
-        <text x="138" y="282" textAnchor="middle" fill={labelFill("legs")} fontSize="13" fontWeight="700" transform="rotate(90 138 282)">Bein</text>
+        <g
+          role="button"
+          tabIndex={0}
+          aria-label="Rechtes Bein auswählen"
+          aria-pressed={isSideSelected("legs", "Rechts")}
+          onClick={() => onSelect("legs", "Rechts")}
+          onKeyDown={activateSide("legs", "Rechts")}
+          className={interactiveClass}
+        >
+          <path
+            d="M66 217 H104 L101 318 C101 333 92 343 80 343 C68 343 61 333 62 318 Z"
+            fill={sidePartFill("legs", "Rechts")}
+            stroke={sidePartStroke("legs", "Rechts")}
+            strokeWidth="4"
+            filter="url(#body-shadow)"
+          />
+          <text x="82" y="282" textAnchor="middle" fill={sideLabelFill("legs", "Rechts")} fontSize="11" fontWeight="700" transform="rotate(-90 82 282)">Bein (R)</text>
+        </g>
+
+        <g
+          role="button"
+          tabIndex={0}
+          aria-label="Linkes Bein auswählen"
+          aria-pressed={isSideSelected("legs", "Links")}
+          onClick={() => onSelect("legs", "Links")}
+          onKeyDown={activateSide("legs", "Links")}
+          className={interactiveClass}
+        >
+          <path
+            d="M116 217 H154 L158 318 C159 333 152 343 140 343 C128 343 119 333 119 318 Z"
+            fill={sidePartFill("legs", "Links")}
+            stroke={sidePartStroke("legs", "Links")}
+            strokeWidth="4"
+            filter="url(#body-shadow)"
+          />
+          <text x="138" y="282" textAnchor="middle" fill={sideLabelFill("legs", "Links")} fontSize="11" fontWeight="700" transform="rotate(90 138 282)">Bein (L)</text>
+        </g>
       </g>
 
       <g
@@ -450,6 +576,11 @@ export default function SymptomSelectionPage() {
   const initialCategory = isBodyAreaCategory(searchParams.get("category"))
     ? searchParams.get("category") as BodyAreaCategory
     : null;
+  const initialSide = searchParams.get("side");
+  const initialBodySide: BodySideSelection | null =
+    isSideAwareCategory(initialCategory) && isBodySide(initialSide)
+      ? { category: initialCategory, side: initialSide }
+      : null;
   const {
     selectedSymptoms: contextSymptoms,
     setSelectedSymptoms: setContextSymptoms,
@@ -460,6 +591,7 @@ export default function SymptomSelectionPage() {
     setSymptomDetails: setContextSymptomDetails,
   } = useAssessment();
   const [selectedCategory, setSelectedCategory] = useState<BodyAreaCategory | null>(initialCategory);
+  const [selectedBodySide, setSelectedBodySide] = useState<BodySideSelection | null>(initialBodySide);
   const [selectedSymptoms, setSelectedSymptoms] = useState<SelectedSymptom[]>(contextSymptoms);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [symptomTextDraft, setSymptomTextDraft] = useState(symptomText);
@@ -476,9 +608,18 @@ export default function SymptomSelectionPage() {
   const symptomExtractionRequestVersionRef = useRef(0);
   const recordedTextRef = useRef("");
 
-  const selectedCategoryLabel = selectedCategory ? BODY_AREA_LABELS[selectedCategory] : "";
+  const selectedCategoryLabel = formatSelectedCategoryLabel(selectedCategory, selectedBodySide);
   const filteredRegions = useMemo(() => getBodyRegionsForCategory(selectedCategory), [selectedCategory]);
+  const selectedRegionKeys = useMemo(() => selectedSymptoms.map(getSymptomKey), [selectedSymptoms]);
+  const selectedRegionKeysForGrid = useMemo(() => {
+    if (!selectedBodySide || selectedBodySide.category !== selectedCategory) {
+      return selectedRegionKeys;
+    }
+
+    return selectedRegionKeys.filter((symptomKey) => symptomKey.includes(`(${selectedBodySide.side}`));
+  }, [selectedBodySide, selectedCategory, selectedRegionKeys]);
   const shouldShowInlineOptions = false;
+  const remainingSymptomSlots = Math.max(0, MAX_SYMPTOMS - selectedSymptoms.length);
   const symptomTextCharacterCount = useMemo(() => getCharacterCount(symptomTextDraft), [symptomTextDraft]);
   const formattedRecordingElapsed = formatRecordingDuration(recordingElapsedSeconds);
   const formattedMaxRecordingDuration = formatRecordingDuration(MAX_RECORDING_DURATION_SECONDS);
@@ -748,15 +889,22 @@ export default function SymptomSelectionPage() {
    * Keeping the category in search params makes the screen shareable and lets
    * browser navigation restore the currently opened body area.
    */
-  const handleCategorySelect = (category: BodyAreaCategory) => {
-    if (selectedCategory === category) {
+  const handleCategorySelect = (category: BodyAreaCategory, side?: BodySide) => {
+    const nextBodySide: BodySideSelection | null =
+      isSideAwareCategory(category) && side ? { category, side } : null;
+    const isSameBodySide =
+      selectedBodySide?.category === nextBodySide?.category && selectedBodySide?.side === nextBodySide?.side;
+
+    if (selectedCategory === category && (!nextBodySide || isSameBodySide)) {
       setSelectedCategory(null);
+      setSelectedBodySide(null);
       setSearchParams({});
       return;
     }
 
     setSelectedCategory(category);
-    setSearchParams({ category });
+    setSelectedBodySide(nextBodySide);
+    setSearchParams(nextBodySide ? { category, side: nextBodySide.side } : { category });
 
     // On mobile, move the newly opened options into view after React has rendered them.
     if (window.innerWidth < 768) {
@@ -785,7 +933,9 @@ export default function SymptomSelectionPage() {
       return;
     }
 
-    const symptomKey = side ? `${regionName} (${side})` : regionName;
+    const bodySide = selectedBodySide?.category === selectedCategory ? selectedBodySide.side : undefined;
+    const localizedSide = bodySide ? (side && side !== regionName ? `${bodySide}: ${side}` : bodySide) : side;
+    const symptomKey = localizedSide ? `${regionName} (${localizedSide})` : regionName;
     const alreadySelected = selectedSymptoms.some((symptom) => getSymptomKey(symptom) === symptomKey);
 
     if (alreadySelected) {
@@ -799,7 +949,7 @@ export default function SymptomSelectionPage() {
     }
 
     if (selectedSymptoms.length < MAX_SYMPTOMS) {
-      const nextSymptoms = [...selectedSymptoms, { region: regionName, side }];
+      const nextSymptoms = [...selectedSymptoms, { region: regionName, side: localizedSide }];
       setSelectedSymptoms(nextSymptoms);
       setContextSymptoms(nextSymptoms);
     }
@@ -902,14 +1052,21 @@ export default function SymptomSelectionPage() {
       }
 
       const extractedSelection = extractedSymptoms.map(({ region, side }) => ({ region, side }));
+      const mergedSelection = mergeSelectedSymptoms(selectedSymptoms, extractedSelection);
+      const mergedSelectionKeys = new Set(mergedSelection.map(getSymptomKey));
+      const extractedSymptomsForDetails = extractedSymptoms.filter((symptom) =>
+        mergedSelectionKeys.has(getSymptomKey(symptom)),
+      );
 
       setSymptomText(trimmedSymptomText);
-      setSelectedSymptoms(extractedSelection);
-      setContextSymptoms(extractedSelection);
-      setContextSymptomDetails([]);
+      setSelectedSymptoms(mergedSelection);
+      setContextSymptoms(mergedSelection);
+      setContextSymptomDetails(
+        contextSymptomDetails.filter((symptom) => mergedSelectionKeys.has(getSymptomKey(symptom))),
+      );
       setSymptomExtractionProgress(100);
       setIsModalOpen(false);
-      navigate("/symptom-details", { state: { extractedSymptoms } });
+      navigate("/symptom-details", { state: { extractedSymptoms: extractedSymptomsForDetails } });
     } catch (error) {
       if (symptomExtractionRequestVersionRef.current === requestVersion) {
         setSymptomTextError(error instanceof Error ? error.message : "Die Beschreibung konnte nicht ausgewertet werden.");
@@ -924,33 +1081,51 @@ export default function SymptomSelectionPage() {
   };
 
   const renderSymptomTextButton = (className = "") => (
-    <button
-      type="button"
-      onClick={openSymptomTextModal}
-      className={`${className} w-full rounded-[16px] border-2 bg-white p-4 text-left text-app-text-body shadow-sm transition-all hover:border-[#486284] hover:bg-[#f5f7fa] ${
-        symptomText.trim() ? "border-[#486284]" : "border-[#d7dee7]"
-      }`}
-    >
-      <div className="flex items-start gap-3">
-        <div className="flex size-11 flex-shrink-0 items-center justify-center shadow-md rounded-full bg-[#486284] text-app-text-on-primary">
-          <Mic className="size-5" aria-hidden="true" />
-        </div>
-        <div>
-          <p
-            className="font-['DM_Sans:Bold',sans-serif] font-bold text-app-text-primary text-sm"
-            style={{ fontVariationSettings: "'opsz' 14" }}
-          >
-            Symptome beschreiben
-          </p>
-          <p
-            className="font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-primary text-xs leading-snug"
-            style={{ fontVariationSettings: "'opsz' 14" }}
-          >
-            Per Freitext oder Spracheingabe schildern
-          </p>
-        </div>
+    <div className={`${className} rounded-[18px] border-2 border-[#cfd5dd] bg-white p-3 shadow-sm`}>
+      <div className="mb-3 border-b border-[#d7dee7] pb-3">
+        <p
+          className="font-['DM_Sans:Bold',sans-serif] font-bold text-app-text-primary text-sm"
+          style={{ fontVariationSettings: "'opsz' 14" }}
+        >
+          Freitext und Spracheingabe
+        </p>
+        <p
+          className="mt-1 font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-muted text-xs leading-snug"
+          style={{ fontVariationSettings: "'opsz' 14" }}
+        >
+          Ihre ausgewählten Beschwerden bleiben erhalten. Freitext ergänzt freie Plätze.
+        </p>
       </div>
-    </button>
+      <button
+        type="button"
+        onClick={openSymptomTextModal}
+        className={`w-full rounded-[16px] border-2 bg-[#f5f7fa] p-4 text-left text-app-text-body transition-all hover:border-[#486284] hover:bg-[#eff2f6] ${
+          symptomText.trim() ? "border-[#486284]" : "border-[#d7dee7]"
+        }`}
+      >
+        <div className="flex items-start gap-3">
+          <div className="flex size-11 flex-shrink-0 items-center justify-center rounded-full bg-[#486284] text-app-text-on-primary shadow-md">
+            <Mic className="size-5" aria-hidden="true" />
+          </div>
+          <div>
+            <p
+              className="font-['DM_Sans:Bold',sans-serif] font-bold text-app-text-primary text-sm"
+              style={{ fontVariationSettings: "'opsz' 14" }}
+            >
+              {selectedSymptoms.length > 0 ? "Weitere Symptome beschreiben" : "Symptome beschreiben"}
+            </p>
+            <p
+              className="font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-primary text-xs leading-snug"
+              style={{ fontVariationSettings: "'opsz' 14" }}
+            >
+              {remainingSymptomSlots > 0
+                ? `Per Freitext oder Spracheingabe ergänzen (${remainingSymptomSlots} frei)`
+                : "Maximale Anzahl erreicht"}
+            </p>
+          </div>
+        </div>
+      </button>
+    </div>
   );
 
   return (
@@ -969,7 +1144,11 @@ export default function SymptomSelectionPage() {
             >
               Bereich wählen
             </p>
-            <AnatomyFigure selectedCategory={selectedCategory} onSelect={handleCategorySelect} />
+            <AnatomyFigure
+              selectedCategory={selectedCategory}
+              selectedBodySide={selectedBodySide}
+              onSelect={handleCategorySelect}
+            />
 
             <div className="mt-3 grid grid-cols-1 gap-2">
               {supportingAreas.map((area) => {
@@ -1095,12 +1274,20 @@ export default function SymptomSelectionPage() {
                 >
                   {selectedSymptoms.length}/{MAX_SYMPTOMS} Beschwerden ausgewählt
                 </p>
+                {selectedBodySide && selectedBodySide.category === selectedCategory && (
+                  <p
+                    className="font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-muted text-xs"
+                    style={{ fontVariationSettings: "'opsz' 14" }}
+                  >
+                    {BODY_SIDE_LABELS[selectedBodySide.side]}
+                  </p>
+                )}
               </div>
 
               <SymptomButtonGrid
                 onRegionSelect={handleRegionSelect}
                 regions={filteredRegions}
-                selectedRegions={selectedSymptoms.map(getSymptomKey)}
+                selectedRegions={selectedRegionKeysForGrid}
                 inlineOptions={shouldShowInlineOptions}
               />
             </>
@@ -1134,7 +1321,11 @@ export default function SymptomSelectionPage() {
         isOpen={isModalOpen}
         onClose={handleCloseSymptomTextModal}
         title="Beschreiben Sie Ihre Symptome"
-        subtitle="Bitte beschreiben Sie Ihre Symptome in 1-2 Sätzen. Nennen Sie dabei Symptom, Stärke und Dauer."
+        subtitle={
+          selectedSymptoms.length > 0
+            ? "Bereits ausgewählte Beschwerden bleiben erhalten. Der Freitext ergänzt freie Beschwerdeplätze."
+            : "Bitte beschreiben Sie Ihre Symptome in 1-2 Sätzen. Nennen Sie dabei Symptom, Stärke und Dauer."
+        }
         showCloseButton
       >
         <textarea

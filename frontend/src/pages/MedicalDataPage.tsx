@@ -48,6 +48,11 @@ const createInitialPatientData = (
   medications: "",
   medicationDuration: "",
   substanceInfluence: "Nein",
+  alcoholSince: "",
+  alcoholFrequencyPerDay: "",
+  drugDetails: "",
+  drugSince: "",
+  drugFrequencyPerDay: "",
   recentAbroad: false,
   recentAbroadDetails: "",
   conditions: [],
@@ -57,6 +62,47 @@ const createInitialPatientData = (
   conditionDetails: {},
   ...patientData,
 });
+
+function hasSubstance(value: string | undefined, substance: "Alkohol" | "Drogen") {
+  return Boolean(value?.toLowerCase().includes(substance.toLowerCase()));
+}
+
+function buildSubstanceInfluence(
+  data: Pick<
+    PatientData,
+    "alcoholSince" | "alcoholFrequencyPerDay" | "drugDetails" | "drugSince" | "drugFrequencyPerDay"
+  >,
+  selection: { alcohol: boolean; drugs: boolean },
+) {
+  const parts: string[] = [];
+
+  if (selection.alcohol) {
+    const details = [
+      data.alcoholSince?.trim() ? `seit ${data.alcoholSince.trim()}` : null,
+      data.alcoholFrequencyPerDay?.trim() ? `${data.alcoholFrequencyPerDay.trim()} pro Tag` : null,
+    ].filter(Boolean);
+
+    parts.push(details.length > 0 ? `Alkohol (${details.join(", ")})` : "Alkohol");
+  }
+
+  if (selection.drugs) {
+    const details = [
+      data.drugDetails?.trim() ? `Substanz: ${data.drugDetails.trim()}` : null,
+      data.drugSince?.trim() ? `seit ${data.drugSince.trim()}` : null,
+      data.drugFrequencyPerDay?.trim() ? `${data.drugFrequencyPerDay.trim()} pro Tag` : null,
+    ].filter(Boolean);
+
+    parts.push(details.length > 0 ? `Drogen (${details.join(", ")})` : "Drogen");
+  }
+
+  return parts.length > 0 ? parts.join("; ") : "Nein";
+}
+
+function getSubstanceSummary(data: PatientData) {
+  return data.substanceInfluence.trim() && data.substanceInfluence.trim() !== "Nein"
+    ? data.substanceInfluence
+    : "Optional ergänzen";
+}
 
 /**
  * Reusable disclosure panel for optional medical sections.
@@ -194,6 +240,259 @@ export default function MedicalDataPage() {
     }));
   };
 
+  const toggleConditionDropdown = (condition: string) => {
+    setExpandedConditionDetails((sections) => ({
+      [condition]: !sections[condition],
+    }));
+  };
+
+  const clearAllConditionSelections = () => {
+    setFormData((prev) => ({
+      ...prev,
+      conditions: [],
+      conditionDetails: {},
+    }));
+    setExpandedConditionDetails({});
+  };
+
+  const clearOtherConditionSelection = () => {
+    setFormData((prev) => {
+      const { Sonstige: _removedDetail, ...nextConditionDetails } =
+        prev.conditionDetails ?? {};
+
+      return {
+        ...prev,
+        conditions: prev.conditions.filter(
+          (condition) => condition !== "Sonstige",
+        ),
+        conditionDetails: nextConditionDetails,
+      };
+    });
+    setExpandedConditionDetails({});
+  };
+
+  const clearConditionSelection = (condition: string) => {
+    setFormData((prev) => {
+      const { [condition]: _removedDetail, ...nextConditionDetails } =
+        prev.conditionDetails ?? {};
+
+      return {
+        ...prev,
+        conditions: prev.conditions.filter(
+          (selectedCondition) => selectedCondition !== condition,
+        ),
+        conditionDetails: nextConditionDetails,
+      };
+    });
+    setExpandedConditionDetails({});
+  };
+
+  const toggleConditionSelection = (condition: string) => {
+    toggleConditionDropdown(condition);
+  };
+
+  /**
+   * Selects a predefined detail and ensures the parent condition is active.
+   *
+   * Choosing a detail implies the condition itself should be included in the
+   * assessment payload, even if the main condition button was not toggled first.
+   */
+  const selectConditionDetail = (condition: string, value: string) => {
+    setFormData((prev) => ({
+      ...prev,
+      conditions: prev.conditions.includes(condition)
+        ? prev.conditions
+        : [...prev.conditions, condition],
+      conditionDetails: {
+        ...(prev.conditionDetails ?? {}),
+        [condition]: {
+          condition,
+          detail: value,
+          duration: prev.conditionDetails?.[condition]?.duration ?? "",
+        },
+      },
+    }));
+    setExpandedConditionDetails({ [condition]: true });
+  };
+
+  /**
+   * Keeps the custom "Sonstige" condition synchronized with its free-text value.
+   *
+   * Clearing the field removes the synthetic condition so empty custom entries
+   * do not get sent to triage or PDF export.
+   */
+  const updateOtherCondition = (value: string) => {
+    const trimmedValue = value.trim();
+
+    setExpandedConditionDetails(trimmedValue ? { Sonstige: true } : {});
+
+    setFormData((prev) => {
+      const nextConditions = trimmedValue
+        ? prev.conditions.includes("Sonstige")
+          ? prev.conditions
+          : [...prev.conditions, "Sonstige"]
+        : prev.conditions.filter((condition) => condition !== "Sonstige");
+
+      return {
+        ...prev,
+        conditions: nextConditions,
+        conditionDetails: {
+          ...(prev.conditionDetails ?? {}),
+          Sonstige: {
+            condition: "Sonstige",
+            detail: value,
+            duration: prev.conditionDetails?.Sonstige?.duration ?? "",
+          },
+        },
+      };
+    });
+  };
+
+  const updateConditionDuration = (condition: string, duration: string) => {
+    setFormData((prev) => {
+      const currentDetail = prev.conditionDetails?.[condition];
+
+      return {
+        ...prev,
+        conditionDetails: {
+          ...(prev.conditionDetails ?? {}),
+          [condition]: {
+            condition,
+            detail: currentDetail?.detail ?? "",
+            duration,
+          },
+        },
+      };
+    });
+  };
+
+  const collapseConditionDropdown = (condition: string) => {
+    setExpandedConditionDetails((sections) => ({
+      ...sections,
+      [condition]: false,
+    }));
+  };
+
+  const updateSubstanceDetails = (
+    updates: Partial<
+      Pick<
+        PatientData,
+        "alcoholSince" | "alcoholFrequencyPerDay" | "drugDetails" | "drugSince" | "drugFrequencyPerDay"
+      >
+    >,
+  ) => {
+    setFormData((prev) => {
+      const nextData = { ...prev, ...updates };
+
+      return {
+        ...nextData,
+        substanceInfluence: buildSubstanceInfluence(nextData, {
+          alcohol: hasSubstance(prev.substanceInfluence, "Alkohol"),
+          drugs: hasSubstance(prev.substanceInfluence, "Drogen"),
+        }),
+      };
+    });
+  };
+
+  const toggleSubstanceInfluence = (substance: "Alkohol" | "Drogen") => {
+    setFormData((prev) => {
+      const nextSelection = {
+        alcohol:
+          substance === "Alkohol"
+            ? !hasSubstance(prev.substanceInfluence, "Alkohol")
+            : hasSubstance(prev.substanceInfluence, "Alkohol"),
+        drugs:
+          substance === "Drogen"
+            ? !hasSubstance(prev.substanceInfluence, "Drogen")
+            : hasSubstance(prev.substanceInfluence, "Drogen"),
+      };
+
+      const nextData: PatientData = {
+        ...prev,
+        ...(nextSelection.alcohol
+          ? {}
+          : {
+              alcoholSince: "",
+              alcoholFrequencyPerDay: "",
+            }),
+        ...(nextSelection.drugs
+          ? {}
+          : {
+              drugDetails: "",
+              drugSince: "",
+              drugFrequencyPerDay: "",
+            }),
+      };
+
+      return {
+        ...nextData,
+        substanceInfluence: buildSubstanceInfluence(nextData, nextSelection),
+      };
+    });
+  };
+
+  const renderConditionDurationField = (
+    condition: string,
+    options: { showLabel?: boolean } = {},
+  ) => {
+    const detail = formData.conditionDetails?.[condition];
+    const hasSelectedDetail = Boolean(detail?.detail.trim());
+    const showLabel = options.showLabel ?? true;
+
+    return (
+      <div
+        className="border-t border-gray-200 bg-[#eff2f6] p-3"
+        onClick={(event) => event.stopPropagation()}
+      >
+        {showLabel && (
+          <Label
+            htmlFor={`conditionDuration-${condition}`}
+            className="mb-1 block font-['DM_Sans:Bold',sans-serif] font-bold text-app-text-body text-xs leading-tight"
+            style={{ fontVariationSettings: "'opsz' 14" }}
+          >
+            Seit wann?
+          </Label>
+        )}
+        <div className="relative">
+          <Input
+            id={`conditionDuration-${condition}`}
+            value={detail?.duration ?? ""}
+            onChange={(event) =>
+              updateConditionDuration(condition, event.target.value)
+            }
+            onKeyDown={(event) => {
+              if (event.key !== "Enter") return;
+              event.preventDefault();
+              event.stopPropagation();
+              collapseConditionDropdown(condition);
+            }}
+            placeholder={
+              hasSelectedDetail
+                ? "z. B. 2019, seit 6 Monaten"
+                : "Bitte erst auswählen"
+            }
+            disabled={!hasSelectedDetail}
+            className="h-8 border-none bg-white pr-8 text-xs disabled:cursor-not-allowed disabled:bg-white disabled:text-app-text-muted disabled:opacity-70"
+          />
+          {detail?.duration.trim() && (
+            <button
+              type="button"
+              onClick={(event) => {
+                event.stopPropagation();
+                collapseConditionDropdown(condition);
+              }}
+              className="absolute right-1 top-1/2 flex size-7 -translate-y-1/2 items-center justify-center rounded-[8px] text-app-text-primary transition-all hover:bg-[#eff2f6]"
+              aria-label={`${condition}-Liste zuklappen`}
+              title={`${condition}-Liste zuklappen`}
+            >
+              <Check className="size-4" strokeWidth={3} aria-hidden="true" />
+            </button>
+          )}
+        </div>
+      </div>
+    );
+  };
+
   const handleContinue = () => {
     setPatientData(formData);
     navigate("/pre-existing-conditions");
@@ -202,6 +501,9 @@ export default function MedicalDataPage() {
   const handleSkip = () => {
     navigate("/pre-existing-conditions");
   };
+
+  const isAlcoholSelected = hasSubstance(formData.substanceInfluence, "Alkohol");
+  const isDrugSelected = hasSubstance(formData.substanceInfluence, "Drogen");
 
   return (
     <PageShell
@@ -329,33 +631,116 @@ export default function MedicalDataPage() {
           </MedicalAccordionPanel>
 
           <MedicalAccordionPanel
-            title="Einfluss durch Alkohol, Drogen oder Medikamente"
+            title="Einfluss durch Alkohol oder Drogen"
             icon={Wine}
             isOpen={expandedMedicalSections.substance}
             onToggle={() => toggleMedicalSection("substance")}
-            summary={
-              formData.substanceInfluence === "Nein"
-                ? "Optional ergänzen"
-                : formData.substanceInfluence
-            }
-            isCompleted={formData.substanceInfluence !== "Nein"}
+            summary={getSubstanceSummary(formData)}
+            isCompleted={isAlcoholSelected || isDrugSelected}
           >
             <div className="grid grid-cols-2 gap-2">
-              {["Nein", "Alkohol", "Drogen", "Medikamente"].map((option) => {
-                const isSelected = formData.substanceInfluence === option;
+              {(["Alkohol", "Drogen"] as const).map((option) => {
+                const isSelected = option === "Alkohol" ? isAlcoholSelected : isDrugSelected;
 
                 return (
                   <OptionButton
                     key={option}
                     label={option}
                     selected={isSelected}
-                    onClick={() =>
-                      setFormData({ ...formData, substanceInfluence: option })
-                    }
+                    onClick={() => toggleSubstanceInfluence(option)}
                   />
                 );
               })}
             </div>
+
+            {isAlcoholSelected && (
+              <div className="mt-3 rounded-[12px] bg-white p-3">
+                <p
+                  className="mb-2 font-['DM_Sans:Bold',sans-serif] text-xs font-bold text-app-text-body"
+                  style={{ fontVariationSettings: "'opsz' 14" }}
+                >
+                  Alkoholkonsum
+                </p>
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                  <div className="space-y-1">
+                    <Label htmlFor="alcoholSince" className="text-xs font-medium text-app-text-subtle">
+                      Seit wann?
+                    </Label>
+                    <Input
+                      id="alcoholSince"
+                      value={formData.alcoholSince ?? ""}
+                      onChange={(event) => updateSubstanceDetails({ alcoholSince: event.target.value })}
+                      placeholder="z. B. seit 2021"
+                      className="!bg-[#f8fafc]"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label htmlFor="alcoholFrequencyPerDay" className="text-xs font-medium text-app-text-subtle">
+                      Wie oft am Tag?
+                    </Label>
+                    <Input
+                      id="alcoholFrequencyPerDay"
+                      value={formData.alcoholFrequencyPerDay ?? ""}
+                      onChange={(event) => updateSubstanceDetails({ alcoholFrequencyPerDay: event.target.value })}
+                      placeholder="z. B. 1 Glas"
+                      className="!bg-[#f8fafc]"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {isDrugSelected && (
+              <div className="mt-3 rounded-[12px] bg-white p-3">
+                <p
+                  className="mb-2 font-['DM_Sans:Bold',sans-serif] text-xs font-bold text-app-text-body"
+                  style={{ fontVariationSettings: "'opsz' 14" }}
+                >
+                  Drogenkonsum
+                </p>
+                <div className="space-y-2">
+                  <div className="space-y-1">
+                    <Label htmlFor="drugDetails" className="text-xs font-medium text-app-text-subtle">
+                      Welche Drogen oder Substanzen nehmen Sie ein?
+                    </Label>
+                    <textarea
+                      id="drugDetails"
+                      value={formData.drugDetails ?? ""}
+                      onChange={(event) => updateSubstanceDetails({ drugDetails: event.target.value })}
+                      placeholder="Freitext, z. B. Cannabis, Kokain oder Amphetamine"
+                      rows={3}
+                      className="w-full resize-y rounded-[10px] border border-[#d8e0ea] bg-[#f8fafc] px-3 py-2 text-sm text-app-text-body outline-none transition-all placeholder:text-app-text-muted focus:border-[#486284] focus:ring-2 focus:ring-[#486284]/20"
+                    />
+                  </div>
+                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                    <div className="space-y-1">
+                      <Label htmlFor="drugSince" className="text-xs font-medium text-app-text-subtle">
+                        Seit wann?
+                      </Label>
+                      <Input
+                        id="drugSince"
+                        value={formData.drugSince ?? ""}
+                        onChange={(event) => updateSubstanceDetails({ drugSince: event.target.value })}
+                        placeholder="z. B. seit 6 Monaten"
+                        className="!bg-[#f8fafc]"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label htmlFor="drugFrequencyPerDay" className="text-xs font-medium text-app-text-subtle">
+                        Wie oft am Tag?
+                      </Label>
+                      <Input
+                        id="drugFrequencyPerDay"
+                        value={formData.drugFrequencyPerDay ?? ""}
+                        onChange={(event) => updateSubstanceDetails({ drugFrequencyPerDay: event.target.value })}
+                        placeholder="z. B. 2-mal"
+                        className="!bg-[#f8fafc]"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
           </MedicalAccordionPanel>
 
           <MedicalAccordionPanel
