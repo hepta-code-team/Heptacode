@@ -245,11 +245,42 @@ describe('page-level user flows', () => {
       recentAbroad: true,
       recentAbroadDetails: 'Italien',
       isPregnant: true,
+      smokingStatus: 'Ja',
       isSmoker: true,
       smokingSinceYears: '1',
       cigarettesPerDay: '1',
     }));
     expect(navigateMock).toHaveBeenCalledWith('/pre-existing-conditions');
+  });
+
+  it('keeps occasional smoking selected after medical data is persisted', async () => {
+    const user = userEvent.setup();
+    assessmentState.patientData = basePatientData;
+
+    const { unmount } = render(<MedicalDataPage />);
+
+    await user.click(screen.getByRole('button', { name: /Rauchen/ }));
+    await user.click(screen.getByRole('button', { name: 'Gelegentlich' }));
+
+    expect(setPatientDataMock).toHaveBeenCalledWith(expect.objectContaining({
+      smokingStatus: 'Gelegentlich',
+      isSmoker: true,
+    }));
+
+    assessmentState.patientData = {
+      ...basePatientData,
+      smokingStatus: 'Gelegentlich',
+      isSmoker: true,
+    };
+
+    unmount();
+    render(<MedicalDataPage />);
+
+    expect(screen.getByRole('button', { name: /Rauchen.*Gelegentlich ausgew/ })).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: /Rauchen/ }));
+
+    expect(screen.getByRole('button', { name: 'Gelegentlich' })).toHaveClass('bg-[#486284]');
+    expect(screen.getByRole('button', { name: 'Ja' })).not.toHaveClass('bg-[#486284]');
   });
 
   it('collects pre-existing conditions and continues to symptom selection', async () => {
