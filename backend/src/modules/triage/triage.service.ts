@@ -85,11 +85,11 @@ function buildPatientDataLines(patientData?: PatientData): string[] {
     `Geschlecht: ${patientData.gender}`,
     patientData.isPregnant ? 'Schwanger: Ja' : null,
     patientData.isBreastfeeding ? 'Stillend: Ja' : null,
-    patientData.isSmoker ? 'Raucher: Ja' : 'Raucher: Nein',
-    patientData.isSmoker && hasText(patientData.smokingSinceYears)
+    patientData.isSmoker ? `Raucher: ${patientData.isSmoker}` : 'Raucher: Keine Angabe',
+    patientData.isSmoker !== '' && patientData.isSmoker !== 'Nein' && hasText(patientData.smokingSinceYears)
       ? `Rauchdauer: ${patientData.smokingSinceYears.trim()} Jahre`
       : null,
-    patientData.isSmoker && hasText(patientData.cigarettesPerDay)
+    patientData.isSmoker !== '' && patientData.isSmoker !== 'Nein' && hasText(patientData.cigarettesPerDay)
       ? `Zigaretten pro Tag: ${patientData.cigarettesPerDay.trim()}`
       : null,
   ].filter((line): line is string => line !== null)
@@ -195,9 +195,9 @@ function formatMedicalRiskContext(patientData?: PatientData): string {
   return [
     `Allergien: ${hasText(patientData.allergies) ? patientData.allergies.trim() : 'Keine angegeben'}`,
     `Einfluss durch Alkohol oder Drogen: ${hasText(patientData.substanceInfluence) ? patientData.substanceInfluence.trim() : 'Keine Angabe'}`,
-    `Auslandsaufenthalt in den letzten 3 Monaten: ${patientData.recentAbroad
+    `Auslandsaufenthalt in den letzten 3 Monaten: ${patientData.recentAbroad === 'Ja'
       ? hasText(patientData.recentAbroadDetails) ? patientData.recentAbroadDetails.trim() : 'Ja, keine Details angegeben'
-      : 'Nein'}`,
+      : patientData.recentAbroad || 'Keine Angabe'}`,
     `Vorerkrankungen: ${patientData.conditions.length > 0 ? patientData.conditions.join(', ') : 'Keine angegeben'}`,
     `Details und Dauer der Vorerkrankungen: ${conditionDetails.length > 0 ? conditionDetails.join('; ') : 'Keine angegeben'}`,
   ].join('\n')

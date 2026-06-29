@@ -37,11 +37,11 @@ const basePatientData: PatientData = {
   allergies: '',
   medications: '',
   medicationDuration: '',
-  substanceInfluence: 'Nein',
-  recentAbroad: false,
+  substanceInfluence: '',
+  recentAbroad: '',
   recentAbroadDetails: '',
   conditions: [],
-  isSmoker: false,
+  isSmoker: '',
   smokingSinceYears: '',
   cigarettesPerDay: '',
   conditionDetails: {},
@@ -215,6 +215,35 @@ describe('page-level user flows', () => {
     expect(navigateMock).toHaveBeenCalledWith('/medical-data');
   });
 
+  it('toggles selected travel and smoking buttons off again', async () => {
+    const user = userEvent.setup();
+    assessmentState.patientData = basePatientData;
+
+    render(<MedicalDataPage />);
+
+    await user.click(screen.getByRole('button', { name: /Auslandsaufenthalt/ }));
+    await user.click(screen.getAllByRole('button', { name: 'Ja' })[0]);
+    await user.type(screen.getByPlaceholderText('Land / Region, falls bekannt'), 'Italien');
+    await user.click(screen.getAllByRole('button', { name: 'Ja' })[0]);
+
+    expect(screen.queryByPlaceholderText('Land / Region, falls bekannt')).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: /Rauchen/ }));
+    await user.click(screen.getAllByRole('button', { name: 'Ja' }).at(-1)!);
+    await user.click(screen.getByRole('button', { name: 'Rauchdauer erhöhen' }));
+    await user.click(screen.getByRole('button', { name: 'Zigaretten pro Tag erhöhen' }));
+    await user.click(screen.getAllByRole('button', { name: 'Ja' }).at(-1)!);
+    await user.click(screen.getAllByRole('button', { name: 'Weiter' }).at(-1)!);
+
+    expect(setPatientDataMock).toHaveBeenLastCalledWith(expect.objectContaining({
+      recentAbroad: '',
+      recentAbroadDetails: '',
+      isSmoker: '',
+      smokingSinceYears: '',
+      cigarettesPerDay: '',
+    }));
+  });
+
   it('collects optional medical data and continues to symptom selection', async () => {
     const user = userEvent.setup();
     assessmentState.patientData = basePatientData;
@@ -242,10 +271,10 @@ describe('page-level user flows', () => {
       allergies: 'Penicillin',
       medications: 'Ibuprofen',
       substanceInfluence: 'Alkohol',
-      recentAbroad: true,
+      recentAbroad: "Ja",
       recentAbroadDetails: 'Italien',
       isPregnant: true,
-      isSmoker: true,
+      isSmoker: "Ja",
       smokingSinceYears: '1',
       cigarettesPerDay: '1',
     }));
@@ -498,7 +527,7 @@ describe('page-level user flows', () => {
           duration: '',
         },
       },
-      recentAbroad: true,
+      recentAbroad: "Ja",
       recentAbroadDetails: 'Italien | 2026-01-01 | 2026-01-10',
     };
     assessmentState.symptomDetails = [

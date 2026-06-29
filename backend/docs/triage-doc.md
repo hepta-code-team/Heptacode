@@ -311,8 +311,8 @@ Request:
     "isBreastfeeding": false,
     "allergies": "",
     "medications": "",
-    "substanceInfluence": "Nein",
-    "recentAbroad": false,
+    "substanceInfluence": "",
+    "recentAbroad": "",
     "recentAbroadDetails": "",
     "conditions": []
   },
@@ -358,8 +358,8 @@ Request:
     "isBreastfeeding": false,
     "allergies": "",
     "medications": "",
-    "substanceInfluence": "Nein",
-    "recentAbroad": false,
+    "substanceInfluence": "",
+    "recentAbroad": "",
     "recentAbroadDetails": "",
     "conditions": []
   },

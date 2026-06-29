@@ -232,8 +232,8 @@ function formatTravelDisplay(value: string): string {
 }
 
 function formatRecentAbroad(data: PatientData): string {
-  if (!data.recentAbroad) {
-    return 'Nein'
+  if (data.recentAbroad !== 'Ja') {
+    return data.recentAbroad || '—'
   }
 
   return formatTravelDisplay(data.recentAbroadDetails) || 'Ja'
@@ -284,12 +284,12 @@ function summarizePatient(data?: PatientData): string {
     `Allergien: ${data.allergies || '-'}`,
     `Medikamente: ${data.medications || '-'}`,
     `Einnahmedauer Medikamente: ${data.medicationDuration || '-'}`,
-    `Substanzbeeinflussung: ${data.substanceInfluence || 'Nein'}`,
+    `Substanzbeeinflussung: ${data.substanceInfluence || '-'}`,
     `Reise ins Ausland: ${formatRecentAbroad(data)}`,
     ...conditionLines,
-    `Raucher: ${data.isSmoker ? 'Ja' : 'Nein'}`,
-    data.isSmoker ? `Rauchdauer: ${data.smokingSinceYears || '—'}` : null,
-    data.isSmoker ? `Zigaretten pro Tag: ${data.cigarettesPerDay || '—'}` : null,
+    `Raucher: ${data.isSmoker || '—'}`,
+    data.isSmoker !== 'Nein' && data.isSmoker ? `Rauchdauer: ${data.smokingSinceYears || '—'}` : null,
+    data.isSmoker !== 'Nein' && data.isSmoker ? `Zigaretten pro Tag: ${data.cigarettesPerDay || '—'}` : null,
   ].filter((line): line is string => line !== null).join('\n')
 }
 

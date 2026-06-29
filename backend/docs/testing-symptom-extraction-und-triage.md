@@ -74,7 +74,7 @@ Erwartet wird eine strukturierte Liste mit bis zu drei Symptomen, zum Beispiel:
 Mit diesem Request wird die Triage direkt mit strukturierten Symptomen aufgerufen:
 
 ```bash
-curl -X POST http://localhost:3000/api/v1/triage/evaluate -H 'Content-Type: application/json' --data '{"patientData":{"birthMonth":"05","birthYear":"1988","height":"175","weight":"78","gender":"männlich","isPregnant":false,"isBreastfeeding":false,"allergies":"","medications":"","substanceInfluence":"Nein","recentAbroad":false,"recentAbroadDetails":"","conditions":[]},"symptoms":[{"region":"Kopf","painLevel":7,"duration":"days"},{"region":"Allgemein","side":"Übelkeit/Schwindel"}]}'
+curl -X POST http://localhost:3000/api/v1/triage/evaluate -H 'Content-Type: application/json' --data '{"patientData":{"birthMonth":"05","birthYear":"1988","height":"175","weight":"78","gender":"männlich","isPregnant":false,"isBreastfeeding":false,"allergies":"","medications":"","substanceInfluence":"","recentAbroad":"","recentAbroadDetails":"","conditions":[]},"symptoms":[{"region":"Kopf","painLevel":7,"duration":"days"},{"region":"Allgemein","side":"Übelkeit/Schwindel"}]}'
 ```
 
 Erwartet wird eine Antwort mit `careLevel`, `recommendedSpecialty` und `reasons`, zum Beispiel:
@@ -94,7 +94,7 @@ Erwartet wird eine Antwort mit `careLevel`, `recommendedSpecialty` und `reasons`
 Die Triage kann auch direkt mit Freitext getestet werden. In diesem Fall ruft die Triage intern zuerst die Symptom-Extraction auf und bewertet danach das Ergebnis.
 
 ```bash
-curl -X POST http://localhost:3000/api/v1/triage/evaluate -H 'Content-Type: application/json' --data '{"patientData":{"birthMonth":"05","birthYear":"1988","height":"175","weight":"78","gender":"männlich","isPregnant":false,"isBreastfeeding":false,"allergies":"","medications":"","substanceInfluence":"Nein","recentAbroad":false,"recentAbroadDetails":"","conditions":[]},"text":"Ich habe seit ein paar Tagen starke Kopfschmerzen, etwa 7 von 10, und leichte Übelkeit."}'
+curl -X POST http://localhost:3000/api/v1/triage/evaluate -H 'Content-Type: application/json' --data '{"patientData":{"birthMonth":"05","birthYear":"1988","height":"175","weight":"78","gender":"männlich","isPregnant":false,"isBreastfeeding":false,"allergies":"","medications":"","substanceInfluence":"","recentAbroad":"","recentAbroadDetails":"","conditions":[]},"text":"Ich habe seit ein paar Tagen starke Kopfschmerzen, etwa 7 von 10, und leichte Übelkeit."}'
 ```
 
 Erwartet wird wieder eine Triage-Antwort:

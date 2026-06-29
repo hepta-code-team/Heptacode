@@ -25,10 +25,10 @@ function createPayload(): AssessmentPayload {
       medications: '',
       medicationDuration: '',
       substanceInfluence: '',
-      recentAbroad: false,
+      recentAbroad: '',
       recentAbroadDetails: '',
       conditions: ['Asthma'],
-      isSmoker: false,
+      isSmoker: '',
       smokingSinceYears: '',
       cigarettesPerDay: '',
       conditionDetails: {},
@@ -216,9 +216,9 @@ describe('evaluateAssessmentWithAi', () => {
     payload.patientData.allergies = 'Penicillin'
     payload.patientData.medications = 'Ibuprofen'
     payload.patientData.substanceInfluence = 'Alkohol'
-    payload.patientData.recentAbroad = true
+    payload.patientData.recentAbroad = 'Ja'
     payload.patientData.recentAbroadDetails = 'Spanien'
-    payload.patientData.isSmoker = true
+    payload.patientData.isSmoker = 'Ja'
     payload.patientData.smokingSinceYears = '5'
     payload.patientData.cigarettesPerDay = '10'
     payload.patientData.conditionDetails = {

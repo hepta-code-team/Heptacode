@@ -497,19 +497,19 @@ export default function ResultPage() {
         { label: "Allergien", value: formatOptionalValue(patientData.allergies) },
         { label: "Medikamente", value: formatOptionalValue(patientData.medications) },
         { label: "Medikamente seit", value: formatOptionalValue(patientData.medicationDuration) },
-        { label: "Substanzbeeinflussung", value: formatOptionalValue(patientData.substanceInfluence || "Nein") },
+        { label: "Substanzbeeinflussung", value: formatOptionalValue(patientData.substanceInfluence) },
         {
           label: "Auslandsreise",
-          value: patientData.recentAbroad
+          value: patientData.recentAbroad === "Ja"
             ? formatOptionalValue(formatTravelDisplay(patientData.recentAbroadDetails) || "Ja")
-            : "Nein",
+            : formatOptionalValue(patientData.recentAbroad),
         },
         {
           label: "Vorerkrankungen",
           value: patientData.conditions.length > 0 ? patientData.conditions.join(", ") : "Keine angegeben",
         },
-        { label: "Raucher", value: patientData.isSmoker ? "Ja" : "Nein" },
-        ...(patientData.isSmoker
+        { label: "Raucher", value: formatOptionalValue(patientData.isSmoker) },
+        ...(patientData.isSmoker && patientData.isSmoker !== "Nein"
           ? [
               { label: "Rauchdauer", value: formatOptionalValue(patientData.smokingSinceYears) },
               { label: "Zigaretten pro Tag", value: formatOptionalValue(patientData.cigarettesPerDay) },
@@ -567,7 +567,7 @@ export default function ResultPage() {
     const nextPatientData = patientDataDraft
       ? {
           ...patientDataDraft,
-          recentAbroadDetails: patientDataDraft.recentAbroad
+          recentAbroadDetails: patientDataDraft.recentAbroad === "Ja"
             ? formatTravelDetails(travelCountryDraft, travelStartDateDraft, travelEndDateDraft)
             : "",
           conditions: conditionListDraft
@@ -998,7 +998,7 @@ export default function ResultPage() {
                   <span className="text-[11px] font-medium text-app-text-subtle">Substanzbeeinflussung</span>
                   <select
                     value={patientDataDraft.substanceInfluence.trim().toLowerCase() === "nein" || !patientDataDraft.substanceInfluence.trim() ? "Nein" : "Ja"}
-                    onChange={(event) => updatePatientDataDraft("substanceInfluence", event.target.value === "Ja" ? SUBSTANCE_OPTIONS[0] : "Nein")}
+                    onChange={(event) => updatePatientDataDraft("substanceInfluence", event.target.value === "Ja" ? SUBSTANCE_OPTIONS[0] : "")}
                     className="mt-1 w-full rounded-[8px] border border-[#d8e0ea] bg-white px-3 py-2 text-sm font-medium text-app-text-body outline-none focus:border-[#486284] focus:ring-2 focus:ring-[#486284]/20"
                   >
                     <option value="Nein">Nein</option>
@@ -1028,9 +1028,9 @@ export default function ResultPage() {
                   <label className="flex items-center gap-2 rounded-[8px] border border-[#d8e0ea] px-3 py-2 text-sm font-bold text-app-text-body">
                     <input
                       type="checkbox"
-                      checked={patientDataDraft.recentAbroad}
+                      checked={patientDataDraft.recentAbroad === "Ja"}
                       onChange={(event) => {
-                        updatePatientDataDraft("recentAbroad", event.target.checked);
+                        updatePatientDataDraft("recentAbroad", event.target.checked ? "Ja" : "Nein");
 
                         if (!event.target.checked) {
                           setTravelCountryDraft("");
@@ -1047,7 +1047,7 @@ export default function ResultPage() {
                       list="travel-country-options"
                       value={travelCountryDraft}
                       onChange={(event) => setTravelCountryDraft(event.target.value)}
-                      disabled={!patientDataDraft.recentAbroad}
+                      disabled={patientDataDraft.recentAbroad !== "Ja"}
                       className="mt-1 w-full rounded-[8px] border border-[#d8e0ea] px-3 py-2 text-sm font-medium text-app-text-body outline-none focus:border-[#486284] focus:ring-2 focus:ring-[#486284]/20"
                     />
                     <datalist id="travel-country-options">
@@ -1062,7 +1062,7 @@ export default function ResultPage() {
                       type="date"
                       value={travelStartDateDraft}
                       onChange={(event) => setTravelStartDateDraft(event.target.value)}
-                      disabled={!patientDataDraft.recentAbroad}
+                      disabled={patientDataDraft.recentAbroad !== "Ja"}
                       className="mt-1 w-full rounded-[8px] border border-[#d8e0ea] px-3 py-2 text-sm font-medium text-app-text-body outline-none focus:border-[#486284] focus:ring-2 focus:ring-[#486284]/20"
                     />
                   </label>
@@ -1073,7 +1073,7 @@ export default function ResultPage() {
                       value={travelEndDateDraft}
                       min={travelStartDateDraft || undefined}
                       onChange={(event) => setTravelEndDateDraft(event.target.value)}
-                      disabled={!patientDataDraft.recentAbroad}
+                      disabled={patientDataDraft.recentAbroad !== "Ja"}
                       className="mt-1 w-full rounded-[8px] border border-[#d8e0ea] px-3 py-2 text-sm font-medium text-app-text-body outline-none focus:border-[#486284] focus:ring-2 focus:ring-[#486284]/20"
                     />
                   </label>
@@ -1090,8 +1090,8 @@ export default function ResultPage() {
                   <label className="flex items-center gap-2 rounded-[8px] border border-[#d8e0ea] px-3 py-2 text-sm font-bold text-app-text-body">
                     <input
                       type="checkbox"
-                      checked={patientDataDraft.isSmoker}
-                      onChange={(event) => updatePatientDataDraft("isSmoker", event.target.checked)}
+                      checked={patientDataDraft.isSmoker !== "" && patientDataDraft.isSmoker !== "Nein"}
+                      onChange={(event) => updatePatientDataDraft("isSmoker", event.target.checked ? "Ja" : "Nein")}
                     />
                     Raucher
                   </label>

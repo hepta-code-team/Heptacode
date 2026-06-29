@@ -24,10 +24,10 @@ export interface PatientData {
     drugDetails?: string
     drugSince?: string
     drugFrequencyPerDay?: string
-    recentAbroad: boolean
+    recentAbroad: string
     recentAbroadDetails: string
     conditions: string[]
-    isSmoker: boolean
+    isSmoker: string
     smokingSinceYears: string
     cigarettesPerDay: string
     conditionDetails: Record<string, ConditionDetail>
