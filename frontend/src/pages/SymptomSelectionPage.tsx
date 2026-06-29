@@ -270,6 +270,10 @@ type BodySideSelection = {
   category: SideAwareBodyAreaCategory;
   side: BodySide;
 };
+type HoveredBodyArea = {
+  category: BodyAreaCategory;
+  side?: BodySide;
+};
 
 const BODY_SIDE_LABELS: Record<BodySide, string> = {
   Links: "Linke Körperseite",
@@ -320,10 +324,12 @@ function AnatomyFigure({
   selectedBodySide: BodySideSelection | null;
   onSelect: (category: BodyAreaCategory, side?: BodySide) => void;
 }) {
-  const [hoveredSideCategory, setHoveredSideCategory] = useState<SideAwareBodyAreaCategory | null>(null);
-  const partFill = (category: BodyAreaCategory) => selectedCategory === category ? "#486284" : "#ffffff";
-  const partStroke = (category: BodyAreaCategory) => selectedCategory === category ? "#486284" : "#d7dee7";
-  const labelFill = (category: BodyAreaCategory) => selectedCategory === category ? "#ffffff" : "#486284";
+  const [hoveredBodyArea, setHoveredBodyArea] = useState<HoveredBodyArea | null>(null);
+  const isPartMarked = (category: BodyAreaCategory) =>
+    selectedCategory === category || hoveredBodyArea?.category === category;
+  const partFill = (category: BodyAreaCategory) => isPartMarked(category) ? "#486284" : "#ffffff";
+  const partStroke = (category: BodyAreaCategory) => isPartMarked(category) ? "#486284" : "#d7dee7";
+  const labelFill = (category: BodyAreaCategory) => isPartMarked(category) ? "#ffffff" : "#486284";
   const isSideSelected = (category: SideAwareBodyAreaCategory, side: BodySide) => {
     if (selectedCategory !== category) {
       return false;
@@ -336,7 +342,7 @@ function AnatomyFigure({
       return true;
     }
 
-    return hoveredSideCategory === category && selectedBodySide?.category !== category;
+    return hoveredBodyArea?.category === category && hoveredBodyArea.side === side;
   };
   const sidePartFill = (category: SideAwareBodyAreaCategory, side: BodySide) =>
     isSideMarked(category, side) ? "#486284" : "#ffffff";
@@ -373,12 +379,7 @@ function AnatomyFigure({
         </filter>
       </defs>
 
-      <g
-        onMouseEnter={() => setHoveredSideCategory("arms")}
-        onMouseLeave={() => setHoveredSideCategory(null)}
-        onFocus={() => setHoveredSideCategory("arms")}
-        onBlur={() => setHoveredSideCategory(null)}
-      >
+      <g>
         <g
           role="button"
           tabIndex={0}
@@ -386,6 +387,10 @@ function AnatomyFigure({
           aria-pressed={isSideSelected("arms", "Rechts")}
           onClick={() => onSelect("arms", "Rechts")}
           onKeyDown={activateSide("arms", "Rechts")}
+          onMouseEnter={() => setHoveredBodyArea({ category: "arms", side: "Rechts" })}
+          onMouseLeave={() => setHoveredBodyArea(null)}
+          onFocus={() => setHoveredBodyArea({ category: "arms", side: "Rechts" })}
+          onBlur={() => setHoveredBodyArea(null)}
           className={interactiveClass}
         >
           <path
@@ -405,6 +410,10 @@ function AnatomyFigure({
           aria-pressed={isSideSelected("arms", "Links")}
           onClick={() => onSelect("arms", "Links")}
           onKeyDown={activateSide("arms", "Links")}
+          onMouseEnter={() => setHoveredBodyArea({ category: "arms", side: "Links" })}
+          onMouseLeave={() => setHoveredBodyArea(null)}
+          onFocus={() => setHoveredBodyArea({ category: "arms", side: "Links" })}
+          onBlur={() => setHoveredBodyArea(null)}
           className={interactiveClass}
         >
           <path
@@ -418,12 +427,7 @@ function AnatomyFigure({
         </g>
       </g>
 
-      <g
-        onMouseEnter={() => setHoveredSideCategory("legs")}
-        onMouseLeave={() => setHoveredSideCategory(null)}
-        onFocus={() => setHoveredSideCategory("legs")}
-        onBlur={() => setHoveredSideCategory(null)}
-      >
+      <g>
         <g
           role="button"
           tabIndex={0}
@@ -431,6 +435,10 @@ function AnatomyFigure({
           aria-pressed={isSideSelected("legs", "Rechts")}
           onClick={() => onSelect("legs", "Rechts")}
           onKeyDown={activateSide("legs", "Rechts")}
+          onMouseEnter={() => setHoveredBodyArea({ category: "legs", side: "Rechts" })}
+          onMouseLeave={() => setHoveredBodyArea(null)}
+          onFocus={() => setHoveredBodyArea({ category: "legs", side: "Rechts" })}
+          onBlur={() => setHoveredBodyArea(null)}
           className={interactiveClass}
         >
           <path
@@ -450,6 +458,10 @@ function AnatomyFigure({
           aria-pressed={isSideSelected("legs", "Links")}
           onClick={() => onSelect("legs", "Links")}
           onKeyDown={activateSide("legs", "Links")}
+          onMouseEnter={() => setHoveredBodyArea({ category: "legs", side: "Links" })}
+          onMouseLeave={() => setHoveredBodyArea(null)}
+          onFocus={() => setHoveredBodyArea({ category: "legs", side: "Links" })}
+          onBlur={() => setHoveredBodyArea(null)}
           className={interactiveClass}
         >
           <path
@@ -470,6 +482,10 @@ function AnatomyFigure({
         aria-pressed={selectedCategory === "torso"}
         onClick={() => onSelect("torso")}
         onKeyDown={activate("torso")}
+        onMouseEnter={() => setHoveredBodyArea({ category: "torso" })}
+        onMouseLeave={() => setHoveredBodyArea(null)}
+        onFocus={() => setHoveredBodyArea({ category: "torso" })}
+        onBlur={() => setHoveredBodyArea(null)}
         className={interactiveClass}
       >
         <path
@@ -490,6 +506,10 @@ function AnatomyFigure({
         aria-pressed={selectedCategory === "hips"}
         onClick={() => onSelect("hips")}
         onKeyDown={activate("hips")}
+        onMouseEnter={() => setHoveredBodyArea({ category: "hips" })}
+        onMouseLeave={() => setHoveredBodyArea(null)}
+        onFocus={() => setHoveredBodyArea({ category: "hips" })}
+        onBlur={() => setHoveredBodyArea(null)}
         className={interactiveClass}
       >
         <path
@@ -509,6 +529,10 @@ function AnatomyFigure({
         aria-pressed={selectedCategory === "headNeck"}
         onClick={() => onSelect("headNeck")}
         onKeyDown={activate("headNeck")}
+        onMouseEnter={() => setHoveredBodyArea({ category: "headNeck" })}
+        onMouseLeave={() => setHoveredBodyArea(null)}
+        onFocus={() => setHoveredBodyArea({ category: "headNeck" })}
+        onBlur={() => setHoveredBodyArea(null)}
         className={`${interactiveClass} sm:hidden`}
       >
         <path
@@ -536,6 +560,10 @@ function AnatomyFigure({
         aria-pressed={selectedCategory === "neck"}
         onClick={() => onSelect("neck")}
         onKeyDown={activate("neck")}
+        onMouseEnter={() => setHoveredBodyArea({ category: "neck" })}
+        onMouseLeave={() => setHoveredBodyArea(null)}
+        onFocus={() => setHoveredBodyArea({ category: "neck" })}
+        onBlur={() => setHoveredBodyArea(null)}
         className={`${interactiveClass} hidden sm:block`}
       >
         <path
@@ -555,6 +583,10 @@ function AnatomyFigure({
         aria-pressed={selectedCategory === "head"}
         onClick={() => onSelect("head")}
         onKeyDown={activate("head")}
+        onMouseEnter={() => setHoveredBodyArea({ category: "head" })}
+        onMouseLeave={() => setHoveredBodyArea(null)}
+        onFocus={() => setHoveredBodyArea({ category: "head" })}
+        onBlur={() => setHoveredBodyArea(null)}
         className={`${interactiveClass} hidden sm:block`}
       >
         <path
