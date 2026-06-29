@@ -1,0 +1,642 @@
+{
+  ".devcontainer/devcontainer.json": {
+    "mtime": 1777463475.8884997,
+    "ast_hash": "c0b9d6b1442e556e8bd3112cadcc7f57",
+    "semantic_hash": "c0b9d6b1442e556e8bd3112cadcc7f57"
+  },
+  ".vscode/launch.json": {
+    "mtime": 1777463475.8890607,
+    "ast_hash": "e9a066a0f0bc019e6816c177d661cbfd",
+    "semantic_hash": "e9a066a0f0bc019e6816c177d661cbfd"
+  },
+  "backend/package.json": {
+    "mtime": 1782218441.354464,
+    "ast_hash": "b02782de6207b5addb8472d8098c2cef",
+    "semantic_hash": "b02782de6207b5addb8472d8098c2cef"
+  },
+  "backend/src/ai/client.ts": {
+    "mtime": 1780995678.187838,
+    "ast_hash": "771330bbfd2ca7a25064b8e79b98ccad",
+    "semantic_hash": "771330bbfd2ca7a25064b8e79b98ccad"
+  },
+  "backend/src/ai/llmAdapter.ts": {
+    "mtime": 1782218441.3546364,
+    "ast_hash": "ae4ae37dbe56695cf13f6213568c8db0",
+    "semantic_hash": "ae4ae37dbe56695cf13f6213568c8db0"
+  },
+  "backend/src/ai/timeout.ts": {
+    "mtime": 1782218441.3548203,
+    "ast_hash": "871edfba0e5e86db4281fcb92ec70abd",
+    "semantic_hash": "871edfba0e5e86db4281fcb92ec70abd"
+  },
+  "backend/src/app.ts": {
+    "mtime": 1782733098.2620828,
+    "ast_hash": "cb03729f80fe476425490419f1cf2aca",
+    "semantic_hash": "cb03729f80fe476425490419f1cf2aca"
+  },
+  "backend/src/common/errors/ApiError.ts": {
+    "mtime": 1780995678.1884024,
+    "ast_hash": "08da5e137a0afea4fa53dee790b1a314",
+    "semantic_hash": "08da5e137a0afea4fa53dee790b1a314"
+  },
+  "backend/src/common/middleware/errorHandler.ts": {
+    "mtime": 1780995678.18852,
+    "ast_hash": "a1ddbd8734c18d286c498a8ff60c2f2a",
+    "semantic_hash": "a1ddbd8734c18d286c498a8ff60c2f2a"
+  },
+  "backend/src/common/middleware/notFoundHandler.ts": {
+    "mtime": 1780995678.1885922,
+    "ast_hash": "ec1d56ccbe5a32fbebc593439dc542a4",
+    "semantic_hash": "ec1d56ccbe5a32fbebc593439dc542a4"
+  },
+  "backend/src/common/middleware/validateRequest.ts": {
+    "mtime": 1780995678.1886694,
+    "ast_hash": "df5d9790f174a372626ac18ad0bf8397",
+    "semantic_hash": "df5d9790f174a372626ac18ad0bf8397"
+  },
+  "backend/src/common/patientPlausibility.ts": {
+    "mtime": 1782218441.3549423,
+    "ast_hash": "4ce63b12fc1d427e07c724f436f81a97",
+    "semantic_hash": "4ce63b12fc1d427e07c724f436f81a97"
+  },
+  "backend/src/config/env.ts": {
+    "mtime": 1782733098.2623682,
+    "ast_hash": "babc94ab634577a0222efda2e74a75ab",
+    "semantic_hash": "babc94ab634577a0222efda2e74a75ab"
+  },
+  "backend/src/index.ts": {
+    "mtime": 1780995678.1889222,
+    "ast_hash": "8c209956a4a014dc45b9a06ef3bd2cb2",
+    "semantic_hash": "8c209956a4a014dc45b9a06ef3bd2cb2"
+  },
+  "backend/src/modules/assessment/assessment.schema.ts": {
+    "mtime": 1780995678.1890733,
+    "ast_hash": "af3622d2320e36021749af5288bf33ac",
+    "semantic_hash": "af3622d2320e36021749af5288bf33ac"
+  },
+  "backend/src/modules/assessment/assessment.service.ts": {
+    "mtime": 1782218441.355247,
+    "ast_hash": "364689b7fc5bc79346d58aa3851db94d",
+    "semantic_hash": "364689b7fc5bc79346d58aa3851db94d"
+  },
+  "backend/src/modules/assessment/assessment.types.ts": {
+    "mtime": 1782218441.3553886,
+    "ast_hash": "bd8992cd4f6299f4f4e140cc1fa5e5ee",
+    "semantic_hash": "bd8992cd4f6299f4f4e140cc1fa5e5ee"
+  },
+  "backend/src/modules/fhir/fhirBundle.ts": {
+    "mtime": 1782719744.964378,
+    "ast_hash": "4410cbc2d49d31a4422c0d071d5a69df",
+    "semantic_hash": "4410cbc2d49d31a4422c0d071d5a69df"
+  },
+  "backend/src/modules/pdf/pdf.schema.ts": {
+    "mtime": 1780995678.190131,
+    "ast_hash": "6b78ec3b9f3d79c045ead77f09c5276e",
+    "semantic_hash": "6b78ec3b9f3d79c045ead77f09c5276e"
+  },
+  "backend/src/modules/pdf/pdf.types.ts": {
+    "mtime": 1782218441.3562846,
+    "ast_hash": "fa342e5284699a327c7668a2b86dd8bf",
+    "semantic_hash": "fa342e5284699a327c7668a2b86dd8bf"
+  },
+  "backend/src/modules/pdf/pdfExport.service.ts": {
+    "mtime": 1782218441.3590655,
+    "ast_hash": "f57e63b71cf784b5ba92d3a0ea95899c",
+    "semantic_hash": "f57e63b71cf784b5ba92d3a0ea95899c"
+  },
+  "backend/src/modules/prompt/mentalHealthExtraction.prompt.ts": {
+    "mtime": 1782219179.1445458,
+    "ast_hash": "bb3575e0f031e5cb7f8d88a52b908b7a",
+    "semantic_hash": "bb3575e0f031e5cb7f8d88a52b908b7a"
+  },
+  "backend/src/modules/prompt/mentalhealthRisk.prompt.ts": {
+    "mtime": 1782219179.144653,
+    "ast_hash": "b543f2b69f1e8d8f2e72f1026f51e7bb",
+    "semantic_hash": "b543f2b69f1e8d8f2e72f1026f51e7bb"
+  },
+  "backend/src/modules/prompt/reviewSummary.prompt.ts": {
+    "mtime": 1780995678.1910233,
+    "ast_hash": "51bff8e41975cc54f112b2d528fe71a6",
+    "semantic_hash": "51bff8e41975cc54f112b2d528fe71a6"
+  },
+  "backend/src/modules/prompt/symptomExtraction.prompt.ts": {
+    "mtime": 1782218441.3592927,
+    "ast_hash": "f5c142c46f360e65c1e1783d11b7d4c3",
+    "semantic_hash": "f5c142c46f360e65c1e1783d11b7d4c3"
+  },
+  "backend/src/modules/prompt/triage.prompt.ts": {
+    "mtime": 1782724395.0562823,
+    "ast_hash": "6c7f35d0fb04d8d6ac5375332360200c",
+    "semantic_hash": "6c7f35d0fb04d8d6ac5375332360200c"
+  },
+  "backend/src/modules/symptom-extraction/symptomExtraction.schema.ts": {
+    "mtime": 1780995678.1913872,
+    "ast_hash": "7444bee91b853274d8fc6125f9f895b6",
+    "semantic_hash": "7444bee91b853274d8fc6125f9f895b6"
+  },
+  "backend/src/modules/symptom-extraction/symptomExtraction.service.ts": {
+    "mtime": 1782218441.3598197,
+    "ast_hash": "6aabb52a18e23cf6ddf623cffdb17cfe",
+    "semantic_hash": "6aabb52a18e23cf6ddf623cffdb17cfe"
+  },
+  "backend/src/modules/symptom-extraction/symptomExtraction.types.ts": {
+    "mtime": 1782218441.3599799,
+    "ast_hash": "96975f322dcea95384f29f28d70be845",
+    "semantic_hash": "96975f322dcea95384f29f28d70be845"
+  },
+  "backend/src/modules/triage/triage.schema.ts": {
+    "mtime": 1780995678.191901,
+    "ast_hash": "5f5a515f0ff59c2574f87e36b080bb7e",
+    "semantic_hash": "5f5a515f0ff59c2574f87e36b080bb7e"
+  },
+  "backend/src/modules/triage/triage.service.ts": {
+    "mtime": 1782218441.360349,
+    "ast_hash": "6c946d07d0a2272c1aa1fe095b083528",
+    "semantic_hash": "6c946d07d0a2272c1aa1fe095b083528"
+  },
+  "backend/src/modules/triage/triage.types.ts": {
+    "mtime": 1782218441.3605568,
+    "ast_hash": "f542fced1fd861a8f1939da5db396725",
+    "semantic_hash": "f542fced1fd861a8f1939da5db396725"
+  },
+  "backend/src/routes/assessment.routes.ts": {
+    "mtime": 1782719744.9646199,
+    "ast_hash": "a7dc5e048d75e1ceae36b65203bb234c",
+    "semantic_hash": "a7dc5e048d75e1ceae36b65203bb234c"
+  },
+  "backend/src/routes/pdf.routes.ts": {
+    "mtime": 1780995678.1925228,
+    "ast_hash": "8112a4fe40e0ee5051cbec4187a1b6a4",
+    "semantic_hash": "8112a4fe40e0ee5051cbec4187a1b6a4"
+  },
+  "backend/src/routes/symptomExtraction.routes.ts": {
+    "mtime": 1782218441.3623629,
+    "ast_hash": "7089f282955b01dd4952d2b856a010b6",
+    "semantic_hash": "7089f282955b01dd4952d2b856a010b6"
+  },
+  "backend/src/routes/triage.routes.ts": {
+    "mtime": 1780995678.1926782,
+    "ast_hash": "2657743e5282ad5dcaa0226e96388048",
+    "semantic_hash": "2657743e5282ad5dcaa0226e96388048"
+  },
+  "backend/src/shared/triageAiPlausibility.ts": {
+    "mtime": 1782733098.262575,
+    "ast_hash": "8ea331867e6169f2f314e120221f0df2",
+    "semantic_hash": "8ea331867e6169f2f314e120221f0df2"
+  },
+  "backend/src/shared/validation.ts": {
+    "mtime": 1782218441.3631387,
+    "ast_hash": "e8e1b098350eebfc6e7d9917f1c9b5a9",
+    "semantic_hash": "e8e1b098350eebfc6e7d9917f1c9b5a9"
+  },
+  "backend/tests/benchmark/benchmark-freetext.js": {
+    "mtime": 1782733098.2627482,
+    "ast_hash": "6e79149d078443fc194c73393ca5a0cc",
+    "semantic_hash": "6e79149d078443fc194c73393ca5a0cc"
+  },
+  "backend/tests/benchmark/benchmark-structured.js": {
+    "mtime": 1782733098.263066,
+    "ast_hash": "03d322617bface3879f64fd827e46f37",
+    "semantic_hash": "03d322617bface3879f64fd827e46f37"
+  },
+  "backend/tests/fixtures/triagePlausibilityLiveCases.ts": {
+    "mtime": 1782733098.2635307,
+    "ast_hash": "3425ef87c0ce31a2d71e289dc7ffac05",
+    "semantic_hash": "3425ef87c0ce31a2d71e289dc7ffac05"
+  },
+  "backend/tests/fixtures/triageSpecialtyCases.ts": {
+    "mtime": 1782218441.3647795,
+    "ast_hash": "716b46423bc35f59c68c0a663860ba98",
+    "semantic_hash": "716b46423bc35f59c68c0a663860ba98"
+  },
+  "backend/tests/integration/routes/assessment.routes.test.ts": {
+    "mtime": 1782218441.364971,
+    "ast_hash": "5ec26c76f10e626c7d247128f220d5e2",
+    "semantic_hash": "5ec26c76f10e626c7d247128f220d5e2"
+  },
+  "backend/tests/integration/routes/pdf.routes.test.ts": {
+    "mtime": 1782218441.3653271,
+    "ast_hash": "de06e57ef2026837388d58b3fd8a3818",
+    "semantic_hash": "de06e57ef2026837388d58b3fd8a3818"
+  },
+  "backend/tests/integration/routes/symptomExtraction.routes.test.ts": {
+    "mtime": 1782218441.365518,
+    "ast_hash": "c3957bb2f1242d1ce1e8d04f51d917f5",
+    "semantic_hash": "c3957bb2f1242d1ce1e8d04f51d917f5"
+  },
+  "backend/tests/integration/routes/triage.routes.test.ts": {
+    "mtime": 1782218441.3656895,
+    "ast_hash": "f4ae6ea18d0002df8e27e24ae2265f78",
+    "semantic_hash": "f4ae6ea18d0002df8e27e24ae2265f78"
+  },
+  "backend/tests/live/triage-plausibility.live.test.ts": {
+    "mtime": 1782218441.3659945,
+    "ast_hash": "9f744ca9d70c943b3cddff21d4c34edf",
+    "semantic_hash": "9f744ca9d70c943b3cddff21d4c34edf"
+  },
+  "backend/tests/live/triage-specialty.live.test.ts": {
+    "mtime": 1782218441.366146,
+    "ast_hash": "b4a36769e5c62a2b874d75fb9292b0f8",
+    "semantic_hash": "b4a36769e5c62a2b874d75fb9292b0f8"
+  },
+  "backend/tests/tsconfig.json": {
+    "mtime": 1782218441.3663921,
+    "ast_hash": "a0734941e566ecea4596622ec291fb05",
+    "semantic_hash": "a0734941e566ecea4596622ec291fb05"
+  },
+  "backend/tests/unit/ai/llmAdapter.test.ts": {
+    "mtime": 1782218441.3666105,
+    "ast_hash": "0cbb956a741ae7d827192ccff8eb4c99",
+    "semantic_hash": "0cbb956a741ae7d827192ccff8eb4c99"
+  },
+  "backend/tests/unit/ai/timeout.availability.test.ts": {
+    "mtime": 1782218441.3667018,
+    "ast_hash": "b4da9cea8eb957b19b1b4976157cdaa2",
+    "semantic_hash": "b4da9cea8eb957b19b1b4976157cdaa2"
+  },
+  "backend/tests/unit/ai/timeout.test.ts": {
+    "mtime": 1782218441.366821,
+    "ast_hash": "6949d8190ed265374d20d064555aec2c",
+    "semantic_hash": "6949d8190ed265374d20d064555aec2c"
+  },
+  "backend/tests/unit/common/middleware/errorHandler.test.ts": {
+    "mtime": 1782218441.3670382,
+    "ast_hash": "0142670e5470cc279a963d68aff8031c",
+    "semantic_hash": "0142670e5470cc279a963d68aff8031c"
+  },
+  "backend/tests/unit/common/middleware/validateRequest.test.ts": {
+    "mtime": 1782218441.367148,
+    "ast_hash": "acf69fd33d5a135f0241c67c45968d40",
+    "semantic_hash": "acf69fd33d5a135f0241c67c45968d40"
+  },
+  "backend/tests/unit/modules/assessment/assessment.service.test.ts": {
+    "mtime": 1782218441.3674066,
+    "ast_hash": "4c14f275d52b89ca9ed562214be16d5b",
+    "semantic_hash": "4c14f275d52b89ca9ed562214be16d5b"
+  },
+  "backend/tests/unit/modules/assessment/assessment.types.test.ts": {
+    "mtime": 1782218441.3675666,
+    "ast_hash": "1575f741621e4c4e677eec10d849caa8",
+    "semantic_hash": "1575f741621e4c4e677eec10d849caa8"
+  },
+  "backend/tests/unit/modules/fhir/fhirBundle.test.ts": {
+    "mtime": 1782218441.3680806,
+    "ast_hash": "ad33395d04dd4db96f2b79175b521b74",
+    "semantic_hash": "ad33395d04dd4db96f2b79175b521b74"
+  },
+  "backend/tests/unit/modules/pdf/pdf.types.test.ts": {
+    "mtime": 1782218441.3684094,
+    "ast_hash": "beaf19ea19c73ffc7a885f9e75e12558",
+    "semantic_hash": "beaf19ea19c73ffc7a885f9e75e12558"
+  },
+  "backend/tests/unit/modules/pdf/pdfExport.service.test.ts": {
+    "mtime": 1782219179.1459825,
+    "ast_hash": "414edb9d93f8fa2798d0fcf0e2f44ec2",
+    "semantic_hash": "414edb9d93f8fa2798d0fcf0e2f44ec2"
+  },
+  "backend/tests/unit/modules/symptom-extraction/symptomExtraction.service.test.ts": {
+    "mtime": 1782218441.3695962,
+    "ast_hash": "8f58dc58c6a02328b7739d6a6302894e",
+    "semantic_hash": "8f58dc58c6a02328b7739d6a6302894e"
+  },
+  "backend/tests/unit/modules/symptom-extraction/symptomExtraction.types.test.ts": {
+    "mtime": 1782218441.3698628,
+    "ast_hash": "0c04894522e0328514f07b6cc4d0ad1e",
+    "semantic_hash": "0c04894522e0328514f07b6cc4d0ad1e"
+  },
+  "backend/tests/unit/modules/triage/triage.service.test.ts": {
+    "mtime": 1782218441.3700545,
+    "ast_hash": "16a30690c5f02e982021f7ee9fa644d4",
+    "semantic_hash": "16a30690c5f02e982021f7ee9fa644d4"
+  },
+  "backend/tests/unit/modules/triage/triage.types.test.ts": {
+    "mtime": 1782218441.3704574,
+    "ast_hash": "dabd2453531bb580ee34bb7b5d769e29",
+    "semantic_hash": "dabd2453531bb580ee34bb7b5d769e29"
+  },
+  "backend/tests/unit/shared/medicalSpecialtyCoverage.test.ts": {
+    "mtime": 1782218441.3706653,
+    "ast_hash": "34ad9486c03856fbcab7354babf6e2f1",
+    "semantic_hash": "34ad9486c03856fbcab7354babf6e2f1"
+  },
+  "backend/tests/unit/shared/triageAiPlausibility.test.ts": {
+    "mtime": 1782733098.2641542,
+    "ast_hash": "3dd976890d72395893f436490082f437",
+    "semantic_hash": "3dd976890d72395893f436490082f437"
+  },
+  "backend/tests/unit/shared/triagePlausibilityCoverage.test.ts": {
+    "mtime": 1782218441.3710012,
+    "ast_hash": "94ab1ffc35e018556e1b45953789d809",
+    "semantic_hash": "94ab1ffc35e018556e1b45953789d809"
+  },
+  "backend/tests/unit/shared/validation.test.ts": {
+    "mtime": 1782218441.3711421,
+    "ast_hash": "5ec8401b506123cedd977f218b656df0",
+    "semantic_hash": "5ec8401b506123cedd977f218b656df0"
+  },
+  "backend/tsconfig.json": {
+    "mtime": 1780995678.193798,
+    "ast_hash": "673891d9b0c5ae4da300d95fbfd24c1d",
+    "semantic_hash": "673891d9b0c5ae4da300d95fbfd24c1d"
+  },
+  "backend/vitest.config.ts": {
+    "mtime": 1782218441.371695,
+    "ast_hash": "c426ca7193b4d7001c3bb8a45d83f86f",
+    "semantic_hash": "c426ca7193b4d7001c3bb8a45d83f86f"
+  },
+  "backend/vitest.live.config.ts": {
+    "mtime": 1782218441.3718076,
+    "ast_hash": "79a4869488c7caa79132275e7ac66acc",
+    "semantic_hash": "79a4869488c7caa79132275e7ac66acc"
+  },
+  "docker/start.sh": {
+    "mtime": 1782219179.1473753,
+    "ast_hash": "f1e15104bc8223d261beeef0162f8a6b",
+    "semantic_hash": "f1e15104bc8223d261beeef0162f8a6b"
+  },
+  "frontend/package.json": {
+    "mtime": 1782218441.3765397,
+    "ast_hash": "cfd87175fc7774ddfd311c3ea2c8b2d1",
+    "semantic_hash": "cfd87175fc7774ddfd311c3ea2c8b2d1"
+  },
+  "frontend/postcss.config.mjs": {
+    "mtime": 1778490849.6487465,
+    "ast_hash": "512ddfe3175b0d294ec1e4789f27885f",
+    "semantic_hash": "512ddfe3175b0d294ec1e4789f27885f"
+  },
+  "frontend/src/app/App.tsx": {
+    "mtime": 1782218441.3774202,
+    "ast_hash": "582996d7cc50c5b102ef1fbd3ca4808f",
+    "semantic_hash": "582996d7cc50c5b102ef1fbd3ca4808f"
+  },
+  "frontend/src/app/router.tsx": {
+    "mtime": 1782218441.377547,
+    "ast_hash": "1da5c75d017c1aff1710ee5d0e4250c2",
+    "semantic_hash": "1da5c75d017c1aff1710ee5d0e4250c2"
+  },
+  "frontend/src/components/Button.tsx": {
+    "mtime": 1782219183.7882695,
+    "ast_hash": "eed3fc1c66942a2c479327609d8359d4",
+    "semantic_hash": "eed3fc1c66942a2c479327609d8359d4"
+  },
+  "frontend/src/components/MobileNavigation.tsx": {
+    "mtime": 1782732685.6704621,
+    "ast_hash": "0d4cbdae09e9069182bd4f99d72f72e9",
+    "semantic_hash": "0d4cbdae09e9069182bd4f99d72f72e9"
+  },
+  "frontend/src/components/Modal.tsx": {
+    "mtime": 1782219179.1530023,
+    "ast_hash": "5a883122fb9b4abfd8b593232105b9cc",
+    "semantic_hash": "5a883122fb9b4abfd8b593232105b9cc"
+  },
+  "frontend/src/components/PageShell.tsx": {
+    "mtime": 1782732685.6705906,
+    "ast_hash": "77160bd0c8b39e9d842d7b0229524634",
+    "semantic_hash": "77160bd0c8b39e9d842d7b0229524634"
+  },
+  "frontend/src/components/WizardNavigation.tsx": {
+    "mtime": 1782732685.6708202,
+    "ast_hash": "09f10d3f0e181c85fabd315e8c2e1fc7",
+    "semantic_hash": "09f10d3f0e181c85fabd315e8c2e1fc7"
+  },
+  "frontend/src/components/ui/input.tsx": {
+    "mtime": 1778490849.6666684,
+    "ast_hash": "3a32dac1fb72ab6a6893f806aac049e0",
+    "semantic_hash": "3a32dac1fb72ab6a6893f806aac049e0"
+  },
+  "frontend/src/components/ui/label.tsx": {
+    "mtime": 1778490849.6668868,
+    "ast_hash": "06608274383a01446d19b9a7ed8148c3",
+    "semantic_hash": "06608274383a01446d19b9a7ed8148c3"
+  },
+  "frontend/src/components/ui/utils.ts": {
+    "mtime": 1778490849.6681292,
+    "ast_hash": "d9837f38cc05303254571985e3164050",
+    "semantic_hash": "d9837f38cc05303254571985e3164050"
+  },
+  "frontend/src/features/emergency/EmergencySymptomGrid.tsx": {
+    "mtime": 1782218441.3872406,
+    "ast_hash": "5ab8094eff2d9c2b36f683a136af0f1e",
+    "semantic_hash": "5ab8094eff2d9c2b36f683a136af0f1e"
+  },
+  "frontend/src/features/results/NearbyPracticeSearch.tsx": {
+    "mtime": 1782733098.266127,
+    "ast_hash": "24ecbe55181e5f8def8370bccc439614",
+    "semantic_hash": "24ecbe55181e5f8def8370bccc439614"
+  },
+  "frontend/src/features/results/ResultCard.tsx": {
+    "mtime": 1782218441.3879113,
+    "ast_hash": "6a446b7197d34d1053c48e5fc704b65d",
+    "semantic_hash": "6a446b7197d34d1053c48e5fc704b65d"
+  },
+  "frontend/src/features/results/result.config.ts": {
+    "mtime": 1780995678.2083702,
+    "ast_hash": "5fdf3c6c9bbe7a8d66cbba200e1bd9d9",
+    "semantic_hash": "5fdf3c6c9bbe7a8d66cbba200e1bd9d9"
+  },
+  "frontend/src/features/results/result.types.ts": {
+    "mtime": 1780995678.2086413,
+    "ast_hash": "93b6dc1942af3f39d016c509ffb34d2e",
+    "semantic_hash": "93b6dc1942af3f39d016c509ffb34d2e"
+  },
+  "frontend/src/features/symptoms/DurationSelector.tsx": {
+    "mtime": 1782219183.7909918,
+    "ast_hash": "a3e05c97fd54c460284852cc7311dddc",
+    "semantic_hash": "a3e05c97fd54c460284852cc7311dddc"
+  },
+  "frontend/src/features/symptoms/PainScaleSelector.tsx": {
+    "mtime": 1782732685.6722887,
+    "ast_hash": "84c3b289cbc817ba155c708628d5eff5",
+    "semantic_hash": "84c3b289cbc817ba155c708628d5eff5"
+  },
+  "frontend/src/features/symptoms/SymptomButtonGrid.tsx": {
+    "mtime": 1782733098.2664328,
+    "ast_hash": "2e61d0d3ffe4ea6662cb2b5fde33f17f",
+    "semantic_hash": "2e61d0d3ffe4ea6662cb2b5fde33f17f"
+  },
+  "frontend/src/features/symptoms/SymptomDetailsForm.tsx": {
+    "mtime": 1782218441.3896315,
+    "ast_hash": "fcfed6cf539000839683efe0d5190cde",
+    "semantic_hash": "fcfed6cf539000839683efe0d5190cde"
+  },
+  "frontend/src/features/symptoms/handleSubmitAssessment.ts": {
+    "mtime": 1782219179.154586,
+    "ast_hash": "9eecc28cff3dd6cb1a679aa7964cba10",
+    "semantic_hash": "9eecc28cff3dd6cb1a679aa7964cba10"
+  },
+  "frontend/src/features/symptoms/symptoms.constants.ts": {
+    "mtime": 1782733098.2670062,
+    "ast_hash": "60ce1162489c07daa0096eec6c398dd4",
+    "semantic_hash": "60ce1162489c07daa0096eec6c398dd4"
+  },
+  "frontend/src/lib/AssessmentContext.tsx": {
+    "mtime": 1782218441.3909812,
+    "ast_hash": "20ff9d0bba7dc1a631f4a89385a9d974",
+    "semantic_hash": "20ff9d0bba7dc1a631f4a89385a9d974"
+  },
+  "frontend/src/lib/apiClient.ts": {
+    "mtime": 1782218441.3911054,
+    "ast_hash": "7932b0402151b33a69ab0e55764b1c15",
+    "semantic_hash": "7932b0402151b33a69ab0e55764b1c15"
+  },
+  "frontend/src/lib/assessmentValidation.ts": {
+    "mtime": 1782218441.3912387,
+    "ast_hash": "56aaec4eb9b55ea6f13dbe847eb1de60",
+    "semantic_hash": "56aaec4eb9b55ea6f13dbe847eb1de60"
+  },
+  "frontend/src/lib/specialtyRecommendation.ts": {
+    "mtime": 1782218441.3918047,
+    "ast_hash": "227d6c81046e4d7ca6721650a06cff44",
+    "semantic_hash": "227d6c81046e4d7ca6721650a06cff44"
+  },
+  "frontend/src/lib/symptomExtractionApi.ts": {
+    "mtime": 1782218441.3922138,
+    "ast_hash": "d587c6b8da85678b2748ede43663579c",
+    "semantic_hash": "d587c6b8da85678b2748ede43663579c"
+  },
+  "frontend/src/lib/triageRecommendation.ts": {
+    "mtime": 1780995678.209915,
+    "ast_hash": "f147f9593b2535ad345a05d770992737",
+    "semantic_hash": "f147f9593b2535ad345a05d770992737"
+  },
+  "frontend/src/main.tsx": {
+    "mtime": 1778490849.6724505,
+    "ast_hash": "c0467418fe09e5c734d59f0ccc7b4f88",
+    "semantic_hash": "c0467418fe09e5c734d59f0ccc7b4f88"
+  },
+  "frontend/src/pages/LandingPage.tsx": {
+    "mtime": 1782219183.7930431,
+    "ast_hash": "1aedb2c3699460331d795c970d2ada21",
+    "semantic_hash": "1aedb2c3699460331d795c970d2ada21"
+  },
+  "frontend/src/pages/MedicalDataPage.tsx": {
+    "mtime": 1782733098.2674282,
+    "ast_hash": "43ba83b822360d0bf5936558f90cb036",
+    "semantic_hash": "43ba83b822360d0bf5936558f90cb036"
+  },
+  "frontend/src/pages/PatientDataPage.tsx": {
+    "mtime": 1782733098.2677193,
+    "ast_hash": "fb3cb57a7c30177c0cd4aced61cd5ca0",
+    "semantic_hash": "fb3cb57a7c30177c0cd4aced61cd5ca0"
+  },
+  "frontend/src/pages/PreExistingConditionsPage.tsx": {
+    "mtime": 1782732685.6746283,
+    "ast_hash": "0a49c5ee4c7af9d64d6053ef624bdc11",
+    "semantic_hash": "0a49c5ee4c7af9d64d6053ef624bdc11"
+  },
+  "frontend/src/pages/ResultPage.tsx": {
+    "mtime": 1782723678.3669438,
+    "ast_hash": "4b64ac17288b815de6667c832e541002",
+    "semantic_hash": "4b64ac17288b815de6667c832e541002"
+  },
+  "frontend/src/pages/SymptomDetailsPage.tsx": {
+    "mtime": 1782733098.267899,
+    "ast_hash": "56eea5ac38c353a3fa162d0eb66f3d60",
+    "semantic_hash": "56eea5ac38c353a3fa162d0eb66f3d60"
+  },
+  "frontend/src/pages/SymptomSelectionPage.tsx": {
+    "mtime": 1782733098.268268,
+    "ast_hash": "ca2a0f0b17999915ade8c219c0e35c2e",
+    "semantic_hash": "ca2a0f0b17999915ade8c219c0e35c2e"
+  },
+  "frontend/src/types/assessment.ts": {
+    "mtime": 1782219179.1576173,
+    "ast_hash": "8f61e92f4db44756978b052711551f62",
+    "semantic_hash": "8f61e92f4db44756978b052711551f62"
+  },
+  "frontend/src/types/triage.ts": {
+    "mtime": 1782218441.3964612,
+    "ast_hash": "0bcea220f1889a27ae570128b3f78137",
+    "semantic_hash": "0bcea220f1889a27ae570128b3f78137"
+  },
+  "frontend/src/vite-env.d.ts": {
+    "mtime": 1782733098.2688875,
+    "ast_hash": "0352474ba2918efe13895edbc3780d94",
+    "semantic_hash": "0352474ba2918efe13895edbc3780d94"
+  },
+  "frontend/tests/setup/vitest.setup.ts": {
+    "mtime": 1782219179.1580293,
+    "ast_hash": "9d7301c9b24f4c9a11d53db2873bfd80",
+    "semantic_hash": "9d7301c9b24f4c9a11d53db2873bfd80"
+  },
+  "frontend/tests/unit/AssessmentContext.test.tsx": {
+    "mtime": 1782219179.1583796,
+    "ast_hash": "94e3d0aeaa565c3d167b05f6df8e7c7a",
+    "semantic_hash": "94e3d0aeaa565c3d167b05f6df8e7c7a"
+  },
+  "frontend/tests/unit/apiClient.test.ts": {
+    "mtime": 1782218441.397837,
+    "ast_hash": "0f4e1264f2df55c52e9d9249b5009a7c",
+    "semantic_hash": "0f4e1264f2df55c52e9d9249b5009a7c"
+  },
+  "frontend/tests/unit/handleSubmitAssessment.test.ts": {
+    "mtime": 1782219179.1586826,
+    "ast_hash": "18d072f1ad48667bcca066847efb2fc0",
+    "semantic_hash": "18d072f1ad48667bcca066847efb2fc0"
+  },
+  "frontend/tests/unit/pageFlows.test.tsx": {
+    "mtime": 1782733098.2692292,
+    "ast_hash": "5abd22d4be1f31a217eb817b0e32067f",
+    "semantic_hash": "5abd22d4be1f31a217eb817b0e32067f"
+  },
+  "frontend/tests/unit/recommendations.test.ts": {
+    "mtime": 1782218441.39882,
+    "ast_hash": "6a9aa16608fde93b709d4380d84dc87e",
+    "semantic_hash": "6a9aa16608fde93b709d4380d84dc87e"
+  },
+  "frontend/tests/unit/resultsComponents.test.tsx": {
+    "mtime": 1782733098.2696192,
+    "ast_hash": "fc7018bc165c818db95455c481d101d7",
+    "semantic_hash": "fc7018bc165c818db95455c481d101d7"
+  },
+  "frontend/tests/unit/symptomControls.test.tsx": {
+    "mtime": 1782732685.677526,
+    "ast_hash": "04ac792b32f2965e0e2f2d96b6374b2b",
+    "semantic_hash": "04ac792b32f2965e0e2f2d96b6374b2b"
+  },
+  "frontend/tsconfig.json": {
+    "mtime": 1782218441.3994098,
+    "ast_hash": "9683959e3bd18bb94b245a4174e0d925",
+    "semantic_hash": "9683959e3bd18bb94b245a4174e0d925"
+  },
+  "frontend/vite.config.ts": {
+    "mtime": 1782733098.2700112,
+    "ast_hash": "d78454b0ee73a8f186e661a3e6be3c50",
+    "semantic_hash": "d78454b0ee73a8f186e661a3e6be3c50"
+  },
+  "package.json": {
+    "mtime": 1780995678.2122245,
+    "ast_hash": "23837ca65e7c6597d02a831d0b059c49",
+    "semantic_hash": "23837ca65e7c6597d02a831d0b059c49"
+  },
+  "shared/package.json": {
+    "mtime": 1780995678.2123628,
+    "ast_hash": "d0707362e90f00edd12435e9d3b9d71c",
+    "semantic_hash": "d0707362e90f00edd12435e9d3b9d71c"
+  },
+  "shared/patientData.types.ts": {
+    "mtime": 1782733098.2768438,
+    "ast_hash": "a5d11c9508ec84bb7ae4cea436d43cfe",
+    "semantic_hash": "a5d11c9508ec84bb7ae4cea436d43cfe"
+  },
+  "shared/result.types.ts": {
+    "mtime": 1782218441.4004827,
+    "ast_hash": "a2e7e43e735a78f6cad43f18b89c955d",
+    "semantic_hash": "a2e7e43e735a78f6cad43f18b89c955d"
+  },
+  "shared/symptom.types.ts": {
+    "mtime": 1782218441.4006093,
+    "ast_hash": "f97249b5b10960ed636814778de5aac8",
+    "semantic_hash": "f97249b5b10960ed636814778de5aac8"
+  },
+  "shared/symptomExtraction.types.ts": {
+    "mtime": 1782218441.4007256,
+    "ast_hash": "ab7facbabbe0c60263a550626c61492c",
+    "semantic_hash": "ab7facbabbe0c60263a550626c61492c"
+  },
+  "shared/symptomTaxonomy.ts": {
+    "mtime": 1782733098.277153,
+    "ast_hash": "8ca886df86efa56dc0fb94cddbc32b39",
+    "semantic_hash": "8ca886df86efa56dc0fb94cddbc32b39"
+  }
+}
