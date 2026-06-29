@@ -190,6 +190,11 @@ describe('page-level user flows', () => {
     expect(screen.getByText('Bitte Monat zwischen 1-12 wählen.')).toBeInTheDocument();
 
     fireEvent.change(screen.getByPlaceholderText('MM'), { target: { value: '12' } });
+    const currentDate = new Date();
+    const expectedAge = currentDate.getFullYear() - 1990 - (12 > currentDate.getMonth() + 1 ? 1 : 0);
+    expect(screen.getByText((_, element) =>
+      element?.tagName === 'P' && element.textContent === `Berechnetes Alter: ${expectedAge} Jahre`,
+    )).toBeInTheDocument();
     await user.click(screen.getAllByRole('button', { name: 'Weiter' }).at(-1)!);
 
     expect(setPatientDataMock).toHaveBeenCalledWith(expect.objectContaining({

@@ -131,6 +131,11 @@ const createInitialPatientData = (
   medications: "",
   medicationDuration: "",
   substanceInfluence: "Nein",
+  alcoholSince: "",
+  alcoholFrequencyPerDay: "",
+  drugDetails: "",
+  drugSince: "",
+  drugFrequencyPerDay: "",
   recentAbroad: false,
   recentAbroadDetails: "",
   conditions: [],
@@ -140,6 +145,47 @@ const createInitialPatientData = (
   conditionDetails: {},
   ...patientData,
 });
+
+function hasSubstance(value: string | undefined, substance: "Alkohol" | "Drogen") {
+  return Boolean(value?.toLowerCase().includes(substance.toLowerCase()));
+}
+
+function buildSubstanceInfluence(
+  data: Pick<
+    PatientData,
+    "alcoholSince" | "alcoholFrequencyPerDay" | "drugDetails" | "drugSince" | "drugFrequencyPerDay"
+  >,
+  selection: { alcohol: boolean; drugs: boolean },
+) {
+  const parts: string[] = [];
+
+  if (selection.alcohol) {
+    const details = [
+      data.alcoholSince?.trim() ? `seit ${data.alcoholSince.trim()}` : null,
+      data.alcoholFrequencyPerDay?.trim() ? `${data.alcoholFrequencyPerDay.trim()} pro Tag` : null,
+    ].filter(Boolean);
+
+    parts.push(details.length > 0 ? `Alkohol (${details.join(", ")})` : "Alkohol");
+  }
+
+  if (selection.drugs) {
+    const details = [
+      data.drugDetails?.trim() ? `Substanz: ${data.drugDetails.trim()}` : null,
+      data.drugSince?.trim() ? `seit ${data.drugSince.trim()}` : null,
+      data.drugFrequencyPerDay?.trim() ? `${data.drugFrequencyPerDay.trim()} pro Tag` : null,
+    ].filter(Boolean);
+
+    parts.push(details.length > 0 ? `Drogen (${details.join(", ")})` : "Drogen");
+  }
+
+  return parts.length > 0 ? parts.join("; ") : "Nein";
+}
+
+function getSubstanceSummary(data: PatientData) {
+  return data.substanceInfluence.trim() && data.substanceInfluence.trim() !== "Nein"
+    ? data.substanceInfluence
+    : "Optional ergänzen";
+}
 
 /**
  * Reusable disclosure panel for optional medical sections.
@@ -430,6 +476,64 @@ export default function MedicalDataPage() {
     }));
   };
 
+  const updateSubstanceDetails = (
+    updates: Partial<
+      Pick<
+        PatientData,
+        "alcoholSince" | "alcoholFrequencyPerDay" | "drugDetails" | "drugSince" | "drugFrequencyPerDay"
+      >
+    >,
+  ) => {
+    setFormData((prev) => {
+      const nextData = { ...prev, ...updates };
+
+      return {
+        ...nextData,
+        substanceInfluence: buildSubstanceInfluence(nextData, {
+          alcohol: hasSubstance(prev.substanceInfluence, "Alkohol"),
+          drugs: hasSubstance(prev.substanceInfluence, "Drogen"),
+        }),
+      };
+    });
+  };
+
+  const toggleSubstanceInfluence = (substance: "Alkohol" | "Drogen") => {
+    setFormData((prev) => {
+      const nextSelection = {
+        alcohol:
+          substance === "Alkohol"
+            ? !hasSubstance(prev.substanceInfluence, "Alkohol")
+            : hasSubstance(prev.substanceInfluence, "Alkohol"),
+        drugs:
+          substance === "Drogen"
+            ? !hasSubstance(prev.substanceInfluence, "Drogen")
+            : hasSubstance(prev.substanceInfluence, "Drogen"),
+      };
+
+      const nextData: PatientData = {
+        ...prev,
+        ...(nextSelection.alcohol
+          ? {}
+          : {
+              alcoholSince: "",
+              alcoholFrequencyPerDay: "",
+            }),
+        ...(nextSelection.drugs
+          ? {}
+          : {
+              drugDetails: "",
+              drugSince: "",
+              drugFrequencyPerDay: "",
+            }),
+      };
+
+      return {
+        ...nextData,
+        substanceInfluence: buildSubstanceInfluence(nextData, nextSelection),
+      };
+    });
+  };
+
   const renderConditionDurationField = (
     condition: string,
     options: { showLabel?: boolean } = {},
@@ -500,6 +604,9 @@ export default function MedicalDataPage() {
   const handleSkip = () => {
     navigate("/pre-existing-conditions");
   };
+
+  const isAlcoholSelected = hasSubstance(formData.substanceInfluence, "Alkohol");
+  const isDrugSelected = hasSubstance(formData.substanceInfluence, "Drogen");
 
   return (
     <PageShell
@@ -627,33 +734,116 @@ export default function MedicalDataPage() {
           </MedicalAccordionPanel>
 
           <MedicalAccordionPanel
-            title="Einfluss durch Alkohol, Drogen oder Medikamente"
+            title="Einfluss durch Alkohol oder Drogen"
             icon={Wine}
             isOpen={expandedMedicalSections.substance}
             onToggle={() => toggleMedicalSection("substance")}
-            summary={
-              formData.substanceInfluence === "Nein"
-                ? "Nein ausgewählt"
-                : formData.substanceInfluence
-            }
-            isCompleted={formData.substanceInfluence !== "Nein"}
+            summary={getSubstanceSummary(formData)}
+            isCompleted={isAlcoholSelected || isDrugSelected}
           >
             <div className="grid grid-cols-2 gap-2">
-              {["Nein", "Alkohol", "Drogen", "Medikamente"].map((option) => {
-                const isSelected = formData.substanceInfluence === option;
+              {(["Alkohol", "Drogen"] as const).map((option) => {
+                const isSelected = option === "Alkohol" ? isAlcoholSelected : isDrugSelected;
 
                 return (
                   <OptionButton
                     key={option}
                     label={option}
                     selected={isSelected}
-                    onClick={() =>
-                      setFormData({ ...formData, substanceInfluence: option })
-                    }
+                    onClick={() => toggleSubstanceInfluence(option)}
                   />
                 );
               })}
             </div>
+
+            {isAlcoholSelected && (
+              <div className="mt-3 rounded-[12px] bg-white p-3">
+                <p
+                  className="mb-2 font-['DM_Sans:Bold',sans-serif] text-xs font-bold text-app-text-body"
+                  style={{ fontVariationSettings: "'opsz' 14" }}
+                >
+                  Alkoholkonsum
+                </p>
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                  <div className="space-y-1">
+                    <Label htmlFor="alcoholSince" className="text-xs font-medium text-app-text-subtle">
+                      Seit wann?
+                    </Label>
+                    <Input
+                      id="alcoholSince"
+                      value={formData.alcoholSince ?? ""}
+                      onChange={(event) => updateSubstanceDetails({ alcoholSince: event.target.value })}
+                      placeholder="z. B. seit 2021"
+                      className="!bg-[#f8fafc]"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label htmlFor="alcoholFrequencyPerDay" className="text-xs font-medium text-app-text-subtle">
+                      Wie oft am Tag?
+                    </Label>
+                    <Input
+                      id="alcoholFrequencyPerDay"
+                      value={formData.alcoholFrequencyPerDay ?? ""}
+                      onChange={(event) => updateSubstanceDetails({ alcoholFrequencyPerDay: event.target.value })}
+                      placeholder="z. B. 1 Glas"
+                      className="!bg-[#f8fafc]"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {isDrugSelected && (
+              <div className="mt-3 rounded-[12px] bg-white p-3">
+                <p
+                  className="mb-2 font-['DM_Sans:Bold',sans-serif] text-xs font-bold text-app-text-body"
+                  style={{ fontVariationSettings: "'opsz' 14" }}
+                >
+                  Drogenkonsum
+                </p>
+                <div className="space-y-2">
+                  <div className="space-y-1">
+                    <Label htmlFor="drugDetails" className="text-xs font-medium text-app-text-subtle">
+                      Welche Drogen oder Substanzen nehmen Sie ein?
+                    </Label>
+                    <textarea
+                      id="drugDetails"
+                      value={formData.drugDetails ?? ""}
+                      onChange={(event) => updateSubstanceDetails({ drugDetails: event.target.value })}
+                      placeholder="Freitext, z. B. Cannabis, Kokain oder Amphetamine"
+                      rows={3}
+                      className="w-full resize-y rounded-[10px] border border-[#d8e0ea] bg-[#f8fafc] px-3 py-2 text-sm text-app-text-body outline-none transition-all placeholder:text-app-text-muted focus:border-[#486284] focus:ring-2 focus:ring-[#486284]/20"
+                    />
+                  </div>
+                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                    <div className="space-y-1">
+                      <Label htmlFor="drugSince" className="text-xs font-medium text-app-text-subtle">
+                        Seit wann?
+                      </Label>
+                      <Input
+                        id="drugSince"
+                        value={formData.drugSince ?? ""}
+                        onChange={(event) => updateSubstanceDetails({ drugSince: event.target.value })}
+                        placeholder="z. B. seit 6 Monaten"
+                        className="!bg-[#f8fafc]"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label htmlFor="drugFrequencyPerDay" className="text-xs font-medium text-app-text-subtle">
+                        Wie oft am Tag?
+                      </Label>
+                      <Input
+                        id="drugFrequencyPerDay"
+                        value={formData.drugFrequencyPerDay ?? ""}
+                        onChange={(event) => updateSubstanceDetails({ drugFrequencyPerDay: event.target.value })}
+                        placeholder="z. B. 2-mal"
+                        className="!bg-[#f8fafc]"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
           </MedicalAccordionPanel>
 
           <MedicalAccordionPanel

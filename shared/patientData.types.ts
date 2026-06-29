@@ -19,6 +19,11 @@ export interface PatientData {
     medications: string
     medicationDuration?: string
     substanceInfluence: string
+    alcoholSince?: string
+    alcoholFrequencyPerDay?: string
+    drugDetails?: string
+    drugSince?: string
+    drugFrequencyPerDay?: string
     recentAbroad: boolean
     recentAbroadDetails: string
     conditions: string[]
