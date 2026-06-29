@@ -118,7 +118,7 @@ function formatPatientContext(payload: AssessmentPayload): string {
     hasText(patientData.substanceInfluence) && patientData.substanceInfluence.trim() !== 'Nein'
       ? `Substanzbeeinflussung: ${patientData.substanceInfluence.trim()}`
       : null,
-    patientData.recentAbroad
+    patientData.recentAbroad === 'Ja'
       ? `Auslandsaufenthalt letzte 3 Monate: ${
           hasText(patientData.recentAbroadDetails)
             ? patientData.recentAbroadDetails.trim()
@@ -128,11 +128,11 @@ function formatPatientContext(payload: AssessmentPayload): string {
     patientData.conditions.length > 0
       ? `Vorerkrankungen: ${patientData.conditions.join(', ')}`
       : null,
-    `Raucher: ${patientData.isSmoker ? 'Ja' : 'Nein'}`,
-    patientData.isSmoker && hasText(patientData.smokingSinceYears)
+    patientData.isSmoker ? `Raucher: ${patientData.isSmoker}` : 'Raucher: Keine Angabe',
+    patientData.isSmoker !== '' && patientData.isSmoker !== 'Nein' && hasText(patientData.smokingSinceYears)
       ? `Rauchdauer: ${patientData.smokingSinceYears.trim()} Jahre`
       : null,
-    patientData.isSmoker && hasText(patientData.cigarettesPerDay)
+    patientData.isSmoker !== '' && patientData.isSmoker !== 'Nein' && hasText(patientData.cigarettesPerDay)
       ? `Zigaretten pro Tag: ${patientData.cigarettesPerDay.trim()}`
       : null,
     conditionDetails.length > 0
