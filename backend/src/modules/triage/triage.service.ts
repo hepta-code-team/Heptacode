@@ -35,9 +35,9 @@ const DURATION_LABELS: Record<NonNullable<TriageSymptom['duration']>, string> = 
 }
 
 const MEASUREMENT_LABELS: Record<NonNullable<TriageSymptom['measurementType']>, string> = {
-  pain: 'Schmerzstaerke',
+  pain: 'Schmerzstärke',
   temperature: 'Temperatur',
-  feeling: 'Beschwerdegefuehl',
+  feeling: 'Beschwerdegefühl',
   severity: 'Schweregrad',
 }
 

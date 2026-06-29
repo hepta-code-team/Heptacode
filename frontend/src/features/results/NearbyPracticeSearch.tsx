@@ -28,6 +28,7 @@ type Facility = {
   longitude: number;
   openingHours: string;
   openingHoursText?: string[];
+  isOpenNow?: boolean;
   address: string;
   priority: "recommended" | "additional";
   distanceMeters: number;
@@ -35,6 +36,7 @@ type Facility = {
 
 type FacilityDataProvider = "auto" | "google" | "osm";
 type ActiveFacilityDataProvider = "google" | "osm";
+type FacilityStatusFilter = "all" | "open" | "closed";
 
 // Die einzelnen Statuswerte trennen Standortabfrage, externe Suche und Fehlermeldungen sauber.
 type LocationStatus =
@@ -235,7 +237,7 @@ type OpeningHoursLine = {
 
 type OpeningHoursDisplay = {
   hoursLines: OpeningHoursLine[];
-  statusLabel: "Geöffnet" | "Schließt bald";
+  statusLabel: "Geöffnet" | "Schließt bald" | "Geschlossen" | "Öffnungszeiten unbekannt";
   statusColor: string;
 };
 
@@ -243,14 +245,14 @@ function formatOpeningTimeRange(timeRange: string) {
   return timeRange.trim().replace(/\s*[-–—]\s*/g, " - ");
 }
 
-function createOpeningHoursLines(dayLabel: string, displayTimes: string[]) {
+function createOpeningHoursLines(dayLabel: string, displayTimes: string[], emptyLabel = "Geöffnet") {
   const timeRanges = displayTimes
     .flatMap((times) => times.split(","))
     .map(formatOpeningTimeRange)
     .filter(Boolean);
 
   if (timeRanges.length === 0) {
-    return [{ dayLabel: `${dayLabel}:`, timeLabel: "Geöffnet" }];
+    return [{ dayLabel: `${dayLabel}:`, timeLabel: emptyLabel }];
   }
 
   return [
@@ -259,8 +261,20 @@ function createOpeningHoursLines(dayLabel: string, displayTimes: string[]) {
   ];
 }
 
-function getOpeningHoursDisplay(openingHours: string, now = new Date()): OpeningHoursDisplay {
+function getOpeningHoursDisplay(
+  openingHours: string,
+  isCurrentlyOpen: boolean | undefined,
+  now = new Date(),
+): OpeningHoursDisplay {
   const normalizedOpeningHours = openingHours.trim();
+
+  if (!normalizedOpeningHours) {
+    return {
+      hoursLines: [{ dayLabel: "Heute:", timeLabel: "Nicht verfügbar" }],
+      statusLabel: "Öffnungszeiten unbekannt",
+      statusColor: "#64748B",
+    };
+  }
 
   if (normalizedOpeningHours === "24/7") {
     return {
@@ -329,23 +343,30 @@ function getOpeningHoursDisplay(openingHours: string, now = new Date()): Opening
   const uniqueTodaysTimes = todaysTimes.filter((times, index) => todaysTimes.indexOf(times) === index);
   const displayTimes = uniqueTodaysTimes.length > 0 ? uniqueTodaysTimes : activeTimes ? [activeTimes] : [];
   const closesSoon = minutesUntilClosing !== null && minutesUntilClosing <= 60;
+  const isOpen = isCurrentlyOpen ?? minutesUntilClosing !== null;
 
   return {
-    hoursLines: createOpeningHoursLines(todayLabel, displayTimes),
-    statusLabel: closesSoon ? "Schließt bald" : "Geöffnet",
-    statusColor: closesSoon ? "#EAB308" : "#65A30D",
+    hoursLines: createOpeningHoursLines(todayLabel, displayTimes, "Geschlossen"),
+    statusLabel: isOpen ? (closesSoon ? "Schließt bald" : "Geöffnet") : "Geschlossen",
+    statusColor: isOpen ? (closesSoon ? "#EAB308" : "#65A30D") : "#DC2626",
   };
 }
 
-function getGoogleOpeningHoursDisplay(openingHoursText: string[], now = new Date()): OpeningHoursDisplay {
+function getGoogleOpeningHoursDisplay(
+  openingHoursText: string[],
+  isCurrentlyOpen: boolean | undefined,
+  now = new Date(),
+): OpeningHoursDisplay {
   const todayLabel = GOOGLE_WEEKDAY_LABELS[now.getDay()];
   const todayText = openingHoursText.find((line) => line.toLowerCase().startsWith(`${todayLabel.toLowerCase()}:`));
 
   if (!todayText) {
     return {
-      hoursLines: [{ dayLabel: "Heute:", timeLabel: "Geöffnet" }],
-      statusLabel: "Geöffnet",
-      statusColor: "#65A30D",
+      hoursLines: [{ dayLabel: "Heute:", timeLabel: "Nicht verfügbar" }],
+      statusLabel: isCurrentlyOpen === undefined
+        ? "Öffnungszeiten unbekannt"
+        : isCurrentlyOpen ? "Geöffnet" : "Geschlossen",
+      statusColor: isCurrentlyOpen === undefined ? "#64748B" : isCurrentlyOpen ? "#65A30D" : "#DC2626",
     };
   }
 
@@ -357,23 +378,28 @@ function getGoogleOpeningHoursDisplay(openingHoursText: string[], now = new Date
     .filter(Boolean);
 
   return {
-    hoursLines: createOpeningHoursLines(OSM_DAY_LABELS[Object.keys(WEEKDAY_INDEX).find((day) => WEEKDAY_INDEX[day] === now.getDay()) ?? ""] ?? "Heute", timeRanges),
-    statusLabel: "Geöffnet",
-    statusColor: "#65A30D",
+    hoursLines: createOpeningHoursLines(
+      OSM_DAY_LABELS[Object.keys(WEEKDAY_INDEX).find((day) => WEEKDAY_INDEX[day] === now.getDay()) ?? ""] ?? "Heute",
+      timeRanges,
+      isCurrentlyOpen ? "Geöffnet" : "Geschlossen",
+    ),
+    statusLabel: isCurrentlyOpen === undefined
+      ? "Öffnungszeiten unbekannt"
+      : isCurrentlyOpen ? "Geöffnet" : "Geschlossen",
+    statusColor: isCurrentlyOpen === undefined ? "#64748B" : isCurrentlyOpen ? "#65A30D" : "#DC2626",
   };
 }
 
 function getFacilityOpeningHoursDisplay(facility: Facility) {
   if (facility.openingHoursText && facility.openingHoursText.length > 0) {
-    return getGoogleOpeningHoursDisplay(facility.openingHoursText);
+    return getGoogleOpeningHoursDisplay(facility.openingHoursText, facility.isOpenNow);
   }
 
-  return getOpeningHoursDisplay(facility.openingHours);
+  return getOpeningHoursDisplay(facility.openingHours, facility.isOpenNow);
 }
 
 function isOpenNow(openingHours: string | undefined, now = new Date()) {
-  // Ohne Oeffnungszeiten wird der Eintrag bewusst ausgeblendet,
-  // damit keine geschlossenen Einrichtungen als Hilfe erscheinen.
+  // Ohne Oeffnungszeiten kann der aktuelle Status nicht sicher bestimmt werden.
   if (!openingHours) {
     return false;
   }
@@ -495,44 +521,44 @@ const BDZ_LUDWIGSHAFEN_OPENING_HOURS = "Mo off; Tu off; We 14:00-22:00; Th off; 
 function getSearchIntro(careLevel: CareLevel, includeNightPharmacies: boolean) {
   // Die Beschreibung im UI soll zur aktuellen Versorgungsebene passen.
   if (careLevel === "emergency") {
-    return "Auf Wunsch zeigen wir aktuell geöffnete Notaufnahmen und Notfallapotheken in Ihrer Nähe, sortiert nach Entfernung.";
+    return "Auf Wunsch zeigen wir bis zu fünf nächstgelegene Notaufnahmen und Notfallapotheken, sortiert nach Entfernung.";
   }
 
   // Bei Selbstversorgung interessieren zuerst Apotheken.
   if (careLevel === "selfcare") {
-    return "Auf Wunsch zeigen wir aktuell geöffnete Apotheken in Ihrer Nähe, sortiert nach Entfernung.";
+    return "Auf Wunsch zeigen wir bis zu fünf nächstgelegene Apotheken, sortiert nach Entfernung.";
   }
 
   // Bei Facharzt-Empfehlungen wird die Beschreibung auf Fachstellen ausgerichtet.
   if (careLevel === "specialist") {
     return includeNightPharmacies
-      ? "Auf Wunsch zeigen wir aktuell geöffnete Fachstellen und ergänzend Nacht-Apotheken in Ihrer Nähe."
-      : "Auf Wunsch zeigen wir aktuell geöffnete Fachstellen in Ihrer Nähe, sortiert nach Entfernung.";
+      ? "Auf Wunsch zeigen wir bis zu fünf nächstgelegene Fachstellen und ergänzend Nacht-Apotheken."
+      : "Auf Wunsch zeigen wir bis zu fünf nächstgelegene Fachstellen, sortiert nach Entfernung.";
   }
 
   // Standardfall: Hausarzt/Praxis, nachts mit Apotheke als Zusatzoption.
   return includeNightPharmacies
-    ? "Auf Wunsch zeigen wir aktuell geöffnete Praxen und ergänzend Nacht-Apotheken in Ihrer Nähe."
-    : "Auf Wunsch zeigen wir aktuell geöffnete Praxen in Ihrer Nähe, sortiert nach Entfernung.";
+    ? "Auf Wunsch zeigen wir bis zu fünf nächstgelegene Praxen und ergänzend Nacht-Apotheken."
+    : "Auf Wunsch zeigen wir bis zu fünf nächstgelegene Praxen, sortiert nach Entfernung.";
 }
 
 function getEmptyMessage(careLevel: CareLevel) {
   // Leerer Zustand fuer Notfall soll ausdruecklich Notaufnahmen nennen.
   if (careLevel === "emergency") {
-    return "Für die empfohlene Versorgungsebene wurden in Ihrer Nähe keine aktuell geöffneten Notaufnahmen mit vollständiger Adresse gefunden.";
+    return "Für die empfohlene Versorgungsebene wurden keine Notaufnahmen mit vollständiger Adresse gefunden.";
   }
 
   // Allgemeiner leerer Zustand fuer alle anderen Versorgungsebenen.
-  return "Für die empfohlene Versorgungsebene wurden in Ihrer Nähe keine aktuell geöffneten Einträge mit vollständiger Adresse gefunden.";
+  return "Für die empfohlene Versorgungsebene wurden keine passenden Einträge mit vollständiger Adresse gefunden.";
 }
 
 function getSearchRadius(careLevel: CareLevel, includeNightPharmacies: boolean) {
   // Jede Versorgungsebene hat einen eigenen Suchradius.
   // Seltene Treffer wie Fachstellen oder Nachtversorgung brauchen einen groesseren Radius.
-  if (careLevel === "emergency") return 12000;
-  if (includeNightPharmacies) return 20000;
-  if (careLevel === "specialist") return 15000;
-  return 8000;
+  if (careLevel === "emergency") return 30000;
+  if (includeNightPharmacies) return 30000;
+  if (careLevel === "specialist") return 50000;
+  return 30000;
 }
 
 function getOverpassFilters(careLevel: CareLevel, includeNightPharmacies: boolean) {
@@ -821,7 +847,7 @@ async function fetchOsmNearbyFacilities(
   // Pipeline:
   // 1. Overpass-Rohdaten normalisieren
   // 2. Dubletten und unvollstaendige Eintraege entfernen
-  // 3. Nur aktuell geoeffnete Einrichtungen behalten
+  // 3. Einrichtungen unabhaengig vom aktuellen Oeffnungsstatus behalten
   // 4. Nach Entfernung sortieren und Haupt-/Zusatztreffer mischen
   const sortedFacilities = (data.elements ?? [])
     .reduce<Facility[]>((facilities, element) => {
@@ -858,9 +884,8 @@ async function fetchOsmNearbyFacilities(
       // Pruefen, ob ein echter Name/Betreiber vorhanden ist.
       const hasKnownName = hasKnownFacilityName(tags);
 
-      // Nur aktuell geoeffnete Einrichtungen anzeigen, damit die Liste handlungsrelevant bleibt.
       // Name und vollstaendige Adresse sind Pflicht, weil Koordinaten allein keine gute Empfehlung sind.
-      if (!isOpenNow(openingHours) || !hasKnownName || !address) {
+      if (!hasKnownName || !address) {
         return facilities;
       }
 
@@ -877,8 +902,9 @@ async function fetchOsmNearbyFacilities(
         // Koordinaten fuer Entfernung und Kartenlinks.
         latitude,
         longitude,
-        // Oeffnungszeiten fuer Anzeige und vorherige Offen-Pruefung.
+        // Oeffnungszeiten fuer Anzeige und Statusbestimmung.
         openingHours,
+        isOpenNow: openingHours ? isOpenNow(openingHours) : undefined,
         // Fertig formatierte Adresse fuer Anzeige.
         address,
         // Nacht-/Notfallapotheken sind hilfreiche Zusatzoptionen, aber nicht die Hauptempfehlung.
@@ -893,7 +919,7 @@ async function fetchOsmNearbyFacilities(
       // Reduce-Akkumulator zurueckgeben.
       return facilities;
     }, [])
-    // Naechste geoeffnete Treffer zuerst.
+    // Naechste Treffer zuerst, unabhaengig vom aktuellen Oeffnungsstatus.
     .sort((first, second) => first.distanceMeters - second.distanceMeters);
 
   // Hauptempfehlungen sind z. B. Notaufnahmen oder Praxen.
@@ -901,8 +927,11 @@ async function fetchOsmNearbyFacilities(
   // Zusatzoptionen sind z. B. Nacht-/Notfallapotheken.
   const additionalFacilities = sortedFacilities.filter((facility) => facility.priority === "additional");
 
-  // Die Liste bleibt kurz, zeigt aber neben Hauptempfehlungen auch Zusatzoptionen wie Notfallapotheken.
-  return [...recommendedFacilities.slice(0, 4), ...additionalFacilities.slice(0, 2)]
+  // Maximal fuenf Treffer anzeigen; Zusatzoptionen fuellen nur freie Plaetze auf.
+  const nearestRecommendedFacilities = recommendedFacilities.slice(0, 5);
+  const remainingFacilitySlots = 5 - nearestRecommendedFacilities.length;
+
+  return [...nearestRecommendedFacilities, ...additionalFacilities.slice(0, remainingFacilitySlots)]
     .sort((first, second) => {
       // Hauptempfehlungen sollen vor Zusatzoptionen stehen.
       if (first.priority !== second.priority) {
@@ -969,6 +998,8 @@ export default function NearbyPracticeSearch({
   const [facilities, setFacilities] = useState<Facility[]>([]);
   // Nach einer Suche sind die Treffer sichtbar und koennen bei Bedarf platzsparend eingeklappt werden.
   const [areFacilitiesVisible, setAreFacilitiesVisible] = useState(true);
+  // Ohne aktiven Chip werden offene, geschlossene und unbekannte Status gemeinsam angezeigt.
+  const [facilityStatusFilter, setFacilityStatusFilter] = useState<FacilityStatusFilter>("all");
   // manualLocationQuery ist der kontrollierte Wert des PLZ-/Adressfelds.
   const [manualLocationQuery, setManualLocationQuery] = useState("");
   // Nachts werden fuer Nicht-Notfall-Ebenen Apotheken als Zusatzoption einbezogen.
@@ -990,6 +1021,7 @@ export default function NearbyPracticeSearch({
       // Treffer im State ablegen, damit React die Liste rendert.
       setFacilities(result.facilities);
       setAreFacilitiesVisible(true);
+      setFacilityStatusFilter("all");
       // "empty" ist kein technischer Fehler, sondern ein valider leerer Suchzustand.
       setLocationStatus(result.facilities.length > 0 ? "ready" : "empty");
     } catch (error) {
@@ -1085,6 +1117,11 @@ export default function NearbyPracticeSearch({
   const isRequestingLocation =
     locationStatus === "loading" || locationStatus === "geocoding" || locationStatus === "searching";
   const hasReadyResults = locationStatus === "ready";
+  const filteredFacilities = facilities.filter((facility) => {
+    if (facilityStatusFilter === "open") return facility.isOpenNow === true;
+    if (facilityStatusFilter === "closed") return facility.isOpenNow === false;
+    return true;
+  });
   const statusLabel =
     locationStatus === "searching"
       ? "Einrichtungen werden gesucht..."
@@ -1200,22 +1237,71 @@ export default function NearbyPracticeSearch({
       {hasReadyResults && (
         // Sobald Treffer vorhanden sind, wird die Ergebnisliste gerendert.
         <div>
-          <button
-            type="button"
-            aria-expanded={areFacilitiesVisible}
-            aria-controls="nearby-facilities-list"
-            onClick={() => setAreFacilitiesVisible((isVisible) => !isVisible)}
-            className="mb-3 flex min-h-[42px] w-full items-center justify-between gap-4 rounded-[8px] border border-transparent bg-white px-4 py-2 text-left text-sm font-medium text-[#24364b] transition-all hover:border-[#486284] hover:bg-[#f7f9fc] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#486284] focus-visible:ring-offset-2"
-          >
-            <span>
-              {facilities.length} offene {facilities.length === 1 ? "Einrichtung" : "Einrichtungen"}{" "}
+          <div className="mb-3 flex min-h-[52px] w-full flex-col gap-3 rounded-[8px] border border-transparent bg-white px-4 py-2.5 transition-all hover:border-[#486284] sm:flex-row sm:items-center">
+            <button
+              type="button"
+              aria-expanded={areFacilitiesVisible}
+              aria-controls="nearby-facilities-list"
+              onClick={() => setAreFacilitiesVisible((isVisible) => !isVisible)}
+              className="text-left text-sm font-medium text-[#24364b] focus-visible:outline-none focus-visible:underline"
+            >
+              {filteredFacilities.length}{" "}
+              {filteredFacilities.length === 1 ? "Einrichtung" : "Einrichtungen"}{" "}
               {areFacilitiesVisible ? "ausblenden" : "einblenden"}
-            </span>
-            <ChevronDown
-              className={`size-4 flex-shrink-0 transition-transform ${areFacilitiesVisible ? "rotate-180" : ""}`}
+            </button>
+
+            <div
+              role="group"
+              aria-label="Einrichtungen nach Öffnungsstatus filtern"
+              className="flex flex-wrap items-center gap-1.5 sm:ml-auto"
+            >
+              <button
+                type="button"
+                aria-pressed={facilityStatusFilter === "open"}
+                onClick={() => setFacilityStatusFilter((filter) => filter === "open" ? "all" : "open")}
+                className={`inline-flex min-h-[28px] items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#486284] focus-visible:ring-offset-2 ${
+                  facilityStatusFilter === "open"
+                    ? "border-[#486284] bg-[#e8eef5] text-[#24364b]"
+                    : "border-transparent bg-[#f1f3f6] text-[#52676B] hover:border-[#486284]"
+                }`}
+              >
+                <span className="size-2.5 rounded-full bg-[#65A30D]" aria-hidden="true" />
+                Geöffnet
+              </button>
+              <button
+                type="button"
+                aria-pressed={facilityStatusFilter === "closed"}
+                onClick={() => setFacilityStatusFilter((filter) => filter === "closed" ? "all" : "closed")}
+                className={`inline-flex min-h-[28px] items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#486284] focus-visible:ring-offset-2 ${
+                  facilityStatusFilter === "closed"
+                    ? "border-[#486284] bg-[#e8eef5] text-[#24364b]"
+                    : "border-transparent bg-[#f1f3f6] text-[#52676B] hover:border-[#486284]"
+                }`}
+              >
+                <span className="size-2.5 rounded-full bg-[#DC2626]" aria-hidden="true" />
+                Geschlossen
+              </button>
+            </div>
+
+            <span
+              className="hidden h-8 w-px flex-shrink-0 bg-[#c8d2dc] sm:ml-[0.5px] sm:block"
               aria-hidden="true"
             />
-          </button>
+
+            <button
+              type="button"
+              aria-label={areFacilitiesVisible ? "Einrichtungen ausblenden" : "Einrichtungen einblenden"}
+              aria-expanded={areFacilitiesVisible}
+              aria-controls="nearby-facilities-list"
+              onClick={() => setAreFacilitiesVisible((isVisible) => !isVisible)}
+              className="ml-auto flex size-7 flex-shrink-0 items-center justify-center rounded-[8px] border border-[#c8d2dc] text-[#24364b] transition-colors hover:border-[#486284] hover:bg-[#e8eef5] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#486284] focus-visible:ring-offset-2 sm:ml-[0.5px]"
+            >
+              <ChevronDown
+                className={`size-4 transition-transform ${areFacilitiesVisible ? "rotate-180" : ""}`}
+                aria-hidden="true"
+              />
+            </button>
+          </div>
 
           {/* Ergebnisliste */}
           <div
@@ -1223,7 +1309,12 @@ export default function NearbyPracticeSearch({
             hidden={!areFacilitiesVisible}
             className="grid grid-cols-1 gap-3"
           >
-            {facilities.map((facility) => {
+            {filteredFacilities.length === 0 && (
+              <p className="rounded-[8px] bg-white px-4 py-3 text-sm font-medium text-[#52676B]">
+                Keine Einrichtungen entsprechen dem gewählten Filter.
+              </p>
+            )}
+            {filteredFacilities.map((facility) => {
               const openingHoursDisplay = getFacilityOpeningHoursDisplay(facility);
 
               return (

@@ -59,9 +59,8 @@ function getGoogleIncludedType(careLevel: NearbyPlacesPayload['careLevel']) {
 }
 
 function getGoogleSearchRadius(careLevel: NearbyPlacesPayload['careLevel']) {
-  if (careLevel === 'emergency') return 12000
-  if (careLevel === 'specialist') return 15000
-  return 8000
+  if (careLevel === 'specialist') return 50000
+  return 30000
 }
 
 function getGoogleFacilityType(place: GooglePlace, payload: NearbyPlacesPayload) {
@@ -121,7 +120,6 @@ export const placesRoutes: FastifyPluginAsync = async (app) => {
         textQuery: getGoogleTextQuery(payload),
         includedType: getGoogleIncludedType(payload.careLevel),
         strictTypeFiltering: payload.careLevel !== 'specialist',
-        openNow: true,
         pageSize: 10,
         languageCode: 'de',
         regionCode: 'DE',
@@ -157,8 +155,7 @@ export const placesRoutes: FastifyPluginAsync = async (app) => {
         place.formattedAddress &&
         Number.isFinite(place.location?.latitude) &&
         Number.isFinite(place.location?.longitude) &&
-        place.businessStatus !== 'CLOSED_PERMANENTLY' &&
-        place.currentOpeningHours?.openNow === true
+        place.businessStatus !== 'CLOSED_PERMANENTLY'
       ))
       .map((place) => {
         const latitude = place.location?.latitude as number
@@ -171,15 +168,16 @@ export const placesRoutes: FastifyPluginAsync = async (app) => {
           type: getGoogleFacilityType(place, payload),
           latitude,
           longitude,
-          openingHours: '24/7',
+          openingHours: '',
           openingHoursText: place.currentOpeningHours?.weekdayDescriptions ?? [],
+          isOpenNow: place.currentOpeningHours?.openNow,
           address: place.formattedAddress as string,
           priority: 'recommended' as const,
           distanceMeters: calculateDistanceMeters(payload, { latitude, longitude }),
         }
       })
       .sort((first, second) => first.distanceMeters - second.distanceMeters)
-      .slice(0, 4)
+      .slice(0, 5)
 
     return reply.send({ facilities })
   })

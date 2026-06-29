@@ -16,6 +16,7 @@ export const reviewSummaryInstructions = [
   'Erfinde keine Symptome, Risiken, Patientendaten oder Befunde.',
   'Nutze nur die uebergebenen Daten.',
   'Formuliere auf Deutsch.',
+  'Verwende korrekte deutsche Umlaute und keine ASCII-Umschreibungen mit ae, oe oder ue.',
   'Antworte ausschliesslich im vorgegebenen JSON-Format.',
 ].join('\n')
 
