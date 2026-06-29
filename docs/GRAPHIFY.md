@@ -110,6 +110,55 @@ graphify explain "useAssessment()"
 graphify path "SymptomSelectionPage.tsx" "triage.service.ts"
 ```
 
+## Add Markdown Or Docs Later
+
+The current setup is code-only because `.graphifyignore` excludes Markdown, docs, PDFs, images, YAML, and HTML. This keeps Graphify usable without any LLM/API key.
+
+To include Markdown or docs later:
+
+1. Remove the relevant patterns from `.graphifyignore`, for example:
+
+```gitignore
+*.md
+*.mdx
+*.pdf
+```
+
+2. Configure an LLM backend. If the team uses an OpenAI-compatible MedGemma server, set:
+
+Windows PowerShell:
+
+```powershell
+$env:OPENAI_BASE_URL="http://localhost:8000/v1"
+$env:OPENAI_MODEL="medgemma"
+$env:OPENAI_API_KEY="dummy"
+```
+
+macOS/Linux:
+
+```bash
+export OPENAI_BASE_URL=http://localhost:8000/v1
+export OPENAI_MODEL=medgemma
+export OPENAI_API_KEY=dummy
+```
+
+3. Re-run full extraction:
+
+```bash
+graphify extract . --backend openai
+graphify cluster-only . --no-label
+graphify tree --graph graphify-out/graph.json --output graphify-out/GRAPH_TREE.html --root . --label Heptacode
+graphify export callflow-html
+```
+
+If Graphify reports missing OpenAI support, reinstall it with the OpenAI extra:
+
+```bash
+uv tool install --force "graphifyy[openai]"
+```
+
+Use `graphify extract .` instead of only `graphify update .` when newly adding Markdown/docs, because the corpus type changed.
+
 ## What To Commit
 
 Recommended:
