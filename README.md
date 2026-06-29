@@ -200,6 +200,14 @@ DOCKER_BUILDKIT=0 docker compose build
 ---
 
 
+## Graphify
+
+Optionales Tooling zum Erkunden der Codebase als Knowledge Graph:
+[docs/GRAPHIFY.md](docs/GRAPHIFY.md)
+
+---
+
+
 ## Projektstruktur
 
 ```text
