@@ -1146,7 +1146,8 @@ export default function SymptomSelectionPage() {
   return (
     <PageShell
       title="Wie möchten Sie Ihre Beschwerden angeben?"
-      subtitle="Wählen Sie einen Eingabemodus. Sie können jederzeit wechseln."
+      subtitle="Erfassen Sie bis zu 3 Beschwerden: Wählen Sie entweder einen Körperbereich aus und fügen Sie passende
+      Symptome manuell hinzu oder beschreiben Sie Ihre Symptome über die Freitext- und Spracheingabe."
       onBack={() => navigate("/pre-existing-conditions")}
     >
       <div className="mb-5 rounded-[20px] border border-[#d7dee7] bg-[#f5f7fa] p-2 shadow-sm">
