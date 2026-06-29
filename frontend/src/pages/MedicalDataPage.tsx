@@ -229,6 +229,9 @@ export default function MedicalDataPage() {
     abroad: false,
     smoking: false,
   });
+  const [expandedConditionDetails, setExpandedConditionDetails] = useState<
+    Record<string, boolean>
+  >({});
   useEffect(() => {
     setPatientData(formData);
   }, [formData, setPatientData]);
