@@ -281,6 +281,36 @@ describe('page-level user flows', () => {
     expect(navigateMock).toHaveBeenCalledWith('/pre-existing-conditions');
   });
 
+  it('keeps occasional smoking selected after medical data is persisted', async () => {
+    const user = userEvent.setup();
+    assessmentState.patientData = basePatientData;
+
+    const { unmount } = render(<MedicalDataPage />);
+
+    await user.click(screen.getByRole('button', { name: /Rauchen/ }));
+    await user.click(screen.getByRole('button', { name: 'Gelegentlich' }));
+
+    expect(setPatientDataMock).toHaveBeenCalledWith(expect.objectContaining({
+      smokingStatus: 'Gelegentlich',
+      isSmoker: true,
+    }));
+
+    assessmentState.patientData = {
+      ...basePatientData,
+      smokingStatus: 'Gelegentlich',
+      isSmoker: true,
+    };
+
+    unmount();
+    render(<MedicalDataPage />);
+
+    expect(screen.getByRole('button', { name: /Rauchen.*Gelegentlich ausgew/ })).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: /Rauchen/ }));
+
+    expect(screen.getByRole('button', { name: 'Gelegentlich' })).toHaveClass('bg-[#486284]');
+    expect(screen.getByRole('button', { name: 'Ja' })).not.toHaveClass('bg-[#486284]');
+  });
+
   it('collects pre-existing conditions and continues to symptom selection', async () => {
     const user = userEvent.setup();
     assessmentState.patientData = basePatientData;
@@ -368,11 +398,11 @@ describe('page-level user flows', () => {
 
     render(<SymptomSelectionPage />);
 
-    await user.click(screen.getAllByRole('button', { name: /Symptome beschreiben/ })[0]);
+    await user.click(screen.getByRole('tab', { name: /Frei beschreiben/ }));
     expect(screen.getByRole('button', { name: 'Symptombeschreibung übernehmen' })).toBeDisabled();
 
     await user.type(
-      screen.getByPlaceholderText(/Ich habe seit 3 Tagen/),
+      screen.getByPlaceholderText(/Seit 3 Tagen/),
       'Ich habe starke Kopfschmerzen und Bauchschmerzen.',
     );
     await user.click(screen.getByRole('button', { name: 'Symptombeschreibung übernehmen' }));
@@ -398,7 +428,7 @@ describe('page-level user flows', () => {
     });
   });
 
-  it('keeps users in the free-text modal when extraction returns invalid input', async () => {
+  it('keeps users in the free-text tab when extraction returns invalid input', async () => {
     const user = userEvent.setup();
     extractSymptomsFromTextMock.mockResolvedValue({
       text: 'hallo',
@@ -410,8 +440,8 @@ describe('page-level user flows', () => {
 
     render(<SymptomSelectionPage />);
 
-    await user.click(screen.getAllByRole('button', { name: /Symptome beschreiben/ })[0]);
-    await user.type(screen.getByPlaceholderText(/Ich habe seit 3 Tagen/), 'hallo');
+    await user.click(screen.getByRole('tab', { name: /Frei beschreiben/ }));
+    await user.type(screen.getByPlaceholderText(/Seit 3 Tagen/), 'hallo');
     await user.click(screen.getByRole('button', { name: 'Symptombeschreibung übernehmen' }));
 
     expect(await screen.findByText('Bitte medizinische Beschwerden beschreiben.')).toBeInTheDocument();

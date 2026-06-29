@@ -18,7 +18,7 @@ import Button from "../components/Button";
 import { useAssessment } from "../lib/AssessmentContext";
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
-import type { PatientData } from "../../../shared/patientData.types";
+import type { PatientData, SmokingStatus } from "../../../shared/patientData.types";
 
 type MedicalSection =
   | "allergies"
@@ -26,7 +26,6 @@ type MedicalSection =
   | "substance"
   | "abroad"
   | "smoking";
-
 /**
  * Creates the medical-data form state with persisted values applied.
  *
@@ -64,6 +63,10 @@ const createInitialPatientData = (
 
 function hasSubstance(value: string | undefined, substance: "Alkohol" | "Drogen") {
   return Boolean(value?.toLowerCase().includes(substance.toLowerCase()));
+}
+
+function getSmokingStatus(patientData?: Partial<PatientData>): SmokingStatus {
+  return patientData?.smokingStatus ?? (patientData?.isSmoker ? "Ja" : "Nein");
 }
 
 function buildSubstanceInfluence(
