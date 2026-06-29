@@ -11,8 +11,9 @@ interface PageShellProps {
   onSkip?: () => void;
   skipLabel?: string;
   showWizard?: boolean;
-  maxWidth?: "md" | "lg" | "xl" | "2xl";
 }
+
+const pageContentMaxWidthClass = "max-w-5xl";
 
 export default function PageShell({
   children,
@@ -22,14 +23,7 @@ export default function PageShell({
   onSkip,
   skipLabel = "Überspringen",
   showWizard = true,
-  maxWidth = "xl",
 }: PageShellProps) {
-  const maxWidthClasses = {
-    md: "max-w-2xl",
-    lg: "max-w-4xl",
-    xl: "max-w-5xl",
-    "2xl": "max-w-6xl",
-  };
   const navigationActionClass =
     "inline-flex min-h-6 items-center gap-2 text-app-text-primary transition-all hover:text-app-text-primary-strong";
   const navigationIconClass = "h-4 w-4 flex-shrink-0";
@@ -49,7 +43,7 @@ export default function PageShell({
       <div aria-hidden="true" className="page-header-divider h-0.5 shrink-0" />
 
       <main className="relative flex-1 overflow-x-hidden bg-white pb-20 md:pb-24">
-        <div className={`${maxWidthClasses[maxWidth]} relative z-[1] mx-auto px-6 py-5 md:px-8 md:py-6`}>
+        <div className={`${pageContentMaxWidthClass} relative z-[1] mx-auto w-full px-6 py-5 md:px-8 md:py-6`}>
           {(onBack || onSkip) && (
             <div className="mb-3 hidden items-center justify-between gap-4 md:flex">
               {onBack ? (
