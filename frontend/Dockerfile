@@ -5,6 +5,7 @@ RUN npm ci
 COPY frontend ./
 COPY shared ../shared
 ENV VITE_API_BASE_URL=/api
+ENV VITE_FACILITY_DATA_PROVIDER=auto
 RUN npm run build
 
 FROM nginx:1.27-alpine AS runtime
