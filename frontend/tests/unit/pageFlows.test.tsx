@@ -295,14 +295,12 @@ describe('page-level user flows', () => {
     await user.click(screen.getByRole('button', { name: 'Gelegentlich' }));
 
     expect(setPatientDataMock).toHaveBeenCalledWith(expect.objectContaining({
-      smokingStatus: 'Gelegentlich',
-      isSmoker: true,
+      isSmoker: 'Gelegentlich',
     }));
 
     assessmentState.patientData = {
       ...basePatientData,
-      smokingStatus: 'Gelegentlich',
-      isSmoker: true,
+      isSmoker: 'Gelegentlich',
     };
 
     unmount();
