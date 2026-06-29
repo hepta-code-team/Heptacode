@@ -51,7 +51,7 @@ export default function PageShell({
       <main className="relative flex-1 overflow-x-hidden bg-white pb-20 md:pb-24">
         <div className={`${maxWidthClasses[maxWidth]} relative z-[1] mx-auto px-6 py-5 md:px-8 md:py-6`}>
           {(onBack || onSkip) && (
-            <div className="mb-3 flex items-center justify-between gap-4">
+            <div className="mb-3 hidden items-center justify-between gap-4 md:flex">
               {onBack ? (
                 <button
                   type="button"
@@ -71,7 +71,7 @@ export default function PageShell({
                 <button
                   type="button"
                   onClick={onSkip}
-                  className={navigationActionClass}
+                  className={`${navigationActionClass} hidden md:inline-flex`}
                 >
                   <span className={navigationTextClass}>{skipLabel}</span>
                   <svg className={navigationIconClass} fill="none" stroke="currentColor" viewBox="0 0 24 24">
