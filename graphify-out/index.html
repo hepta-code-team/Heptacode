@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Heptacode Graphify Overview</title>
+  <title>Heptacode Graphify-Uebersicht</title>
   <style>
     :root {
       color-scheme: light;
@@ -13,7 +13,6 @@
       --muted: #657080;
       --line: #d9dee7;
       --accent: #0b7285;
-      --accent-soft: #e3f6f8;
       --warn-soft: #fff4d6;
     }
 
@@ -156,77 +155,77 @@
 <body>
   <main>
     <header>
-      <h1>Heptacode Graphify Overview</h1>
-      <p>Readable entry points for the code-only knowledge graph.</p>
+      <h1>Heptacode Graphify-Uebersicht</h1>
+      <p>Lesbare Einstiegspunkte fuer den code-only Knowledge Graph.</p>
     </header>
 
     <section>
-      <h2>Start Here</h2>
+      <h2>Startpunkt</h2>
       <div class="grid">
         <a class="card" href="GRAPH_TREE.html">
-          <strong>Tree View</strong>
-          <span>Cleanest first view. Expand folders and inspect graph nodes without the crowded network layout.</span>
+          <strong>Baumansicht</strong>
+          <span>Beste erste Ansicht. Ordner aufklappen und Graph-Knoten ansehen, ohne den dichten Netzwerkgraphen.</span>
         </a>
         <a class="card" href="Heptacode-callflow.html">
-          <strong>Call Flow</strong>
-          <span>Best architecture view. Mermaid diagrams and call tables for the main code sections.</span>
+          <strong>Callflow</strong>
+          <span>Beste Architekturansicht. Mermaid-Diagramme und Call-Tabellen fuer wichtige Codebereiche.</span>
         </a>
         <a class="card" href="START_HERE.md">
-          <strong>Text Guide</strong>
-          <span>Short project map, hotspot files, and useful Graphify commands.</span>
+          <strong>Text-Guide</strong>
+          <span>Kurze Projektkarte, wichtige Dateien und nuetzliche Graphify-Befehle.</span>
         </a>
         <a class="card" href="graph.html">
-          <strong>Full Graph</strong>
-          <span>The dense raw network view. Useful once you know what you are looking for.</span>
+          <strong>Vollstaendiger Graph</strong>
+          <span>Die dichte Rohansicht. Stark, wenn man schon weiss, wonach man sucht.</span>
         </a>
       </div>
     </section>
 
     <section>
-      <h2>Project Map</h2>
+      <h2>Projektkarte</h2>
       <div class="map">
         <div class="panel">
           <h3>Frontend</h3>
           <ul>
-            <li><code>app</code>: React shell and routing.</li>
-            <li><code>pages</code>: wizard and result pages.</li>
-            <li><code>features</code>: symptoms, emergency UI, result/practice search.</li>
-            <li><code>lib</code>: API helpers, assessment context, validation.</li>
+            <li><code>app</code>: React-Shell und Routing.</li>
+            <li><code>pages</code>: Wizard- und Ergebnis-Seiten.</li>
+            <li><code>features</code>: Symptome, Notfall-UI, Ergebnis-/Praxissuche.</li>
+            <li><code>lib</code>: API-Helfer, Assessment Context, Validierung.</li>
           </ul>
         </div>
         <div class="panel">
           <h3>Backend</h3>
           <ul>
-            <li><code>routes</code>: HTTP entry points.</li>
-            <li><code>modules/assessment</code>: assessment logic.</li>
-            <li><code>modules/triage</code>: care level and specialty logic.</li>
-            <li><code>modules/pdf</code> and <code>modules/fhir</code>: exports.</li>
+            <li><code>routes</code>: HTTP-Einstiegspunkte.</li>
+            <li><code>modules/assessment</code>: Assessment-Logik.</li>
+            <li><code>modules/triage</code>: Versorgungslevel und Fachrichtung.</li>
+            <li><code>modules/pdf</code> und <code>modules/fhir</code>: Exporte.</li>
           </ul>
         </div>
         <div class="panel">
           <h3>Shared</h3>
           <ul>
-            <li><code>PatientData</code>: central patient model.</li>
-            <li><code>TriageSymptom</code>: central symptom model.</li>
-            <li><code>CareLevel</code> and <code>MedicalSpecialty</code>: result types.</li>
+            <li><code>PatientData</code>: zentrales Patientendatenmodell.</li>
+            <li><code>TriageSymptom</code>: zentrales Symptomenmodell.</li>
+            <li><code>CareLevel</code> und <code>MedicalSpecialty</code>: Ergebnis-Typen.</li>
           </ul>
         </div>
       </div>
     </section>
 
     <section>
-      <h2>Main Flow</h2>
-      <pre>Frontend pages
-  -> frontend API helpers
-  -> backend routes
-  -> backend modules
-  -> AI client or local logic
-  -> shared result types
-  -> result page / PDF / FHIR output</pre>
+      <h2>Hauptfluss</h2>
+      <pre>Frontend-Seiten
+  -> Frontend API-Helfer
+  -> Backend Routes
+  -> Backend Module
+  -> AI-Client oder lokale Logik
+  -> gemeinsame Ergebnis-Typen
+  -> Ergebnis-Seite / PDF / FHIR-Export</pre>
     </section>
 
     <section>
-      <h2>Ask The Graph</h2>
+      <h2>Graph Fragen</h2>
       <pre>graphify query "Wie laeuft ein Assessment vom Frontend ins Backend?" --budget 1200
 graphify query "Welche Dateien haengen an PatientData?" --budget 1200
 graphify query "Wie entsteht das PDF?" --budget 1200
@@ -234,8 +233,8 @@ graphify explain "useAssessment()"</pre>
     </section>
 
     <section>
-      <h2>Build Note</h2>
-      <p class="note">This graph is code-only. Docs, PDFs, images, and YAML are ignored so Graphify can run without an LLM API key.</p>
+      <h2>Build-Hinweis</h2>
+      <p class="note">Dieser Graph ist code-only. Docs, PDFs, Bilder und YAML werden ignoriert, damit Graphify ohne LLM/API-Key laeuft.</p>
     </section>
   </main>
 </body>

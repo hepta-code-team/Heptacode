@@ -1,10 +1,10 @@
 # Graphify
 
-Graphify is optional CLI tooling for exploring the codebase as a knowledge graph. It is not required to run the app and does not require a local AI agent.
+Graphify ist optionales CLI-Tooling, um die Codebase als Knowledge Graph zu erkunden. Es ist nicht notwendig, um die App zu starten, und es braucht keinen lokalen AI-Agenten.
 
-This repository is configured for a code-only Graphify build via `.graphifyignore`, so teammates can build the graph without an LLM API key. Docs, PDFs, images, YAML, and HTML are skipped.
+Dieses Repository ist aktuell fuer einen code-only Graphify-Build konfiguriert. Die `.graphifyignore` schliesst Markdown, Dokumente, PDFs, Bilder, YAML und HTML aus. Dadurch koennen alle im Team den Graph ohne LLM/API-Key bauen.
 
-## Install
+## Installation
 
 ### Windows
 
@@ -12,16 +12,16 @@ This repository is configured for a code-only Graphify build via `.graphifyignor
 winget install astral-sh.uv
 ```
 
-Restart PowerShell, then install Graphify:
+PowerShell neu starten, dann Graphify installieren:
 
 ```powershell
 uv tool install graphifyy
 uv tool update-shell
 ```
 
-Restart PowerShell again if `graphify` is not found.
+PowerShell noch einmal neu starten, falls `graphify` nicht gefunden wird.
 
-Check:
+Pruefen:
 
 ```powershell
 graphify --version
@@ -29,7 +29,7 @@ graphify --version
 
 ### macOS
 
-With Homebrew:
+Mit Homebrew:
 
 ```bash
 brew install python@3.12 uv
@@ -37,19 +37,19 @@ uv tool install graphifyy
 uv tool update-shell
 ```
 
-Restart the terminal. If `graphify` is still not found, run:
+Terminal neu starten. Falls `graphify` danach noch nicht gefunden wird:
 
 ```bash
 exec "$SHELL" -l
 ```
 
-Check:
+Pruefen:
 
 ```bash
 graphify --version
 ```
 
-Without Homebrew:
+Ohne Homebrew:
 
 ```bash
 curl -LsSf https://astral.sh/uv/install.sh | sh
@@ -58,9 +58,9 @@ uv tool install graphifyy
 uv tool update-shell
 ```
 
-## Build Or Refresh The Graph
+## Graph Bauen Oder Aktualisieren
 
-From the repository root on Windows or macOS:
+Vom Repository-Root aus, unter Windows oder macOS:
 
 ```bash
 graphify extract .
@@ -69,37 +69,39 @@ graphify tree --graph graphify-out/graph.json --output graphify-out/GRAPH_TREE.h
 graphify export callflow-html
 ```
 
-For normal code changes after the first build:
+Nach normalen Codeaenderungen reicht meistens:
 
 ```bash
 graphify update .
 graphify cluster-only . --no-label
 ```
 
-## Open The Overview
+`--no-label` ist wichtig, damit die manuell gepflegten deutschen Community-Namen nicht durch generische Labels ersetzt werden.
 
-If `graphify-out/` is committed or already exists locally, start with:
+## Uebersicht Oeffnen
+
+Wenn `graphify-out/` committed ist oder lokal schon existiert, zuerst diese Datei oeffnen:
 
 ```text
 graphify-out/index.html
 ```
 
-If you generated the graph from scratch and `index.html` is not present, start with:
+Wenn der Graph komplett neu gebaut wurde und `index.html` nicht vorhanden ist, mit dieser Ansicht starten:
 
 ```text
 graphify-out/GRAPH_TREE.html
 ```
 
-Useful generated files:
+Nuetzliche Dateien:
 
-- `graphify-out/index.html`: readable dashboard, added by the team setup
-- `graphify-out/START_HERE.md`: short written guide, added by the team setup
-- `graphify-out/GRAPH_TREE.html`: cleaner tree view
-- `graphify-out/Heptacode-callflow.html`: architecture/call-flow view
-- `graphify-out/graph.html`: full dense graph
-- `graphify-out/graph.json`: graph data used by queries
+- `graphify-out/index.html`: lesbares Dashboard, durch unser Team-Setup ergaenzt
+- `graphify-out/START_HERE.md`: kurze Einstiegserklaerung, durch unser Team-Setup ergaenzt
+- `graphify-out/GRAPH_TREE.html`: uebersichtlichere Baumansicht
+- `graphify-out/Heptacode-callflow.html`: Architektur-/Callflow-Ansicht
+- `graphify-out/graph.html`: vollstaendiger, dichter Netzwerkgraph
+- `graphify-out/graph.json`: Graph-Daten fuer Queries
 
-## Ask Questions
+## Fragen Stellen
 
 ```bash
 graphify query "Wie laeuft ein Assessment vom Frontend ins Backend?" --budget 1200
@@ -110,13 +112,13 @@ graphify explain "useAssessment()"
 graphify path "SymptomSelectionPage.tsx" "triage.service.ts"
 ```
 
-## Add Markdown Or Docs Later
+## Markdown Oder Dokumente Spaeter Einbeziehen
 
-The current setup is code-only because `.graphifyignore` excludes Markdown, docs, PDFs, images, YAML, and HTML. This keeps Graphify usable without any LLM/API key.
+Das aktuelle Setup ist code-only, weil `.graphifyignore` Markdown, Dokumente, PDFs, Bilder, YAML und HTML ausschliesst. So bleibt Graphify ohne LLM/API-Key nutzbar.
 
-To include Markdown or docs later:
+Wenn Markdown oder Dokumente spaeter in den Graph sollen:
 
-1. Remove the relevant patterns from `.graphifyignore`, for example:
+1. Die passenden Patterns aus `.graphifyignore` entfernen, zum Beispiel:
 
 ```gitignore
 *.md
@@ -124,7 +126,7 @@ To include Markdown or docs later:
 *.pdf
 ```
 
-2. Configure an LLM backend. If the team uses an OpenAI-compatible MedGemma server, set:
+2. Ein LLM-Backend konfigurieren. Wenn das Team einen OpenAI-kompatiblen MedGemma-Server nutzt:
 
 Windows PowerShell:
 
@@ -142,7 +144,7 @@ export OPENAI_MODEL=medgemma
 export OPENAI_API_KEY=dummy
 ```
 
-3. Re-run full extraction:
+3. Danach eine volle Extraktion ausfuehren:
 
 ```bash
 graphify extract . --backend openai
@@ -151,20 +153,20 @@ graphify tree --graph graphify-out/graph.json --output graphify-out/GRAPH_TREE.h
 graphify export callflow-html
 ```
 
-If Graphify reports missing OpenAI support, reinstall it with the OpenAI extra:
+Falls Graphify fehlenden OpenAI-Support meldet:
 
 ```bash
 uv tool install --force "graphifyy[openai]"
 ```
 
-Use `graphify extract .` instead of only `graphify update .` when newly adding Markdown/docs, because the corpus type changed.
+Beim erstmaligen Hinzufuegen von Markdown/Dokumenten `graphify extract .` nutzen, nicht nur `graphify update .`, weil sich der Corpus-Typ geaendert hat.
 
-## What To Commit
+## Was Committen?
 
-Recommended:
+Empfohlen:
 
 - `.graphifyignore`
 - `docs/GRAPHIFY.md`
-- optionally `graphify-out/` without `graphify-out/cache/`
+- optional `graphify-out/` ohne `graphify-out/cache/`
 
-If the team commits `graphify-out/`, everyone can open the HTML views immediately and query the existing `graph.json`. If the team does not commit `graphify-out/`, each teammate can generate it locally with the commands above.
+Wenn `graphify-out/` committed wird, koennen alle im Team die HTML-Ansichten direkt oeffnen und das vorhandene `graph.json` abfragen. Wenn `graphify-out/` nicht committed wird, kann jede Person den Graph lokal mit den Befehlen oben erzeugen.

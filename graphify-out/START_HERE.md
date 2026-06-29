@@ -1,71 +1,71 @@
-# Heptacode Graph - Start Here
+# Heptacode Graph - Einstieg
 
-This is the readable entry point for the Graphify output.
+Dies ist der lesbare Einstieg in die Graphify-Ausgabe.
 
-## Open These First
+## Zuerst Oeffnen
 
 1. `GRAPH_TREE.html`
-   - Best first view.
-   - Shows the project as an expandable file/module tree.
-   - Use this when `graph.html` feels too crowded.
+   - Beste erste Ansicht.
+   - Zeigt das Projekt als aufklappbaren Datei-/Modulbaum.
+   - Nuetzlich, wenn `graph.html` zu voll wirkt.
 
 2. `Heptacode-callflow.html`
-   - Best architecture view.
-   - Shows call-flow style diagrams and tables.
-   - Use this to understand how frontend, backend, and shared types connect.
+   - Beste Architekturansicht.
+   - Zeigt Callflow-Diagramme und Tabellen.
+   - Nuetzlich, um die Verbindungen zwischen Frontend, Backend und Shared Types zu verstehen.
 
 3. `GRAPH_REPORT.md`
-   - Best text summary.
-   - Good for top nodes, communities, and surprising cross-file links.
+   - Beste Textzusammenfassung.
+   - Gut fuer zentrale Knoten, Communities und unerwartete Querverbindungen.
 
 4. `graph.html`
-   - Full raw network graph.
-   - Powerful, but visually dense.
+   - Voller Rohgraph.
+   - Maechtig, aber visuell sehr dicht.
 
-## Project Map
+## Projektkarte
 
 Frontend: `frontend/src`
-- `app`: React app shell and router.
-- `pages`: Wizard pages such as patient data, symptoms, medical data, and result.
-- `features`: domain UI for emergency symptoms, symptom details, and result/practice search.
-- `lib`: shared frontend logic, API wrappers, assessment context, validation, recommendations.
-- `components`: reusable UI and navigation components.
+- `app`: React-App-Shell und Router.
+- `pages`: Wizard-Seiten fuer Patientendaten, Symptome, medizinische Daten und Ergebnis.
+- `features`: fachliche UI fuer Notfallsymptome, Symptomdetails und Ergebnis-/Praxissuche.
+- `lib`: gemeinsame Frontend-Logik, API-Wrapper, Assessment Context, Validierung und Empfehlungen.
+- `components`: wiederverwendbare UI- und Navigationskomponenten.
 
 Backend: `backend/src`
-- `index.ts` and `app.ts`: server startup and Express app wiring.
-- `routes`: HTTP route entry points for assessment, triage, symptom extraction, and PDF export.
-- `modules/assessment`: assessment/review logic.
-- `modules/symptom-extraction`: AI-assisted symptom extraction.
-- `modules/triage`: triage and specialty recommendation logic.
-- `modules/pdf`: PDF export and formatting.
-- `modules/fhir`: FHIR bundle generation.
-- `ai`: LLM client/adapter and request handling.
-- `common`: validation, errors, and middleware.
+- `index.ts` und `app.ts`: Serverstart und App-Wiring.
+- `routes`: HTTP-Einstiegspunkte fuer Assessment, Triage, Symptomerkennung und PDF-Export.
+- `modules/assessment`: Assessment-/Review-Logik.
+- `modules/symptom-extraction`: KI-gestuetzte Symptomerkennung.
+- `modules/triage`: Triage- und Fachrichtungslogik.
+- `modules/pdf`: PDF-Export und Formatierung.
+- `modules/fhir`: FHIR-Bundle-Erzeugung.
+- `ai`: LLM-Client/Adapter und Request-Handling.
+- `common`: Validierung, Fehler und Middleware.
 
 Shared: `shared`
-- Cross-package types for patient data, symptoms, results, extraction, and taxonomy.
+- Gemeinsame Typen fuer Patientendaten, Symptome, Ergebnisse, Extraktion und Taxonomie.
 
-## Main Flow
+## Hauptfluss
 
 ```text
-Frontend pages
-  -> frontend lib/API helpers
-  -> backend routes
-  -> backend modules
-  -> backend AI/client or local logic
-  -> shared result/patient/symptom types
-  -> result page / PDF / FHIR output
+Frontend-Seiten
+  -> Frontend API-Helfer
+  -> Backend Routes
+  -> Backend Module
+  -> Backend AI-Client oder lokale Logik
+  -> gemeinsame Result-/Patient-/Symptom-Typen
+  -> Ergebnis-Seite / PDF / FHIR-Export
 ```
 
-## Most Important Concepts
+## Wichtigste Konzepte
 
-- `PatientData`: central patient information model.
-- `TriageSymptom`: central symptom model.
-- `useAssessment()`: frontend assessment state/context.
-- `MedicalSpecialty`: specialty recommendation type.
-- `CareLevel`: urgency/care-level result type.
+- `PatientData`: zentrales Patientendatenmodell.
+- `TriageSymptom`: zentrales Symptomenmodell.
+- `useAssessment()`: Frontend-State/Context fuer das Assessment.
+- `MedicalSpecialty`: Typ fuer Fachrichtungsempfehlungen.
+- `CareLevel`: Typ fuer Dringlichkeit/Versorgungslevel.
 
-## Hotspot Files
+## Hotspot-Dateien
 
 - `backend/src/modules/pdf/pdfExport.service.ts`
 - `frontend/src/features/results/NearbyPracticeSearch.tsx`
@@ -75,9 +75,9 @@ Frontend pages
 - `frontend/src/lib/AssessmentContext.tsx`
 - `backend/src/modules/assessment/assessment.service.ts`
 
-## Useful Queries
+## Nuetzliche Queries
 
-```powershell
+```bash
 graphify query "Wie laeuft ein Assessment vom Frontend ins Backend?" --budget 1200
 graphify query "Welche Dateien haengen an PatientData?" --budget 1200
 graphify query "Wie entsteht das PDF?" --budget 1200
@@ -86,17 +86,17 @@ graphify explain "useAssessment()"
 graphify path "SymptomSelectionPage.tsx" "triage.service.ts"
 ```
 
-## Update After Code Changes
+## Nach Codeaenderungen Aktualisieren
 
-```powershell
+```bash
 graphify update .
 graphify cluster-only . --no-label
-graphify tree --graph graphify-out\graph.json --output graphify-out\GRAPH_TREE.html --root . --label Heptacode
+graphify tree --graph graphify-out/graph.json --output graphify-out/GRAPH_TREE.html --root . --label Heptacode
 graphify export callflow-html
 ```
 
-## Current Build Notes
+## Hinweise Zum Aktuellen Build
 
-- This is a code-only graph.
-- Docs, PDFs, images, and YAML are ignored via `.graphifyignore`.
-- That keeps Graphify usable without an LLM API key.
+- Dies ist ein code-only Graph.
+- Docs, PDFs, Bilder und YAML werden ueber `.graphifyignore` ignoriert.
+- Dadurch bleibt Graphify ohne LLM/API-Key nutzbar.
