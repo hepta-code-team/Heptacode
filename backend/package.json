@@ -22,6 +22,7 @@
     "zod": "^3.25.76"
   },
   "devDependencies": {
+    "@types/fhir": "^0.0.44",
     "@types/node": "^20.14.12",
     "@types/pdfkit": "^0.17.6",
     "@vitest/coverage-v8": "^4.1.6",

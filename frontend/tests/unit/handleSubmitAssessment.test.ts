@@ -64,10 +64,9 @@ describe('handleSubmitAssessment', () => {
     expect(setters.setIsSubmitting).not.toHaveBeenCalled();
   });
 
-  it('submits normalized active symptoms and navigates to the result page', async () => {
+  it('submits normalized manually selected active symptoms without consistency validation', async () => {
     const setters = createSetters();
     const submitAssessment = vi.fn().mockResolvedValue({});
-    validateSymptomConsistencyMock.mockResolvedValue(createConsistencyResult());
 
     await handleSubmitAssessment({
       symptomDetails: [
@@ -101,9 +100,10 @@ describe('handleSubmitAssessment', () => {
     ]);
     expect(setters.navigate).toHaveBeenCalledWith('/result');
     expect(setters.setIsSubmitting).toHaveBeenLastCalledWith(false);
+    expect(validateSymptomConsistencyMock).not.toHaveBeenCalled();
   });
 
-  it('validates editable AI-extracted symptoms before submitting', async () => {
+  it('validates AI-extracted free-text symptoms before submitting', async () => {
     const setters = createSetters();
     const submitAssessment = vi.fn().mockResolvedValue({});
     validateSymptomConsistencyMock.mockResolvedValue(createConsistencyResult());
@@ -112,6 +112,7 @@ describe('handleSubmitAssessment', () => {
       symptomDetails: [
         createSymptomDraft({
           isNameEditable: true,
+          sourceText: 'Ich habe starke Kopfschmerzen.',
           details: 'starker Druck',
         }),
       ],
@@ -199,43 +200,29 @@ describe('handleSubmitAssessment', () => {
     );
   });
 
-  it('blocks clear region-detail contradictions even when editable metadata is missing', async () => {
+  it('skips consistency validation for manually selected symptoms even when region and details differ', async () => {
     const setters = createSetters();
-    const submitAssessment = vi.fn();
-    validateSymptomConsistencyMock.mockResolvedValue(createConsistencyResult({
-      isRegionMeaningful: true,
-      hasClearContradiction: true,
-      selectedLocationIds: ['legs'],
-      detailLocationIds: ['arms'],
-      selectedLocationConfidence: 'high',
-      detailLocationConfidence: 'high',
-      message: 'Bitte prüfen Sie Region und Zusatzdetails. Die Angaben widersprechen sich eindeutig.',
-    }));
+    const submitAssessment = vi.fn().mockResolvedValue({});
 
     await handleSubmitAssessment({
       symptomDetails: [
         createSymptomDraft({
           region: 'Bein',
           details: 'Schnittwunde in der Hand',
-          isNameEditable: undefined,
         }),
       ],
       submitAssessment,
       ...setters,
     });
 
-    expect(validateSymptomConsistencyMock).toHaveBeenCalledWith(
+    expect(validateSymptomConsistencyMock).not.toHaveBeenCalled();
+    expect(submitAssessment).toHaveBeenCalledWith([
       expect.objectContaining({ region: 'Bein', details: 'Schnittwunde in der Hand' }),
-      undefined,
-    );
-    expect(submitAssessment).not.toHaveBeenCalled();
-    expect(setters.navigate).not.toHaveBeenCalled();
-    expect(setters.setSubmitError).toHaveBeenCalledWith(
-      'Bitte prüfen Sie Region und Zusatzdetails. Die Angaben widersprechen sich eindeutig.',
-    );
+    ]);
+    expect(setters.navigate).toHaveBeenCalledWith('/result');
   });
 
-  it('blocks non-medical symptom names even when the details look medical', async () => {
+  it('blocks non-medical AI-extracted symptom names even when the details look medical', async () => {
     const setters = createSetters();
     const submitAssessment = vi.fn();
     validateSymptomConsistencyMock.mockResolvedValue(createConsistencyResult({
@@ -250,6 +237,7 @@ describe('handleSubmitAssessment', () => {
           region: 'Besen',
           details: 'Schnittwunde in der Hand',
           isNameEditable: true,
+          sourceText: 'Ich habe Besen und eine Schnittwunde.',
         }),
       ],
       submitAssessment,
@@ -301,7 +289,10 @@ describe('handleSubmitAssessment', () => {
     }));
 
     await handleSubmitAssessment({
-      symptomDetails: [createSymptomDraft({ isNameEditable: true })],
+      symptomDetails: [createSymptomDraft({
+        isNameEditable: true,
+        sourceText: 'Ich habe Kopfschmerzen.',
+      })],
       submitAssessment,
       ...setters,
     });

@@ -1104,7 +1104,7 @@ export default function SymptomSelectionPage() {
         }`}
       >
         <div className="flex items-start gap-3">
-          <div className="flex size-11 flex-shrink-0 items-center justify-center rounded-full bg-[#486284] text-app-text-on-primary">
+          <div className="flex size-11 flex-shrink-0 items-center justify-center rounded-full bg-[#486284] text-app-text-on-primary shadow-md">
             <Mic className="size-5" aria-hidden="true" />
           </div>
           <div>
@@ -1132,12 +1132,12 @@ export default function SymptomSelectionPage() {
     <PageShell
       title="Wo haben Sie Beschwerden?"
       subtitle="Wählen Sie einen Bereich am Körper und ergänzen Sie bis zu 3 passende Beschwerden."
-      onBack={() => navigate("/medical-data")}
+      onBack={() => navigate("/pre-existing-conditions")}
       maxWidth="2xl"
     >
       <div className="grid grid-cols-1 lg:grid-cols-[360px_minmax(0,1fr)] gap-5 xl:gap-6 items-start">
         <div>
-          <div className="rounded-[18px] bg-[#f5f7fa] border-2 border-[#486284FF] p-4">
+          <div className="shadow-md rounded-[18px] bg-[#f5f7fa] border-2 border-[#486284FF] p-4">
             <p
               className="mb-3 text-center font-['DM_Sans:Bold',sans-serif] font-bold text-app-text-primary text-sm"
               style={{ fontVariationSettings: "'opsz' 14" }}
@@ -1199,7 +1199,7 @@ export default function SymptomSelectionPage() {
         </div>
 
         <div>
-          <div className={`mb-4 rounded-[18px] border-2 bg-[#f5f7fa] p-3 transition-all ${selectedSymptoms.length > 0 ? "border-[#486284]" : "border-transparent"}`}>
+          <div className={`mb-4 shadow-md rounded-[18px] border-2 bg-[#f5f7fa] p-3 transition-all ${selectedSymptoms.length > 0 ? "border-[#486284]" : "border-transparent"}`}>
             <div className="mb-2 flex items-center justify-between">
               <p
                 className="font-['DM_Sans:Bold',sans-serif] font-bold text-app-text-primary text-sm"
@@ -1292,7 +1292,7 @@ export default function SymptomSelectionPage() {
               />
             </>
           ) : (
-            <div className="flex min-h-[220px] items-center justify-center rounded-[18px] border-2 border-dashed border-[#cfd5dd] bg-[#f5f7fa] p-6 text-center">
+            <div className="shadow-md flex min-h-[220px] items-center justify-center rounded-[18px] border-2 border-dashed border-[#cfd5dd] bg-[#f5f7fa] p-6 text-center">
               <p
                 className="max-w-md font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-primary text-sm leading-relaxed"
                 style={{ fontVariationSettings: "'opsz' 14" }}

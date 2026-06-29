@@ -80,6 +80,8 @@ export default function SymptomDetailsPage() {
         ? symptom.measurementValue
         : measurementConfig.defaultValue,
       isNameEditable,
+      isExtractedFromFreeText: isNameEditable ||
+        ("isExtractedFromFreeText" in symptom && symptom.isExtractedFromFreeText === true),
       ...(isNameEditable ? {
         sourceText: symptomText.trim(),
         originalRegion: symptom.region,
@@ -224,7 +226,7 @@ export default function SymptomDetailsPage() {
                 showDurationError={showValidationErrors}
               />
             ) : (
-              <div className="bg-[#eff2f6] rounded-[16px] p-5">
+              <div className="shadow-md bg-[#eff2f6] rounded-[16px] p-5">
                 <button
                   onClick={() => setIsAddModalOpen(true)}
                   className="w-full flex items-center justify-center py-12 hover:bg-[#dde3ea] transition-all rounded-[16px]"

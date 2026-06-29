@@ -4,6 +4,26 @@ export const SYMPTOM_REGIONS = [
     locationId: 'head',
     name: 'Kopf',
     options: ['Kopf allgemein', 'Stirn', 'Schläfen', 'Hinterkopf', 'Kopfhaut', 'Platzwunde'],
+    // Extra matching labels for validation; these do not add new UI options.
+    aliases: [
+      'Auge',
+      'Augen',
+      'Ohr',
+      'Ohren',
+      'Nase',
+      'Mund',
+      'Lippe',
+      'Lippen',
+      'Zunge',
+      'Zahn',
+      'Zähne',
+      'Kiefer',
+      'Wange',
+      'Wangen',
+      'Schädel',
+      'Kopfhaut',
+      'Schläfe',
+    ],
   },
   {
     name: 'Gesicht',
@@ -48,16 +68,19 @@ export const SYMPTOM_REGIONS = [
     locationId: 'neck',
     name: 'Hals',
     options: ['Hals allgemein', 'Rachen', 'Mandeln', 'Kehlkopf', 'Schluckbeschwerden', 'Schwellung', 'Nacken'],
+    aliases: ['Kehle', 'Kehlkopf', 'Mandeln', 'Halswirbelsäule', 'HWS'],
   },
   {
     locationId: 'chest',
     name: 'Brust',
     options: ['Brustmitte', 'Linksseitig', 'Rechtsseitig', 'Rippen', 'Atemabhängig'],
+    aliases: ['Brustkorb', 'Brustbein', 'Sternum', 'Rippe', 'Herzgegend'],
   },
   {
     locationId: 'back',
     name: 'Rücken',
     options: ['Oberer Rücken', 'Mittlerer Rücken', 'Unterer Rücken', 'Wirbelsäule', 'Steißbein'],
+    aliases: ['Wirbelsäule', 'Lendenwirbelsäule', 'Brustwirbelsäule', 'LWS', 'BWS'],
   },
   {
     name: 'Hüfte',
@@ -91,6 +114,19 @@ export const SYMPTOM_REGIONS = [
       'Verstauchung',
       'Muskelkrämpfe',
     ],
+    aliases: [
+      'Arm',
+      'Ellbogen',
+      'Hand',
+      'Handgelenk',
+      'Handfläche',
+      'Handrücken',
+      'Daumen',
+      'Zeigefinger',
+      'Mittelfinger',
+      'Ringfinger',
+      'Kleiner Finger',
+    ],
   },
   {
     name: 'Oberarm',
@@ -121,6 +157,7 @@ export const SYMPTOM_REGIONS = [
       'Bauchkrämpfe',
       'Magenkrämpfe',
     ],
+    aliases: ['Magen', 'Darm', 'Unterleib', 'Bauchdecke', 'Nabel', 'Flanke', 'Flanken'],
   },
   {
     locationId: 'legs',
@@ -142,6 +179,21 @@ export const SYMPTOM_REGIONS = [
       'Bruch',
       'Verstauchung',
       'Muskelkrämpfe',
+    ],
+    aliases: [
+      'Bein',
+      'Unterschenkel',
+      'Schienbein',
+      'Fuß',
+      'Fuss',
+      'Knöchel',
+      'Knoechel',
+      'Ferse',
+      'Zehe',
+      'Leiste',
+      'Gesäß',
+      'Gesaess',
+      'Po',
     ],
   },
   {
@@ -258,7 +310,10 @@ export function formatSymptomTaxonomyForPrompt(): string {
 export function formatBodyLocationTaxonomyForPrompt(): string {
   return SYMPTOM_REGIONS
     .filter((region): region is typeof region & { locationId: BodyLocationId } => 'locationId' in region)
-    .map((region) => `${region.locationId}: ${region.name} (${region.options.join(', ')}).`)
+    .map((region) => {
+      const labels = [...region.options, ...('aliases' in region ? region.aliases : [])]
+      return `${region.locationId}: ${region.name} (${labels.join(', ')}).`
+    })
     .join('\n');
 }
 
@@ -271,6 +326,6 @@ export function getBodyLocationTaxonomy(): Array<{
     .filter((region): region is typeof region & { locationId: BodyLocationId } => 'locationId' in region)
     .map((region) => ({
       id: region.locationId,
-      labels: [region.name, ...region.options],
+      labels: [region.name, ...region.options, ...('aliases' in region ? region.aliases : [])],
     }));
 }

@@ -10,6 +10,7 @@ describe('createPdfSummary', () => {
         plainLanguage: 'Ihre Angaben sprechen für eine hausärztliche Abklärung.',
         professionalSummary: 'Strukturierte medizinische Zusammenfassung.',
       },
+      symptomText: 'Ich habe seit gestern starke Kopfschmerzen.',
       aiModel: 'test-model',
       patientData: {
         birthMonth: '01',
@@ -40,6 +41,9 @@ describe('createPdfSummary', () => {
     expect(result.mimeType).toBe('application/pdf')
     expect(result.sections).toHaveLength(2)
     expect(result.sections[0]).toMatchObject({ title: 'Medizinische Übersicht' })
+    expect(result.sections[0]?.content).toContain(
+      'Ihre Eingabe: „Ich habe seit gestern starke Kopfschmerzen.“',
+    )
     expect(result.sections[1]).toMatchObject({ title: 'Wichtiger Hinweis' })
     expect(pdfContent.startsWith('%PDF-')).toBe(true)
   })
@@ -120,7 +124,7 @@ describe('createPdfSummary', () => {
           Sonstige: {
             condition: 'Sonstige',
             detail: 'Sonstige: Herzrhythmusstoerungen',
-            duration: '',
+            duration: 'seit 6 Jahren',
           },
         },
         medicationDuration: ''
@@ -149,6 +153,9 @@ describe('createPdfSummary', () => {
 
     expect(result.sections[0]?.content).toContain('Geschlecht:')
     expect(result.sections[0]?.content).toContain('Reise ins Ausland: Ja')
+    expect(result.sections[0]?.content).toContain(
+      'Vorerkrankung: Sonstige – Sonstige: Herzrhythmusstoerungen\nBekannt seit: seit 6 Jahren',
+    )
     expect(result.sections[0]?.content).toContain('Raucher: Ja')
     expect(result.sections[0]?.content).toContain('Temperatur: 39.2')
     expect(result.sections[0]?.content).toContain('8/10')
@@ -172,6 +179,9 @@ describe('createPdfSummary', () => {
     })
 
     expect(result.sections[0]?.content).toContain('Empfohlene Fachrichtung: Kardiologie')
+    expect(result.sections[0]?.content).toContain(
+      'Empfohlene Fachrichtung: Kardiologie\n\nBegründung der Empfehlung:',
+    )
   })
 
   /** Plain-language summaries should be used as the recommendation rationale when present. */

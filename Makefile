@@ -1,7 +1,16 @@
-.PHONY: dev down logs clean
+.PHONY: dev prod prod-build prod-down down logs clean
 
 dev:
 	docker compose -f docker-compose.dev.yml up --build
+
+prod:
+	docker compose up -d --build
+
+prod-build:
+	docker compose build
+
+prod-down:
+	docker compose down
 
 down:
 	docker compose -f docker-compose.dev.yml down

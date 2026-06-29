@@ -136,7 +136,7 @@ describe('AssessmentContext', () => {
   });
 
   it('discards persisted assessment data after its expiration time', () => {
-    const removeItemSpy = vi.spyOn(Storage.prototype, 'removeItem');
+    const removeItemSpy = vi.spyOn(window.sessionStorage, 'removeItem');
 
     window.sessionStorage.setItem(ASSESSMENT_STORAGE_KEY, JSON.stringify({
       state: {

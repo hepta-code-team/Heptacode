@@ -17,7 +17,11 @@ async function validateSymptomInputs(symptoms: SymptomDraft[], patientData?: Pat
       throw new Error("Bitte geben Sie für jedes erkannte Symptom einen Namen ein.");
     }
 
-    // Validate every active symptom before sending the assessment payload.
+    // Only symptoms that originated from AI free-text extraction need consistency validation.
+    if (!symptom.isExtractedFromFreeText && !symptom.sourceText?.trim()) {
+      continue;
+    }
+
     const regionDetailResult = await validateSymptomConsistency(symptom, patientData);
 
     if (!regionDetailResult.isRegionMeaningful || regionDetailResult.hasClearContradiction) {
