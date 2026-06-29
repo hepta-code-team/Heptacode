@@ -595,7 +595,7 @@ export default function SymptomSelectionPage() {
   const [inputMode, setInputMode] = useState<SymptomInputMode>(symptomText.trim() && contextSymptoms.length === 0 ? "freeText" : "body");
   const [symptomTextDraft, setSymptomTextDraft] = useState(symptomText);
   const [isExtractingSymptoms, setIsExtractingSymptoms] = useState(false);
-  const [symptomExtractionProgress, setSymptomExtractionProgress] = useState(0);
+  const [, setSymptomExtractionProgress] = useState(0);
   const [isRecordingSymptoms, setIsRecordingSymptoms] = useState(false);
   const [recordingElapsedSeconds, setRecordingElapsedSeconds] = useState(0);
   const [symptomTextError, setSymptomTextError] = useState<string | null>(null);
@@ -1146,8 +1146,7 @@ export default function SymptomSelectionPage() {
   return (
     <PageShell
       title="Wie möchten Sie Ihre Beschwerden angeben?"
-      subtitle="Erfassen Sie bis zu 3 Beschwerden: Wählen Sie entweder einen Körperbereich aus und fügen Sie passende
-      Symptome manuell hinzu oder beschreiben Sie Ihre Symptome über die Freitext- und Spracheingabe."
+      subtitle="Wählen Sie entweder einen Körperbereich aus oder beschreiben Sie Ihre Symptome über die Freitext- und Spracheingabe."
       onBack={() => navigate("/pre-existing-conditions")}
     >
       <div className="mb-5 rounded-[20px] border border-[#d7dee7] bg-[#f5f7fa] p-2 shadow-sm">
@@ -1396,7 +1395,7 @@ export default function SymptomSelectionPage() {
                   className="max-w-md font-['DM_Sans:Medium',sans-serif] text-sm font-medium leading-relaxed text-app-text-primary"
                   style={{ fontVariationSettings: "'opsz' 14" }}
                 >
-                  Wählen Sie links zuerst einen Körperbereich aus. Danach erscheinen hier die passenden Beschwerden.
+                  Wählen Sie zuerst einen Körperbereich aus. Danach erscheinen hier die passenden Beschwerden und Bereiche.
                 </p>
               </div>
             )}
