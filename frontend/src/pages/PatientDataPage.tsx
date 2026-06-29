@@ -7,6 +7,7 @@ import Button from "../components/Button";
 import { useAssessment } from "../lib/AssessmentContext";
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
+import { normalizePatientNumericInput } from "../lib/patientDataInput";
 import type { PatientData } from "../../../shared/patientData.types";
 
 const WEIGHT_MIN = 3;
@@ -280,7 +281,12 @@ export default function PatientDataPage() {
                 max="12"
                 aria-invalid={hasBirthMonthError || hasFutureBirthDateError}
                 value={formData.birthMonth}
-                onChange={(event) => setFormData({ ...formData, birthMonth: event.target.value })}
+                onChange={(event) =>
+                  setFormData({
+                    ...formData,
+                    birthMonth: normalizePatientNumericInput("birthMonth", event.target.value),
+                  })
+                }
                 className={`bg-white text-xs h-8 ${
                   hasBirthMonthError || hasFutureBirthDateError
                     ? "border border-red-500 focus-visible:border-red-500 focus-visible:ring-red-500/30"
@@ -307,7 +313,12 @@ export default function PatientDataPage() {
                 aria-invalid={hasBirthYearError || hasFutureBirthDateError}
                 aria-describedby={hasBirthYearError ? "birth-year-error" : undefined}
                 value={formData.birthYear}
-                onChange={(event) => setFormData({ ...formData, birthYear: event.target.value })}
+                onChange={(event) =>
+                  setFormData({
+                    ...formData,
+                    birthYear: normalizePatientNumericInput("birthYear", event.target.value),
+                  })
+                }
                 onKeyDown={(event) =>
                   handleEmptyNumberKeyStep(event, "birthYear", BIRTH_YEAR_DEFAULT, birthYearMin, currentYear)
                 }
@@ -366,7 +377,12 @@ export default function PatientDataPage() {
                 aria-invalid={hasHeightError}
                 aria-describedby={hasHeightError ? "height-error" : undefined}
                 value={formData.height}
-                onChange={(event) => setFormData({ ...formData, height: event.target.value })}
+                onChange={(event) =>
+                  setFormData({
+                    ...formData,
+                    height: normalizePatientNumericInput("height", event.target.value),
+                  })
+                }
                 onKeyDown={(event) =>
                   handleEmptyNumberKeyStep(event, "height", HEIGHT_DEFAULT, HEIGHT_MIN, HEIGHT_MAX)
                 }
@@ -402,7 +418,12 @@ export default function PatientDataPage() {
                 aria-invalid={hasWeightError}
                 aria-describedby={hasWeightError ? "weight-error" : undefined}
                 value={formData.weight}
-                onChange={(event) => setFormData({ ...formData, weight: event.target.value })}
+                onChange={(event) =>
+                  setFormData({
+                    ...formData,
+                    weight: normalizePatientNumericInput("weight", event.target.value),
+                  })
+                }
                 onKeyDown={(event) =>
                   handleEmptyNumberKeyStep(event, "weight", WEIGHT_DEFAULT, WEIGHT_MIN, WEIGHT_MAX)
                 }

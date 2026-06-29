@@ -215,6 +215,7 @@ describe('page-level user flows', () => {
     expect(navigateMock).toHaveBeenCalledWith('/medical-data');
   });
 
+<<<<<<< HEAD
   it('toggles selected travel and smoking buttons off again', async () => {
     const user = userEvent.setup();
     assessmentState.patientData = basePatientData;
@@ -242,6 +243,39 @@ describe('page-level user flows', () => {
       smokingSinceYears: '',
       cigarettesPerDay: '',
     }));
+=======
+  it('normalizes leading zeros in patient numeric fields before saving', async () => {
+    const user = userEvent.setup();
+
+    render(<PatientDataPage />);
+    setPatientDataMock.mockClear();
+
+    const birthMonthInput = screen.getByPlaceholderText('MM') as HTMLInputElement;
+    const birthYearInput = screen.getByPlaceholderText('JJJJ') as HTMLInputElement;
+    const heightInput = screen.getByPlaceholderText('zB. 175') as HTMLInputElement;
+    const weightInput = screen.getByPlaceholderText('zB. 70') as HTMLInputElement;
+
+    fireEvent.change(birthMonthInput, { target: { value: '07' } });
+    fireEvent.change(birthYearInput, { target: { value: '01990' } });
+    fireEvent.change(heightInput, { target: { value: '0175' } });
+    fireEvent.change(weightInput, { target: { value: '080' } });
+    await user.click(screen.getByRole('button', { name: /M.nnlich/ }));
+
+    expect(birthMonthInput.value).toBe('07');
+    expect(birthYearInput.value).toBe('1990');
+    expect(heightInput.value).toBe('175');
+    expect(weightInput.value).toBe('80');
+
+    await user.click(screen.getAllByRole('button', { name: 'Weiter' }).at(-1)!);
+
+    expect(setPatientDataMock).toHaveBeenCalledWith(expect.objectContaining({
+      birthMonth: '07',
+      birthYear: '1990',
+      height: '175',
+      weight: '80',
+    }));
+    expect(navigateMock).toHaveBeenCalledWith('/medical-data');
+>>>>>>> dev
   });
 
   it('collects optional medical data and continues to symptom selection', async () => {
@@ -603,14 +637,25 @@ describe('page-level user flows', () => {
 
     await user.click(screen.getByRole('button', { name: 'medical-summary-bearbeiten' }));
     expect(patientDataToggle).toHaveAttribute('aria-expanded', 'true');
+    await user.clear(screen.getByLabelText('Geburtsmonat'));
+    await user.type(screen.getByLabelText('Geburtsmonat'), '07');
     await user.clear(screen.getByDisplayValue('1990'));
-    await user.type(screen.getByLabelText('Geburtsjahr'), '1988');
+    await user.type(screen.getByLabelText('Geburtsjahr'), '01988');
+    const heightEditInput = screen.getByDisplayValue('180');
+    const weightEditInput = screen.getByDisplayValue('80');
+    await user.clear(heightEditInput);
+    await user.type(heightEditInput, '0175');
+    await user.clear(weightEditInput);
+    await user.type(weightEditInput, '080');
     await user.clear(screen.getByLabelText('Beschwerden bearbeiten'));
     await user.type(screen.getByLabelText('Beschwerden bearbeiten'), 'Geänderte Beschwerden.');
     await user.click(screen.getByRole('button', { name: 'Speichern' }));
 
     expect(setPatientDataMock).toHaveBeenCalledWith(expect.objectContaining({
+      birthMonth: '07',
       birthYear: '1988',
+      height: '175',
+      weight: '80',
       recentAbroadDetails: 'Italien | 2026-01-01 | 2026-01-10',
     }));
     expect(setAssessmentResultMock).toHaveBeenCalledWith(expect.objectContaining({
