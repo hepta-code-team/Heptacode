@@ -11,7 +11,10 @@ Linux ohne zusaetzliches Runner-Skript.
 - `triage-specialty.live.test.ts` prueft die Zuordnung zu allen unterstuetzten
   fachaerztlichen Disziplinen.
 - `triage-plausibility.live.test.ts` prueft die Versorgungsebene fuer Emergency-,
-  Specialist-, Doctor-, Selfcare- und False-Positive-Faelle.
+  Specialist-, Doctor-, Selfcare- und False-Positive-Faelle. Zusaetzlich wird
+  geprueft, ob die KI-Begruendung zur erwarteten Versorgungsebene passt.
+- `triage-freetext.live.test.ts` prueft, ob eindeutig genannte
+  Notfallsymptome auch nach Freitext-Extraktion als Emergency eingestuft werden.
 
 Die Plausibilitaets-Suite wertet einen Fall nur dann als korrekt, wenn die
 erwartete Versorgungsebene direkt vom KI-Ablauf zurueckgegeben wird. Ein Ergebnis
@@ -50,6 +53,12 @@ Nur die Versorgungsebenen und Plausibilitaetsfaelle ausfuehren:
 npm run test:ai-triage:plausibility
 ```
 
+Nur die Freitext-Notfallfaelle ausfuehren:
+
+```powershell
+npm run test:ai-triage:freetext
+```
+
 Einen einzelnen Plausibilitaetsfall per ID ausfuehren:
 
 ```powershell
@@ -69,6 +78,25 @@ kann die Auswahl wieder entfernt werden:
 
 ```powershell
 Remove-Item Env:TRIAGE_LIVE_CASE_ID
+```
+
+Einen einzelnen Freitextfall per ID ausfuehren:
+
+```powershell
+$env:TRIAGE_FREETEXT_LIVE_CASE_ID="freetext-emergency-chest-pain"
+npm run test:ai-triage:freetext
+```
+
+Die Freitext-Fall-IDs stehen in:
+
+```txt
+backend/tests/fixtures/triageFreetextLiveCases.ts
+```
+
+Nach dem Lauf kann die Auswahl wieder entfernt werden:
+
+```powershell
+Remove-Item Env:TRIAGE_FREETEXT_LIVE_CASE_ID
 ```
 
 Das Backend laedt die KI-Konfiguration aus `.env.local` oder `.env`. Jeder Lauf

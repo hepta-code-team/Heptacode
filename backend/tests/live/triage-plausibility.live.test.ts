@@ -33,6 +33,7 @@ type EvaluationResult = {
   aiModel?: string
   directAiPassed: boolean
   systemPassed: boolean
+  reasoningPassed: boolean
   fallbackType: TriageEvaluationDiagnostics['fallbackType']
   unavailable: boolean
   aiReasons: string[]
@@ -57,16 +58,46 @@ function formatRate(passed: number, total: number): string {
   return total === 0 ? 'n/a' : `${((passed / total) * 100).toFixed(1)}%`
 }
 
+/** Normalizes German and ASCII fallback spellings so keyword checks are stable. */
+function normalizeReasoningText(value: string): string {
+  return value
+    .toLowerCase()
+    .replace(/ä/g, 'ae')
+    .replace(/ö/g, 'oe')
+    .replace(/ü/g, 'ue')
+    .replace(/ß/g, 'ss')
+}
+
+/** Checks whether the AI explanation contains wording that matches the expected care level. */
+function hasCareLevelReasoning(result: TriageEvaluationDiagnostics, expectedCareLevel: CareLevel): boolean {
+  const explanationText = normalizeReasoningText([
+    ...(result.aiResponse?.reasons ?? []),
+    result.aiResponse?.reviewSummary?.plainLanguage,
+    result.aiResponse?.reviewSummary?.professionalSummary,
+  ].filter((part): part is string => Boolean(part)).join(' '))
+
+  const keywordsByCareLevel: Record<CareLevel, string[]> = {
+    emergency: ['notfall', 'sofort', 'umgehend', 'akut', 'notaufnahme', '112'],
+    specialist: ['fachaerzt', 'facharzt', 'fachrichtung', 'spezialist', 'spezialisierte', 'intern', 'pneumolog', 'urolog', 'diabetolog', 'gastroenterolog'],
+    doctor: ['arzt', 'aerzt', 'hausarzt', 'allgemeinmedizin', 'abklaerung', 'einschaetzung', 'zeitnah'],
+    selfcare: ['selbst', 'haeuslich', 'beobachten', 'schonung', 'keine warnzeichen', 'harmlos'],
+  }
+
+  return keywordsByCareLevel[expectedCareLevel].some((keyword) => explanationText.includes(keyword))
+}
+
 /** Prints total accuracy, category rates, and failed case details. */
 function logEvaluationSummary(): void {
   const availableResults = evaluationResults.filter((result) => !result.unavailable)
   const directAiPassed = availableResults.filter((result) => result.directAiPassed).length
   const systemPassed = availableResults.filter((result) => result.systemPassed).length
+  const reasoningPassed = availableResults.filter((result) => result.reasoningPassed).length
 
   const categories = TRIAGE_PLAUSIBILITY_CATEGORIES.map((category) => {
     const results = availableResults.filter((result) => result.category === category)
     const categoryDirectAiPassed = results.filter((result) => result.directAiPassed).length
     const categorySystemPassed = results.filter((result) => result.systemPassed).length
+    const categoryReasoningPassed = results.filter((result) => result.reasoningPassed).length
 
     return {
       category,
@@ -78,6 +109,10 @@ function logEvaluationSummary(): void {
       finalSystem: {
         passed: categorySystemPassed,
         rate: formatRate(categorySystemPassed, results.length),
+      },
+      reasoning: {
+        passed: categoryReasoningPassed,
+        rate: formatRate(categoryReasoningPassed, results.length),
       },
     }
   })
@@ -94,14 +129,19 @@ function logEvaluationSummary(): void {
       passed: systemPassed,
       rate: formatRate(systemPassed, availableResults.length),
     },
+    reasoning: {
+      passed: reasoningPassed,
+      rate: formatRate(reasoningPassed, availableResults.length),
+    },
     categories,
     failures: evaluationResults
-      .filter((result) => !result.directAiPassed || !result.systemPassed)
+      .filter((result) => !result.directAiPassed || !result.systemPassed || !result.reasoningPassed)
       .map(({
         id,
         expectedCareLevel,
         directAiCareLevel,
         finalCareLevel,
+        reasoningPassed,
         fallbackType,
         unavailable,
         aiReasons,
@@ -113,6 +153,7 @@ function logEvaluationSummary(): void {
         expectedCareLevel,
         directAiCareLevel,
         finalCareLevel,
+        reasoningPassed,
         fallbackType,
         unavailable,
         aiReasons,
@@ -172,6 +213,7 @@ describe('live AI triage plausibility evaluation', () => {
         const unavailable = isAvailabilityFallback(result)
         const directAiPassed = result.aiResponse?.careLevel === expectedCareLevel
         const systemPassed = result.finalResponse.careLevel === expectedCareLevel
+        const reasoningPassed = hasCareLevelReasoning(result, expectedCareLevel)
 
         evaluationResults.push({
           id,
@@ -183,6 +225,7 @@ describe('live AI triage plausibility evaluation', () => {
           aiModel: result.aiResponse?.aiModel,
           directAiPassed,
           systemPassed,
+          reasoningPassed,
           fallbackType: result.fallbackType,
           unavailable,
           aiReasons: result.aiResponse?.reasons ?? [],
@@ -198,6 +241,7 @@ describe('live AI triage plausibility evaluation', () => {
           finalCareLevel: result.finalResponse.careLevel,
           directAiPassed,
           systemPassed,
+          reasoningPassed,
           fallbackType: result.fallbackType,
           unavailable,
           aiModel: result.aiResponse?.aiModel,
@@ -211,6 +255,10 @@ describe('live AI triage plausibility evaluation', () => {
           'AI availability fallback used; this case cannot measure model correctness',
         ).toBe(false)
         expect(result.aiResponse?.careLevel).toBe(expectedCareLevel)
+        expect(
+          reasoningPassed,
+          'AI reasoning should explain why the expected care level is appropriate',
+        ).toBe(true)
       } catch (error) {
         if (!evaluationResults.some((result) => result.id === id)) {
           evaluationResults.push({
@@ -220,6 +268,7 @@ describe('live AI triage plausibility evaluation', () => {
             expectedCareLevel,
             directAiPassed: false,
             systemPassed: false,
+            reasoningPassed: false,
             fallbackType: 'none',
             unavailable: false,
             aiReasons: [],

@@ -10,6 +10,7 @@
     "test": "vitest run",
     "test:ai-triage": "vitest run --config vitest.live.config.ts",
     "test:ai-triage:specialties": "vitest run --config vitest.live.config.ts tests/live/triage-specialty.live.test.ts",
+    "test:ai-triage:freetext": "vitest run --config vitest.live.config.ts tests/live/triage-freetext.live.test.ts",
     "test:ai-triage:plausibility": "vitest run --config vitest.live.config.ts tests/live/triage-plausibility.live.test.ts",
     "test:watch": "vitest"
   },
