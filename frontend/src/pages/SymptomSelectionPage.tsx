@@ -1,16 +1,16 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { ClipboardEvent, FormEvent, KeyboardEvent, ReactNode } from "react";
+import type { ClipboardEvent, FormEvent, KeyboardEvent } from "react";
 import { useNavigate, useSearchParams } from "react-router";
-import { Brain, Check, Mic, MicOff, Sparkles, Trash2, X } from "lucide-react";
+import { Brain, Check, Mic, MicOff, PersonStanding, Sparkles, Trash2, X } from "lucide-react";
 import PageShell from "../components/PageShell";
 import Button from "../components/Button";
-import Modal from "../components/Modal";
 import SymptomButtonGrid from "../features/symptoms/SymptomButtonGrid";
 import { useAssessment } from "../lib/AssessmentContext";
 import { extractSymptomsFromText } from "../lib/symptomExtractionApi";
 import {
   BODY_AREA_LABELS,
   BODY_AREA_REGION_IDS,
+  BODY_REGIONS,
   EMERGENCY_SYMPTOM_OPTIONS,
   getBodyRegionsForCategory,
   MAX_SYMPTOMS,
@@ -60,6 +60,7 @@ type BrowserSpeechRecognition = {
 };
 
 type BrowserSpeechRecognitionConstructor = new () => BrowserSpeechRecognition;
+type SymptomInputMode = "body" | "freeText";
 
 declare global {
   interface Window {
@@ -101,61 +102,6 @@ function limitTextToMaxCharacters(text: string) {
 
 function exceedsSymptomTextLimit(text: string) {
   return getCharacterCount(text) > MAX_SYMPTOM_TEXT_CHARACTERS;
-}
-
-type VerticalProgressIconButtonProps = {
-  children: ReactNode;
-  onClick: () => void;
-  disabled?: boolean;
-  ariaLabel: string;
-  ariaPressed?: boolean;
-  title?: string;
-  className: string;
-  fillClassName?: string;
-  progress?: number;
-  showProgress?: boolean;
-};
-
-/**
- * Circular icon button with a progress fill that grows from bottom to top.
- *
- * The fill mirrors the horizontal loading bar pattern used elsewhere, but is
- * shaped for the compact dictation modal actions.
- */
-function VerticalProgressIconButton({
-  children,
-  onClick,
-  disabled = false,
-  ariaLabel,
-  ariaPressed,
-  title,
-  className,
-  fillClassName = "bg-white/25",
-  progress = 0,
-  showProgress = false,
-}: VerticalProgressIconButtonProps) {
-  const clampedProgress = Math.min(100, Math.max(0, progress));
-
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={disabled}
-      className={`relative flex h-16 w-16 items-center justify-center overflow-hidden rounded-full shadow-lg transition-all disabled:cursor-not-allowed ${className}`}
-      aria-label={ariaLabel}
-      aria-pressed={ariaPressed}
-      title={title}
-    >
-      <span
-        className={`absolute inset-x-0 bottom-0 transition-[height] duration-500 ease-out ${fillClassName}`}
-        style={{ height: showProgress ? `${clampedProgress}%` : "0%" }}
-        aria-hidden="true"
-      />
-      <span className="relative z-[1] flex items-center justify-center">
-        {children}
-      </span>
-    </button>
-  );
 }
 
 /**
@@ -235,26 +181,6 @@ function getUniqueExtractedSymptoms(symptoms: TriageSymptom[]): TriageSymptom[] 
   return uniqueSymptoms;
 }
 
-function mergeSelectedSymptoms(existingSymptoms: SelectedSymptom[], incomingSymptoms: SelectedSymptom[]) {
-  const mergedSymptoms = [...existingSymptoms];
-  const seenSymptomKeys = new Set(existingSymptoms.map(getSymptomKey));
-
-  for (const symptom of incomingSymptoms) {
-    const symptomKey = getSymptomKey(symptom);
-
-    if (!seenSymptomKeys.has(symptomKey)) {
-      mergedSymptoms.push(symptom);
-      seenSymptomKeys.add(symptomKey);
-    }
-
-    if (mergedSymptoms.length >= MAX_SYMPTOMS) {
-      break;
-    }
-  }
-
-  return mergedSymptoms.slice(0, MAX_SYMPTOMS);
-}
-
 /**
  * Validates the category query parameter before it is used as state.
  *
@@ -307,6 +233,37 @@ function formatSelectedCategoryLabel(category: BodyAreaCategory | null, selected
   }
 
   return BODY_AREA_LABELS[category];
+}
+
+function getBodyAreaCategoryForSymptom(symptom: SelectedSymptom): BodyAreaCategory | null {
+  const matchingRegion = BODY_REGIONS.find((region) => region.name === symptom.region);
+
+  if (!matchingRegion) {
+    return null;
+  }
+
+  const preferredCategories: BodyAreaCategory[] = ["head", "neck", "torso", "hips", "arms", "legs", "mental", "general"];
+
+  return preferredCategories.find((category) => BODY_AREA_REGION_IDS[category].includes(matchingRegion.id)) ?? null;
+}
+
+function getBodySideSelectionForSymptom(
+  category: BodyAreaCategory | null,
+  symptom: SelectedSymptom,
+): BodySideSelection | null {
+  if (!category || !isSideAwareCategory(category) || !symptom.side) {
+    return null;
+  }
+
+  if (symptom.side.startsWith("Links")) {
+    return { category, side: "Links" };
+  }
+
+  if (symptom.side.startsWith("Rechts")) {
+    return { category, side: "Rechts" };
+  }
+
+  return null;
 }
 
 /**
@@ -625,7 +582,8 @@ export default function SymptomSelectionPage() {
   const [selectedCategory, setSelectedCategory] = useState<BodyAreaCategory | null>(initialCategory);
   const [selectedBodySide, setSelectedBodySide] = useState<BodySideSelection | null>(initialBodySide);
   const [selectedSymptoms, setSelectedSymptoms] = useState<SelectedSymptom[]>(contextSymptoms);
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [activeSelectionSlotIndex, setActiveSelectionSlotIndex] = useState<number | null>(null);
+  const [inputMode, setInputMode] = useState<SymptomInputMode>(symptomText.trim() && contextSymptoms.length === 0 ? "freeText" : "body");
   const [symptomTextDraft, setSymptomTextDraft] = useState(symptomText);
   const [isExtractingSymptoms, setIsExtractingSymptoms] = useState(false);
   const [symptomExtractionProgress, setSymptomExtractionProgress] = useState(0);
@@ -651,12 +609,12 @@ export default function SymptomSelectionPage() {
     return selectedRegionKeys.filter((symptomKey) => symptomKey.includes(`(${selectedBodySide.side}`));
   }, [selectedBodySide, selectedCategory, selectedRegionKeys]);
   const shouldShowInlineOptions = false;
-  const remainingSymptomSlots = Math.max(0, MAX_SYMPTOMS - selectedSymptoms.length);
   const symptomTextCharacterCount = useMemo(() => getCharacterCount(symptomTextDraft), [symptomTextDraft]);
   const formattedRecordingElapsed = formatRecordingDuration(recordingElapsedSeconds);
   const formattedMaxRecordingDuration = formatRecordingDuration(MAX_RECORDING_DURATION_SECONDS);
-  const actionButtonProgress = symptomExtractionProgress;
-  const symptomTextAreaClassName = `w-full h-40 bg-[#eff2f6] rounded-[16px] p-4 resize-none border-none outline-none font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-body text-base disabled:cursor-not-allowed disabled:text-app-text-muted ${
+  const isBodyMode = inputMode === "body";
+  const isFreeTextMode = inputMode === "freeText";
+  const symptomTextAreaClassName = `w-full h-36 bg-[#eff2f6] rounded-[16px] p-4 resize-none border-none outline-none font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-body text-base disabled:cursor-not-allowed disabled:text-app-text-muted ${
     isExtractingSymptoms ? "focus:ring-0" : "focus:ring-2 focus:ring-[#486284]"
   }`;
 
@@ -744,13 +702,6 @@ export default function SymptomSelectionPage() {
     }
   };
 
-  const cancelSymptomExtraction = () => {
-    symptomExtractionRequestVersionRef.current += 1;
-    clearSymptomExtractionProgressInterval();
-    setIsExtractingSymptoms(false);
-    setSymptomExtractionProgress(0);
-  };
-
   const resetRecordingTimer = () => {
     clearRecordingTimerInterval();
     setRecordingElapsedSeconds(0);
@@ -795,6 +746,10 @@ export default function SymptomSelectionPage() {
    * partial recognition updates can be displayed without duplicating words.
    */
   const handleToggleSymptomRecording = () => {
+    if (!isFreeTextMode) {
+      setInputMode("freeText");
+    }
+
     if (isRecordingSymptoms) {
       stopSymptomRecording();
       return;
@@ -899,6 +854,9 @@ export default function SymptomSelectionPage() {
    */
   useEffect(() => {
     setSelectedSymptoms(contextSymptoms);
+    setActiveSelectionSlotIndex((currentIndex) =>
+      currentIndex !== null && currentIndex >= contextSymptoms.length ? null : currentIndex,
+    );
   }, [contextSymptoms]);
 
   /**
@@ -922,6 +880,11 @@ export default function SymptomSelectionPage() {
    * browser navigation restore the currently opened body area.
    */
   const handleCategorySelect = (category: BodyAreaCategory, side?: BodySide) => {
+    if (!isBodyMode) {
+      setInputMode("body");
+      return;
+    }
+
     const nextBodySide: BodySideSelection | null =
       isSideAwareCategory(category) && side ? { category, side } : null;
     const isSameBodySide =
@@ -946,12 +909,57 @@ export default function SymptomSelectionPage() {
     }
   };
 
+  const scrollToSymptomOptions = () => {
+    if (window.innerWidth >= 768) {
+      return;
+    }
+
+    window.setTimeout(() => {
+      symptomOptionsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 80);
+  };
+
+  const focusSelectionSlot = (index: number) => {
+    setInputMode("body");
+    setActiveSelectionSlotIndex(index);
+
+    const symptom = selectedSymptoms[index];
+
+    if (!symptom) {
+      scrollToSymptomOptions();
+      return;
+    }
+
+    const category = getBodyAreaCategoryForSymptom(symptom);
+    const bodySide = getBodySideSelectionForSymptom(category, symptom);
+
+    if (category) {
+      setSelectedCategory(category);
+      setSelectedBodySide(bodySide);
+      setSearchParams(bodySide ? { category, side: bodySide.side } : { category });
+    }
+
+    scrollToSymptomOptions();
+  };
+
+  const handleSelectionSlotKeyDown = (event: KeyboardEvent<HTMLDivElement>, index: number) => {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      focusSelectionSlot(index);
+    }
+  };
+
   /**
    * Adds or removes a specific symptom selection.
    * Emergency suboptions short-circuit into the emergency result, while normal
    * symptoms are capped to the maximum count supported by the details step.
    */
   const handleRegionSelect = (regionName: string, side?: string) => {
+    if (!isBodyMode) {
+      setInputMode("body");
+      return;
+    }
+
     // Red-flag suboptions bypass the normal selection flow and route straight to emergency.
     if (side && EMERGENCY_SYMPTOM_OPTIONS.includes(side)) {
       const params = new URLSearchParams({
@@ -974,6 +982,9 @@ export default function SymptomSelectionPage() {
       const nextSymptoms = selectedSymptoms.filter((symptom) => getSymptomKey(symptom) !== symptomKey);
       setSelectedSymptoms(nextSymptoms);
       setContextSymptoms(nextSymptoms);
+      setActiveSelectionSlotIndex((currentIndex) =>
+        currentIndex !== null && currentIndex >= nextSymptoms.length ? null : currentIndex,
+      );
       setContextSymptomDetails(
         contextSymptomDetails.filter((symptom) => getSymptomKey(symptom) !== symptomKey),
       );
@@ -984,6 +995,7 @@ export default function SymptomSelectionPage() {
       const nextSymptoms = [...selectedSymptoms, { region: regionName, side: localizedSide }];
       setSelectedSymptoms(nextSymptoms);
       setContextSymptoms(nextSymptoms);
+      setActiveSelectionSlotIndex(nextSymptoms.length - 1);
     }
   };
 
@@ -992,6 +1004,17 @@ export default function SymptomSelectionPage() {
     const nextSymptoms = selectedSymptoms.filter((_, symptomIndex) => symptomIndex !== index);
     setSelectedSymptoms(nextSymptoms);
     setContextSymptoms(nextSymptoms);
+    setActiveSelectionSlotIndex((currentIndex) => {
+      if (currentIndex === null) {
+        return null;
+      }
+
+      if (currentIndex === index) {
+        return null;
+      }
+
+      return currentIndex > index ? currentIndex - 1 : currentIndex;
+    });
 
     if (removedSymptom) {
       const removedSymptomKey = getSymptomKey(removedSymptom);
@@ -999,20 +1022,6 @@ export default function SymptomSelectionPage() {
         contextSymptomDetails.filter((symptom) => getSymptomKey(symptom) !== removedSymptomKey),
       );
     }
-  };
-
-  const openSymptomTextModal = () => {
-    setSymptomTextDraft(symptomText);
-    setSymptomTextError(null);
-    setIsModalOpen(true);
-  };
-
-  const handleCloseSymptomTextModal = () => {
-    stopSymptomRecording();
-    cancelSymptomExtraction();
-    setIsModalOpen(false);
-    setSymptomTextDraft(symptomText);
-    setSymptomTextError(null);
   };
 
   const handleContinue = () => {
@@ -1083,21 +1092,19 @@ export default function SymptomSelectionPage() {
         return;
       }
 
-      const extractedSelection = extractedSymptoms.map(({ region, side }) => ({ region, side }));
-      const mergedSelection = mergeSelectedSymptoms(selectedSymptoms, extractedSelection);
-      const mergedSelectionKeys = new Set(mergedSelection.map(getSymptomKey));
+      const extractedSelection = extractedSymptoms.map(({ region, side }) => ({ region, side })).slice(0, MAX_SYMPTOMS);
+      const extractedSelectionKeys = new Set(extractedSelection.map(getSymptomKey));
       const extractedSymptomsForDetails = extractedSymptoms.filter((symptom) =>
-        mergedSelectionKeys.has(getSymptomKey(symptom)),
+        extractedSelectionKeys.has(getSymptomKey(symptom)),
       );
 
       setSymptomText(trimmedSymptomText);
-      setSelectedSymptoms(mergedSelection);
-      setContextSymptoms(mergedSelection);
+      setSelectedSymptoms(extractedSelection);
+      setContextSymptoms(extractedSelection);
       setContextSymptomDetails(
-        contextSymptomDetails.filter((symptom) => mergedSelectionKeys.has(getSymptomKey(symptom))),
+        contextSymptomDetails.filter((symptom) => extractedSelectionKeys.has(getSymptomKey(symptom))),
       );
       setSymptomExtractionProgress(100);
-      setIsModalOpen(false);
       navigate("/symptom-details", { state: { extractedSymptoms: extractedSymptomsForDetails } });
     } catch (error) {
       if (symptomExtractionRequestVersionRef.current === requestVersion) {
@@ -1112,66 +1119,89 @@ export default function SymptomSelectionPage() {
     }
   };
 
-  const renderSymptomTextButton = (className = "") => (
-    <div className={`${className} rounded-[18px] border-2 border-[#cfd5dd] bg-white p-3 shadow-sm`}>
-      <div className="mb-3 border-b border-[#d7dee7] pb-3">
-        <p
-          className="font-['DM_Sans:Bold',sans-serif] font-bold text-app-text-primary text-sm"
-          style={{ fontVariationSettings: "'opsz' 14" }}
-        >
-          Freitext und Spracheingabe
-        </p>
-        <p
-          className="mt-1 font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-muted text-xs leading-snug"
-          style={{ fontVariationSettings: "'opsz' 14" }}
-        >
-          Ihre ausgewählten Beschwerden bleiben erhalten. Freitext ergänzt freie Plätze.
-        </p>
-      </div>
-      <button
-        type="button"
-        onClick={openSymptomTextModal}
-        className={`w-full rounded-[16px] border-2 bg-[#f5f7fa] p-4 text-left text-app-text-body transition-all hover:border-[#486284] hover:bg-[#eff2f6] ${
-          symptomText.trim() ? "border-[#486284]" : "border-[#d7dee7]"
-        }`}
-      >
-        <div className="flex items-start gap-3">
-          <div className="flex size-11 flex-shrink-0 items-center justify-center rounded-full bg-[#486284] text-app-text-on-primary shadow-md">
-            <Mic className="size-5" aria-hidden="true" />
-          </div>
-          <div>
-            <p
-              className="font-['DM_Sans:Bold',sans-serif] font-bold text-app-text-primary text-sm"
-              style={{ fontVariationSettings: "'opsz' 14" }}
-            >
-              {selectedSymptoms.length > 0 ? "Weitere Symptome beschreiben" : "Symptome beschreiben"}
-            </p>
-            <p
-              className="font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-primary text-xs leading-snug"
-              style={{ fontVariationSettings: "'opsz' 14" }}
-            >
-              {remainingSymptomSlots > 0
-                ? `Per Freitext oder Spracheingabe ergänzen (${remainingSymptomSlots} frei)`
-                : "Maximale Anzahl erreicht"}
-            </p>
-          </div>
-        </div>
-      </button>
-    </div>
-  );
-
   return (
     <PageShell
-      title="Wo haben Sie Beschwerden?"
-      subtitle="Wählen Sie einen Bereich am Körper und ergänzen Sie bis zu 3 passende Beschwerden."
+      title="Wie möchten Sie Ihre Beschwerden angeben?"
+      subtitle="Wählen Sie einen Eingabemodus. Sie können jederzeit wechseln."
       onBack={() => navigate("/pre-existing-conditions")}
-      maxWidth="2xl"
     >
-      <div className="grid grid-cols-1 lg:grid-cols-[360px_minmax(0,1fr)] gap-5 xl:gap-6 items-start">
-        <div>
-          <div className="shadow-md rounded-[18px] bg-[#f5f7fa] border-2 border-[#486284FF] p-4">
+      <div className="mb-5 rounded-[20px] border border-[#d7dee7] bg-[#f5f7fa] p-2 shadow-sm">
+        <div className="grid grid-cols-2 gap-2" role="tablist" aria-label="Eingabemodus wählen">
+          <button
+            type="button"
+            role="tab"
+            aria-selected={isBodyMode}
+            onClick={() => setInputMode("body")}
+            className={`rounded-[16px] px-4 py-3 text-left transition-all ${
+              isBodyMode ? "bg-white text-app-text-primary shadow-md" : "text-app-text-muted hover:bg-white/60"
+            }`}
+          >
+            <span className="flex items-center gap-3">
+              <span
+                className={`flex size-10 flex-shrink-0 items-center justify-center rounded-full ${
+                  isBodyMode ? "bg-[#486284] text-app-text-on-primary" : "bg-white text-app-text-primary"
+                }`}
+              >
+                <PersonStanding className="size-5" aria-hidden="true" />
+              </span>
+              <span>
+                <span
+                  className="block font-['DM_Sans:Bold',sans-serif] text-sm font-bold"
+                  style={{ fontVariationSettings: "'opsz' 14" }}
+                >
+                  Körperstelle auswählen
+                </span>
+                <span
+                  className="mt-0.5 hidden font-['DM_Sans:Medium',sans-serif] text-xs font-medium sm:block"
+                  style={{ fontVariationSettings: "'opsz' 14" }}
+                >
+                  Für klare lokale Beschwerden
+                </span>
+              </span>
+            </span>
+          </button>
+
+          <button
+            type="button"
+            role="tab"
+            aria-selected={isFreeTextMode}
+            onClick={() => setInputMode("freeText")}
+            className={`rounded-[16px] px-4 py-3 text-left transition-all ${
+              isFreeTextMode ? "bg-white text-app-text-primary shadow-md" : "text-app-text-muted hover:bg-white/60"
+            }`}
+          >
+            <span className="flex items-center gap-3">
+              <span
+                className={`flex size-10 flex-shrink-0 items-center justify-center rounded-full ${
+                  isFreeTextMode ? "bg-[#486284] text-app-text-on-primary" : "bg-white text-app-text-primary"
+                }`}
+              >
+                <Mic className="size-5" aria-hidden="true" />
+              </span>
+              <span>
+                <span
+                  className="block font-['DM_Sans:Bold',sans-serif] text-sm font-bold"
+                  style={{ fontVariationSettings: "'opsz' 14" }}
+                >
+                  Frei beschreiben
+                </span>
+                <span
+                  className="mt-0.5 hidden font-['DM_Sans:Medium',sans-serif] text-xs font-medium sm:block"
+                  style={{ fontVariationSettings: "'opsz' 14" }}
+                >
+                  Für Sprache oder eigene Worte
+                </span>
+              </span>
+            </span>
+          </button>
+        </div>
+      </div>
+
+      {isBodyMode ? (
+        <div className="grid w-full grid-cols-1 gap-5 lg:grid-cols-[360px_minmax(0,1fr)] xl:gap-6">
+          <section className="rounded-[20px] border-2 border-[#486284] bg-[#f5f7fa] p-4 shadow-md">
             <p
-              className="mb-3 text-center font-['DM_Sans:Bold',sans-serif] font-bold text-app-text-primary text-sm"
+              className="mb-3 text-center font-['DM_Sans:Bold',sans-serif] text-sm font-bold text-app-text-primary"
               style={{ fontVariationSettings: "'opsz' 14" }}
             >
               Bereich wählen
@@ -1207,13 +1237,13 @@ export default function SymptomSelectionPage() {
                       </div>
                       <div>
                         <p
-                          className="font-['DM_Sans:Bold',sans-serif] font-bold text-sm"
+                          className="font-['DM_Sans:Bold',sans-serif] text-sm font-bold"
                           style={{ fontVariationSettings: "'opsz' 14" }}
                         >
                           {area.label}
                         </p>
                         <p
-                          className={`font-['DM_Sans:Medium',sans-serif] font-medium text-xs leading-snug ${
+                          className={`font-['DM_Sans:Medium',sans-serif] text-xs font-medium leading-snug ${
                             isSelected ? "text-app-text-on-primary/85" : "text-app-text-primary"
                           }`}
                           style={{ fontVariationSettings: "'opsz' 14" }}
@@ -1226,249 +1256,270 @@ export default function SymptomSelectionPage() {
                 );
               })}
             </div>
-          </div>
-          {renderSymptomTextButton("mt-3 lg:hidden")}
-        </div>
+          </section>
 
-        <div>
-          <div className={`mb-4 shadow-md rounded-[18px] border-2 bg-[#f5f7fa] p-3 transition-all ${selectedSymptoms.length > 0 ? "border-[#486284]" : "border-transparent"}`}>
-            <div className="mb-2 flex items-center justify-between">
-              <p
-                className="font-['DM_Sans:Bold',sans-serif] font-bold text-app-text-primary text-sm"
-                style={{ fontVariationSettings: "'opsz' 14" }}
-              >
-                Ihre Auswahl
-              </p>
-              <p
-                className="font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-primary text-xs"
-                style={{ fontVariationSettings: "'opsz' 14" }}
-              >
-                {selectedSymptoms.length}/{MAX_SYMPTOMS}
-              </p>
-            </div>
-            <div className="flex flex-wrap gap-2 md:grid md:grid-cols-3">
-            {Array.from({ length: MAX_SYMPTOMS }).map((_, index) => {
-              const symptom = selectedSymptoms[index];
-
-              return (
-                <div
-                  key={index}
-                  className={`min-h-0 rounded-full border px-3 py-2 md:min-h-[68px] md:rounded-[12px] md:p-3 ${
-                    symptom ? "border-[#486284] bg-white text-app-text-body" : "border-dashed border-[#cfd5dd] bg-white/70 text-app-text-muted"
-                  }`}
+          <section className="">
+            <div className={`mb-4 rounded-[18px] border-2 bg-[#f5f7fa] p-3 transition-all ${selectedSymptoms.length > 0 ? "border-[#486284]" : "border-transparent"}`}>
+              <div className="mb-2 flex items-center justify-between">
+                <p
+                  className="font-['DM_Sans:Bold',sans-serif] text-sm font-bold text-app-text-primary"
+                  style={{ fontVariationSettings: "'opsz' 14" }}
                 >
-                  <div className="flex items-center justify-between gap-2 md:items-start">
-                    <div>
-                      <p
-                        className="hidden font-['DM_Sans:Bold',sans-serif] font-bold text-xs mb-1 md:block"
-                        style={{ fontVariationSettings: "'opsz' 14" }}
-                      >
-                        Beschwerde {index + 1}
-                      </p>
-                      <p
-                        className="font-['DM_Sans:SemiBold',sans-serif] font-semibold text-xs leading-tight md:text-sm"
-                        style={{ fontVariationSettings: "'opsz' 14" }}
-                      >
-                        {symptom ? getSymptomKey(symptom) : `${index + 1}. frei`}
-                      </p>
+                  Ihre Auswahl
+                </p>
+                <p
+                  className="font-['DM_Sans:Medium',sans-serif] text-xs font-medium text-app-text-primary"
+                  style={{ fontVariationSettings: "'opsz' 14" }}
+                >
+                  {selectedSymptoms.length}/{MAX_SYMPTOMS}
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-2 md:grid md:grid-cols-3">
+                {Array.from({ length: MAX_SYMPTOMS }).map((_, index) => {
+                  const symptom = selectedSymptoms[index];
+                  const isActiveSlot = activeSelectionSlotIndex === index;
+
+                  return (
+                    <div
+                      key={index}
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => focusSelectionSlot(index)}
+                      onKeyDown={(event) => handleSelectionSlotKeyDown(event, index)}
+                      className={`min-h-0 cursor-pointer rounded-full border px-3 py-2 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#486284] md:min-h-[68px] md:rounded-[12px] md:p-3 ${
+                        symptom ? "border-[#486284] bg-white text-app-text-body hover:bg-[#eff2f6]" : "border-dashed border-[#cfd5dd] bg-white/70 text-app-text-muted hover:border-[#486284] hover:bg-white"
+                      } ${isActiveSlot ? "ring-2 ring-[#486284] ring-offset-2" : ""}`}
+                      aria-label={
+                        symptom
+                          ? `${getSymptomKey(symptom)} anzeigen`
+                          : `Beschwerde ${index + 1} hinzufügen`
+                      }
+                    >
+                      <div className="flex items-center justify-between gap-2 md:items-start">
+                        <div>
+                          <p
+                            className="hidden font-['DM_Sans:Bold',sans-serif] text-xs font-bold md:mb-1 md:block"
+                            style={{ fontVariationSettings: "'opsz' 14" }}
+                          >
+                            Beschwerde {index + 1}
+                          </p>
+                          <p
+                            className="font-['DM_Sans:SemiBold',sans-serif] text-xs font-semibold leading-tight md:text-sm"
+                            style={{ fontVariationSettings: "'opsz' 14" }}
+                          >
+                            {symptom ? getSymptomKey(symptom) : `${index + 1}. hinzufügen`}
+                          </p>
+                        </div>
+                        {symptom && (
+                          <button
+                            type="button"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              removeSymptom(index);
+                            }}
+                            className="rounded-full p-0.5 text-app-text-primary hover:bg-[#eff2f6]"
+                            aria-label={`${getSymptomKey(symptom)} entfernen`}
+                          >
+                            <X className="size-3.5 md:size-4" aria-hidden="true" />
+                          </button>
+                        )}
+                      </div>
                     </div>
-                    {symptom && (
-                      <button
-                        type="button"
-                        onClick={() => removeSymptom(index)}
-                        className="rounded-full p-0.5 text-app-text-primary hover:bg-[#eff2f6]"
-                        aria-label={`${getSymptomKey(symptom)} entfernen`}
-                      >
-                        <X className="size-3.5 md:size-4" aria-hidden="true" />
-                      </button>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
+                  );
+                })}
+              </div>
             </div>
-          </div>
 
-
-          <div ref={symptomOptionsRef} className="scroll-mt-4" />
-          {selectedCategory ? (
-            <>
-              <div className="mb-3">
-                <p
-                  className="font-['DM_Sans:Bold',sans-serif] font-bold text-app-text-primary text-lg"
-                  style={{ fontVariationSettings: "'opsz' 14" }}
-                >
-                  {selectedCategoryLabel}
-                </p>
-                <p
-                  className="font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-primary text-sm"
-                  style={{ fontVariationSettings: "'opsz' 14" }}
-                >
-                  {selectedSymptoms.length}/{MAX_SYMPTOMS} Beschwerden ausgewählt
-                </p>
-                {selectedBodySide && selectedBodySide.category === selectedCategory && (
+            <div ref={symptomOptionsRef} className="scroll-mt-4" />
+            {selectedCategory ? (
+              <>
+                <div className="mb-3">
                   <p
-                    className="font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-muted text-xs"
+                    className="font-['DM_Sans:Bold',sans-serif] text-lg font-bold text-app-text-primary"
                     style={{ fontVariationSettings: "'opsz' 14" }}
                   >
-                    {BODY_SIDE_LABELS[selectedBodySide.side]}
+                    {selectedCategoryLabel}
                   </p>
-                )}
-              </div>
+                  <p
+                    className="font-['DM_Sans:Medium',sans-serif] text-sm font-medium text-app-text-primary"
+                    style={{ fontVariationSettings: "'opsz' 14" }}
+                  >
+                    Wählen Sie bis zu {MAX_SYMPTOMS} passende Beschwerden aus.
+                  </p>
+                  {selectedBodySide && selectedBodySide.category === selectedCategory && (
+                    <p
+                      className="font-['DM_Sans:Medium',sans-serif] text-xs font-medium text-app-text-muted"
+                      style={{ fontVariationSettings: "'opsz' 14" }}
+                    >
+                      {BODY_SIDE_LABELS[selectedBodySide.side]}
+                    </p>
+                  )}
+                </div>
 
-              <SymptomButtonGrid
-                onRegionSelect={handleRegionSelect}
-                regions={filteredRegions}
-                selectedRegions={selectedRegionKeysForGrid}
-                inlineOptions={shouldShowInlineOptions}
-              />
-            </>
-          ) : (
-            <div className="shadow-md flex min-h-[220px] items-center justify-center rounded-[18px] border-2 border-dashed border-[#cfd5dd] bg-[#f5f7fa] p-6 text-center">
+                <SymptomButtonGrid
+                  onRegionSelect={handleRegionSelect}
+                  regions={filteredRegions}
+                  selectedRegions={selectedRegionKeysForGrid}
+                  inlineOptions={shouldShowInlineOptions}
+                />
+              </>
+            ) : (
+              <div className="flex min-h-[220px] items-center justify-center rounded-[18px] border-2 border-dashed border-[#cfd5dd] bg-[#f5f7fa] p-6 text-center">
+                <p
+                  className="max-w-md font-['DM_Sans:Medium',sans-serif] text-sm font-medium leading-relaxed text-app-text-primary"
+                  style={{ fontVariationSettings: "'opsz' 14" }}
+                >
+                  Wählen Sie links zuerst einen Körperbereich aus. Danach erscheinen hier die passenden Beschwerden.
+                </p>
+              </div>
+            )}
+
+            <div className="mt-6 flex justify-end">
+              <Button onClick={handleContinue} disabled={selectedSymptoms.length === 0}>
+                <p
+                  className="font-['DM_Sans:Bold',sans-serif] text-base font-bold"
+                  style={{ fontVariationSettings: "'opsz' 14" }}
+                >
+                  Weiter
+                </p>
+              </Button>
+            </div>
+          </section>
+        </div>
+      ) : (
+        <section className="w-full min-w-0 rounded-[20px] border border-[#d7dee7] bg-white p-5 pb-10 shadow-md">
+          <div className="mb-4 flex items-start gap-3">
+            <div className="flex size-11 flex-shrink-0 items-center justify-center rounded-full bg-[#486284] text-app-text-on-primary shadow-md">
+              <Mic className="size-5" aria-hidden="true" />
+            </div>
+            <div>
               <p
-                className="max-w-md font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-primary text-sm leading-relaxed"
+                className="font-['DM_Sans:Bold',sans-serif] text-lg font-bold text-app-text-primary"
                 style={{ fontVariationSettings: "'opsz' 14" }}
               >
-                Wählen Sie zuerst oben am Körper, bei Allgemein oder bei Psyche einen Bereich aus. Danach erscheinen hier die passenden Beschwerden.
+                Beschwerden frei beschreiben
               </p>
+              <p
+                className="mt-1 font-['DM_Sans:Medium',sans-serif] text-sm font-medium leading-relaxed text-app-text-muted"
+                style={{ fontVariationSettings: "'opsz' 14" }}
+              >
+                Bitte beschreiben Sie Ihre Symptome in 1-2 Sätzen. Nennen Sie dabei Symptom, Stärke und Dauer.              </p>
+            </div>
+          </div>
+
+          <textarea
+            value={symptomTextDraft}
+            onBeforeInput={handleSymptomTextBeforeInput}
+            onChange={(event) => handleSymptomTextChange(event.target.value)}
+            onPaste={handleSymptomTextPaste}
+            disabled={isExtractingSymptoms}
+            maxLength={MAX_SYMPTOM_TEXT_CHARACTERS}
+            placeholder="z. B. Seit 3 Tagen starke Kopfschmerzen und leichte Übelkeit."
+            className={symptomTextAreaClassName}
+            style={{ fontVariationSettings: "'opsz' 14" }}
+          />
+
+          <div className="mt-2 flex items-center justify-between gap-3">
+            <span
+              className={`font-['DM_Sans:Medium',sans-serif] text-xs font-medium ${
+                symptomTextCharacterCount >= MAX_SYMPTOM_TEXT_CHARACTERS ? "text-red-700" : "text-app-text-muted"
+              }`}
+              style={{ fontVariationSettings: "'opsz' 14" }}
+            >
+              {symptomTextCharacterCount}/{MAX_SYMPTOM_TEXT_CHARACTERS} Zeichen
+            </span>
+            {isRecordingSymptoms && (
+              <span
+                className="font-['DM_Sans:Medium',sans-serif] text-xs font-medium text-app-text-primary"
+                style={{ fontVariationSettings: "'opsz' 14" }}
+              >
+                Aufnahme {formattedRecordingElapsed} / {formattedMaxRecordingDuration}
+              </span>
+            )}
+          </div>
+
+          {symptomTextError && (
+            <div className="mt-3 rounded-[14px] border border-red-200 bg-red-50 p-3 text-sm font-medium text-red-700">
+              {symptomTextError}
             </div>
           )}
 
-          {renderSymptomTextButton("mt-4 hidden lg:block")}
-
-          <div className="mt-6 flex justify-end">
-            <Button onClick={handleContinue} disabled={selectedSymptoms.length === 0}>
-              <p
-                className="font-['DM_Sans:Bold',sans-serif] font-bold text-base"
+          <div className="mt-6 grid grid-cols-3 items-start">
+            <div className="relative flex h-16 w-16 items-center justify-center justify-self-start">
+              <button
+                type="button"
+                onClick={handleClearSymptomText}
+                disabled={isExtractingSymptoms || symptomTextDraft.length === 0}
+                className="flex h-16 w-16 items-center justify-center rounded-full bg-red-600 text-white shadow-lg transition-all hover:bg-red-700 disabled:cursor-not-allowed disabled:bg-red-600/35"
+                aria-label="Freitext löschen"
+                title="Freitext löschen"
+              >
+                <Trash2 className="size-8" aria-hidden="true" />
+              </button>
+              <span
+                className="absolute left-1/2 top-[calc(100%+0.5rem)] min-h-4 w-24 -translate-x-1/2 text-center font-['DM_Sans:Medium',sans-serif] text-xs font-medium text-app-text-primary"
                 style={{ fontVariationSettings: "'opsz' 14" }}
               >
-                Weiter
-              </p>
-            </Button>
+                Löschen
+              </span>
+            </div>
+
+            <div className="relative flex h-16 w-16 items-center justify-center justify-self-center">
+              <button
+                type="button"
+                onClick={handleToggleSymptomRecording}
+                disabled={isExtractingSymptoms}
+                className={`flex h-16 w-16 items-center justify-center rounded-full text-app-text-on-primary shadow-lg transition-all disabled:cursor-not-allowed disabled:bg-[#486284]/25 ${
+                  isRecordingSymptoms
+                    ? "animate-pulse bg-red-600 hover:bg-red-700"
+                    : "bg-[#486284] hover:bg-[#3a4d68]"
+                }`}
+                aria-label={isRecordingSymptoms ? "Spracheingabe stoppen" : "Symptom diktieren"}
+                aria-pressed={isRecordingSymptoms}
+              >
+                {isRecordingSymptoms ? (
+                  <MicOff className="size-8" aria-hidden="true" />
+                ) : (
+                  <Mic className="size-8" aria-hidden="true" />
+                )}
+              </button>
+              <span
+                className="absolute left-1/2 top-[calc(100%+0.5rem)] min-h-4 w-48 -translate-x-1/2 text-center font-['DM_Sans:Medium',sans-serif] text-xs font-medium text-app-text-primary"
+                style={{ fontVariationSettings: "'opsz' 14" }}
+              >
+                {isRecordingSymptoms ? `${formattedRecordingElapsed} / ${formattedMaxRecordingDuration}` : "Diktieren"}
+              </span>
+            </div>
+
+            <div className="relative flex h-16 w-16 items-center justify-center justify-self-end">
+              <button
+                type="button"
+                onClick={handleApplySymptomText}
+                disabled={isExtractingSymptoms || symptomTextDraft.trim().length === 0}
+                className={`flex h-16 w-16 items-center justify-center rounded-full text-app-text-on-primary shadow-lg transition-all disabled:cursor-not-allowed ${
+                  isExtractingSymptoms || symptomTextDraft.trim().length === 0
+                    ? "bg-[#486284]/25"
+                    : "bg-[#486284] hover:bg-[#3a4d68]"
+                }`}
+                aria-label="Symptombeschreibung übernehmen"
+              >
+                {isExtractingSymptoms ? (
+                  <span className="size-7 animate-spin rounded-full border-4 border-white/35 border-t-white" aria-hidden="true" />
+                ) : (
+                  <Check className="size-8" strokeWidth={3} aria-hidden="true" />
+                )}
+              </button>
+              <span
+                className="absolute left-1/2 top-[calc(100%+0.5rem)] min-h-4 w-24 -translate-x-1/2 text-center font-['DM_Sans:Medium',sans-serif] text-xs font-medium text-app-text-primary"
+                style={{ fontVariationSettings: "'opsz' 14" }}
+              >
+                {isExtractingSymptoms ? "Lädt..." : "Bestätigen"}
+              </span>
+            </div>
           </div>
-        </div>
-      </div>
+        </section>
+      )}
 
-      <Modal
-        isOpen={isModalOpen}
-        onClose={handleCloseSymptomTextModal}
-        title="Beschreiben Sie Ihre Symptome"
-        subtitle={
-          selectedSymptoms.length > 0
-            ? "Bereits ausgewählte Beschwerden bleiben erhalten. Der Freitext ergänzt freie Beschwerdeplätze."
-            : "Bitte beschreiben Sie Ihre Symptome in 1-2 Sätzen. Nennen Sie dabei Symptom, Stärke und Dauer."
-        }
-        showCloseButton
-      >
-        <textarea
-          value={symptomTextDraft}
-          onBeforeInput={handleSymptomTextBeforeInput}
-          onChange={(event) => handleSymptomTextChange(event.target.value)}
-          onPaste={handleSymptomTextPaste}
-          disabled={isExtractingSymptoms}
-          maxLength={MAX_SYMPTOM_TEXT_CHARACTERS}
-          placeholder="z.B. Ich habe seit 3 Tagen starke Kopfschmerzen (7/10) und leichte Übelkeit."
-          className={symptomTextAreaClassName}
-          style={{ fontVariationSettings: "'opsz' 14" }}
-        />
-
-        <div className="mt-2 flex justify-end">
-          <span
-            className={`font-['DM_Sans:Medium',sans-serif] text-xs font-medium ${
-              symptomTextCharacterCount >= MAX_SYMPTOM_TEXT_CHARACTERS ? "text-red-700" : "text-app-text-muted"
-            }`}
-            style={{ fontVariationSettings: "'opsz' 14" }}
-          >
-            {symptomTextCharacterCount}/{MAX_SYMPTOM_TEXT_CHARACTERS} Zeichen
-          </span>
-        </div>
-
-        {symptomTextError && (
-          <div className="mt-3 rounded-[14px] border border-red-200 bg-red-50 p-3 text-sm font-medium text-red-700">
-            {symptomTextError}
-          </div>
-        )}
-
-        <div className="mt-6 grid grid-cols-3 items-start">
-          <div className="relative flex h-16 w-16 items-center justify-center justify-self-start">
-            <VerticalProgressIconButton
-              onClick={handleClearSymptomText}
-              disabled={isExtractingSymptoms || symptomTextDraft.length === 0}
-              className="bg-red-600 text-white hover:bg-red-700 disabled:bg-red-600/35"
-              fillClassName="bg-red-600"
-              progress={0}
-              showProgress={false}
-              ariaLabel="Freitext löschen"
-              title="Freitext löschen"
-            >
-              <Trash2 className="size-8" aria-hidden="true" />
-            </VerticalProgressIconButton>
-            <span
-              className="absolute left-1/2 top-[calc(100%+0.5rem)] min-h-4 w-24 -translate-x-1/2 text-center font-['DM_Sans:Medium',sans-serif] text-xs font-medium text-app-text-primary"
-              style={{ fontVariationSettings: "'opsz' 14" }}
-            >
-              Löschen
-            </span>
-          </div>
-
-          <div className="relative flex h-16 w-16 items-center justify-center justify-self-center">
-            <VerticalProgressIconButton
-              onClick={handleToggleSymptomRecording}
-              disabled={isExtractingSymptoms}
-              className={`text-app-text-on-primary disabled:bg-[#486284]/25 ${
-                isRecordingSymptoms
-                  ? "bg-red-600 hover:bg-red-700 animate-pulse"
-                  : "bg-[#486284] hover:bg-[#3a4d68]"
-              }`}
-              fillClassName="bg-[#486284]"
-              progress={0}
-              showProgress={false}
-              ariaLabel={isRecordingSymptoms ? "Spracheingabe stoppen" : "Symptom diktieren"}
-              ariaPressed={isRecordingSymptoms}
-            >
-              {isRecordingSymptoms ? (
-                <MicOff className="size-8" aria-hidden="true" />
-              ) : (
-                <Mic className="size-8" aria-hidden="true" />
-              )}
-            </VerticalProgressIconButton>
-            <span
-              className="absolute left-1/2 top-[calc(100%+0.5rem)] min-h-4 w-48 -translate-x-1/2 text-center font-['DM_Sans:Medium',sans-serif] text-xs font-medium text-app-text-primary"
-              style={{ fontVariationSettings: "'opsz' 14" }}
-            >
-              {isRecordingSymptoms ? `${formattedRecordingElapsed} / ${formattedMaxRecordingDuration}` : "Diktieren"}
-            </span>
-          </div>
-
-          <div className="relative flex h-16 w-16 items-center justify-center justify-self-end">
-            <VerticalProgressIconButton
-              onClick={handleApplySymptomText}
-              disabled={isExtractingSymptoms || symptomTextDraft.trim().length === 0}
-              className={`${
-                isExtractingSymptoms || symptomTextDraft.trim().length === 0
-                  ? "bg-[#486284]/25"
-                  : "bg-[#486284] hover:bg-[#3a4d68]"
-              } text-app-text-on-primary`}
-              fillClassName="bg-[#486284]"
-              progress={actionButtonProgress}
-              showProgress={false}
-              ariaLabel="Symptombeschreibung übernehmen"
-            >
-              {isExtractingSymptoms ? (
-                <span className="size-7 animate-spin rounded-full border-4 border-white/35 border-t-white" aria-hidden="true" />
-              ) : (
-                <Check className="size-8" strokeWidth={3} aria-hidden="true" />
-              )}
-            </VerticalProgressIconButton>
-            <span
-              className="absolute left-1/2 top-[calc(100%+0.5rem)] min-h-4 w-24 -translate-x-1/2 text-center font-['DM_Sans:Medium',sans-serif] text-xs font-medium text-app-text-primary"
-              style={{ fontVariationSettings: "'opsz' 14" }}
-            >
-              {isExtractingSymptoms ? "Lädt..." : "Bestätigen"}
-            </span>
-          </div>
-        </div>
-      </Modal>
     </PageShell>
   );
 }
