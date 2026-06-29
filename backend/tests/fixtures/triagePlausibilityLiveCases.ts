@@ -94,7 +94,7 @@ const anticoagulatedPatientData: PatientData = {
 /** Recent travel context for infectious-disease specialist triage cases. */
 const recentTropicalTravelPatientData: PatientData = {
   ...adultPatientData,
-  recentAbroad: true,
+  recentAbroad: 'Ja',
   recentAbroadDetails: 'Rueckkehr vor 10 Tagen aus Ghana nach zweiwoechigem Aufenthalt',
 }
 
@@ -102,7 +102,7 @@ const recentTropicalTravelPatientData: PatientData = {
 const copdPatientData: PatientData = {
   ...adultPatientData,
   conditions: ['COPD'],
-  isSmoker: true,
+  isSmoker: 'Ja',
   smokingSinceYears: '20',
   cigarettesPerDay: '15',
   conditionDetails: {
