@@ -92,6 +92,11 @@
   --sidebar-ring: oklch(0.439 0 0);
 }
 
+@theme {
+  /* Keep landscape phones in the mobile layout instead of switching to the tablet/desktop md breakpoint. */
+  --breakpoint-md: 60rem;
+}
+
 @theme inline {
   --color-background: var(--background);
   --color-app-text-primary: var(--app-text-primary);
@@ -167,7 +172,9 @@
 
   html {
     font-size: var(--font-size);
-    font-family: ui-sans-serif, system-ui, sans-serif;  }
+    font-family: ui-sans-serif, system-ui, sans-serif;
+    scrollbar-gutter: stable;
+  }
 
   h1 {
     font-size: var(--text-2xl);

@@ -9,7 +9,6 @@ type InlineOption = {
   icon: string;
   parentName: string;
   option: string;
-  options?: string[];
   isInlineOption: true;
 };
 type SymptomGridItem = BodyRegion | OtherRegion | InlineOption;
@@ -41,8 +40,9 @@ export default function SymptomButtonGrid({
       return;
     }
 
-    if ("isInlineOption" in region && !("options" in region && region.options?.length)) {
-      onRegionSelect(region.parentName, region.option);setExpandedRegion(null);
+    if ("isInlineOption" in region) {
+      onRegionSelect(region.parentName, region.option);
+      setExpandedRegion(null);
       return;
     }
 
@@ -71,10 +71,6 @@ export default function SymptomButtonGrid({
 
   const isItemSelected = (region: SymptomGridItem) => {
     if ("isInlineOption" in region) {
-      if ("options" in region && region.options?.length) {
-        return selectedRegions.some((selectedRegion) => selectedRegion.includes(`${region.name} (`));
-      }
-
       return selectedRegions.includes(`${region.parentName} (${region.option})`);
     }
 
@@ -84,10 +80,6 @@ export default function SymptomButtonGrid({
 
   const isItemExactSelected = (region: SymptomGridItem) => {
     if ("isInlineOption" in region) {
-      if ("options" in region && region.options?.length) {
-        return false;
-      }
-
       return selectedRegions.includes(`${region.parentName} (${region.option})`);
     }
 
@@ -116,7 +108,6 @@ export default function SymptomButtonGrid({
           icon: region.icon,
           parentName: region.name,
           option,
-          ...(region.id === "kopf" && option === "Gesicht" ? { options: ["Auge", "Ohr", "Kiefer"] } : {}),
           isInlineOption: true as const,
         }));
       })
@@ -136,7 +127,7 @@ export default function SymptomButtonGrid({
             onClick={() => handleRegionClick(region)}
             className={`w-full bg-[#eff2f6] shadow-md rounded-[16px] p-4 h-[120px] flex items-center justify-center text-center transition-all relative ${
               isItemSelected(region)
-                ? "ring-4 ring-[#486284]"
+                ? "ring-2 ring-[#486284]"
                 : "hover:bg-[#dde3ea]"
             }`}
             disabled={isSelectedItemDisabled || (selectedRegions.length >= MAX_SYMPTOMS && !isItemSelected(region))}
@@ -192,18 +183,22 @@ export default function SymptomButtonGrid({
                 const isSelectedOptionDisabled = disableSelectedRegions && selectedRegions.includes(optionKey);
 
                 return (
-                <button
-                  key={option}
-                  onClick={() => handleOptionClick(region.name, option)}
-                  disabled={isSelectedOptionDisabled}
-                  className={`w-full p-3 text-left transition-all border-b border-gray-200 last:border-b-0 ${
-                    isSelectedOptionDisabled ? "cursor-not-allowed bg-[#eff2f6] text-app-text-muted" : "hover:bg-[#eff2f6]"
-                  }`}
-                >
-                  <span className="font-['DM_Sans:Medium',sans-serif] font-medium text-sm text-app-text-body">
-                    {option}
-                  </span>
-                </button>
+                  <div key={option} className="border-b border-gray-200 last:border-b-0">
+                    <button
+                      type="button"
+                      onClick={() => handleOptionClick(region.name, option)}
+                      disabled={isSelectedOptionDisabled}
+                      className={`flex w-full items-center justify-between gap-3 p-3 text-left transition-all ${
+                        isSelectedOptionDisabled
+                          ? "cursor-not-allowed bg-[#eff2f6] text-app-text-muted"
+                          : "hover:bg-[#eff2f6]"
+                      }`}
+                    >
+                      <span className="font-['DM_Sans:Medium',sans-serif] font-medium text-sm text-app-text-body">
+                        {option}
+                      </span>
+                    </button>
+                  </div>
                 );
               })}
             </div>

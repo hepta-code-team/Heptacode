@@ -70,6 +70,11 @@ describe('symptom control components', () => {
       />,
     );
 
+    fireEvent.change(screen.getByRole('slider', { name: 'Schmerzstärke: 5 von 10' }), {
+      target: { value: '7' },
+    });
+    expect(onPainChange).toHaveBeenCalledWith(7);
+
     await user.click(screen.getByRole('button', { name: '8' }));
     expect(onPainChange).toHaveBeenCalledWith(8);
 
@@ -85,6 +90,11 @@ describe('symptom control components', () => {
         onValueChange={onTemperatureChange}
       />,
     );
+
+    fireEvent.change(screen.getByRole('slider', { name: 'Temperatur: 38.0 °C' }), {
+      target: { value: '40.5' },
+    });
+    expect(onTemperatureChange).toHaveBeenCalledWith(40.5);
 
     await user.click(screen.getByRole('button', { name: '39.5' }));
     expect(onTemperatureChange).toHaveBeenCalledWith(39.5);

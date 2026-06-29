@@ -164,11 +164,17 @@ describe('page-level user flows', () => {
     expect(navigateMock).toHaveBeenCalledWith('/patient-data');
   });
 
-  it('shows seven mobile steps including pre-existing conditions', () => {
+  it('shows the bottom mobile step navigation with arrows and only the active step name', () => {
     render(<MobileNavigation />);
 
-    expect(screen.getByText('Stammdaten eingeben')).toBeInTheDocument();
-    expect(screen.getByText('2 / 7')).toBeInTheDocument();
+    expect(screen.getByRole('navigation', { name: 'Mobile Schritte' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Zurück' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Weiter' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Gehe zu Stammdaten' })).toHaveAttribute('aria-current', 'step');
+    expect(screen.getByRole('button', { name: 'Gehe zu Vorerkrankungen' })).toBeInTheDocument();
+    expect(screen.queryByText('Stammdaten')).not.toBeInTheDocument();
+    expect(screen.queryByText('Vorerkrankungen')).not.toBeInTheDocument();
+    expect(screen.queryByAltText('HeptaCheck')).not.toBeInTheDocument();
   });
 
   it('shows patient-data validation errors before saving and navigating', async () => {
@@ -190,6 +196,11 @@ describe('page-level user flows', () => {
     expect(screen.getByText('Bitte Monat zwischen 1-12 wählen.')).toBeInTheDocument();
 
     fireEvent.change(screen.getByPlaceholderText('MM'), { target: { value: '12' } });
+    const currentDate = new Date();
+    const expectedAge = currentDate.getFullYear() - 1990 - (12 > currentDate.getMonth() + 1 ? 1 : 0);
+    expect(screen.getByText((_, element) =>
+      element?.tagName === 'P' && element.textContent === `Berechnetes Alter: ${expectedAge} Jahre`,
+    )).toBeInTheDocument();
     await user.click(screen.getAllByRole('button', { name: 'Weiter' }).at(-1)!);
 
     expect(setPatientDataMock).toHaveBeenCalledWith(expect.objectContaining({
@@ -221,6 +232,8 @@ describe('page-level user flows', () => {
     await user.click(screen.getAllByRole('button', { name: 'Ja' })[0]);
     await user.type(screen.getByPlaceholderText('Land / Region, falls bekannt'), 'Italien');
     await user.click(screen.getAllByRole('button', { name: 'Ja' })[1]);
+    await user.click(screen.getByRole('button', { name: /Rauchen/ }));
+    await user.click(screen.getAllByRole('button', { name: 'Ja' }).at(-1)!);
     await user.click(screen.getByRole('button', { name: 'Rauchdauer erhöhen' }));
     await user.click(screen.getByRole('button', { name: 'Zigaretten pro Tag erhöhen' }));
     await user.click(screen.getAllByRole('button', { name: 'Weiter' }).at(-1)!);
@@ -232,11 +245,42 @@ describe('page-level user flows', () => {
       recentAbroad: true,
       recentAbroadDetails: 'Italien',
       isPregnant: true,
+      smokingStatus: 'Ja',
       isSmoker: true,
       smokingSinceYears: '1',
       cigarettesPerDay: '1',
     }));
     expect(navigateMock).toHaveBeenCalledWith('/pre-existing-conditions');
+  });
+
+  it('keeps occasional smoking selected after medical data is persisted', async () => {
+    const user = userEvent.setup();
+    assessmentState.patientData = basePatientData;
+
+    const { unmount } = render(<MedicalDataPage />);
+
+    await user.click(screen.getByRole('button', { name: /Rauchen/ }));
+    await user.click(screen.getByRole('button', { name: 'Gelegentlich' }));
+
+    expect(setPatientDataMock).toHaveBeenCalledWith(expect.objectContaining({
+      smokingStatus: 'Gelegentlich',
+      isSmoker: true,
+    }));
+
+    assessmentState.patientData = {
+      ...basePatientData,
+      smokingStatus: 'Gelegentlich',
+      isSmoker: true,
+    };
+
+    unmount();
+    render(<MedicalDataPage />);
+
+    expect(screen.getByRole('button', { name: /Rauchen.*Gelegentlich ausgew/ })).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: /Rauchen/ }));
+
+    expect(screen.getByRole('button', { name: 'Gelegentlich' })).toHaveClass('bg-[#486284]');
+    expect(screen.getByRole('button', { name: 'Ja' })).not.toHaveClass('bg-[#486284]');
   });
 
   it('collects pre-existing conditions and continues to symptom selection', async () => {
@@ -326,11 +370,11 @@ describe('page-level user flows', () => {
 
     render(<SymptomSelectionPage />);
 
-    await user.click(screen.getAllByRole('button', { name: /Symptome beschreiben/ })[0]);
+    await user.click(screen.getByRole('tab', { name: /Frei beschreiben/ }));
     expect(screen.getByRole('button', { name: 'Symptombeschreibung übernehmen' })).toBeDisabled();
 
     await user.type(
-      screen.getByPlaceholderText(/Ich habe seit 3 Tagen/),
+      screen.getByPlaceholderText(/Seit 3 Tagen/),
       'Ich habe starke Kopfschmerzen und Bauchschmerzen.',
     );
     await user.click(screen.getByRole('button', { name: 'Symptombeschreibung übernehmen' }));
@@ -356,7 +400,7 @@ describe('page-level user flows', () => {
     });
   });
 
-  it('keeps users in the free-text modal when extraction returns invalid input', async () => {
+  it('keeps users in the free-text tab when extraction returns invalid input', async () => {
     const user = userEvent.setup();
     extractSymptomsFromTextMock.mockResolvedValue({
       text: 'hallo',
@@ -368,8 +412,8 @@ describe('page-level user flows', () => {
 
     render(<SymptomSelectionPage />);
 
-    await user.click(screen.getAllByRole('button', { name: /Symptome beschreiben/ })[0]);
-    await user.type(screen.getByPlaceholderText(/Ich habe seit 3 Tagen/), 'hallo');
+    await user.click(screen.getByRole('tab', { name: /Frei beschreiben/ }));
+    await user.type(screen.getByPlaceholderText(/Seit 3 Tagen/), 'hallo');
     await user.click(screen.getByRole('button', { name: 'Symptombeschreibung übernehmen' }));
 
     expect(await screen.findByText('Bitte medizinische Beschwerden beschreiben.')).toBeInTheDocument();

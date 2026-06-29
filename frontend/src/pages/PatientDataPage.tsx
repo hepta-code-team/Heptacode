@@ -88,6 +88,11 @@ const createInitialPatientData = (patientData?: Partial<PatientData>): PatientDa
   medications: "",
   medicationDuration: "",
   substanceInfluence: "Nein",
+  alcoholSince: "",
+  alcoholFrequencyPerDay: "",
+  drugDetails: "",
+  drugSince: "",
+  drugFrequencyPerDay: "",
   recentAbroad: false,
   recentAbroadDetails: "",
   conditions: [],
@@ -101,11 +106,27 @@ const createInitialPatientData = (patientData?: Partial<PatientData>): PatientDa
 export default function PatientDataPage() {
   const navigate = useNavigate();
   const { patientData, setPatientData } = useAssessment();
-  const currentYear = new Date().getFullYear();
+  const currentDate = new Date();
+  const currentYear = currentDate.getFullYear();
+  const currentMonth = currentDate.getMonth() + 1;
   const birthYearMin = currentYear - MAX_PATIENT_AGE_YEARS;
 
   const [formData, setFormData] = useState<PatientData>(() => createInitialPatientData(patientData ?? undefined));
   const [showValidationErrors, setShowValidationErrors] = useState(false);
+
+  const isBirthMonthInRange = isNumberInRange(formData.birthMonth, BIRTH_MONTH_MIN, BIRTH_MONTH_MAX);
+  const isBirthYearInRange = isNumberInRange(formData.birthYear, birthYearMin, currentYear);
+  const isFutureBirthDate =
+    isBirthMonthInRange &&
+    isBirthYearInRange &&
+    Number(formData.birthYear) === currentYear &&
+    Number(formData.birthMonth) > currentMonth;
+  const isBirthDateComplete = isBirthMonthInRange && isBirthYearInRange && !isFutureBirthDate;
+  const calculatedAge = isBirthDateComplete
+    ? currentYear -
+      Number(formData.birthYear) -
+      (Number(formData.birthMonth) > currentMonth ? 1 : 0)
+    : null;
 
   /**
    * Validates only the required demographic fields for the first step.
@@ -117,8 +138,7 @@ export default function PatientDataPage() {
     Boolean(formData.birthMonth && formData.birthYear && formData.gender) &&
     isNumberInRange(formData.height, HEIGHT_MIN, HEIGHT_MAX) &&
     isNumberInRange(formData.weight, WEIGHT_MIN, WEIGHT_MAX) &&
-    isNumberInRange(formData.birthMonth, BIRTH_MONTH_MIN, BIRTH_MONTH_MAX) &&
-    isNumberInRange(formData.birthYear, birthYearMin, currentYear);
+    isBirthDateComplete;
 
   const hasHeightError =
     (showValidationErrors || formData.height !== "") && !isNumberInRange(formData.height, HEIGHT_MIN, HEIGHT_MAX);
@@ -126,14 +146,14 @@ export default function PatientDataPage() {
     (showValidationErrors || formData.weight !== "") && !isNumberInRange(formData.weight, WEIGHT_MIN, WEIGHT_MAX);
   const hasBirthMonthError =
     (showValidationErrors || formData.birthMonth !== "") &&
-    !isNumberInRange(formData.birthMonth, BIRTH_MONTH_MIN, BIRTH_MONTH_MAX);
+    !isBirthMonthInRange;
   const hasBirthYearError =
     (showValidationErrors || formData.birthYear !== "") &&
-    !isNumberInRange(formData.birthYear, birthYearMin, currentYear);
+    !isBirthYearInRange;
+  const hasFutureBirthDateError =
+    (showValidationErrors || Boolean(formData.birthMonth && formData.birthYear)) &&
+    isFutureBirthDate;
   const hasGenderError = showValidationErrors && !formData.gender;
-  const isBirthDateComplete =
-    isNumberInRange(formData.birthMonth, BIRTH_MONTH_MIN, BIRTH_MONTH_MAX) &&
-    isNumberInRange(formData.birthYear, birthYearMin, currentYear);
   const isBodyMeasureComplete =
     isNumberInRange(formData.height, HEIGHT_MIN, HEIGHT_MAX) &&
     isNumberInRange(formData.weight, WEIGHT_MIN, WEIGHT_MAX);
@@ -258,10 +278,11 @@ export default function PatientDataPage() {
                 placeholder="MM"
                 min="1"
                 max="12"
+                aria-invalid={hasBirthMonthError || hasFutureBirthDateError}
                 value={formData.birthMonth}
                 onChange={(event) => setFormData({ ...formData, birthMonth: event.target.value })}
                 className={`bg-white text-xs h-8 ${
-                  hasBirthMonthError
+                  hasBirthMonthError || hasFutureBirthDateError
                     ? "border border-red-500 focus-visible:border-red-500 focus-visible:ring-red-500/30"
                     : "border-none"
                 }`}
@@ -283,7 +304,7 @@ export default function PatientDataPage() {
                 placeholder="JJJJ"
                 min={birthYearMin}
                 max={currentYear}
-                aria-invalid={hasBirthYearError}
+                aria-invalid={hasBirthYearError || hasFutureBirthDateError}
                 aria-describedby={hasBirthYearError ? "birth-year-error" : undefined}
                 value={formData.birthYear}
                 onChange={(event) => setFormData({ ...formData, birthYear: event.target.value })}
@@ -294,7 +315,7 @@ export default function PatientDataPage() {
                   handleEmptyNumberPointerStep(event, "birthYear", BIRTH_YEAR_DEFAULT, birthYearMin, currentYear)
                 }
                 className={`bg-white text-xs h-8 ${
-                  hasBirthYearError
+                  hasBirthYearError || hasFutureBirthDateError
                     ? "border border-red-500 focus-visible:border-red-500 focus-visible:ring-red-500/30"
                     : "border-none"
                 }`}
@@ -309,6 +330,19 @@ export default function PatientDataPage() {
               )}
             </div>
           </div>
+          {hasFutureBirthDateError && (
+            <p className="mt-1 text-xs font-medium text-app-text-danger">
+              Das Geburtsdatum darf nicht in der Zukunft liegen.
+            </p>
+          )}
+          {calculatedAge !== null && (
+            <p className="mt-1.5 text-xs font-medium text-[#486284]" aria-live="polite">
+              Berechnetes Alter:{" "}
+              <span className="font-semibold">
+                {calculatedAge} {calculatedAge === 1 ? "Jahr" : "Jahre"}
+              </span>
+            </p>
+          )}
         </div>
 
         <div className={getRequiredFieldCardClass(isBodyMeasureComplete)}>

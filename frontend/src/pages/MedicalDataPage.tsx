@@ -1,25 +1,16 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import type { ReactNode } from "react";
 import { useNavigate } from "react-router";
 import {
-  Activity,
   Baby,
-  Brain,
   Check,
   ChevronDown,
   Cigarette,
   CircleAlert,
-  CircleHelp,
-  Droplets,
   Globe2,
   HeartPulse,
   Pill,
-  RotateCcw,
-  ShieldAlert,
-  Stethoscope,
-  Wind,
   Wine,
-  X,
   type LucideIcon,
 } from "lucide-react";
 import PageShell from "../components/PageShell";
@@ -27,90 +18,14 @@ import Button from "../components/Button";
 import { useAssessment } from "../lib/AssessmentContext";
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
-import { PRE_EXISTING_CONDITIONS } from "../features/symptoms/symptoms.constants";
-import type { PatientData } from "../../../shared/patientData.types";
+import type { PatientData, SmokingStatus } from "../../../shared/patientData.types";
 
-type MedicalSection = "allergies" | "medications" | "substance" | "abroad";
-type SmokingStatus = "Nein" | "Gelegentlich" | "Ja";
-
-const conditionIcons = {
-  Diabetes: Droplets,
-  Bluthochdruck: Activity,
-  Herzerkrankungen: HeartPulse,
-  "Asthma/COPD": Wind,
-  Nierenerkrankungen: ShieldAlert,
-  Lebererkrankungen: Stethoscope,
-  Epilepsie: Pill,
-  "Psychische Erkrankung": Brain,
-  Sonstige: CircleHelp,
-};
-
-const CONDITION_DETAIL_CONFIGS: Record<
-  string,
-  { label: string; options: string[] }
-> = {
-  Diabetes: {
-    label: "Diabetes-Typ",
-    options: ["Typ 1", "Typ 2", "Schwangerschaftsdiabetes", "Unklar"],
-  },
-  Bluthochdruck: {
-    label: "Einstellung",
-    options: ["Gut eingestellt", "Schwankend", "Häufig erhöht", "Unklar"],
-  },
-  Herzerkrankungen: {
-    label: "Art der Herzerkrankung",
-    options: [
-      "Koronare Herzkrankheit",
-      "Herzrhythmusstörung",
-      "Herzinsuffizienz",
-      "Herzinfarkt früher",
-      "Unklar",
-    ],
-  },
-  "Asthma/COPD": {
-    label: "Art der Lungenerkrankung",
-    options: ["Asthma", "COPD", "Asthma + COPD", "Unklar"],
-  },
-  Nierenerkrankungen: {
-    label: "Art der Nierenerkrankung",
-    options: [
-      "Chronische Nierenerkrankung",
-      "Dialyse",
-      "Nierensteine",
-      "Wiederkehrende Infekte",
-      "Unklar",
-    ],
-  },
-  Lebererkrankungen: {
-    label: "Art der Lebererkrankung",
-    options: [
-      "Fettleber",
-      "Hepatitis",
-      "Leberzirrhose",
-      "Erhöhte Leberwerte",
-      "Unklar",
-    ],
-  },
-  Epilepsie: {
-    label: "Letzter Anfall",
-    options: [
-      "In den letzten 24 Stunden",
-      "In den letzten 4 Wochen",
-      "Länger her",
-      "Unklar",
-    ],
-  },
-  "Psychische Erkrankung": {
-    label: "Art der Erkrankung",
-    options: [
-      "Depressionen",
-      "Angststörung",
-      "Suchterkrankung",
-      "Zwangsstörung",
-    ],
-  },
-};
-
+type MedicalSection =
+  | "allergies"
+  | "medications"
+  | "substance"
+  | "abroad"
+  | "smoking";
 /**
  * Creates the medical-data form state with persisted values applied.
  *
@@ -131,15 +46,66 @@ const createInitialPatientData = (
   medications: "",
   medicationDuration: "",
   substanceInfluence: "Nein",
+  alcoholSince: "",
+  alcoholFrequencyPerDay: "",
+  drugDetails: "",
+  drugSince: "",
+  drugFrequencyPerDay: "",
   recentAbroad: false,
   recentAbroadDetails: "",
   conditions: [],
+  smokingStatus: "Nein",
   isSmoker: false,
   smokingSinceYears: "",
   cigarettesPerDay: "",
   conditionDetails: {},
   ...patientData,
 });
+
+function hasSubstance(value: string | undefined, substance: "Alkohol" | "Drogen") {
+  return Boolean(value?.toLowerCase().includes(substance.toLowerCase()));
+}
+
+function getSmokingStatus(patientData?: Partial<PatientData>): SmokingStatus {
+  return patientData?.smokingStatus ?? (patientData?.isSmoker ? "Ja" : "Nein");
+}
+
+function buildSubstanceInfluence(
+  data: Pick<
+    PatientData,
+    "alcoholSince" | "alcoholFrequencyPerDay" | "drugDetails" | "drugSince" | "drugFrequencyPerDay"
+  >,
+  selection: { alcohol: boolean; drugs: boolean },
+) {
+  const parts: string[] = [];
+
+  if (selection.alcohol) {
+    const details = [
+      data.alcoholSince?.trim() ? `seit ${data.alcoholSince.trim()}` : null,
+      data.alcoholFrequencyPerDay?.trim() ? `${data.alcoholFrequencyPerDay.trim()} pro Tag` : null,
+    ].filter(Boolean);
+
+    parts.push(details.length > 0 ? `Alkohol (${details.join(", ")})` : "Alkohol");
+  }
+
+  if (selection.drugs) {
+    const details = [
+      data.drugDetails?.trim() ? `Substanz: ${data.drugDetails.trim()}` : null,
+      data.drugSince?.trim() ? `seit ${data.drugSince.trim()}` : null,
+      data.drugFrequencyPerDay?.trim() ? `${data.drugFrequencyPerDay.trim()} pro Tag` : null,
+    ].filter(Boolean);
+
+    parts.push(details.length > 0 ? `Drogen (${details.join(", ")})` : "Drogen");
+  }
+
+  return parts.length > 0 ? parts.join("; ") : "Nein";
+}
+
+function getSubstanceSummary(data: PatientData) {
+  return data.substanceInfluence.trim() && data.substanceInfluence.trim() !== "Nein"
+    ? data.substanceInfluence
+    : "Optional ergänzen";
+}
 
 /**
  * Reusable disclosure panel for optional medical sections.
@@ -189,7 +155,7 @@ function MedicalAccordionPanel({
             {title}
           </span>
           <span
-            className="font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-primary text-xs block truncate"
+            className="font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-primary text-xs block whitespace-normal break-words leading-snug"
             style={{ fontVariationSettings: "'opsz' 14" }}
           >
             {summary}
@@ -251,12 +217,11 @@ function OptionButton({
 export default function MedicalDataPage() {
   const navigate = useNavigate();
   const { patientData, setPatientData } = useAssessment();
-  const conditionsGridRef = useRef<HTMLDivElement | null>(null);
   const [formData, setFormData] = useState<PatientData>(() =>
     createInitialPatientData(patientData ?? undefined),
   );
   const [smokingStatus, setSmokingStatus] = useState<SmokingStatus>(() =>
-    patientData?.isSmoker ? "Ja" : "Nein",
+    getSmokingStatus(patientData ?? undefined),
   );
   const [expandedMedicalSections, setExpandedMedicalSections] = useState<
     Record<MedicalSection, boolean>
@@ -265,27 +230,11 @@ export default function MedicalDataPage() {
     medications: false,
     substance: false,
     abroad: false,
+    smoking: false,
   });
   const [expandedConditionDetails, setExpandedConditionDetails] = useState<
     Record<string, boolean>
   >({});
-
-  /**
-   * Closes condition-detail dropdowns when the user clicks outside the grid.
-   *
-   * This keeps multiple inline popovers from staying open while users continue
-   * through the rest of the medical questionnaire.
-   */
-  useEffect(() => {
-    const handlePointerDown = (event: PointerEvent) => {
-      if (conditionsGridRef.current?.contains(event.target as Node)) return;
-      setExpandedConditionDetails({});
-    };
-
-    document.addEventListener("pointerdown", handlePointerDown);
-    return () => document.removeEventListener("pointerdown", handlePointerDown);
-  }, []);
-
   useEffect(() => {
     setPatientData(formData);
   }, [formData, setPatientData]);
@@ -430,6 +379,64 @@ export default function MedicalDataPage() {
     }));
   };
 
+  const updateSubstanceDetails = (
+    updates: Partial<
+      Pick<
+        PatientData,
+        "alcoholSince" | "alcoholFrequencyPerDay" | "drugDetails" | "drugSince" | "drugFrequencyPerDay"
+      >
+    >,
+  ) => {
+    setFormData((prev) => {
+      const nextData = { ...prev, ...updates };
+
+      return {
+        ...nextData,
+        substanceInfluence: buildSubstanceInfluence(nextData, {
+          alcohol: hasSubstance(prev.substanceInfluence, "Alkohol"),
+          drugs: hasSubstance(prev.substanceInfluence, "Drogen"),
+        }),
+      };
+    });
+  };
+
+  const toggleSubstanceInfluence = (substance: "Alkohol" | "Drogen") => {
+    setFormData((prev) => {
+      const nextSelection = {
+        alcohol:
+          substance === "Alkohol"
+            ? !hasSubstance(prev.substanceInfluence, "Alkohol")
+            : hasSubstance(prev.substanceInfluence, "Alkohol"),
+        drugs:
+          substance === "Drogen"
+            ? !hasSubstance(prev.substanceInfluence, "Drogen")
+            : hasSubstance(prev.substanceInfluence, "Drogen"),
+      };
+
+      const nextData: PatientData = {
+        ...prev,
+        ...(nextSelection.alcohol
+          ? {}
+          : {
+              alcoholSince: "",
+              alcoholFrequencyPerDay: "",
+            }),
+        ...(nextSelection.drugs
+          ? {}
+          : {
+              drugDetails: "",
+              drugSince: "",
+              drugFrequencyPerDay: "",
+            }),
+      };
+
+      return {
+        ...nextData,
+        substanceInfluence: buildSubstanceInfluence(nextData, nextSelection),
+      };
+    });
+  };
+
   const renderConditionDurationField = (
     condition: string,
     options: { showLabel?: boolean } = {},
@@ -500,6 +507,9 @@ export default function MedicalDataPage() {
   const handleSkip = () => {
     navigate("/pre-existing-conditions");
   };
+
+  const isAlcoholSelected = hasSubstance(formData.substanceInfluence, "Alkohol");
+  const isDrugSelected = hasSubstance(formData.substanceInfluence, "Drogen");
 
   return (
     <PageShell
@@ -627,33 +637,116 @@ export default function MedicalDataPage() {
           </MedicalAccordionPanel>
 
           <MedicalAccordionPanel
-            title="Einfluss durch Alkohol, Drogen oder Medikamente"
+            title="Einfluss durch Alkohol oder Drogen"
             icon={Wine}
             isOpen={expandedMedicalSections.substance}
             onToggle={() => toggleMedicalSection("substance")}
-            summary={
-              formData.substanceInfluence === "Nein"
-                ? "Nein ausgewählt"
-                : formData.substanceInfluence
-            }
-            isCompleted={formData.substanceInfluence !== "Nein"}
+            summary={getSubstanceSummary(formData)}
+            isCompleted={isAlcoholSelected || isDrugSelected}
           >
             <div className="grid grid-cols-2 gap-2">
-              {["Nein", "Alkohol", "Drogen", "Medikamente"].map((option) => {
-                const isSelected = formData.substanceInfluence === option;
+              {(["Alkohol", "Drogen"] as const).map((option) => {
+                const isSelected = option === "Alkohol" ? isAlcoholSelected : isDrugSelected;
 
                 return (
                   <OptionButton
                     key={option}
                     label={option}
                     selected={isSelected}
-                    onClick={() =>
-                      setFormData({ ...formData, substanceInfluence: option })
-                    }
+                    onClick={() => toggleSubstanceInfluence(option)}
                   />
                 );
               })}
             </div>
+
+            {isAlcoholSelected && (
+              <div className="mt-3 rounded-[12px] bg-white p-3">
+                <p
+                  className="mb-2 font-['DM_Sans:Bold',sans-serif] text-xs font-bold text-app-text-body"
+                  style={{ fontVariationSettings: "'opsz' 14" }}
+                >
+                  Alkoholkonsum
+                </p>
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                  <div className="space-y-1">
+                    <Label htmlFor="alcoholSince" className="text-xs font-medium text-app-text-subtle">
+                      Seit wann?
+                    </Label>
+                    <Input
+                      id="alcoholSince"
+                      value={formData.alcoholSince ?? ""}
+                      onChange={(event) => updateSubstanceDetails({ alcoholSince: event.target.value })}
+                      placeholder="z. B. seit 2021"
+                      className="!bg-[#f8fafc]"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label htmlFor="alcoholFrequencyPerDay" className="text-xs font-medium text-app-text-subtle">
+                      Wie oft am Tag?
+                    </Label>
+                    <Input
+                      id="alcoholFrequencyPerDay"
+                      value={formData.alcoholFrequencyPerDay ?? ""}
+                      onChange={(event) => updateSubstanceDetails({ alcoholFrequencyPerDay: event.target.value })}
+                      placeholder="z. B. 1 Glas"
+                      className="!bg-[#f8fafc]"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {isDrugSelected && (
+              <div className="mt-3 rounded-[12px] bg-white p-3">
+                <p
+                  className="mb-2 font-['DM_Sans:Bold',sans-serif] text-xs font-bold text-app-text-body"
+                  style={{ fontVariationSettings: "'opsz' 14" }}
+                >
+                  Drogenkonsum
+                </p>
+                <div className="space-y-2">
+                  <div className="space-y-1">
+                    <Label htmlFor="drugDetails" className="text-xs font-medium text-app-text-subtle">
+                      Welche Drogen oder Substanzen nehmen Sie ein?
+                    </Label>
+                    <textarea
+                      id="drugDetails"
+                      value={formData.drugDetails ?? ""}
+                      onChange={(event) => updateSubstanceDetails({ drugDetails: event.target.value })}
+                      placeholder="Freitext, z. B. Cannabis, Kokain oder Amphetamine"
+                      rows={3}
+                      className="w-full resize-y rounded-[10px] border border-[#d8e0ea] bg-[#f8fafc] px-3 py-2 text-sm text-app-text-body outline-none transition-all placeholder:text-app-text-muted focus:border-[#486284] focus:ring-2 focus:ring-[#486284]/20"
+                    />
+                  </div>
+                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                    <div className="space-y-1">
+                      <Label htmlFor="drugSince" className="text-xs font-medium text-app-text-subtle">
+                        Seit wann?
+                      </Label>
+                      <Input
+                        id="drugSince"
+                        value={formData.drugSince ?? ""}
+                        onChange={(event) => updateSubstanceDetails({ drugSince: event.target.value })}
+                        placeholder="z. B. seit 6 Monaten"
+                        className="!bg-[#f8fafc]"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label htmlFor="drugFrequencyPerDay" className="text-xs font-medium text-app-text-subtle">
+                        Wie oft am Tag?
+                      </Label>
+                      <Input
+                        id="drugFrequencyPerDay"
+                        value={formData.drugFrequencyPerDay ?? ""}
+                        onChange={(event) => updateSubstanceDetails({ drugFrequencyPerDay: event.target.value })}
+                        placeholder="z. B. 2-mal"
+                        className="!bg-[#f8fafc]"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
           </MedicalAccordionPanel>
 
           <MedicalAccordionPanel
@@ -664,7 +757,7 @@ export default function MedicalDataPage() {
             summary={
               formData.recentAbroad
                 ? formData.recentAbroadDetails || "Ja ausgewählt"
-                : "Nein ausgewählt"
+                : "Optional ergänzen"
             }
             isCompleted={formData.recentAbroad}
           >
@@ -711,169 +804,169 @@ export default function MedicalDataPage() {
         </div>
       </div>
 
-      <div
-        className={`mt-4 shadow-md rounded-[14px] border-2 bg-[#eff2f6] p-3 transition-all ${
-          smokingStatus !== "Nein" ? "border-[#486284]" : "border-transparent"
-        }`}
-      >
-        <div className="mb-3 flex items-start gap-3">
-          <span className="flex size-9 flex-shrink-0 items-center justify-center rounded-full bg-white text-app-text-primary">
-            <Cigarette className="size-5" aria-hidden="true" />
-          </span>
-          <div>
-            <p
-              className="font-['DM_Sans:Bold',sans-serif] font-bold text-app-text-body text-sm"
-              style={{ fontVariationSettings: "'opsz' 14" }}
-            >
-              Rauchen
-            </p>
-            <p className="font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-primary text-xs">
-              Optional, aber hilfreich für Atem-, Herz- und Gefäßbeschwerden.
-            </p>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-          {(["Nein", "Gelegentlich", "Ja"] as SmokingStatus[]).map((status) => (
-            <OptionButton
-              key={status}
-              label={status}
-              selected={smokingStatus === status}
-              onClick={() => {
-                setSmokingStatus(status);
-                setFormData({
-                  ...formData,
-                  isSmoker: status !== "Nein",
-                  smokingSinceYears:
-                    status === "Nein" ? "" : formData.smokingSinceYears,
-                  cigarettesPerDay:
-                    status === "Nein" ? "" : formData.cigarettesPerDay,
-                });
-              }}
-            />
-          ))}
-        </div>
-
-        {smokingStatus !== "Nein" && (
-          <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2">
-            <div>
-              <Label
-                htmlFor="smokingSinceYears"
-                className="mb-1 block text-xs font-bold text-app-text-body"
-              >
-                Seit wann? (Jahre)
-              </Label>
-              <div className="flex h-9 overflow-hidden rounded-[10px] bg-white">
-                <button
-                  type="button"
-                  onClick={() =>
+      <div className="mt-4">
+        <MedicalAccordionPanel
+          title="Rauchen"
+          icon={Cigarette}
+          isOpen={expandedMedicalSections.smoking}
+          onToggle={() => toggleMedicalSection("smoking")}
+          summary={
+            smokingStatus === "Nein"
+              ? "Optional ergänzen"
+              : smokingStatus === "Gelegentlich"
+                ? "Gelegentlich ausgewählt"
+                : "Ja ausgewählt"
+          }
+          isCompleted={smokingStatus !== "Nein"}
+        >
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+            {(["Nein", "Gelegentlich", "Ja"] as SmokingStatus[]).map(
+              (status) => (
+                <OptionButton
+                  key={status}
+                  label={status}
+                  selected={smokingStatus === status}
+                  onClick={() => {
+                    setSmokingStatus(status);
                     setFormData({
                       ...formData,
-                      smokingSinceYears: String(
-                        Math.max(
-                          Number(formData.smokingSinceYears || 0) - 1,
-                          0,
+                      smokingStatus: status,
+                      isSmoker: status !== "Nein",
+                      smokingSinceYears:
+                        status === "Nein" ? "" : formData.smokingSinceYears,
+                      cigarettesPerDay:
+                        status === "Nein" ? "" : formData.cigarettesPerDay,
+                    });
+                  }}
+                />
+              ),
+            )}
+          </div>
+
+          {smokingStatus !== "Nein" && (
+            <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <div>
+                <Label
+                  htmlFor="smokingSinceYears"
+                  className="mb-1 block text-xs font-bold text-app-text-body"
+                >
+                  Seit wann? (Jahre)
+                </Label>
+                <div className="flex h-9 overflow-hidden rounded-[10px] bg-white">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setFormData({
+                        ...formData,
+                        smokingSinceYears: String(
+                          Math.max(
+                            Number(formData.smokingSinceYears || 0) - 1,
+                            0,
+                          ),
                         ),
-                      ),
-                    })
-                  }
-                  className="w-10 border-r border-[#eff2f6] text-base font-bold text-app-text-primary hover:bg-[#dde3ea]"
-                  aria-label="Rauchdauer verringern"
+                      })
+                    }
+                    className="w-10 border-r border-[#eff2f6] text-base font-bold text-app-text-primary hover:bg-[#dde3ea]"
+                    aria-label="Rauchdauer verringern"
+                  >
+                    -
+                  </button>
+                  <input
+                    id="smokingSinceYears"
+                    type="number"
+                    min="0"
+                    step="1"
+                    value={formData.smokingSinceYears ?? ""}
+                    onChange={(event) =>
+                      setFormData({
+                        ...formData,
+                        smokingSinceYears: event.target.value,
+                      })
+                    }
+                    placeholder="0"
+                    className="min-w-0 flex-1 bg-white px-3 text-center text-sm font-semibold outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                  />
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setFormData({
+                        ...formData,
+                        smokingSinceYears: String(
+                          Number(formData.smokingSinceYears || 0) + 1,
+                        ),
+                      })
+                    }
+                    className="w-10 border-l border-[#eff2f6] text-base font-bold text-app-text-primary hover:bg-[#dde3ea]"
+                    aria-label="Rauchdauer erhöhen"
+                  >
+                    +
+                  </button>
+                </div>
+              </div>
+              <div>
+                <Label
+                  htmlFor="cigarettesPerDay"
+                  className="mb-1 block text-xs font-bold text-app-text-body"
                 >
-                  -
-                </button>
-                <input
-                  id="smokingSinceYears"
-                  type="number"
-                  min="0"
-                  step="1"
-                  value={formData.smokingSinceYears ?? ""}
-                  onChange={(event) =>
-                    setFormData({
-                      ...formData,
-                      smokingSinceYears: event.target.value,
-                    })
-                  }
-                  placeholder="0"
-                  className="min-w-0 flex-1 bg-white px-3 text-center text-sm font-semibold outline-none"
-                />
-                <button
-                  type="button"
-                  onClick={() =>
-                    setFormData({
-                      ...formData,
-                      smokingSinceYears: String(
-                        Number(formData.smokingSinceYears || 0) + 1,
-                      ),
-                    })
-                  }
-                  className="w-10 border-l border-[#eff2f6] text-base font-bold text-app-text-primary hover:bg-[#dde3ea]"
-                  aria-label="Rauchdauer erhöhen"
-                >
-                  +
-                </button>
+                  Menge pro Tag
+                </Label>
+                <div className="flex h-9 overflow-hidden rounded-[10px] bg-white">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setFormData({
+                        ...formData,
+                        cigarettesPerDay: String(
+                          Math.max(
+                            Number(formData.cigarettesPerDay || 0) - 1,
+                            0,
+                          ),
+                        ),
+                      })
+                    }
+                    className="w-10 border-r border-[#eff2f6] text-base font-bold text-app-text-primary hover:bg-[#dde3ea]"
+                    aria-label="Zigaretten pro Tag verringern"
+                  >
+                    -
+                  </button>
+                  <input
+                    id="cigarettesPerDay"
+                    type="number"
+                    min="0"
+                    step="1"
+                    value={formData.cigarettesPerDay ?? ""}
+                    onChange={(event) =>
+                      setFormData({
+                        ...formData,
+                        cigarettesPerDay: event.target.value,
+                      })
+                    }
+                    placeholder="0"
+                    className="min-w-0 flex-1 bg-white px-3 text-center text-sm font-semibold outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                  />
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setFormData({
+                        ...formData,
+                        cigarettesPerDay: String(
+                          Number(formData.cigarettesPerDay || 0) + 1,
+                        ),
+                      })
+                    }
+                    className="w-10 border-l border-[#eff2f6] text-base font-bold text-app-text-primary hover:bg-[#dde3ea]"
+                    aria-label="Zigaretten pro Tag erhöhen"
+                  >
+                    +
+                  </button>
+                </div>
               </div>
             </div>
-            <div>
-              <Label
-                htmlFor="cigarettesPerDay"
-                className="mb-1 block text-xs font-bold text-app-text-body"
-              >
-                Menge pro Tag
-              </Label>
-              <div className="flex h-9 overflow-hidden rounded-[10px] bg-white">
-                <button
-                  type="button"
-                  onClick={() =>
-                    setFormData({
-                      ...formData,
-                      cigarettesPerDay: String(
-                        Math.max(Number(formData.cigarettesPerDay || 0) - 1, 0),
-                      ),
-                    })
-                  }
-                  className="w-10 border-r border-[#eff2f6] text-base font-bold text-app-text-primary hover:bg-[#dde3ea]"
-                  aria-label="Zigaretten pro Tag verringern"
-                >
-                  -
-                </button>
-                <input
-                  id="cigarettesPerDay"
-                  type="number"
-                  min="0"
-                  step="1"
-                  value={formData.cigarettesPerDay ?? ""}
-                  onChange={(event) =>
-                    setFormData({
-                      ...formData,
-                      cigarettesPerDay: event.target.value,
-                    })
-                  }
-                  placeholder="0"
-                  className="min-w-0 flex-1 bg-white px-3 text-center text-sm font-semibold outline-none"
-                />
-                <button
-                  type="button"
-                  onClick={() =>
-                    setFormData({
-                      ...formData,
-                      cigarettesPerDay: String(
-                        Number(formData.cigarettesPerDay || 0) + 1,
-                      ),
-                    })
-                  }
-                  className="w-10 border-l border-[#eff2f6] text-base font-bold text-app-text-primary hover:bg-[#dde3ea]"
-                  aria-label="Zigaretten pro Tag erhöhen"
-                >
-                  +
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
+          )}
+        </MedicalAccordionPanel>
       </div>
 
-      <div className="mt-4 flex justify-center lg:justify-end">
+      <div className="mt-4 flex justify-end">
         <Button onClick={handleContinue}>
           <p
             className="font-['DM_Sans:Bold',sans-serif] font-bold text-base"
