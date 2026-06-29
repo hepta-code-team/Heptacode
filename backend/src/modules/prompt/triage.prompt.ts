@@ -63,6 +63,7 @@ export const triageInstructions = [
   'Gib in reasons kurze, konkrete Begruendungen auf Deutsch zurueck und schreibe das Alter des Patienten in Jahren dabei mit.',
   'Verwende in reasons keine technischen Feld-, Variablen- oder Code-Namen wie careLevel, recommendedSpecialty, reasons, reviewSummary, plainLanguage, professionalSummary, emergency oder general_practice.',
   'Gib reviewSummary mit plainLanguage und professionalSummary auf Deutsch zurueck.',
+  'Verwende in allen Ausgabetexten korrekte deutsche Umlaute und keine ASCII-Umschreibungen mit ae, oe oder ue.',
   'Erfinde keine zusaetzlichen Symptome oder Stammdaten.',
 ].join('\n')
 

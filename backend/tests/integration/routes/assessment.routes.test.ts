@@ -95,8 +95,8 @@ describe('POST /assessments', () => {
     expect(body).toMatchObject({
       careLevel: 'doctor',
       recommendedSpecialty: 'general_practice',
-      reasons: ['Die Beschwerden sollten aerztlich eingeordnet werden.'],
-      summary: 'Bitte lassen Sie die Beschwerden zeitnah abklaeren.',
+      reasons: ['Die Beschwerden sollten ärztlich eingeordnet werden.'],
+      summary: 'Bitte lassen Sie die Beschwerden zeitnah abklären.',
     })
     expect(Date.parse(body.createdAt)).not.toBeNaN()
     expect(requestStructuredAiResponseWithModelMock).toHaveBeenCalledTimes(1)

@@ -58,7 +58,7 @@ describe('evaluateAssessmentWithAi', () => {
   it('gibt ein gueltiges Triage-Ergebnis mit createdAt zurueck', async () => {
     evaluateTriageMock.mockResolvedValueOnce({
       careLevel: 'doctor',
-      reasons: ['Die Beschwerden sollten aerztlich eingeordnet werden.'],
+      reasons: ['Die Beschwerden sollten ärztlich eingeordnet werden.'],
       reviewSummary: {
         plainLanguage: 'Bitte lassen Sie die Beschwerden zeitnah abklaeren.',
         professionalSummary: 'Care Level: doctor.',
@@ -69,10 +69,10 @@ describe('evaluateAssessmentWithAi', () => {
 
     expect(result).toMatchObject({
       careLevel: 'doctor',
-      reasons: ['Die Beschwerden sollten aerztlich eingeordnet werden.'],
-      summary: 'Bitte lassen Sie die Beschwerden zeitnah abklaeren.',
+      reasons: ['Die Beschwerden sollten ärztlich eingeordnet werden.'],
+      summary: 'Bitte lassen Sie die Beschwerden zeitnah abklären.',
       reviewSummary: {
-        plainLanguage: 'Bitte lassen Sie die Beschwerden zeitnah abklaeren.',
+        plainLanguage: 'Bitte lassen Sie die Beschwerden zeitnah abklären.',
         professionalSummary: 'Care Level: doctor.',
       },
     })
@@ -97,20 +97,20 @@ describe('evaluateAssessmentWithAi', () => {
   it('nutzt eine Fallback-Review-Summary, wenn die Triage keine Summary liefert', async () => {
     evaluateTriageMock.mockResolvedValueOnce({
       careLevel: 'doctor',
-      reasons: ['Die Beschwerden sollten aerztlich eingeordnet werden.'],
+      reasons: ['Die Beschwerden sollten ärztlich eingeordnet werden.'],
     })
 
     const result = await evaluateAssessmentWithAi(createPayload())
 
     expect(result).toMatchObject({
       careLevel: 'doctor',
-      reasons: ['Die Beschwerden sollten aerztlich eingeordnet werden.'],
+      reasons: ['Die Beschwerden sollten ärztlich eingeordnet werden.'],
     })
     expect(result.summary).toBe(result.reviewSummary.plainLanguage)
     expect(result.reviewSummary.professionalSummary).toContain('Geburtsjahr: 1990')
     expect(result.reviewSummary.professionalSummary).toContain('Kopf (links)')
     expect(result.reviewSummary.professionalSummary).toContain('Details: Seit dem Aufwachen schlimmer')
-    expect(result.reviewSummary.professionalSummary).toContain('Schmerzstaerke: 7/10')
+    expect(result.reviewSummary.professionalSummary).toContain('Schmerzstärke: 7/10')
   })
 
   /** AI availability state should pass through from triage to assessment callers. */
@@ -203,8 +203,8 @@ describe('evaluateAssessmentWithAi', () => {
     expect(result).toMatchObject({
       careLevel: 'specialist',
       recommendedSpecialty: 'internal_medicine',
-      reasons: ['Eine fachaerztliche Abklaerung ist sinnvoll.'],
-      summary: 'Bitte vereinbaren Sie einen fachaerztlichen Termin.',
+      reasons: ['Eine fachärztliche Abklärung ist sinnvoll.'],
+      summary: 'Bitte vereinbaren Sie einen fachärztlichen Termin.',
     })
   })
 

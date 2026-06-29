@@ -11,6 +11,7 @@ export interface EnvConfig {
   aiModel: string
   /** Model identifier used when the primary AI model is unavailable or times out. */
   fallbackModel: string
+  googleMapsApiKey?: string
 }
 
 function loadEnvFile(path: string): void {
@@ -75,4 +76,5 @@ export const env: EnvConfig = {
   aiApiKey: process.env.AI_API_KEY ?? 'dummy',
   aiModel: process.env.AI_MODEL ?? 'medgemma:27b',
   fallbackModel: process.env.FALLBACK_MODEL ?? 'medgemma:4b',
+  googleMapsApiKey: process.env.GOOGLE_MAPS_API_KEY,
 }
