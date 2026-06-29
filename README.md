@@ -1,7 +1,5 @@
 <img width="1923" height="612" alt="heptacheck-logo" src="https://github.com/user-attachments/assets/4be4ba44-f875-48ca-b1ea-a2811dddf38c" />
 
-# Heptacode
-
 KI-basierte Patientensteuerung zur Effizienzsteigerung im Gesundheitswesen.  
 Patienten werden sicher, schnell und laienverständlich durch das Gesundheitssystem geleitet — mit KI-basierter Triage.
 
