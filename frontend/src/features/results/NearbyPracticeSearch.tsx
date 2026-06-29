@@ -1,7 +1,8 @@
 import { useState } from "react";
 import type { FormEvent } from "react";
-import { Clock, LocateFixed, MapPin, Navigation, Search } from "lucide-react";
+import { ChevronDown, Clock, LocateFixed, MapPin, Navigation, Search } from "lucide-react";
 import { MEDICAL_SPECIALTY_LABELS } from "./result.config";
+import { apiClient } from "../../lib/apiClient";
 import type { CareLevel, MedicalSpecialty } from "../../types/triage";
 
 // Gesamtlogik dieser Komponente:
@@ -26,10 +27,16 @@ type Facility = {
   latitude: number;
   longitude: number;
   openingHours: string;
+  openingHoursText?: string[];
+  isOpenNow?: boolean;
   address: string;
   priority: "recommended" | "additional";
   distanceMeters: number;
 };
+
+type FacilityDataProvider = "auto" | "google" | "osm";
+type ActiveFacilityDataProvider = "google" | "osm";
+type FacilityStatusFilter = "all" | "open" | "closed";
 
 // Die einzelnen Statuswerte trennen Standortabfrage, externe Suche und Fehlermeldungen sauber.
 type LocationStatus =
@@ -113,6 +120,16 @@ const OSM_DAY_LABELS: Record<string, string> = {
   Su: "So",
   PH: "Feiertage",
 };
+
+const GOOGLE_WEEKDAY_LABELS = [
+  "Sonntag",
+  "Montag",
+  "Dienstag",
+  "Mittwoch",
+  "Donnerstag",
+  "Freitag",
+  "Samstag",
+];
 
 function localizeOpeningHoursPart(value: string) {
   // OSM nutzt englische Tageskuerzel; die UI soll deutsche Kuerzel anzeigen.
@@ -213,18 +230,55 @@ function dayMatches(ruleDays: string | undefined, currentDay: number) {
   });
 }
 
+type OpeningHoursLine = {
+  dayLabel: string;
+  timeLabel: string;
+};
+
 type OpeningHoursDisplay = {
-  hoursLabel: string;
-  statusLabel: "Geöffnet" | "Schließt bald";
+  hoursLines: OpeningHoursLine[];
+  statusLabel: "Geöffnet" | "Schließt bald" | "Geschlossen" | "Öffnungszeiten unbekannt";
   statusColor: string;
 };
 
-function getOpeningHoursDisplay(openingHours: string, now = new Date()): OpeningHoursDisplay {
+function formatOpeningTimeRange(timeRange: string) {
+  return timeRange.trim().replace(/\s*[-–—]\s*/g, " - ");
+}
+
+function createOpeningHoursLines(dayLabel: string, displayTimes: string[], emptyLabel = "Geöffnet") {
+  const timeRanges = displayTimes
+    .flatMap((times) => times.split(","))
+    .map(formatOpeningTimeRange)
+    .filter(Boolean);
+
+  if (timeRanges.length === 0) {
+    return [{ dayLabel: `${dayLabel}:`, timeLabel: emptyLabel }];
+  }
+
+  return [
+    { dayLabel: `${dayLabel}:`, timeLabel: timeRanges[0] },
+    ...timeRanges.slice(1).map((timeLabel) => ({ dayLabel: "", timeLabel })),
+  ];
+}
+
+function getOpeningHoursDisplay(
+  openingHours: string,
+  isCurrentlyOpen: boolean | undefined,
+  now = new Date(),
+): OpeningHoursDisplay {
   const normalizedOpeningHours = openingHours.trim();
+
+  if (!normalizedOpeningHours) {
+    return {
+      hoursLines: [{ dayLabel: "Heute:", timeLabel: "Nicht verfügbar" }],
+      statusLabel: "Öffnungszeiten unbekannt",
+      statusColor: "#64748B",
+    };
+  }
 
   if (normalizedOpeningHours === "24/7") {
     return {
-      hoursLabel: "Heute: Durchgehend geöffnet",
+      hoursLines: [{ dayLabel: "Heute:", timeLabel: "Durchgehend geöffnet" }],
       statusLabel: "Geöffnet",
       statusColor: "#65A30D",
     };
@@ -289,17 +343,63 @@ function getOpeningHoursDisplay(openingHours: string, now = new Date()): Opening
   const uniqueTodaysTimes = todaysTimes.filter((times, index) => todaysTimes.indexOf(times) === index);
   const displayTimes = uniqueTodaysTimes.length > 0 ? uniqueTodaysTimes : activeTimes ? [activeTimes] : [];
   const closesSoon = minutesUntilClosing !== null && minutesUntilClosing <= 60;
+  const isOpen = isCurrentlyOpen ?? minutesUntilClosing !== null;
 
   return {
-    hoursLabel: `${todayLabel}: ${displayTimes.join(", ") || "Geöffnet"}`,
-    statusLabel: closesSoon ? "Schließt bald" : "Geöffnet",
-    statusColor: closesSoon ? "#EAB308" : "#65A30D",
+    hoursLines: createOpeningHoursLines(todayLabel, displayTimes, "Geschlossen"),
+    statusLabel: isOpen ? (closesSoon ? "Schließt bald" : "Geöffnet") : "Geschlossen",
+    statusColor: isOpen ? (closesSoon ? "#EAB308" : "#65A30D") : "#DC2626",
   };
 }
 
+function getGoogleOpeningHoursDisplay(
+  openingHoursText: string[],
+  isCurrentlyOpen: boolean | undefined,
+  now = new Date(),
+): OpeningHoursDisplay {
+  const todayLabel = GOOGLE_WEEKDAY_LABELS[now.getDay()];
+  const todayText = openingHoursText.find((line) => line.toLowerCase().startsWith(`${todayLabel.toLowerCase()}:`));
+
+  if (!todayText) {
+    return {
+      hoursLines: [{ dayLabel: "Heute:", timeLabel: "Nicht verfügbar" }],
+      statusLabel: isCurrentlyOpen === undefined
+        ? "Öffnungszeiten unbekannt"
+        : isCurrentlyOpen ? "Geöffnet" : "Geschlossen",
+      statusColor: isCurrentlyOpen === undefined ? "#64748B" : isCurrentlyOpen ? "#65A30D" : "#DC2626",
+    };
+  }
+
+  const separatorIndex = todayText.indexOf(":");
+  const timeText = separatorIndex >= 0 ? todayText.slice(separatorIndex + 1).trim() : todayText;
+  const timeRanges = timeText
+    .split(",")
+    .map(formatOpeningTimeRange)
+    .filter(Boolean);
+
+  return {
+    hoursLines: createOpeningHoursLines(
+      OSM_DAY_LABELS[Object.keys(WEEKDAY_INDEX).find((day) => WEEKDAY_INDEX[day] === now.getDay()) ?? ""] ?? "Heute",
+      timeRanges,
+      isCurrentlyOpen ? "Geöffnet" : "Geschlossen",
+    ),
+    statusLabel: isCurrentlyOpen === undefined
+      ? "Öffnungszeiten unbekannt"
+      : isCurrentlyOpen ? "Geöffnet" : "Geschlossen",
+    statusColor: isCurrentlyOpen === undefined ? "#64748B" : isCurrentlyOpen ? "#65A30D" : "#DC2626",
+  };
+}
+
+function getFacilityOpeningHoursDisplay(facility: Facility) {
+  if (facility.openingHoursText && facility.openingHoursText.length > 0) {
+    return getGoogleOpeningHoursDisplay(facility.openingHoursText, facility.isOpenNow);
+  }
+
+  return getOpeningHoursDisplay(facility.openingHours, facility.isOpenNow);
+}
+
 function isOpenNow(openingHours: string | undefined, now = new Date()) {
-  // Ohne Oeffnungszeiten wird der Eintrag bewusst ausgeblendet,
-  // damit keine geschlossenen Einrichtungen als Hilfe erscheinen.
+  // Ohne Oeffnungszeiten kann der aktuelle Status nicht sicher bestimmt werden.
   if (!openingHours) {
     return false;
   }
@@ -405,6 +505,15 @@ const OVERPASS_API_URLS = [
 ];
 
 const NOMINATIM_SEARCH_URL = "https://nominatim.openstreetmap.org/search";
+const FACILITY_DATA_PROVIDER_SETTING = readFacilityDataProvider(import.meta.env.VITE_FACILITY_DATA_PROVIDER);
+
+function readFacilityDataProvider(value: string | undefined): FacilityDataProvider {
+  const normalizedValue = value?.trim().toLowerCase();
+
+  if (normalizedValue === "google" || normalizedValue === "googlemaps") return "google";
+  if (normalizedValue === "osm" || normalizedValue === "overpass") return "osm";
+  return "auto";
+}
 // Stammdatenregel fuer die BDZ Ludwigshafen.
 // Die Regel ist eng ueber Name/Adresse begrenzt und betrifft keine anderen Einrichtungen.
 const BDZ_LUDWIGSHAFEN_OPENING_HOURS = "Mo off; Tu off; We 14:00-22:00; Th off; Fr 16:00-22:00; Sa-Su 09:00-22:00";
@@ -412,44 +521,44 @@ const BDZ_LUDWIGSHAFEN_OPENING_HOURS = "Mo off; Tu off; We 14:00-22:00; Th off; 
 function getSearchIntro(careLevel: CareLevel, includeNightPharmacies: boolean) {
   // Die Beschreibung im UI soll zur aktuellen Versorgungsebene passen.
   if (careLevel === "emergency") {
-    return "Auf Wunsch zeigen wir aktuell geöffnete Notaufnahmen und Notfallapotheken in Ihrer Nähe, sortiert nach Entfernung.";
+    return "Auf Wunsch zeigen wir bis zu fünf nächstgelegene Notaufnahmen und Notfallapotheken, sortiert nach Entfernung.";
   }
 
   // Bei Selbstversorgung interessieren zuerst Apotheken.
   if (careLevel === "selfcare") {
-    return "Auf Wunsch zeigen wir aktuell geöffnete Apotheken in Ihrer Nähe, sortiert nach Entfernung.";
+    return "Auf Wunsch zeigen wir bis zu fünf nächstgelegene Apotheken, sortiert nach Entfernung.";
   }
 
   // Bei Facharzt-Empfehlungen wird die Beschreibung auf Fachstellen ausgerichtet.
   if (careLevel === "specialist") {
     return includeNightPharmacies
-      ? "Auf Wunsch zeigen wir aktuell geöffnete Fachstellen und ergänzend Nacht-Apotheken in Ihrer Nähe."
-      : "Auf Wunsch zeigen wir aktuell geöffnete Fachstellen in Ihrer Nähe, sortiert nach Entfernung.";
+      ? "Auf Wunsch zeigen wir bis zu fünf nächstgelegene Fachstellen und ergänzend Nacht-Apotheken."
+      : "Auf Wunsch zeigen wir bis zu fünf nächstgelegene Fachstellen, sortiert nach Entfernung.";
   }
 
   // Standardfall: Hausarzt/Praxis, nachts mit Apotheke als Zusatzoption.
   return includeNightPharmacies
-    ? "Auf Wunsch zeigen wir aktuell geöffnete Praxen und ergänzend Nacht-Apotheken in Ihrer Nähe."
-    : "Auf Wunsch zeigen wir aktuell geöffnete Praxen in Ihrer Nähe, sortiert nach Entfernung.";
+    ? "Auf Wunsch zeigen wir bis zu fünf nächstgelegene Praxen und ergänzend Nacht-Apotheken."
+    : "Auf Wunsch zeigen wir bis zu fünf nächstgelegene Praxen, sortiert nach Entfernung.";
 }
 
 function getEmptyMessage(careLevel: CareLevel) {
   // Leerer Zustand fuer Notfall soll ausdruecklich Notaufnahmen nennen.
   if (careLevel === "emergency") {
-    return "Für die empfohlene Versorgungsebene wurden in Ihrer Nähe keine aktuell geöffneten Notaufnahmen mit vollständiger Adresse gefunden.";
+    return "Für die empfohlene Versorgungsebene wurden keine Notaufnahmen mit vollständiger Adresse gefunden.";
   }
 
   // Allgemeiner leerer Zustand fuer alle anderen Versorgungsebenen.
-  return "Für die empfohlene Versorgungsebene wurden in Ihrer Nähe keine aktuell geöffneten Einträge mit vollständiger Adresse gefunden.";
+  return "Für die empfohlene Versorgungsebene wurden keine passenden Einträge mit vollständiger Adresse gefunden.";
 }
 
 function getSearchRadius(careLevel: CareLevel, includeNightPharmacies: boolean) {
   // Jede Versorgungsebene hat einen eigenen Suchradius.
   // Seltene Treffer wie Fachstellen oder Nachtversorgung brauchen einen groesseren Radius.
-  if (careLevel === "emergency") return 12000;
-  if (includeNightPharmacies) return 20000;
-  if (careLevel === "specialist") return 15000;
-  return 8000;
+  if (careLevel === "emergency") return 30000;
+  if (includeNightPharmacies) return 30000;
+  if (careLevel === "specialist") return 50000;
+  return 30000;
 }
 
 function getOverpassFilters(careLevel: CareLevel, includeNightPharmacies: boolean) {
@@ -701,7 +810,30 @@ async function fetchOverpassData(query: string): Promise<OverpassResponse> {
   throw lastError instanceof Error ? lastError : new Error("Overpass request failed.");
 }
 
-async function fetchNearbyFacilities(
+type NearbyPlacesResponse = {
+  facilities: Facility[];
+};
+
+async function fetchGoogleNearbyFacilities(
+  location: UserLocation,
+  careLevel: CareLevel,
+  specialties: MedicalSpecialty[],
+): Promise<Facility[]> {
+  const specialtyLabel = careLevel === "specialist" && specialties.length > 0
+    ? MEDICAL_SPECIALTY_LABELS[specialties[0]]
+    : undefined;
+
+  const response = await apiClient.post<NearbyPlacesResponse>("/places/nearby", {
+    latitude: location.latitude,
+    longitude: location.longitude,
+    careLevel,
+    specialtyLabel,
+  });
+
+  return response.facilities;
+}
+
+async function fetchOsmNearbyFacilities(
   location: UserLocation,
   careLevel: CareLevel,
   specialties: MedicalSpecialty[],
@@ -715,7 +847,7 @@ async function fetchNearbyFacilities(
   // Pipeline:
   // 1. Overpass-Rohdaten normalisieren
   // 2. Dubletten und unvollstaendige Eintraege entfernen
-  // 3. Nur aktuell geoeffnete Einrichtungen behalten
+  // 3. Einrichtungen unabhaengig vom aktuellen Oeffnungsstatus behalten
   // 4. Nach Entfernung sortieren und Haupt-/Zusatztreffer mischen
   const sortedFacilities = (data.elements ?? [])
     .reduce<Facility[]>((facilities, element) => {
@@ -752,9 +884,8 @@ async function fetchNearbyFacilities(
       // Pruefen, ob ein echter Name/Betreiber vorhanden ist.
       const hasKnownName = hasKnownFacilityName(tags);
 
-      // Nur aktuell geoeffnete Einrichtungen anzeigen, damit die Liste handlungsrelevant bleibt.
       // Name und vollstaendige Adresse sind Pflicht, weil Koordinaten allein keine gute Empfehlung sind.
-      if (!isOpenNow(openingHours) || !hasKnownName || !address) {
+      if (!hasKnownName || !address) {
         return facilities;
       }
 
@@ -771,8 +902,9 @@ async function fetchNearbyFacilities(
         // Koordinaten fuer Entfernung und Kartenlinks.
         latitude,
         longitude,
-        // Oeffnungszeiten fuer Anzeige und vorherige Offen-Pruefung.
+        // Oeffnungszeiten fuer Anzeige und Statusbestimmung.
         openingHours,
+        isOpenNow: openingHours ? isOpenNow(openingHours) : undefined,
         // Fertig formatierte Adresse fuer Anzeige.
         address,
         // Nacht-/Notfallapotheken sind hilfreiche Zusatzoptionen, aber nicht die Hauptempfehlung.
@@ -787,7 +919,7 @@ async function fetchNearbyFacilities(
       // Reduce-Akkumulator zurueckgeben.
       return facilities;
     }, [])
-    // Naechste geoeffnete Treffer zuerst.
+    // Naechste Treffer zuerst, unabhaengig vom aktuellen Oeffnungsstatus.
     .sort((first, second) => first.distanceMeters - second.distanceMeters);
 
   // Hauptempfehlungen sind z. B. Notaufnahmen oder Praxen.
@@ -795,8 +927,11 @@ async function fetchNearbyFacilities(
   // Zusatzoptionen sind z. B. Nacht-/Notfallapotheken.
   const additionalFacilities = sortedFacilities.filter((facility) => facility.priority === "additional");
 
-  // Die Liste bleibt kurz, zeigt aber neben Hauptempfehlungen auch Zusatzoptionen wie Notfallapotheken.
-  return [...recommendedFacilities.slice(0, 4), ...additionalFacilities.slice(0, 2)]
+  // Maximal fuenf Treffer anzeigen; Zusatzoptionen fuellen nur freie Plaetze auf.
+  const nearestRecommendedFacilities = recommendedFacilities.slice(0, 5);
+  const remainingFacilitySlots = 5 - nearestRecommendedFacilities.length;
+
+  return [...nearestRecommendedFacilities, ...additionalFacilities.slice(0, remainingFacilitySlots)]
     .sort((first, second) => {
       // Hauptempfehlungen sollen vor Zusatzoptionen stehen.
       if (first.priority !== second.priority) {
@@ -806,6 +941,44 @@ async function fetchNearbyFacilities(
       // Innerhalb derselben Prioritaet entscheidet die Entfernung.
       return first.distanceMeters - second.distanceMeters;
     });
+}
+
+async function fetchNearbyFacilities(
+  location: UserLocation,
+  careLevel: CareLevel,
+  specialties: MedicalSpecialty[],
+): Promise<{ facilities: Facility[]; provider: ActiveFacilityDataProvider }> {
+  if (FACILITY_DATA_PROVIDER_SETTING === "osm") {
+    return {
+      facilities: await fetchOsmNearbyFacilities(location, careLevel, specialties),
+      provider: "osm",
+    };
+  }
+
+  if (FACILITY_DATA_PROVIDER_SETTING === "google") {
+    return {
+      facilities: await fetchGoogleNearbyFacilities(location, careLevel, specialties),
+      provider: "google",
+    };
+  }
+
+  try {
+    const googleFacilities = await fetchGoogleNearbyFacilities(location, careLevel, specialties);
+
+    if (googleFacilities.length > 0) {
+      return {
+        facilities: googleFacilities,
+        provider: "google",
+      };
+    }
+  } catch (error) {
+    console.info("Google Places unavailable, falling back to OpenStreetMap.", error);
+  }
+
+  return {
+    facilities: await fetchOsmNearbyFacilities(location, careLevel, specialties),
+    provider: "osm",
+  };
 }
 
 export default function NearbyPracticeSearch({
@@ -823,6 +996,10 @@ export default function NearbyPracticeSearch({
   const [userLocation, setUserLocation] = useState<UserLocation | null>(null);
   // facilities enthaelt die bereits gefilterten und sortierten Treffer fuer die UI.
   const [facilities, setFacilities] = useState<Facility[]>([]);
+  // Nach einer Suche sind die Treffer sichtbar und koennen bei Bedarf platzsparend eingeklappt werden.
+  const [areFacilitiesVisible, setAreFacilitiesVisible] = useState(true);
+  // Ohne aktiven Chip werden offene, geschlossene und unbekannte Status gemeinsam angezeigt.
+  const [facilityStatusFilter, setFacilityStatusFilter] = useState<FacilityStatusFilter>("all");
   // manualLocationQuery ist der kontrollierte Wert des PLZ-/Adressfelds.
   const [manualLocationQuery, setManualLocationQuery] = useState("");
   // Nachts werden fuer Nicht-Notfall-Ebenen Apotheken als Zusatzoption einbezogen.
@@ -839,12 +1016,14 @@ export default function NearbyPracticeSearch({
 
     try {
       // Einrichtungen fuer den Suchmittelpunkt laden.
-      const nextFacilities = await fetchNearbyFacilities(location, careLevel, specialties);
+      const result = await fetchNearbyFacilities(location, careLevel, specialties);
 
       // Treffer im State ablegen, damit React die Liste rendert.
-      setFacilities(nextFacilities);
+      setFacilities(result.facilities);
+      setAreFacilitiesVisible(true);
+      setFacilityStatusFilter("all");
       // "empty" ist kein technischer Fehler, sondern ein valider leerer Suchzustand.
-      setLocationStatus(nextFacilities.length > 0 ? "ready" : "empty");
+      setLocationStatus(result.facilities.length > 0 ? "ready" : "empty");
     } catch (error) {
       // Fehler wird fuer Entwickler sichtbar geloggt.
       console.error(error);
@@ -937,6 +1116,12 @@ export default function NearbyPracticeSearch({
   // Beide Zwischenzustaende deaktivieren den Button, damit keine parallelen Suchen starten.
   const isRequestingLocation =
     locationStatus === "loading" || locationStatus === "geocoding" || locationStatus === "searching";
+  const hasReadyResults = locationStatus === "ready";
+  const filteredFacilities = facilities.filter((facility) => {
+    if (facilityStatusFilter === "open") return facility.isOpenNow === true;
+    if (facilityStatusFilter === "closed") return facility.isOpenNow === false;
+    return true;
+  });
   const statusLabel =
     locationStatus === "searching"
       ? "Einrichtungen werden gesucht..."
@@ -962,107 +1147,175 @@ export default function NearbyPracticeSearch({
         </div>
       </div>
 
-      {/* Vor erfolgreicher Suche wird der Freigabe-Button mit passenden Statusmeldungen angezeigt. */}
-      {locationStatus !== "ready" ? (
-        <>
-          <div className="flex flex-col gap-3 md:flex-row md:items-end">
-            {/* Button fuer praezise Browser-Standortfreigabe */}
-            <button
-              type="button"
-              onClick={handleLocationRequest}
-              disabled={isRequestingLocation}
-              className="shadow-md flex min-h-[48px] shrink-0 items-center justify-center gap-2 rounded-[14px] bg-[#486284] px-5 py-3 text-white transition-all hover:bg-[#3a4d68] disabled:bg-gray-300 disabled:text-gray-500"
-            >
-              <LocateFixed className="size-5" aria-hidden="true" />
-              <span className="font-['DM_Sans:Bold',sans-serif] font-bold text-sm">
-                {isRequestingLocation ? statusLabel : "Standort freigeben"}
-              </span>
-            </button>
+      {/* Standort- und Adresssuche bleibt sichtbar, damit Nutzer die Suche korrigieren koennen. */}
+      <div className="mb-3 rounded-[12px] bg-white px-5 py-3">
+        <div className="flex flex-col gap-3 md:flex-row md:items-end">
+          {/* Button fuer praezise Browser-Standortfreigabe */}
+          <button
+            type="button"
+            onClick={handleLocationRequest}
+            disabled={isRequestingLocation}
+            className="w-full shadow-md flex min-h-[48px] shrink-0 items-center justify-center gap-2 rounded-[14px] bg-[#486284] px-5 py-3 text-white transition-all hover:bg-[#3a4d68] disabled:bg-gray-300 disabled:text-gray-500 md:w-auto"
+          >
+            <LocateFixed className="size-5" aria-hidden="true" />
+            <span className="font-['DM_Sans:Bold',sans-serif] font-bold text-sm">
+              {isRequestingLocation ? statusLabel : hasReadyResults ? "Standort aktualisieren" : "Standort freigeben"}
+            </span>
+          </button>
 
-            <div className="hidden h-12 w-px shrink-0 bg-[#9aabc0] md:block" aria-hidden="true" />
+          <div className="hidden h-12 w-px shrink-0 bg-[#9aabc0] md:block" aria-hidden="true" />
 
-            {/* Alternative Suche per PLZ oder Adresse */}
-            <form
-              onSubmit={handleManualLocationSearch}
-              className="min-w-0 flex-1"
+          {/* Alternative Suche per PLZ oder Adresse */}
+          <form
+            onSubmit={handleManualLocationSearch}
+            className="min-w-0 flex-1"
+          >
+            <label
+              htmlFor="manual-location-query"
+              className="mb-2 block text-sm font-bold text-[#486284]"
             >
-              <label
-                htmlFor="manual-location-query"
-                className="mb-2 block text-sm font-bold text-[#486284]"
+              PLZ oder Adresse
+            </label>
+            <div className="flex flex-col gap-2 sm:flex-row">
+              <input
+                id="manual-location-query"
+                type="search"
+                value={manualLocationQuery}
+                onChange={(event) => setManualLocationQuery(event.target.value)}
+                placeholder="z. B. 68163 Mannheim"
+                disabled={isRequestingLocation}
+                className="shadow-md min-h-[48px] min-w-0 w-full flex-1 rounded-[10px] border border-[#c8d2dc] bg-white px-3 py-2 text-sm font-medium text-[#3e3e3e] outline-none transition-all placeholder:text-[#7b8a8d] focus:border-[#486284] focus:ring-2 focus:ring-[#486284]/20 disabled:bg-gray-100 disabled:text-gray-500"
+              />
+              <button
+                type="submit"
+                disabled={isRequestingLocation || !manualLocationQuery.trim()}
+                className="shadow-md inline-flex min-h-[48px] w-full items-center justify-center gap-2 rounded-[10px] bg-white px-4 py-2 text-sm font-bold text-[#486284] ring-1 ring-[#c8d2dc] transition-all hover:bg-[#dde3ea] disabled:bg-gray-100 disabled:text-gray-400 sm:w-auto"
               >
-                PLZ oder Adresse
-              </label>
-              <div className="flex flex-col gap-2 sm:flex-row">
-                <input
-                  id="manual-location-query"
-                  type="search"
-                  value={manualLocationQuery}
-                  onChange={(event) => setManualLocationQuery(event.target.value)}
-                  placeholder="z. B. 68163 Mannheim"
-                  disabled={isRequestingLocation}
-                  className="shadow-md min-h-[48px] min-w-0 flex-1 rounded-[10px] border border-[#c8d2dc] bg-white px-3 py-2 text-sm font-medium text-[#3e3e3e] outline-none transition-all placeholder:text-[#7b8a8d] focus:border-[#486284] focus:ring-2 focus:ring-[#486284]/20 disabled:bg-gray-100 disabled:text-gray-500"
-                />
-                <button
-                  type="submit"
-                  disabled={isRequestingLocation || !manualLocationQuery.trim()}
-                  className="shadow-md inline-flex min-h-[48px] items-center justify-center gap-2 rounded-[10px] bg-white px-4 py-2 text-sm font-bold text-[#486284] ring-1 ring-[#c8d2dc] transition-all hover:bg-[#dde3ea] disabled:bg-gray-100 disabled:text-gray-400"
-                >
-                  <Search className="size-4" aria-hidden="true" />
-                  Suchen
-                </button>
-              </div>
-            </form>
-          </div>
+                <Search className="size-4" aria-hidden="true" />
+                Suchen
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
 
-          {/* Fehlermeldung, wenn Nutzer Browser-Standort abgelehnt hat */}
-          {locationStatus === "denied" && (
-            <p className="mt-3 rounded-[12px] bg-white px-4 py-3 text-sm font-medium text-[#8A4B16]">
-              Standortfreigabe wurde nicht erlaubt. Sie können die Freigabe in den Browser-Einstellungen aktivieren und es erneut versuchen.
-            </p>
-          )}
+      {/* Fehlermeldung, wenn Nutzer Browser-Standort abgelehnt hat */}
+      {locationStatus === "denied" && (
+        <p className="mt-3 rounded-[12px] bg-white px-4 py-3 text-sm font-medium text-[#8A4B16]">
+          Standortfreigabe wurde nicht erlaubt. Sie können die Freigabe in den Browser-Einstellungen aktivieren und es erneut versuchen.
+        </p>
+      )}
 
-          {/* Fehlermeldung, wenn Browser keine Geolocation anbietet */}
-          {locationStatus === "unsupported" && (
-            <p className="mt-3 rounded-[12px] bg-white px-4 py-3 text-sm font-medium text-[#8A4B16]">
-              Ihr Browser unterstützt keine Standortfreigabe.
-            </p>
-          )}
+      {/* Fehlermeldung, wenn Browser keine Geolocation anbietet */}
+      {locationStatus === "unsupported" && (
+        <p className="mt-3 rounded-[12px] bg-white px-4 py-3 text-sm font-medium text-[#8A4B16]">
+          Ihr Browser unterstützt keine Standortfreigabe.
+        </p>
+      )}
 
-          {/* Valider leerer Zustand: Suche erfolgreich, aber keine passenden Treffer */}
-          {locationStatus === "empty" && (
-            <p className="mt-3 rounded-[12px] bg-white px-4 py-3 text-sm font-medium text-[#8A4B16]">
-              {emptyMessage}
-            </p>
-          )}
+      {/* Valider leerer Zustand: Suche erfolgreich, aber keine passenden Treffer */}
+      {locationStatus === "empty" && (
+        <p className="mt-3 rounded-[12px] bg-white px-4 py-3 text-sm font-medium text-[#8A4B16]">
+          {emptyMessage}
+        </p>
+      )}
 
-          {/* Manuelle Adresse/PLZ konnte nicht in Koordinaten umgewandelt werden */}
-          {locationStatus === "not_found" && (
-            <p className="mt-3 rounded-[12px] bg-white px-4 py-3 text-sm font-medium text-[#8A4B16]">
-              Diese PLZ oder Adresse konnte nicht gefunden werden.
-            </p>
-          )}
+      {/* Manuelle Adresse/PLZ konnte nicht in Koordinaten umgewandelt werden */}
+      {locationStatus === "not_found" && (
+        <p className="mt-3 rounded-[12px] bg-white px-4 py-3 text-sm font-medium text-[#8A4B16]">
+          Diese PLZ oder Adresse konnte nicht gefunden werden.
+        </p>
+      )}
 
-          {/* Technischer Fehler bei Nominatim oder Overpass */}
-          {locationStatus === "error" && (
-            <p className="mt-3 rounded-[12px] bg-white px-4 py-3 text-sm font-medium text-[#8A4B16]">
-              Die Kartensuche ist gerade überlastet. Bitte versuchen Sie es erneut oder öffnen Sie direkt eine Karten-App.
-            </p>
-          )}
-        </>
-      ) : (
+      {/* Technischer Fehler bei Nominatim oder Overpass */}
+      {locationStatus === "error" && (
+        <p className="mt-3 rounded-[12px] bg-white px-4 py-3 text-sm font-medium text-[#8A4B16]">
+          Die Kartensuche ist gerade überlastet. Bitte versuchen Sie es erneut oder öffnen Sie direkt eine Karten-App.
+        </p>
+      )}
+
+      {hasReadyResults && (
         // Sobald Treffer vorhanden sind, wird die Ergebnisliste gerendert.
         <div>
-          {/* Kurze Trefferzusammenfassung */}
-          {userLocation && (
-            <div className="mb-3 rounded-[12px] bg-white px-4 py-3 text-sm font-medium text-[#486284]">
-              {facilities.length} offene Einrichtungen gefunden.
+          <div className="mb-3 flex min-h-[52px] w-full flex-col gap-3 rounded-[8px] border border-transparent bg-white px-4 py-2.5 transition-all hover:border-[#486284] sm:flex-row sm:items-center">
+            <button
+              type="button"
+              aria-expanded={areFacilitiesVisible}
+              aria-controls="nearby-facilities-list"
+              onClick={() => setAreFacilitiesVisible((isVisible) => !isVisible)}
+              className="text-left text-sm font-medium text-[#24364b] focus-visible:outline-none focus-visible:underline"
+            >
+              {filteredFacilities.length}{" "}
+              {filteredFacilities.length === 1 ? "Einrichtung" : "Einrichtungen"}{" "}
+              {areFacilitiesVisible ? "ausblenden" : "einblenden"}
+            </button>
+
+            <div
+              role="group"
+              aria-label="Einrichtungen nach Öffnungsstatus filtern"
+              className="flex flex-wrap items-center gap-1.5 sm:ml-auto"
+            >
+              <button
+                type="button"
+                aria-pressed={facilityStatusFilter === "open"}
+                onClick={() => setFacilityStatusFilter((filter) => filter === "open" ? "all" : "open")}
+                className={`inline-flex min-h-[28px] items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#486284] focus-visible:ring-offset-2 ${
+                  facilityStatusFilter === "open"
+                    ? "border-[#486284] bg-[#e8eef5] text-[#24364b]"
+                    : "border-transparent bg-[#f1f3f6] text-[#52676B] hover:border-[#486284]"
+                }`}
+              >
+                <span className="size-2.5 rounded-full bg-[#65A30D]" aria-hidden="true" />
+                Geöffnet
+              </button>
+              <button
+                type="button"
+                aria-pressed={facilityStatusFilter === "closed"}
+                onClick={() => setFacilityStatusFilter((filter) => filter === "closed" ? "all" : "closed")}
+                className={`inline-flex min-h-[28px] items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#486284] focus-visible:ring-offset-2 ${
+                  facilityStatusFilter === "closed"
+                    ? "border-[#486284] bg-[#e8eef5] text-[#24364b]"
+                    : "border-transparent bg-[#f1f3f6] text-[#52676B] hover:border-[#486284]"
+                }`}
+              >
+                <span className="size-2.5 rounded-full bg-[#DC2626]" aria-hidden="true" />
+                Geschlossen
+              </button>
             </div>
-          )}
+
+            <span
+              className="hidden h-8 w-px flex-shrink-0 bg-[#c8d2dc] sm:ml-[0.5px] sm:block"
+              aria-hidden="true"
+            />
+
+            <button
+              type="button"
+              aria-label={areFacilitiesVisible ? "Einrichtungen ausblenden" : "Einrichtungen einblenden"}
+              aria-expanded={areFacilitiesVisible}
+              aria-controls="nearby-facilities-list"
+              onClick={() => setAreFacilitiesVisible((isVisible) => !isVisible)}
+              className="ml-auto flex size-7 flex-shrink-0 items-center justify-center rounded-[8px] border border-[#c8d2dc] text-[#24364b] transition-colors hover:border-[#486284] hover:bg-[#e8eef5] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#486284] focus-visible:ring-offset-2 sm:ml-[0.5px]"
+            >
+              <ChevronDown
+                className={`size-4 transition-transform ${areFacilitiesVisible ? "rotate-180" : ""}`}
+                aria-hidden="true"
+              />
+            </button>
+          </div>
 
           {/* Ergebnisliste */}
-          <div className="grid grid-cols-1 gap-3">
-            {facilities.map((facility) => {
-              const openingHoursDisplay = getOpeningHoursDisplay(facility.openingHours);
+          <div
+            id="nearby-facilities-list"
+            hidden={!areFacilitiesVisible}
+            className="grid grid-cols-1 gap-3"
+          >
+            {filteredFacilities.length === 0 && (
+              <p className="rounded-[8px] bg-white px-4 py-3 text-sm font-medium text-[#52676B]">
+                Keine Einrichtungen entsprechen dem gewählten Filter.
+              </p>
+            )}
+            {filteredFacilities.map((facility) => {
+              const openingHoursDisplay = getFacilityOpeningHoursDisplay(facility);
 
               return (
                 // Einzelne Einrichtungskarte.
@@ -1086,18 +1339,25 @@ export default function NearbyPracticeSearch({
                 </div>
 
                 {/* Oeffnungszeitenblock */}
-                <div className="mt-3 flex min-w-0 items-start gap-2 text-xs font-medium text-[#3e3e3e]">
-                  <Clock className="mt-0.5 size-4 flex-shrink-0 text-[#486284]" aria-hidden="true" />
-                  <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1">
-                    <p className="min-w-0 break-words">{openingHoursDisplay.hoursLabel}</p>
-                    <span className="inline-flex items-center gap-1.5 font-bold">
-                      <span
-                        className="size-2 rounded-full"
-                        style={{ backgroundColor: openingHoursDisplay.statusColor }}
-                        aria-hidden="true"
-                      />
-                      {openingHoursDisplay.statusLabel}
-                    </span>
+                <div className="mt-2 text-xs font-medium text-[#3e3e3e]">
+                  <div className="grid min-w-0 grid-cols-[1rem_1fr] gap-x-2 gap-y-1">
+                    <span
+                      className="mt-1.5 size-2 justify-self-center rounded-full"
+                      style={{ backgroundColor: openingHoursDisplay.statusColor }}
+                      aria-hidden="true"
+                    />
+                    <span className="font-bold leading-5">{openingHoursDisplay.statusLabel}</span>
+                    <Clock className="size-4 text-[#486284]" aria-hidden="true" />
+                    <div className="grid min-w-0 grid-cols-[auto_1fr] gap-x-1 tabular-nums leading-5">
+                      {openingHoursDisplay.hoursLines.map((line, index) => {
+                        return (
+                          <div key={`${line.dayLabel}-${line.timeLabel}-${index}`} className="contents">
+                            <span className="whitespace-nowrap">{line.dayLabel}</span>
+                            <span className="min-w-0 whitespace-nowrap">{line.timeLabel}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
                 </div>
 

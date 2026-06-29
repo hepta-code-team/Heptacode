@@ -2,6 +2,7 @@ import type { ConditionDetail } from '../../../../shared/patientData.types.js'
 import type { ReviewSummary, TriageSymptom } from '../triage/triage.types.js'
 import { evaluateTriage } from '../triage/triage.service.js'
 import type { AssessmentPayload, AssessmentResult, Symptom } from './assessment.types.js'
+import { normalizeGermanText } from '../../shared/normalizeGermanText.js'
 
 const DURATION_LABELS: Record<string, string> = {
   today: 'Seit heute',
@@ -11,9 +12,9 @@ const DURATION_LABELS: Record<string, string> = {
 }
 
 const MEASUREMENT_LABELS: Record<Symptom['measurementType'], string> = {
-  pain: 'Schmerzstaerke',
+  pain: 'Schmerzstärke',
   temperature: 'Temperatur',
-  feeling: 'Beschwerdegefuehl',
+  feeling: 'Beschwerdegefühl',
   severity: 'Schweregrad',
 }
 
@@ -220,7 +221,10 @@ export async function evaluateAssessmentWithAi(
   const rawReviewSummary = triageResult.reviewSummary ?? buildFallbackReviewSummary(payload)
   const reviewSummary = {
     ...rawReviewSummary,
-    professionalSummary: sanitizeProfessionalSummary(rawReviewSummary.professionalSummary),
+    plainLanguage: normalizeGermanText(rawReviewSummary.plainLanguage),
+    professionalSummary: normalizeGermanText(
+      sanitizeProfessionalSummary(rawReviewSummary.professionalSummary),
+    ),
   }
   const recommendedSpecialty =
     triageResult.recommendedSpecialty ?? fallbackSpecialtyForCareLevel(triageResult.careLevel)
@@ -228,10 +232,11 @@ export async function evaluateAssessmentWithAi(
   return {
     careLevel: triageResult.careLevel,
     recommendedSpecialty,
-    reasons:
+    reasons: (
       triageResult.reasons.length > 0
         ? triageResult.reasons
-        : ['Die Angaben wurden ausgewertet. Bei Verschlechterung bitte erneut medizinisch vorstellen.'],
+        : ['Die Angaben wurden ausgewertet. Bei Verschlechterung bitte erneut medizinisch vorstellen.']
+    ).map(normalizeGermanText),
     reviewSummary,
     ...(triageResult.recommendedSpecialties
       ? { recommendedSpecialties: triageResult.recommendedSpecialties }

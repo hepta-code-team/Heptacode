@@ -7,6 +7,7 @@ import type {PatientData} from '../../../../shared/patientData.types.js'
 import type {MedicalSpecialty} from '../../../../shared/result.types.js'
 import type {TriageSymptom} from '../../../../shared/symptom.types.js'
 import type {PdfExportRequest, PdfExportResult, PdfSection, PdfTriageResult,} from './pdf.types.js'
+import {normalizeGermanText} from '../../shared/normalizeGermanText.js'
 
 type PdfDoc = InstanceType<typeof PDFDocument>
 
@@ -132,30 +133,6 @@ function formatGender(value: string): string {
  * The PDF is a patient-facing artifact, so it should prefer proper German
  * characters even when upstream service text uses ue/ae/oe fallbacks.
  */
-function normalizeGermanText(value: string): string {
-  return value
-    .replace(/Groesse/g, 'Größe')
-    .replace(/groesse/g, 'Größe')
-    .replace(/Grosse/g, 'Größe')
-    .replace(/grosse/g, 'Größe')
-    .replace(/verfuegbar/g, 'verfügbar')
-    .replace(/Verfuegbar/g, 'Verfügbar')
-    .replace(/uebergebenen/g, 'übergebenen')
-    .replace(/Uebergebenen/g, 'Übergebenen')
-    .replace(/fuer/g, 'für')
-    .replace(/Fuer/g, 'Für')
-    .replace(/enthaelt/g, 'enthält')
-    .replace(/Enthaelt/g, 'Enthält')
-    .replace(/Schmerzstaerke/g, 'Schmerzstärke')
-    .replace(/schmerzstaerke/g, 'Schmerzstärke')
-    .replace(/Ausgewaehlte/g, 'Ausgewählte')
-    .replace(/ausgewaehlte/g, 'ausgewählte')
-    .replace(/Begruendung/g, 'Begründung')
-    .replace(/begruendung/g, 'Begründung')
-    .replace(/Schilddruesenunterfunktion/g, 'Schilddrüsenunterfunktion')
-    .replace(/schilddruesenunterfunktion/g, 'Schilddrüsenunterfunktion')
-}
-
 /**
  * Cleans an individual triage reason before it is joined into prose.
  *

@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Heptacode — graphify tree viewer</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      margin: 0;
+      padding: 0;
+      background: #f9f9f9;
+      color: #333;
+    }
+    h1 {
+      margin: 20px 0 0 24px;
+      font-size: 2.2rem;
+      font-weight: bold;
+      color: #1e3a56;
+    }
+    .controls {
+      margin: 20px 0 15px 24px;
+    }
+    button {
+      margin-right: 10px;
+      padding: 8px 18px;
+      background: #007bff;
+      color: #fff;
+      border: none;
+      border-radius: 5px;
+      font-size: 0.95rem;
+      cursor: pointer;
+      transition: background 0.2s ease-in-out;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    button:hover {
+      background: #0056b3;
+    }
+    button:active {
+      background: #004085;
+    }
+    #tree-container {
+      width: calc(100vw - 48px); /* Adjust for body margin/padding */
+      height: 85vh;
+      overflow: auto;
+      border-radius: 8px;
+      background: #fff;
+      margin-left: 24px;
+      margin-right: 24px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+      border: 1px solid #ddd;
+    }
+    svg {
+      background: #fff;
+      border-radius: 8px;
+      display: block; /* Important for D3 */
+    }
+    .node circle {
+      stroke-width: 2.5px;
+    }
+    .node text { /* Base style for the <text> container */
+      font: 13px 'Segoe UI', sans-serif;
+      paint-order: stroke fill; /* Ensures text is readable over lines */
+      stroke: #fff; /* White halo */
+      stroke-width: 3px; /* Halo thickness */
+      stroke-linejoin: round;
+      stroke-opacity: 0.85; /* Halo opacity */
+    }
+    .link {
+      fill: none;
+      stroke-opacity: 0.7;
+      stroke-width: 2px;
+    }
+  </style>
+</head>
+<body>
+  <h1>Heptacode — Knowledge Graph</h1>
+  <div class="controls">
+    <button onclick="expandAll()">Expand All</button>
+    <button onclick="collapseAll()">Collapse All</button>
+    <button onclick="resetView()">Reset View</button>
+  </div>
+  <div id="tree-container">
+    <svg id="tree-svg" width="6000" height="8000"></svg>
+  </div>
+
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <script>
+    const initialJsonData = {"name":"Heptacode","total_count":751,"children":[{"name":"backend","total_count":390,"children":[{"name":"package.json","total_count":28,"children":[{"name":"@fastify/cors","total_count":1,"children":[]},{"name":"@fastify/helmet","total_count":1,"children":[]},{"name":"@types/fhir","total_count":1,"children":[]},{"name":"@types/node","total_count":1,"children":[]},{"name":"@types/pdfkit","total_count":1,"children":[]},{"name":"@vitest/coverage-v8","total_count":1,"children":[]},{"name":"build","total_count":1,"children":[]},{"name":"dependencies","total_count":1,"children":[]},{"name":"dev","total_count":1,"children":[]},{"name":"devDependencies","total_count":1,"children":[]},{"name":"fastify","total_count":1,"children":[]},{"name":"name","total_count":1,"children":[]},{"name":"openai","total_count":1,"children":[]},{"name":"pdfkit","total_count":1,"children":[]},{"name":"private","total_count":1,"children":[]},{"name":"scripts","total_count":1,"children":[]},{"name":"start","total_count":1,"children":[]},{"name":"test","total_count":1,"children":[]},{"name":"test:ai-triage","total_count":1,"children":[]},{"name":"test:ai-triage:plausibility","total_count":1,"children":[]},{"name":"test:ai-triage:specialties","total_count":1,"children":[]},{"name":"test:watch","total_count":1,"children":[]},{"name":"tsx","total_count":1,"children":[]},{"name":"type","total_count":1,"children":[]},{"name":"typescript","total_count":1,"children":[]},{"name":"version","total_count":1,"children":[]},{"name":"vitest","total_count":1,"children":[]},{"name":"zod","total_count":1,"children":[]}]},{"name":"src","total_count":261,"children":[{"name":"ai","total_count":18,"children":[{"name":"client.ts","total_count":2,"children":[{"name":"aiApiUrl","total_count":1,"children":[]},{"name":"aiClient","total_count":1,"children":[]}]},{"name":"llmAdapter.ts","total_count":9,"children":[{"name":"getErrorMessage()","total_count":1,"children":[]},{"name":"getErrorStatus()","total_count":1,"children":[]},{"name":"ModelRequest","total_count":1,"children":[]},{"name":"requestStructuredAiResponse()","total_count":1,"children":[]},{"name":"requestStructuredAiResponseWithModel()","total_count":1,"children":[]},{"name":"requestWithModel()","total_count":1,"children":[]},{"name":"runLoggedAiCall()","total_count":1,"children":[]},{"name":"StructuredAiRequest","total_count":1,"children":[]},{"name":"StructuredAiResponse","total_count":1,"children":[]}]},{"name":"timeout.ts","total_count":7,"children":[{"name":".constructor()","total_count":1,"children":[]},{"name":"AI_REQUEST_OPTIONS","total_count":1,"children":[]},{"name":"AI_REQUEST_TIMEOUT_MS","total_count":1,"children":[]},{"name":"AiResponseError","total_count":1,"children":[]},{"name":"createAiRequestOptions()","total_count":1,"children":[]},{"name":"isAiAvailabilityError()","total_count":1,"children":[]},{"name":"isAiRequestError()","total_count":1,"children":[]}]}]},{"name":"app.ts","total_count":1,"children":[{"name":"buildApp()","total_count":1,"children":[]}]},{"name":"common","total_count":13,"children":[{"name":"errors","total_count":2,"children":[{"name":"ApiError.ts","total_count":2,"children":[{"name":".constructor()","total_count":1,"children":[]},{"name":"ApiError","total_count":1,"children":[]}]}]},{"name":"middleware","total_count":6,"children":[{"name":"errorHandler.ts","total_count":2,"children":[{"name":"errorHandler()","total_count":1,"children":[]},{"name":"formatZodErrors()","total_count":1,"children":[]}]},{"name":"notFoundHandler.ts","total_count":1,"children":[{"name":"notFoundHandler()","total_count":1,"children":[]}]},{"name":"validateRequest.ts","total_count":3,"children":[{"name":"formatZodErrors()","total_count":1,"children":[]},{"name":"RequestSchemas","total_count":1,"children":[]},{"name":"validateRequest()","total_count":1,"children":[]}]}]},{"name":"patientPlausibility.ts","total_count":5,"children":[{"name":"getPatientPlausibilityError()","total_count":1,"children":[]},{"name":"hasText()","total_count":1,"children":[]},{"name":"isMaleGender()","total_count":1,"children":[]},{"name":"mentionsPregnancyOrLabor()","total_count":1,"children":[]},{"name":"normalizeForPlausibilityCheck()","total_count":1,"children":[]}]}]},{"name":"config","total_count":6,"children":[{"name":"env.ts","total_count":6,"children":[{"name":"env","total_count":1,"children":[]},{"name":"EnvConfig","total_count":1,"children":[]},{"name":"loadEnvFile()","total_count":1,"children":[]},{"name":"loadLocalEnvFiles()","total_count":1,"children":[]},{"name":"readPort()","total_count":1,"children":[]},{"name":"readRequired()","total_count":1,"children":[]}]}]},{"name":"modules","total_count":193,"children":[{"name":"assessment","total_count":22,"children":[{"name":"assessment.schema.ts","total_count":2,"children":[{"name":"AssessmentRequestBody","total_count":1,"children":[]},{"name":"assessmentRequestSchema","total_count":1,"children":[]}]},{"name":"assessment.service.ts","total_count":13,"children":[{"name":"buildFallbackReviewSummary()","total_count":1,"children":[]},{"name":"buildPatientDataLines()","total_count":1,"children":[]},{"name":"DURATION_LABELS","total_count":1,"children":[]},{"name":"evaluateAssessmentWithAi()","total_count":1,"children":[]},{"name":"fallbackSpecialtyForCareLevel()","total_count":1,"children":[]},{"name":"formatConditionDetail()","total_count":1,"children":[]},{"name":"formatPatientData()","total_count":1,"children":[]},{"name":"formatSelectedSymptoms()","total_count":1,"children":[]},{"name":"formatSymptomDetails()","total_count":1,"children":[]},{"name":"hasText()","total_count":1,"children":[]},{"name":"MEASUREMENT_LABELS","total_count":1,"children":[]},{"name":"sanitizeProfessionalSummary()","total_count":1,"children":[]},{"name":"toTriageSymptoms()","total_count":1,"children":[]}]},{"name":"assessment.types.ts","total_count":7,"children":[{"name":"AssessmentPayload","total_count":1,"children":[]},{"name":"assessmentPayloadSchema","total_count":1,"children":[]},{"name":"AssessmentResult","total_count":1,"children":[]},{"name":"assessmentResultSchema","total_count":1,"children":[]},{"name":"selectedSymptomSchema","total_count":1,"children":[]},{"name":"Symptom","total_count":1,"children":[]},{"name":"symptomSchema","total_count":1,"children":[]}]}]},{"name":"fhir","total_count":16,"children":[{"name":"fhirBundle.ts","total_count":16,"children":[{"name":"AdministrativeGender","total_count":1,"children":[]},{"name":"buildClinicalNotes()","total_count":1,"children":[]},{"name":"buildFhirBundle()","total_count":1,"children":[]},{"name":"createPartialBirthDate()","total_count":1,"children":[]},{"name":"createUuidUrn()","total_count":1,"children":[]},{"name":"DURATION_LABELS","total_count":1,"children":[]},{"name":"FhirBundleLogSummary","total_count":1,"children":[]},{"name":"formatConditionDetail()","total_count":1,"children":[]},{"name":"formatFhirBundleForDebugLog()","total_count":1,"children":[]},{"name":"formatPatientContext()","total_count":1,"children":[]},{"name":"formatSelectedSymptoms()","total_count":1,"children":[]},{"name":"formatSymptomDetails()","total_count":1,"children":[]},{"name":"hasText()","total_count":1,"children":[]},{"name":"mapAdministrativeGender()","total_count":1,"children":[]},{"name":"MEASUREMENT_LABELS","total_count":1,"children":[]},{"name":"summarizeFhirBundleForLog()","total_count":1,"children":[]}]}]},{"name":"pdf","total_count":57,"children":[{"name":"pdf.schema.ts","total_count":2,"children":[{"name":"PdfExportRequestBody","total_count":1,"children":[]},{"name":"pdfExportRequestSchema","total_count":1,"children":[]}]},{"name":"pdf.types.ts","total_count":7,"children":[{"name":"PdfExportRequest","total_count":1,"children":[]},{"name":"pdfExportRequestSchema","total_count":1,"children":[]},{"name":"PdfExportResult","total_count":1,"children":[]},{"name":"PdfReviewSummary","total_count":1,"children":[]},{"name":"PdfSection","total_count":1,"children":[]},{"name":"PdfTriageResult","total_count":1,"children":[]},{"name":"pdfTriageResultSchema","total_count":1,"children":[]}]},{"name":"pdfExport.service.ts","total_count":48,"children":[{"name":"addFooter()","total_count":1,"children":[]},{"name":"addHeader()","total_count":1,"children":[]},{"name":"addIntroText()","total_count":1,"children":[]},{"name":"addPageNumbers()","total_count":1,"children":[]},{"name":"addPdfContent()","total_count":1,"children":[]},{"name":"addSectionCard()","total_count":1,"children":[]},{"name":"buildSections()","total_count":1,"children":[]},{"name":"cleanStructuredProfessionalSummary()","total_count":1,"children":[]},{"name":"collectPdfBuffer()","total_count":1,"children":[]},{"name":"createPdfSummary()","total_count":1,"children":[]},{"name":"ensureSpace()","total_count":1,"children":[]},{"name":"extractComplaintsFromStructuredSummary()","total_count":1,"children":[]},{"name":"extractPatientFromStructuredSummary()","total_count":1,"children":[]},{"name":"formatCareLevel()","total_count":1,"children":[]},{"name":"formatCareRecommendation()","total_count":1,"children":[]},{"name":"formatDuration()","total_count":1,"children":[]},{"name":"formatGender()","total_count":1,"children":[]},{"name":"formatGeneratedAt()","total_count":1,"children":[]},{"name":"formatIsoDate()","total_count":1,"children":[]},{"name":"formatMeasurement()","total_count":1,"children":[]},{"name":"formatReason()","total_count":1,"children":[]},{"name":"formatReasons()","total_count":1,"children":[]},{"name":"formatRecentAbroad()","total_count":1,"children":[]},{"name":"formatTravelDisplay()","total_count":1,"children":[]},{"name":"formatValue()","total_count":1,"children":[]},{"name":"hasMedicalSummaryStructure()","total_count":1,"children":[]},{"name":"measureSectionLines()","total_count":1,"children":[]},{"name":"MEDICAL_SPECIALTY_LABELS","total_count":1,"children":[]},{"name":"normalizeComplaintSummaryLines()","total_count":1,"children":[]},{"name":"normalizeGermanText()","total_count":1,"children":[]},{"name":"normalizePatientSummaryLines()","total_count":1,"children":[]},{"name":"normalizeTravelSummaryLine()","total_count":1,"children":[]},{"name":"PAGE","total_count":1,"children":[]},{"name":"paintPageBackground()","total_count":1,"children":[]},{"name":"PdfDoc","total_count":1,"children":[]},{"name":"removeMarkdownLinkUrls()","total_count":1,"children":[]},{"name":"removeSelectedSymptomBlock()","total_count":1,"children":[]},{"name":"renderSectionLines()","total_count":1,"children":[]},{"name":"renderTextWithLinks()","total_count":1,"children":[]},{"name":"splitPatientDataColumns()","total_count":1,"children":[]},{"name":"splitTravelDetails()","total_count":1,"children":[]},{"name":"summarizeCareReason()","total_count":1,"children":[]},{"name":"summarizeMedicalOverview()","total_count":1,"children":[]},{"name":"summarizePatient()","total_count":1,"children":[]},{"name":"summarizeSymptoms()","total_count":1,"children":[]},{"name":"symptomLabel()","total_count":1,"children":[]},{"name":"TEAM_LOGO_PATH","total_count":1,"children":[]},{"name":"THEME","total_count":1,"children":[]}]}]},{"name":"prompt","total_count":23,"children":[{"name":"mentalHealthExtraction.prompt.ts","total_count":3,"children":[{"name":"createMentalHealthExtractionPrompt()","total_count":1,"children":[]},{"name":"mentalHealthExtractionInstructions","total_count":1,"children":[]},{"name":"MentalHealthExtractionPromptInput","total_count":1,"children":[]}]},{"name":"mentalhealthRisk.prompt.ts","total_count":3,"children":[{"name":"createMentalHealthRiskPrompt()","total_count":1,"children":[]},{"name":"mentalHealthRiskInstructions","total_count":1,"children":[]},{"name":"MentalHealthRiskPromptInput","total_count":1,"children":[]}]},{"name":"reviewSummary.prompt.ts","total_count":3,"children":[{"name":"createReviewSummaryPrompt()","total_count":1,"children":[]},{"name":"reviewSummaryInstructions","total_count":1,"children":[]},{"name":"ReviewSummaryPromptInput","total_count":1,"children":[]}]},{"name":"symptomExtraction.prompt.ts","total_count":9,"children":[{"name":"createSymptomConsistencyPrompt()","total_count":1,"children":[]},{"name":"createSymptomDetailValidationPrompt()","total_count":1,"children":[]},{"name":"createSymptomExtractionPrompt()","total_count":1,"children":[]},{"name":"createSymptomValidationPrompt()","total_count":1,"children":[]},{"name":"symptomConsistencyInstructions","total_count":1,"children":[]},{"name":"symptomDetailValidationInstructions","total_count":1,"children":[]},{"name":"symptomExtractionInstructions","total_count":1,"children":[]},{"name":"SymptomExtractionPromptInput","total_count":1,"children":[]},{"name":"symptomValidationInstructions","total_count":1,"children":[]}]},{"name":"triage.prompt.ts","total_count":5,"children":[{"name":"createTriagePrompt()","total_count":1,"children":[]},{"name":"specialtyDecisionGuide","total_count":1,"children":[]},{"name":"specialtyDecisionGuideText","total_count":1,"children":[]},{"name":"triageInstructions","total_count":1,"children":[]},{"name":"TriagePromptInput","total_count":1,"children":[]}]}]},{"name":"symptom-extraction","total_count":36,"children":[{"name":"symptomExtraction.schema.ts","total_count":2,"children":[{"name":"SymptomExtractionRequestBody","total_count":1,"children":[]},{"name":"symptomExtractionRequestSchema","total_count":1,"children":[]}]},{"name":"symptomExtraction.service.ts","total_count":14,"children":[{"name":"addSingularVariants()","total_count":1,"children":[]},{"name":"bodyLocationAliases","total_count":1,"children":[]},{"name":"detectHeuristicInvalidInput()","total_count":1,"children":[]},{"name":"extractExplicitBodyLocationIds()","total_count":1,"children":[]},{"name":"extractSymptoms()","total_count":1,"children":[]},{"name":"normalizeText()","total_count":1,"children":[]},{"name":"requestDetailValidationFromAi()","total_count":1,"children":[]},{"name":"requestInputValidationFromAi()","total_count":1,"children":[]},{"name":"requestSymptomConsistencyFromAi()","total_count":1,"children":[]},{"name":"requestSymptomsFromAi()","total_count":1,"children":[]},{"name":"splitWords()","total_count":1,"children":[]},{"name":"validateSymptomConsistency()","total_count":1,"children":[]},{"name":"validateSymptomDetailInput()","total_count":1,"children":[]},{"name":"validateSymptomInput()","total_count":1,"children":[]}]},{"name":"symptomExtraction.types.ts","total_count":20,"children":[{"name":"emptyStringOrNullToUndefined()","total_count":1,"children":[]},{"name":"extractedSymptomSchema","total_count":1,"children":[]},{"name":"isDuplicateSymptomDetail()","total_count":1,"children":[]},{"name":"isFeverSymptom()","total_count":1,"children":[]},{"name":"normalizeDetails()","total_count":1,"children":[]},{"name":"normalizeLabel()","total_count":1,"children":[]},{"name":"normalizeMeasurementValue()","total_count":1,"children":[]},{"name":"normalizeOption()","total_count":1,"children":[]},{"name":"normalizeRegion()","total_count":1,"children":[]},{"name":"optionByNormalizedLabel","total_count":1,"children":[]},{"name":"regionByNormalizedLabel","total_count":1,"children":[]},{"name":"symptomConsistencyAiResultSchema","total_count":1,"children":[]},{"name":"symptomConsistencyRequestSchema","total_count":1,"children":[]},{"name":"SymptomConsistencyResponse","total_count":1,"children":[]},{"name":"symptomExtractionAiResultSchema","total_count":1,"children":[]},{"name":"SymptomExtractionRequest","total_count":1,"children":[]},{"name":"symptomExtractionRequestSchema","total_count":1,"children":[]},{"name":"SymptomExtractionResponse","total_count":1,"children":[]},{"name":"symptomInputValidationAiResultSchema","total_count":1,"children":[]},{"name":"SymptomInputValidationResponse","total_count":1,"children":[]}]}]},{"name":"triage","total_count":39,"children":[{"name":"triage.schema.ts","total_count":2,"children":[{"name":"TriageRequestBody","total_count":1,"children":[]},{"name":"triageRequestSchema","total_count":1,"children":[]}]},{"name":"triage.service.ts","total_count":26,"children":[{"name":"assertPatientDataIsPlausible()","total_count":1,"children":[]},{"name":"attachPresentationFields()","total_count":1,"children":[]},{"name":"buildPatientDataLines()","total_count":1,"children":[]},{"name":"createBadRequestError()","total_count":1,"children":[]},{"name":"createFallbackTriage()","total_count":1,"children":[]},{"name":"createPlausibilityFallbackTriage()","total_count":1,"children":[]},{"name":"createTextExtractionFallbackTriage()","total_count":1,"children":[]},{"name":"DURATION_LABELS","total_count":1,"children":[]},{"name":"evaluateTriage()","total_count":1,"children":[]},{"name":"evaluateTriageWithDiagnostics()","total_count":1,"children":[]},{"name":"formatConditionDetail()","total_count":1,"children":[]},{"name":"formatLocalDate()","total_count":1,"children":[]},{"name":"formatMeasurement()","total_count":1,"children":[]},{"name":"formatMedicalRiskContext()","total_count":1,"children":[]},{"name":"formatMedicationContext()","total_count":1,"children":[]},{"name":"formatPatientData()","total_count":1,"children":[]},{"name":"formatSymptoms()","total_count":1,"children":[]},{"name":"getComparableMeasurementValue()","total_count":1,"children":[]},{"name":"hasText()","total_count":1,"children":[]},{"name":"MEASUREMENT_LABELS","total_count":1,"children":[]},{"name":"removeTechnicalReasonTerms()","total_count":1,"children":[]},{"name":"requestTriageFromAi()","total_count":1,"children":[]},{"name":"requestTriageFromAiWithDiagnostics()","total_count":1,"children":[]},{"name":"requestTriageWithFallback()","total_count":1,"children":[]},{"name":"TECHNICAL_REASON_TERMS","total_count":1,"children":[]},{"name":"TriageEvaluationDiagnostics","total_count":1,"children":[]}]},{"name":"triage.types.ts","total_count":11,"children":[{"name":"careLevelSchema","total_count":1,"children":[]},{"name":"conditionDetailSchema","total_count":1,"children":[]},{"name":"medicalSpecialtySchema","total_count":1,"children":[]},{"name":"patientDataSchema","total_count":1,"children":[]},{"name":"recommendedSpecialtyItemSchema","total_count":1,"children":[]},{"name":"ReviewSummary","total_count":1,"children":[]},{"name":"reviewSummarySchema","total_count":1,"children":[]},{"name":"TriageRequest","total_count":1,"children":[]},{"name":"triageRequestSchema","total_count":1,"children":[]},{"name":"TriageResponse","total_count":1,"children":[]},{"name":"triageSymptomSchema","total_count":1,"children":[]}]}]}]},{"name":"routes","total_count":4,"children":[{"name":"assessment.routes.ts","total_count":1,"children":[{"name":"assessmentRoutes()","total_count":1,"children":[]}]},{"name":"pdf.routes.ts","total_count":1,"children":[{"name":"pdfRoutes()","total_count":1,"children":[]}]},{"name":"symptomExtraction.routes.ts","total_count":1,"children":[{"name":"symptomExtractionRoutes()","total_count":1,"children":[]}]},{"name":"triage.routes.ts","total_count":1,"children":[{"name":"triageRoutes()","total_count":1,"children":[]}]}]},{"name":"shared","total_count":25,"children":[{"name":"triageAiPlausibility.ts","total_count":21,"children":[{"name":"escapeRegExp()","total_count":1,"children":[]},{"name":"findRecommendedSpecialties()","total_count":1,"children":[]},{"name":"getComparableMeasurementValue()","total_count":1,"children":[]},{"name":"getResponseText()","total_count":1,"children":[]},{"name":"getTriageAiPlausibilityIssues()","total_count":1,"children":[]},{"name":"hasAffirmedWarningTerm()","total_count":1,"children":[]},{"name":"hasDiabeticKetoacidosisWarningPattern()","total_count":1,"children":[]},{"name":"hasEctopicPregnancyWarningPattern()","total_count":1,"children":[]},{"name":"hasEmergencyTriagePattern()","total_count":1,"children":[]},{"name":"hasHeadInjuryWarningPattern()","total_count":1,"children":[]},{"name":"hasMeningitisWarningPattern()","total_count":1,"children":[]},{"name":"hasOnlyMildSymptoms()","total_count":1,"children":[]},{"name":"hasProlongedSeizurePattern()","total_count":1,"children":[]},{"name":"hasSpecialtyRecommendationContext()","total_count":1,"children":[]},{"name":"hasTransientNeurologicalWarningPattern()","total_count":1,"children":[]},{"name":"isSpecialistSpecialty()","total_count":1,"children":[]},{"name":"NON_SPECIALIST_SPECIALTIES","total_count":1,"children":[]},{"name":"normalizeText()","total_count":1,"children":[]},{"name":"PlausibilityTriageResponse","total_count":1,"children":[]},{"name":"SPECIALTY_KEYWORDS","total_count":1,"children":[]},{"name":"SPECIALTY_RECOMMENDATION_KEYWORDS","total_count":1,"children":[]}]},{"name":"validation.ts","total_count":4,"children":[{"name":"isSpecialistSpecialty()","total_count":1,"children":[]},{"name":"NON_SPECIALIST_SPECIALTIES","total_count":1,"children":[]},{"name":"TriageAiResponse","total_count":1,"children":[]},{"name":"triageAiResponseSchema","total_count":1,"children":[]}]}]},{"name":"index.ts","total_count":1,"children":[]}]},{"name":"tests","total_count":80,"children":[{"name":"benchmark","total_count":13,"children":[{"name":"benchmark-freetext.js","total_count":9,"children":[{"name":"calculateMetrics()","total_count":1,"children":[]},{"name":"createAssessmentPayload()","total_count":1,"children":[]},{"name":"hasCompleteAssessmentFields()","total_count":1,"children":[]},{"name":"main()","total_count":1,"children":[]},{"name":"patientData","total_count":1,"children":[]},{"name":"postJson()","total_count":1,"children":[]},{"name":"runCase()","total_count":1,"children":[]},{"name":"seconds()","total_count":1,"children":[]},{"name":"testCases","total_count":1,"children":[]}]},{"name":"benchmark-structured.js","total_count":4,"children":[{"name":"measure()","total_count":1,"children":[]},{"name":"payload","total_count":1,"children":[]},{"name":"percentile()","total_count":1,"children":[]},{"name":"runBenchmark()","total_count":1,"children":[]}]}]},{"name":"fixtures","total_count":15,"children":[{"name":"triagePlausibilityLiveCases.ts","total_count":9,"children":[{"name":"adultPatientData","total_count":1,"children":[]},{"name":"anticoagulatedPatientData","total_count":1,"children":[]},{"name":"diabeticPatientData","total_count":1,"children":[]},{"name":"immunosuppressedPatientData","total_count":1,"children":[]},{"name":"pregnantPatientData","total_count":1,"children":[]},{"name":"TRIAGE_PLAUSIBILITY_CATEGORIES","total_count":1,"children":[]},{"name":"TRIAGE_PLAUSIBILITY_LIVE_CASES","total_count":1,"children":[]},{"name":"TriagePlausibilityCategory","total_count":1,"children":[]},{"name":"TriagePlausibilityLiveCase","total_count":1,"children":[]}]},{"name":"triageSpecialtyCases.ts","total_count":6,"children":[{"name":"adultPatientData","total_count":1,"children":[]},{"name":"childPatientData","total_count":1,"children":[]},{"name":"femalePatientData","total_count":1,"children":[]},{"name":"SpecialistMedicalSpecialty","total_count":1,"children":[]},{"name":"TRIAGE_SPECIALTY_CASES","total_count":1,"children":[]},{"name":"TriageSpecialtyCase","total_count":1,"children":[]}]}]},{"name":"integration","total_count":12,"children":[{"name":"routes","total_count":12,"children":[{"name":"assessment.routes.test.ts","total_count":3,"children":[{"name":"createApp()","total_count":1,"children":[]},{"name":"createPayload()","total_count":1,"children":[]},{"name":"requestStructuredAiResponseWithModelMock","total_count":1,"children":[]}]},{"name":"pdf.routes.test.ts","total_count":2,"children":[{"name":"createApp()","total_count":1,"children":[]},{"name":"createPayload()","total_count":1,"children":[]}]},{"name":"symptomExtraction.routes.test.ts","total_count":3,"children":[{"name":"createApp()","total_count":1,"children":[]},{"name":"malePatientData","total_count":1,"children":[]},{"name":"requestStructuredAiResponseMock","total_count":1,"children":[]}]},{"name":"triage.routes.test.ts","total_count":4,"children":[{"name":"createApp()","total_count":1,"children":[]},{"name":"malePatientData","total_count":1,"children":[]},{"name":"requestStructuredAiResponseMock","total_count":1,"children":[]},{"name":"requestStructuredAiResponseWithModelMock","total_count":1,"children":[]}]}]}]},{"name":"live","total_count":7,"children":[{"name":"triage-plausibility.live.test.ts","total_count":6,"children":[{"name":"cachedResults","total_count":1,"children":[]},{"name":"EvaluationResult","total_count":1,"children":[]},{"name":"evaluationResults","total_count":1,"children":[]},{"name":"formatRate()","total_count":1,"children":[]},{"name":"isAvailabilityFallback()","total_count":1,"children":[]},{"name":"logEvaluationSummary()","total_count":1,"children":[]}]},{"name":"triage-specialty.live.test.ts","total_count":1,"children":[]}]},{"name":"tsconfig.json","total_count":6,"children":[{"name":"compilerOptions","total_count":1,"children":[]},{"name":"exclude","total_count":1,"children":[]},{"name":"extends","total_count":1,"children":[]},{"name":"include","total_count":1,"children":[]},{"name":"noEmit","total_count":1,"children":[]},{"name":"types","total_count":1,"children":[]}]},{"name":"unit","total_count":27,"children":[{"name":"ai","total_count":4,"children":[{"name":"llmAdapter.test.ts","total_count":2,"children":[{"name":"createMock","total_count":1,"children":[]},{"name":"parseMock","total_count":1,"children":[]}]},{"name":"timeout.availability.test.ts","total_count":1,"children":[]},{"name":"timeout.test.ts","total_count":1,"children":[]}]},{"name":"common","total_count":3,"children":[{"name":"middleware","total_count":3,"children":[{"name":"errorHandler.test.ts","total_count":2,"children":[{"name":"createReply()","total_count":1,"children":[]},{"name":"createRequest()","total_count":1,"children":[]}]},{"name":"validateRequest.test.ts","total_count":1,"children":[{"name":"createReply()","total_count":1,"children":[]}]}]}]},{"name":"modules","total_count":15,"children":[{"name":"assessment","total_count":4,"children":[{"name":"assessment.service.test.ts","total_count":2,"children":[{"name":"createPayload()","total_count":1,"children":[]},{"name":"evaluateTriageMock","total_count":1,"children":[]}]},{"name":"assessment.types.test.ts","total_count":2,"children":[{"name":"validPatientData","total_count":1,"children":[]},{"name":"validSymptom","total_count":1,"children":[]}]}]},{"name":"fhir","total_count":2,"children":[{"name":"fhirBundle.test.ts","total_count":2,"children":[{"name":"createPayload()","total_count":1,"children":[]},{"name":"createResult()","total_count":1,"children":[]}]}]},{"name":"pdf","total_count":2,"children":[{"name":"pdf.types.test.ts","total_count":1,"children":[]},{"name":"pdfExport.service.test.ts","total_count":1,"children":[]}]},{"name":"symptom-extraction","total_count":3,"children":[{"name":"symptomExtraction.service.test.ts","total_count":2,"children":[{"name":"malePatientData","total_count":1,"children":[]},{"name":"requestStructuredAiResponseMock","total_count":1,"children":[]}]},{"name":"symptomExtraction.types.test.ts","total_count":1,"children":[]}]},{"name":"triage","total_count":4,"children":[{"name":"triage.service.test.ts","total_count":3,"children":[{"name":"extractSymptomsMock","total_count":1,"children":[]},{"name":"malePatientData","total_count":1,"children":[]},{"name":"requestStructuredAiResponseWithModelMock","total_count":1,"children":[]}]},{"name":"triage.types.test.ts","total_count":1,"children":[]}]}]},{"name":"shared","total_count":5,"children":[{"name":"medicalSpecialtyCoverage.test.ts","total_count":1,"children":[{"name":"NON_SPECIALIST_SPECIALTIES","total_count":1,"children":[]}]},{"name":"triageAiPlausibility.test.ts","total_count":2,"children":[{"name":"plausibleDoctorResponse","total_count":1,"children":[]},{"name":"plausibleEmergencyResponse","total_count":1,"children":[]}]},{"name":"triagePlausibilityCoverage.test.ts","total_count":1,"children":[]},{"name":"validation.test.ts","total_count":1,"children":[]}]}]}]},{"name":"tsconfig.json","total_count":19,"children":[{"name":"compilerOptions","total_count":1,"children":[]},{"name":"exclude","total_count":1,"children":[]},{"name":"forceConsistentCasingInFileNames","total_count":1,"children":[]},{"name":"include","total_count":1,"children":[]},{"name":"module","total_count":1,"children":[]},{"name":"moduleResolution","total_count":1,"children":[]},{"name":"noEmitOnError","total_count":1,"children":[]},{"name":"noFallthroughCasesInSwitch","total_count":1,"children":[]},{"name":"noImplicitReturns","total_count":1,"children":[]},{"name":"noUncheckedIndexedAccess","total_count":1,"children":[]},{"name":"noUnusedLocals","total_count":1,"children":[]},{"name":"noUnusedParameters","total_count":1,"children":[]},{"name":"outDir","total_count":1,"children":[]},{"name":"rootDir","total_count":1,"children":[]},{"name":"skipLibCheck","total_count":1,"children":[]},{"name":"sourceMap","total_count":1,"children":[]},{"name":"strict","total_count":1,"children":[]},{"name":"target","total_count":1,"children":[]},{"name":"useUnknownInCatchVariables","total_count":1,"children":[]}]},{"name":"vitest.config.ts","total_count":1,"children":[]},{"name":"vitest.live.config.ts","total_count":1,"children":[]}]},{"name":"docker","total_count":2,"children":[{"name":"start.sh","total_count":2,"children":[{"name":"start.sh script","total_count":1,"children":[]},{"name":"stop()","total_count":1,"children":[]}]}]},{"name":"frontend","total_count":324,"children":[{"name":"package.json","total_count":37,"children":[{"name":"@radix-ui/react-label","total_count":1,"children":[]},{"name":"@tailwindcss/vite","total_count":1,"children":[]},{"name":"@testing-library/jest-dom","total_count":1,"children":[]},{"name":"@testing-library/react","total_count":1,"children":[]},{"name":"@testing-library/user-event","total_count":1,"children":[]},{"name":"@types/node","total_count":1,"children":[]},{"name":"@types/react","total_count":1,"children":[]},{"name":"@types/react-dom","total_count":1,"children":[]},{"name":"@vitejs/plugin-react","total_count":1,"children":[]},{"name":"@vitest/coverage-v8","total_count":1,"children":[]},{"name":"build","total_count":1,"children":[]},{"name":"check","total_count":1,"children":[]},{"name":"clsx","total_count":1,"children":[]},{"name":"dependencies","total_count":1,"children":[]},{"name":"dev","total_count":1,"children":[]},{"name":"devDependencies","total_count":1,"children":[]},{"name":"jsdom","total_count":1,"children":[]},{"name":"lucide-react","total_count":1,"children":[]},{"name":"name","total_count":1,"children":[]},{"name":"overrides","total_count":1,"children":[]},{"name":"packageManager","total_count":1,"children":[]},{"name":"pnpm","total_count":1,"children":[]},{"name":"private","total_count":1,"children":[]},{"name":"react","total_count":1,"children":[]},{"name":"react-dom","total_count":1,"children":[]},{"name":"react-router","total_count":1,"children":[]},{"name":"scripts","total_count":1,"children":[]},{"name":"tailwind-merge","total_count":1,"children":[]},{"name":"tailwindcss","total_count":1,"children":[]},{"name":"test","total_count":1,"children":[]},{"name":"test:coverage","total_count":1,"children":[]},{"name":"type","total_count":1,"children":[]},{"name":"typescript","total_count":1,"children":[]},{"name":"version","total_count":1,"children":[]},{"name":"vite","total_count":1,"children":[]},{"name":"vite","total_count":1,"children":[]},{"name":"vitest","total_count":1,"children":[]}]},{"name":"src","total_count":242,"children":[{"name":"app","total_count":4,"children":[{"name":"App.tsx","total_count":1,"children":[{"name":"App()","total_count":1,"children":[]}]},{"name":"router.tsx","total_count":3,"children":[{"name":"PageRoute()","total_count":1,"children":[]},{"name":"PatientDataRequiredRoute()","total_count":1,"children":[]},{"name":"router","total_count":1,"children":[]}]}]},{"name":"components","total_count":13,"children":[{"name":"Button.tsx","total_count":2,"children":[{"name":"Button()","total_count":1,"children":[]},{"name":"ButtonProps","total_count":1,"children":[]}]},{"name":"MobileNavigation.tsx","total_count":2,"children":[{"name":"MobileNavigation()","total_count":1,"children":[]},{"name":"pages","total_count":1,"children":[]}]},{"name":"Modal.tsx","total_count":2,"children":[{"name":"Modal()","total_count":1,"children":[]},{"name":"ModalProps","total_count":1,"children":[]}]},{"name":"PageShell.tsx","total_count":2,"children":[{"name":"PageShell()","total_count":1,"children":[]},{"name":"PageShellProps","total_count":1,"children":[]}]},{"name":"ui","total_count":3,"children":[{"name":"input.tsx","total_count":1,"children":[{"name":"Input()","total_count":1,"children":[]}]},{"name":"label.tsx","total_count":1,"children":[{"name":"Label()","total_count":1,"children":[]}]},{"name":"utils.ts","total_count":1,"children":[{"name":"cn()","total_count":1,"children":[]}]}]},{"name":"WizardNavigation.tsx","total_count":2,"children":[{"name":"pages","total_count":1,"children":[]},{"name":"WizardNavigation()","total_count":1,"children":[]}]}]},{"name":"features","total_count":86,"children":[{"name":"emergency","total_count":4,"children":[{"name":"EmergencySymptomGrid.tsx","total_count":4,"children":[{"name":"EmergencySymptom","total_count":1,"children":[]},{"name":"EmergencySymptomGrid()","total_count":1,"children":[]},{"name":"EmergencySymptomGridProps","total_count":1,"children":[]},{"name":"symptoms","total_count":1,"children":[]}]}]},{"name":"results","total_count":51,"children":[{"name":"NearbyPracticeSearch.tsx","total_count":38,"children":[{"name":"buildOverpassQuery()","total_count":1,"children":[]},{"name":"calculateDistanceMeters()","total_count":1,"children":[]},{"name":"Coordinates","total_count":1,"children":[]},{"name":"createGoogleMapsRouteUrl()","total_count":1,"children":[]},{"name":"dayMatches()","total_count":1,"children":[]},{"name":"Facility","total_count":1,"children":[]},{"name":"fetchNearbyFacilities()","total_count":1,"children":[]},{"name":"fetchOverpassData()","total_count":1,"children":[]},{"name":"formatAddress()","total_count":1,"children":[]},{"name":"formatDistance()","total_count":1,"children":[]},{"name":"geocodeManualLocation()","total_count":1,"children":[]},{"name":"getEffectiveOpeningHours()","total_count":1,"children":[]},{"name":"getEmptyMessage()","total_count":1,"children":[]},{"name":"getFacilityLabel()","total_count":1,"children":[]},{"name":"getFacilityName()","total_count":1,"children":[]},{"name":"getFacilityType()","total_count":1,"children":[]},{"name":"getOpeningHoursDisplay()","total_count":1,"children":[]},{"name":"getOverpassFilters()","total_count":1,"children":[]},{"name":"getSearchIntro()","total_count":1,"children":[]},{"name":"getSearchRadius()","total_count":1,"children":[]},{"name":"hasKnownFacilityName()","total_count":1,"children":[]},{"name":"isBdzLudwigshafen()","total_count":1,"children":[]},{"name":"isNightTime()","total_count":1,"children":[]},{"name":"isOpenNow()","total_count":1,"children":[]},{"name":"isPharmacy()","total_count":1,"children":[]},{"name":"localizeOpeningHoursPart()","total_count":1,"children":[]},{"name":"LocationStatus","total_count":1,"children":[]},{"name":"NearbyPracticeSearch()","total_count":1,"children":[]},{"name":"NearbyPracticeSearchProps","total_count":1,"children":[]},{"name":"NominatimPlace","total_count":1,"children":[]},{"name":"OpeningHoursDisplay","total_count":1,"children":[]},{"name":"OSM_DAY_LABELS","total_count":1,"children":[]},{"name":"OVERPASS_API_URLS","total_count":1,"children":[]},{"name":"OverpassElement","total_count":1,"children":[]},{"name":"OverpassResponse","total_count":1,"children":[]},{"name":"parseTimeToMinutes()","total_count":1,"children":[]},{"name":"UserLocation","total_count":1,"children":[]},{"name":"WEEKDAY_INDEX","total_count":1,"children":[]}]},{"name":"result.config.ts","total_count":8,"children":[{"name":"BasicCareLevel","total_count":1,"children":[]},{"name":"createSpecialtyConfig()","total_count":1,"children":[]},{"name":"isCareLevel()","total_count":1,"children":[]},{"name":"isMedicalSpecialty()","total_count":1,"children":[]},{"name":"MEDICAL_SPECIALTY_EXPLANATIONS","total_count":1,"children":[]},{"name":"MEDICAL_SPECIALTY_LABELS","total_count":1,"children":[]},{"name":"TRIAGE_CONFIGS","total_count":1,"children":[]},{"name":"TriageResult","total_count":1,"children":[]}]},{"name":"result.types.ts","total_count":2,"children":[{"name":"CareLevel","total_count":1,"children":[]},{"name":"ResultConfig","total_count":1,"children":[]}]},{"name":"ResultCard.tsx","total_count":3,"children":[{"name":"ResultCard()","total_count":1,"children":[]},{"name":"ResultCardConfig","total_count":1,"children":[]},{"name":"ResultCardProps","total_count":1,"children":[]}]}]},{"name":"symptoms","total_count":31,"children":[{"name":"DurationSelector.tsx","total_count":2,"children":[{"name":"DurationSelector()","total_count":1,"children":[]},{"name":"DurationSelectorProps","total_count":1,"children":[]}]},{"name":"handleSubmitAssessment.ts","total_count":5,"children":[{"name":"CompleteSymptomDraft","total_count":1,"children":[]},{"name":"handleSubmitAssessment()","total_count":1,"children":[]},{"name":"HandleSubmitAssessmentArgs","total_count":1,"children":[]},{"name":"hasDuration()","total_count":1,"children":[]},{"name":"validateSymptomInputs()","total_count":1,"children":[]}]},{"name":"PainScaleSelector.tsx","total_count":3,"children":[{"name":"PainScaleSelector()","total_count":1,"children":[]},{"name":"PainScaleSelectorProps","total_count":1,"children":[]},{"name":"ScaleLabels()","total_count":1,"children":[]}]},{"name":"SymptomButtonGrid.tsx","total_count":5,"children":[{"name":"InlineOption","total_count":1,"children":[]},{"name":"OtherRegion","total_count":1,"children":[]},{"name":"SymptomButtonGrid()","total_count":1,"children":[]},{"name":"SymptomButtonGridProps","total_count":1,"children":[]},{"name":"SymptomGridItem","total_count":1,"children":[]}]},{"name":"SymptomDetailsForm.tsx","total_count":2,"children":[{"name":"SymptomDetailsForm()","total_count":1,"children":[]},{"name":"SymptomDetailsFormProps","total_count":1,"children":[]}]},{"name":"symptoms.constants.ts","total_count":14,"children":[{"name":"BODY_AREA_LABELS","total_count":1,"children":[]},{"name":"BODY_AREA_REGION_IDS","total_count":1,"children":[]},{"name":"BODY_REGIONS","total_count":1,"children":[]},{"name":"BodyAreaCategory","total_count":1,"children":[]},{"name":"BodyRegion","total_count":1,"children":[]},{"name":"Duration","total_count":1,"children":[]},{"name":"DURATIONS","total_count":1,"children":[]},{"name":"EMERGENCY_SYMPTOM_OPTIONS","total_count":1,"children":[]},{"name":"getBodyRegionsForCategory()","total_count":1,"children":[]},{"name":"getMeasurementConfig()","total_count":1,"children":[]},{"name":"getMeasurementConfigByType()","total_count":1,"children":[]},{"name":"MEASUREMENT_CONFIGS","total_count":1,"children":[]},{"name":"MeasurementConfig","total_count":1,"children":[]},{"name":"PRE_EXISTING_CONDITIONS","total_count":1,"children":[]}]}]}]},{"name":"lib","total_count":43,"children":[{"name":"apiClient.ts","total_count":4,"children":[{"name":"apiClient","total_count":1,"children":[]},{"name":"getErrorMessage()","total_count":1,"children":[]},{"name":"request()","total_count":1,"children":[]},{"name":"RequestOptions","total_count":1,"children":[]}]},{"name":"AssessmentContext.tsx","total_count":15,"children":[{"name":"AssessmentContext","total_count":1,"children":[]},{"name":"AssessmentContextType","total_count":1,"children":[]},{"name":"AssessmentProvider()","total_count":1,"children":[]},{"name":"clearPersistedAssessmentState()","total_count":1,"children":[]},{"name":"createAssessmentRequestKey()","total_count":1,"children":[]},{"name":"defaultPersistedAssessmentState","total_count":1,"children":[]},{"name":"isBrowserStorageAvailable()","total_count":1,"children":[]},{"name":"normalizeAssessmentSymptomDetails()","total_count":1,"children":[]},{"name":"normalizePersistedAssessmentState()","total_count":1,"children":[]},{"name":"omitMoodFromPatientData()","total_count":1,"children":[]},{"name":"PersistedAssessmentState","total_count":1,"children":[]},{"name":"readPersistedAssessmentState()","total_count":1,"children":[]},{"name":"StoredAssessment","total_count":1,"children":[]},{"name":"useAssessment()","total_count":1,"children":[]},{"name":"writePersistedAssessmentState()","total_count":1,"children":[]}]},{"name":"assessmentValidation.ts","total_count":6,"children":[{"name":"hasCompleteSymptomDetails()","total_count":1,"children":[]},{"name":"hasRequiredSymptoms()","total_count":1,"children":[]},{"name":"isNumberInRange()","total_count":1,"children":[]},{"name":"isValidPatientData()","total_count":1,"children":[]},{"name":"isValidSymptomMeasurement()","total_count":1,"children":[]},{"name":"MEASUREMENT_RANGES","total_count":1,"children":[]}]},{"name":"specialtyRecommendation.ts","total_count":8,"children":[{"name":"addSpecialty()","total_count":1,"children":[]},{"name":"getFrontendTriageRecommendation()","total_count":1,"children":[]},{"name":"hasAdministrativeRequest()","total_count":1,"children":[]},{"name":"hasHighSuicidalIdeation()","total_count":1,"children":[]},{"name":"hasPsychRequest()","total_count":1,"children":[]},{"name":"includesAny()","total_count":1,"children":[]},{"name":"normalize()","total_count":1,"children":[]},{"name":"textOf()","total_count":1,"children":[]}]},{"name":"symptomExtractionApi.ts","total_count":8,"children":[{"name":"extractSymptomsFromText()","total_count":1,"children":[]},{"name":"omitMoodFromPatientData()","total_count":1,"children":[]},{"name":"SymptomConsistencyResponse","total_count":1,"children":[]},{"name":"SymptomExtractionResponse","total_count":1,"children":[]},{"name":"SymptomInputValidationResponse","total_count":1,"children":[]},{"name":"validateSymptomConsistency()","total_count":1,"children":[]},{"name":"validateSymptomDetailInput()","total_count":1,"children":[]},{"name":"validateSymptomInput()","total_count":1,"children":[]}]},{"name":"triageRecommendation.ts","total_count":2,"children":[{"name":"buildTriageRequest()","total_count":1,"children":[]},{"name":"requestTriageRecommendation()","total_count":1,"children":[]}]}]},{"name":"pages","total_count":85,"children":[{"name":"LandingPage.tsx","total_count":2,"children":[{"name":"EmergencySymptomSelection","total_count":1,"children":[]},{"name":"LandingPage()","total_count":1,"children":[]}]},{"name":"MedicalDataPage.tsx","total_count":12,"children":[{"name":"buildSubstanceInfluence()","total_count":1,"children":[]},{"name":"CONDITION_DETAIL_CONFIGS","total_count":1,"children":[]},{"name":"conditionIcons","total_count":1,"children":[]},{"name":"createInitialPatientData()","total_count":1,"children":[]},{"name":"getSubstanceSummary()","total_count":1,"children":[]},{"name":"hasSubstance()","total_count":1,"children":[]},{"name":"MedicalAccordionPanel()","total_count":1,"children":[]},{"name":"MedicalDataPage()","total_count":1,"children":[]},{"name":"MedicalSection","total_count":1,"children":[]},{"name":"OptionButton()","total_count":1,"children":[]},{"name":"SelectionMark()","total_count":1,"children":[]},{"name":"SmokingStatus","total_count":1,"children":[]}]},{"name":"PatientDataPage.tsx","total_count":7,"children":[{"name":"clampNumber()","total_count":1,"children":[]},{"name":"createInitialPatientData()","total_count":1,"children":[]},{"name":"GENDER_OPTIONS","total_count":1,"children":[]},{"name":"getRequiredFieldCardClass()","total_count":1,"children":[]},{"name":"isNumberInRange()","total_count":1,"children":[]},{"name":"MOOD_OPTIONS","total_count":1,"children":[]},{"name":"PatientDataPage()","total_count":1,"children":[]}]},{"name":"PreExistingConditionsPage.tsx","total_count":9,"children":[{"name":"CONDITION_DETAIL_CONFIGS","total_count":1,"children":[]},{"name":"conditionIcons","total_count":1,"children":[]},{"name":"createInitialPatientData()","total_count":1,"children":[]},{"name":"MedicalAccordionPanel()","total_count":1,"children":[]},{"name":"MedicalSection","total_count":1,"children":[]},{"name":"OptionButton()","total_count":1,"children":[]},{"name":"PreExistingConditionsPage()","total_count":1,"children":[]},{"name":"SelectionMark()","total_count":1,"children":[]},{"name":"SmokingStatus","total_count":1,"children":[]}]},{"name":"ResultPage.tsx","total_count":20,"children":[{"name":"AcuteEmergencySummaryFlow()","total_count":1,"children":[]},{"name":"CARE_LEVEL_LABELS","total_count":1,"children":[]},{"name":"EMPTY_MEDICAL_SUMMARY_SECTIONS","total_count":1,"children":[]},{"name":"fallbackSpecialtyForCareLevel()","total_count":1,"children":[]},{"name":"formatGender()","total_count":1,"children":[]},{"name":"formatMedicalSummarySections()","total_count":1,"children":[]},{"name":"formatOptionalValue()","total_count":1,"children":[]},{"name":"formatTravelDetails()","total_count":1,"children":[]},{"name":"formatTravelDisplay()","total_count":1,"children":[]},{"name":"isEmptyPatientDataPlaceholder()","total_count":1,"children":[]},{"name":"isValidCareLevel()","total_count":1,"children":[]},{"name":"isValidMedicalSpecialty()","total_count":1,"children":[]},{"name":"MEDICAL_SPECIALTY_LABELS","total_count":1,"children":[]},{"name":"MedicalSummarySections","total_count":1,"children":[]},{"name":"parseMedicalSummarySections()","total_count":1,"children":[]},{"name":"ResultPage()","total_count":1,"children":[]},{"name":"splitTravelDetails()","total_count":1,"children":[]},{"name":"SUBSTANCE_OPTIONS","total_count":1,"children":[]},{"name":"TRAVEL_COUNTRIES","total_count":1,"children":[]},{"name":"trimSectionLines()","total_count":1,"children":[]}]},{"name":"SymptomDetailsPage.tsx","total_count":2,"children":[{"name":"SymptomDetailsPage()","total_count":1,"children":[]},{"name":"SymptomDetailsRouteState","total_count":1,"children":[]}]},{"name":"SymptomSelectionPage.tsx","total_count":33,"children":[{"name":"AnatomyFigure()","total_count":1,"children":[]},{"name":"BODY_SIDE_LABELS","total_count":1,"children":[]},{"name":"BODY_SIDE_TITLE_LABELS","total_count":1,"children":[]},{"name":"BodySide","total_count":1,"children":[]},{"name":"BodySideSelection","total_count":1,"children":[]},{"name":"BrowserSpeechRecognition","total_count":1,"children":[]},{"name":"BrowserSpeechRecognitionAlternative","total_count":1,"children":[]},{"name":"BrowserSpeechRecognitionConstructor","total_count":1,"children":[]},{"name":"BrowserSpeechRecognitionErrorEvent","total_count":1,"children":[]},{"name":"BrowserSpeechRecognitionEvent","total_count":1,"children":[]},{"name":"BrowserSpeechRecognitionResult","total_count":1,"children":[]},{"name":"exceedsSymptomTextLimit()","total_count":1,"children":[]},{"name":"formatRecordingDuration()","total_count":1,"children":[]},{"name":"formatSelectedCategoryLabel()","total_count":1,"children":[]},{"name":"getCharacterCount()","total_count":1,"children":[]},{"name":"getSymptomKey()","total_count":1,"children":[]},{"name":"getTextAreaInputData()","total_count":1,"children":[]},{"name":"getTextWithPendingTextAreaInput()","total_count":1,"children":[]},{"name":"getTextWithPendingTextAreaPaste()","total_count":1,"children":[]},{"name":"getUniqueExtractedSymptoms()","total_count":1,"children":[]},{"name":"insertTextAtSelection()","total_count":1,"children":[]},{"name":"isBodyAreaCategory()","total_count":1,"children":[]},{"name":"isBodySide()","total_count":1,"children":[]},{"name":"isSideAwareCategory()","total_count":1,"children":[]},{"name":"isTextRemoval()","total_count":1,"children":[]},{"name":"limitTextToMaxCharacters()","total_count":1,"children":[]},{"name":"mergeSelectedSymptoms()","total_count":1,"children":[]},{"name":"SideAwareBodyAreaCategory","total_count":1,"children":[]},{"name":"supportingAreas","total_count":1,"children":[]},{"name":"SymptomSelectionPage()","total_count":1,"children":[]},{"name":"VerticalProgressIconButton()","total_count":1,"children":[]},{"name":"VerticalProgressIconButtonProps","total_count":1,"children":[]},{"name":"Window","total_count":1,"children":[]}]}]},{"name":"types","total_count":9,"children":[{"name":"assessment.ts","total_count":7,"children":[{"name":"Assessment","total_count":1,"children":[]},{"name":"AssessmentPayload","total_count":1,"children":[]},{"name":"AssessmentResult","total_count":1,"children":[]},{"name":"ReviewSummary","total_count":1,"children":[]},{"name":"Symptom","total_count":1,"children":[]},{"name":"SymptomDetailPayload","total_count":1,"children":[]},{"name":"SymptomDraft","total_count":1,"children":[]}]},{"name":"triage.ts","total_count":2,"children":[{"name":"TriageRequest","total_count":1,"children":[]},{"name":"TriageResult","total_count":1,"children":[]}]}]},{"name":"main.tsx","total_count":1,"children":[]},{"name":"vite-env.d.ts","total_count":1,"children":[]}]},{"name":"tests","total_count":28,"children":[{"name":"setup","total_count":1,"children":[{"name":"vitest.setup.ts","total_count":1,"children":[{"name":"createStorageMock()","total_count":1,"children":[]}]}]},{"name":"unit","total_count":27,"children":[{"name":"AssessmentContext.test.tsx","total_count":4,"children":[{"name":"apiPostMock","total_count":1,"children":[]},{"name":"Harness()","total_count":1,"children":[]},{"name":"patientData","total_count":1,"children":[]},{"name":"SubmitWithoutPatient()","total_count":1,"children":[]}]},{"name":"handleSubmitAssessment.test.ts","total_count":4,"children":[{"name":"createConsistencyResult()","total_count":1,"children":[]},{"name":"createSetters()","total_count":1,"children":[]},{"name":"createSymptomDraft()","total_count":1,"children":[]},{"name":"validateSymptomConsistencyMock","total_count":1,"children":[]}]},{"name":"pageFlows.test.tsx","total_count":13,"children":[{"name":"assessmentState","total_count":1,"children":[]},{"name":"basePatientData","total_count":1,"children":[]},{"name":"extractSymptomsFromTextMock","total_count":1,"children":[]},{"name":"locationState","total_count":1,"children":[]},{"name":"navigateMock","total_count":1,"children":[]},{"name":"resetAssessmentMock","total_count":1,"children":[]},{"name":"setAssessmentResultMock","total_count":1,"children":[]},{"name":"setPatientDataMock","total_count":1,"children":[]},{"name":"setSearchParamsMock","total_count":1,"children":[]},{"name":"submitAssessmentMock","total_count":1,"children":[]},{"name":"validateSymptomConsistencyMock","total_count":1,"children":[]},{"name":"validateSymptomDetailInputMock","total_count":1,"children":[]},{"name":"validateSymptomInputMock","total_count":1,"children":[]}]},{"name":"recommendations.test.ts","total_count":2,"children":[{"name":"basePatient","total_count":1,"children":[]},{"name":"symptom()","total_count":1,"children":[]}]},{"name":"resultsComponents.test.tsx","total_count":1,"children":[{"name":"mockGeolocation()","total_count":1,"children":[]}]},{"name":"symptomControls.test.tsx","total_count":2,"children":[{"name":"createSymptom()","total_count":1,"children":[]},{"name":"regions","total_count":1,"children":[]}]},{"name":"apiClient.test.ts","total_count":1,"children":[]}]}]},{"name":"tsconfig.json","total_count":15,"children":[{"name":"allowSyntheticDefaultImports","total_count":1,"children":[]},{"name":"compilerOptions","total_count":1,"children":[]},{"name":"include","total_count":1,"children":[]},{"name":"isolatedModules","total_count":1,"children":[]},{"name":"jsx","total_count":1,"children":[]},{"name":"lib","total_count":1,"children":[]},{"name":"module","total_count":1,"children":[]},{"name":"moduleResolution","total_count":1,"children":[]},{"name":"noEmit","total_count":1,"children":[]},{"name":"resolveJsonModule","total_count":1,"children":[]},{"name":"skipLibCheck","total_count":1,"children":[]},{"name":"strict","total_count":1,"children":[]},{"name":"target","total_count":1,"children":[]},{"name":"types","total_count":1,"children":[]},{"name":"useDefineForClassFields","total_count":1,"children":[]}]},{"name":"postcss.config.mjs","total_count":1,"children":[]},{"name":"vite.config.ts","total_count":1,"children":[]}]},{"name":"package.json","total_count":4,"children":[{"name":"@types/pdfkit","total_count":1,"children":[]},{"name":"dependencies","total_count":1,"children":[]},{"name":"devDependencies","total_count":1,"children":[]},{"name":"pdfkit","total_count":1,"children":[]}]},{"name":"shared","total_count":31,"children":[{"name":"package.json","total_count":1,"children":[{"name":"type","total_count":1,"children":[]}]},{"name":"patientData.types.ts","total_count":2,"children":[{"name":"ConditionDetail","total_count":1,"children":[]},{"name":"PatientData","total_count":1,"children":[]}]},{"name":"result.types.ts","total_count":6,"children":[{"name":"CARE_LEVELS","total_count":1,"children":[]},{"name":"CareLevel","total_count":1,"children":[]},{"name":"MEDICAL_SPECIALTIES","total_count":1,"children":[]},{"name":"MedicalSpecialty","total_count":1,"children":[]},{"name":"RecommendedSpecialty","total_count":1,"children":[]},{"name":"ResultConfig","total_count":1,"children":[]}]},{"name":"symptom.types.ts","total_count":6,"children":[{"name":"SelectedSymptom","total_count":1,"children":[]},{"name":"SYMPTOM_MEASUREMENT_TYPES","total_count":1,"children":[]},{"name":"SymptomMeasurementType","total_count":1,"children":[]},{"name":"TRIAGE_SYMPTOM_DURATIONS","total_count":1,"children":[]},{"name":"TriageSymptom","total_count":1,"children":[]},{"name":"TriageSymptomDuration","total_count":1,"children":[]}]},{"name":"symptomExtraction.types.ts","total_count":4,"children":[{"name":"SYMPTOM_INPUT_TYPES","total_count":1,"children":[]},{"name":"SymptomExtractionAiResult","total_count":1,"children":[]},{"name":"SymptomInputType","total_count":1,"children":[]},{"name":"SymptomInputValidationAiResult","total_count":1,"children":[]}]},{"name":"symptomTaxonomy.ts","total_count":12,"children":[{"name":"BODY_LOCATION_CONFIDENCE_LEVELS","total_count":1,"children":[]},{"name":"BODY_LOCATION_IDS","total_count":1,"children":[]},{"name":"BodyLocationConfidence","total_count":1,"children":[]},{"name":"BodyLocationId","total_count":1,"children":[]},{"name":"formatBodyLocationTaxonomyForPrompt()","total_count":1,"children":[]},{"name":"formatSymptomTaxonomyForPrompt()","total_count":1,"children":[]},{"name":"getBodyLocationTaxonomy()","total_count":1,"children":[]},{"name":"getOptionsForRegion()","total_count":1,"children":[]},{"name":"OPTIONS_BY_REGION","total_count":1,"children":[]},{"name":"SYMPTOM_REGION_NAMES","total_count":1,"children":[]},{"name":"SYMPTOM_REGIONS","total_count":1,"children":[]},{"name":"SymptomRegionName","total_count":1,"children":[]}]}]}]};
+
+    function transformData(jsonData) {
+        // Helper function to recursively build the children structure
+        function processNode(node, parentL1StageName) {
+            let displayName = node.name;
+            // Append total_count if it exists and is not already in the name
+            if (node.total_count !== undefined) {
+                if (!/\(Total Count: \d+\)$/.test(displayName)) {
+                    displayName += ` (Total Count: ${node.total_count})`;
+                }
+            }
+
+            const newNode = { name: displayName };
+
+            if (parentL1StageName === "Root") {
+                 newNode.originalStageName = node.name;
+            } else {
+                newNode.originalStageName = parentL1StageName;
+            }
+
+            if (node.children && node.children.length > 0) {
+                const stageNameToPass = (parentL1StageName === "Root") ? node.name : parentL1StageName;
+                newNode.children = node.children.map(child => processNode(child, stageNameToPass));
+            }
+
+            return newNode;
+        }
+
+        let rootDisplayName = jsonData.name;
+        if (jsonData.total_count !== undefined && !/\(Total Count: \d+\)$/.test(rootDisplayName)) {
+            rootDisplayName += ` (Total Count: ${jsonData.total_count})`;
+        }
+
+        return {
+            name: rootDisplayName,
+            originalStageName: "Root",
+            children: (jsonData.children || []).map(child => processNode(child, "Root"))
+        };
+    }
+
+    const treeData = transformData(initialJsonData);
+
+    // Auto-populated phaseColors: every depth-1 child of the root gets
+    // a stable colour from a bigger palette so all top-level dirs are
+    // distinguishable.
+    const PALETTE = [
+      ["#3498DB","#2980B9","#AED6F1"], ["#2ECC71","#27AE60","#A9DFBF"],
+      ["#E74C3C","#C0392B","#F5B7B1"], ["#9B59B6","#8E44AD","#D7BDE2"],
+      ["#F39C12","#D68910","#FAD7A0"], ["#1ABC9C","#117864","#A2D9CE"],
+      ["#34495E","#1B2631","#ABB2B9"], ["#E67E22","#BA4A00","#F5CBA7"],
+      ["#16A085","#0E6655","#A2D9CE"], ["#D35400","#A04000","#EDBB99"],
+      ["#7F8C8D","#566573","#D5DBDB"], ["#C0392B","#7B241C","#F5B7B1"],
+      ["#2E86C1","#1B4F72","#A9CCE3"], ["#28B463","#196F3D","#A9DFBF"],
+      ["#AF7AC5","#6C3483","#D2B4DE"],
+    ];
+    const phaseColors = { "Root": { fill: "#4A4A4A", stroke: "#333333", collapsedFill: "#6C757D" },
+                          "Default": { fill: "#BDC3C7", stroke: "#95A5A6", collapsedFill: "#ECF0F1" } };
+    (initialJsonData.children || []).forEach((c, i) => {
+      const pal = PALETTE[i % PALETTE.length];
+      phaseColors[c.name] = { fill: pal[0], stroke: pal[1], collapsedFill: pal[2] };
+    });
+
+    const levelSpecificPalettes = {
+      0: { fill: "#4A4A4A", stroke: "#333333", collapsedFill: "#6C757D" },
+      2: { fill: "#6ab04c", stroke: "#508a38", collapsedFill: "#a3d391" },
+      3: { fill: "#f0932b", stroke: "#d0730f", collapsedFill: "#f6c07e" },
+      4: { fill: "#be2edd", stroke: "#a01cb3", collapsedFill: "#e08bf2" },
+      5: { fill: "#00a8ff", stroke: "#007ac1", collapsedFill: "#74d2ff" },
+      6: { fill: "#e55039", stroke: "#c23620", collapsedFill: "#f09a8d" },
+      default: { fill: "#747d8c", stroke: "#57606f", collapsedFill: "#a4b0be" }
+    };
+
+    const svgElement = d3.select("#tree-svg");
+    const initialSvgWidth = +svgElement.attr("width");
+    const initialSvgHeight = +svgElement.attr("height");
+    const margin = { top: 40, right: 120, bottom: 80, left: 450 };
+    let width = initialSvgWidth - margin.left - margin.right;
+    let height = initialSvgHeight - margin.top - margin.bottom;
+    const duration = 500;
+    let nodeCounter = 0;
+    const g = svgElement.append("g").attr("transform", `translate(${margin.left},${margin.top})`);
+    const treemap = d3.tree().nodeSize([40, 0]);
+    let rootNode = d3.hierarchy(treeData, d => d.children);
+    rootNode.x0 = 0;
+    rootNode.y0 = 0;
+
+    if (rootNode.children) {
+      rootNode.children.forEach(d_child => {
+        if (d_child.children) { collapseBranch(d_child); }
+      });
+    }
+    updateTree(rootNode);
+
+    function collapseBranch(d) { if (d.children) { d._children = d.children; d._children.forEach(collapseBranch); d.children = null; } }
+    function expandBranch(d) { if (d._children) { d.children = d._children; d._children = null; } if (d.children) { d.children.forEach(expandBranch); } }
+    window.expandAll = () => { expandBranch(rootNode); updateTree(rootNode); };
+    window.collapseAll = () => { if (rootNode.children) { rootNode.children.forEach(collapseBranch); } updateTree(rootNode); };
+    window.resetView = () => { if (rootNode.children) { rootNode.children.forEach(d_child => { if (d_child.children || d_child._children) { collapseBranch(d_child); } }); } if (rootNode._children && !rootNode.children) { rootNode.children = rootNode._children; rootNode._children = null; } updateTree(rootNode); };
+
+    function updateTree(source) {
+      const treeLayoutData = treemap(rootNode);
+      let nodes = treeLayoutData.descendants();
+      let links = treeLayoutData.descendants().slice(1);
+
+      let minX = 0;
+      let maxX = 0;
+      if (nodes.length > 0) {
+        minX = d3.min(nodes, d => d.x);
+        maxX = d3.max(nodes, d => d.x);
+      }
+
+      let neededHeight = Math.max(initialSvgHeight, maxX - minX + margin.top + margin.bottom + 100);
+      svgElement.transition().duration(duration / 2).attr("height", neededHeight);
+      g.transition().duration(duration / 2).attr("transform", `translate(${margin.left},${margin.top - minX + 40})`);
+
+      nodes.forEach(d => { d.y = d.depth * 400; }); // Adjust horizontal separation if needed
+
+      const node = g.selectAll('g.node').data(nodes, d => d.id || (d.id = ++nodeCounter));
+      const nodeEnter = node.enter().append('g')
+        .attr('class', d => "node" + (d.children || d._children ? " node--internal" : " node--leaf") + (d._children ? " _children" : ""))
+        .attr('transform', d => `translate(${source.y0},${source.x0})`)
+        .on('click', (event, d) => { if (d.children) { d._children = d.children; d.children = null; } else if (d._children) { d.children = d._children; d._children = null; } updateTree(d); })
+        .style('cursor', d => (d.children || d._children) ? 'pointer' : 'default');
+
+      nodeEnter.append('circle').attr('r', 1e-6);
+
+      nodeEnter.append('text')
+        .attr('dy', '.35em')
+        .attr('x', d => d.children || d._children ? -14 : 14)
+        .attr('text-anchor', d => d.children || d._children ? 'end' : 'start')
+        .style("fill-opacity", 1e-6)
+        .call(wrapText, 380);
+
+      const nodeUpdate = nodeEnter.merge(node);
+      nodeUpdate.transition().duration(duration)
+        .attr('transform', d => `translate(${d.y},${d.x})`)
+        .attr('class', d => "node" + (d.children ? " node--internal" : " node--leaf") + (d._children ? " node--internal _children" : ""));
+
+      nodeUpdate.select('circle').attr('r', 8.5)
+        .style('fill', d => {
+            let palette;
+            if (d.depth === 0) {
+                palette = levelSpecificPalettes[0];
+            } else if (d.depth === 1) {
+                palette = phaseColors[d.data.originalStageName] || phaseColors.Default;
+            } else {
+                palette = levelSpecificPalettes[d.depth] || levelSpecificPalettes.default;
+            }
+            if (d._children) return palette.collapsedFill;
+            if (d.children) return palette.fill;
+            return "#fff";
+        })
+        .style('stroke', d => {
+            let palette;
+            if (d.depth === 0) {
+                palette = levelSpecificPalettes[0];
+            } else if (d.depth === 1) {
+                palette = phaseColors[d.data.originalStageName] || phaseColors.Default;
+            } else {
+                palette = levelSpecificPalettes[d.depth] || levelSpecificPalettes.default;
+            }
+            return palette.stroke;
+        });
+      nodeUpdate.select('text').style("fill-opacity", 1).call(wrapText, 380);
+
+      const nodeExit = node.exit().transition().duration(duration).attr('transform', d => `translate(${source.y},${source.x})`).remove();
+      nodeExit.select('circle').attr('r', 1e-6);
+      nodeExit.select('text').style('fill-opacity', 1e-6);
+
+      const link = g.selectAll('path.link').data(links, d => d.id);
+      const linkEnter = link.enter().insert('path', "g").attr('class', 'link').attr('d', d => { const o = { x: source.x0, y: source.y0 }; return diagonal(o, o); });
+
+      linkEnter.merge(link).transition().duration(duration).attr('d', d => diagonal(d, d.parent))
+        .style('stroke', d => {
+            const sourceNode = d.parent;
+            if (!sourceNode) return phaseColors.Default.stroke;
+            const l1AncestorName = sourceNode.data.originalStageName;
+            const colorPalette = phaseColors[l1AncestorName] || phaseColors.Default;
+            return colorPalette.stroke;
+        });
+      link.exit().transition().duration(duration).attr('d', d => { const o = { x: source.x, y: source.y }; return diagonal(o, o); }).remove();
+      nodes.forEach(d => { d.x0 = d.x; d.y0 = d.y; });
+    }
+
+    function diagonal(s, d) { return `M ${s.y} ${s.x} C ${(s.y + d.y) / 2} ${s.x}, ${(s.y + d.y) / 2} ${d.x}, ${d.y} ${d.x}`; }
+
+    function wrapText(textElements, maxWidth) {
+        const textPartColors = {
+            name: '#343a40',
+            count: '#0056b3'
+        };
+        const countRegex = /(\s\(Total Count: \d+\))$/;
+
+        textElements.each(function () {
+            const textD3 = d3.select(this);
+            const originalNodeText = textD3.datum().data.name;
+            const x = parseFloat(textD3.attr("x") || 0);
+            const initialDy = textD3.attr("dy");
+            const textAnchor = textD3.attr("text-anchor");
+            const lineHeight = 1.1;
+
+            textD3.text(null);
+
+            let namePart = originalNodeText;
+            let countPartText = "";
+
+            const countMatch = originalNodeText.match(countRegex);
+            if (countMatch && originalNodeText.endsWith(countMatch[0])) {
+                namePart = originalNodeText.substring(0, originalNodeText.length - countMatch[0].length).trim();
+                countPartText = countMatch[0].trim();
+            }
+
+            const tokens = [];
+            namePart.split(/\s+/).filter(Boolean).forEach(word => {
+                tokens.push({ text: word, type: 'name' });
+            });
+            if (countPartText) {
+                tokens.push({ text: countPartText, type: 'count' });
+            }
+
+            if (tokens.length === 0 && originalNodeText) {
+                tokens.push({ text: originalNodeText, type: 'name' });
+            }
+
+            let currentTspan = textD3.append("tspan").attr("x", x).attr("dy", initialDy);
+            if (textAnchor === "end") currentTspan.attr("text-anchor", "end");
+
+            let lineTokens = [];
+
+            for (let i = 0; i < tokens.length; i++) {
+                const tokenObj = tokens[i];
+
+                lineTokens.push(tokenObj);
+                currentTspan.text(lineTokens.map(t => t.text).join(" "));
+
+                if (currentTspan.node().getComputedTextLength() > maxWidth && lineTokens.length > 1) {
+                    lineTokens.pop();
+
+                    currentTspan.text(null);
+                    lineTokens.forEach((prevToken, idx) => {
+                        currentTspan.append("tspan")
+                            .text((idx > 0 ? " " : "") + prevToken.text)
+                            .style("fill", textPartColors[prevToken.type] || textPartColors.name)
+                            .style("font-weight", prevToken.type === 'count' ? "bold" : "normal");
+                    });
+
+                    lineTokens = [tokenObj];
+                    currentTspan = textD3.append("tspan").attr("x", x).attr("dy", lineHeight + "em");
+                    if (textAnchor === "end") currentTspan.attr("text-anchor", "end");
+                }
+            }
+
+            currentTspan.text(null);
+            lineTokens.forEach((token, idx) => {
+                currentTspan.append("tspan")
+                    .text((idx > 0 ? " " : "") + token.text)
+                    .style("fill", textPartColors[token.type] || textPartColors.name)
+                    .style("font-weight", token.type === 'count' ? "bold" : "normal");
+            });
+
+            if (textD3.selectAll("tspan > tspan").empty() && textD3.select("tspan").text().length === 0 && originalNodeText) {
+                let t = textD3.select("tspan");
+                let displayText = originalNodeText;
+                t.text(displayText).style("fill", textPartColors.name);
+                if (t.node() && t.node().getComputedTextLength() > maxWidth && displayText.length > 20) {
+                    let estimatedChars = Math.floor(maxWidth / (t.node().getComputedTextLength()/displayText.length) );
+                    displayText = displayText.substring(0, Math.max(0, estimatedChars - 3)) + "...";
+                    t.text(displayText);
+                }
+            }
+        });
+    }
+  </script>
+</body>
+</html>

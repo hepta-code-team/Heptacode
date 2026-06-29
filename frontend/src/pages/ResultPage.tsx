@@ -10,6 +10,7 @@ import {
   TRIAGE_CONFIGS,
 } from "../features/results/result.config";
 import { useAssessment } from "../lib/AssessmentContext";
+import { normalizePatientNumericInput } from "../lib/patientDataInput";
 import type { CareLevel, MedicalSpecialty } from "../../../shared/result.types";
 import { CARE_LEVELS, MEDICAL_SPECIALTIES } from "../../../shared/result.types";
 import { DURATIONS, getMeasurementConfig } from "../features/symptoms/symptoms.constants";
@@ -920,7 +921,12 @@ export default function ResultPage() {
                   <span className="text-[11px] font-medium text-app-text-subtle">Geburtsmonat</span>
                   <input
                     value={patientDataDraft.birthMonth}
-                    onChange={(event) => updatePatientDataDraft("birthMonth", event.target.value)}
+                    onChange={(event) =>
+                      updatePatientDataDraft(
+                        "birthMonth",
+                        normalizePatientNumericInput("birthMonth", event.target.value),
+                      )
+                    }
                     className="mt-1 w-full rounded-[8px] border border-[#d8e0ea] px-3 py-2 text-sm font-medium text-app-text-body outline-none focus:border-[#486284] focus:ring-2 focus:ring-[#486284]/20"
                   />
                 </label>
@@ -928,7 +934,12 @@ export default function ResultPage() {
                   <span className="text-[11px] font-medium text-app-text-subtle">Geburtsjahr</span>
                   <input
                     value={patientDataDraft.birthYear}
-                    onChange={(event) => updatePatientDataDraft("birthYear", event.target.value)}
+                    onChange={(event) =>
+                      updatePatientDataDraft(
+                        "birthYear",
+                        normalizePatientNumericInput("birthYear", event.target.value),
+                      )
+                    }
                     className="mt-1 w-full rounded-[8px] border border-[#d8e0ea] px-3 py-2 text-sm font-medium text-app-text-body outline-none focus:border-[#486284] focus:ring-2 focus:ring-[#486284]/20"
                   />
                 </label>
@@ -936,7 +947,9 @@ export default function ResultPage() {
                   <span className="text-[11px] font-medium text-app-text-subtle">Größe</span>
                   <input
                     value={patientDataDraft.height}
-                    onChange={(event) => updatePatientDataDraft("height", event.target.value)}
+                    onChange={(event) =>
+                      updatePatientDataDraft("height", normalizePatientNumericInput("height", event.target.value))
+                    }
                     className="mt-1 w-full rounded-[8px] border border-[#d8e0ea] px-3 py-2 text-sm font-medium text-app-text-body outline-none focus:border-[#486284] focus:ring-2 focus:ring-[#486284]/20"
                   />
                 </label>
@@ -944,7 +957,9 @@ export default function ResultPage() {
                   <span className="text-[11px] font-medium text-app-text-subtle">Gewicht</span>
                   <input
                     value={patientDataDraft.weight}
-                    onChange={(event) => updatePatientDataDraft("weight", event.target.value)}
+                    onChange={(event) =>
+                      updatePatientDataDraft("weight", normalizePatientNumericInput("weight", event.target.value))
+                    }
                     className="mt-1 w-full rounded-[8px] border border-[#d8e0ea] px-3 py-2 text-sm font-medium text-app-text-body outline-none focus:border-[#486284] focus:ring-2 focus:ring-[#486284]/20"
                   />
                 </label>
