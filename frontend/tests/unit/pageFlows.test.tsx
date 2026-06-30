@@ -181,6 +181,21 @@ describe('page-level user flows', () => {
     expect(emergencyTarget).toContain('acuteSymptom=Akute+Atemnot');
   });
 
+  it('opens emergency information and continues from the desktop landing controls', async () => {
+    const user = userEvent.setup();
+
+    render(<LandingPage />);
+
+    await user.click(screen.getByRole('button', { name: 'Verstanden' }));
+    await user.click(screen.getAllByRole('button', { name: 'Informationen zu Notfall-Symptomen' })[1]);
+    expect(screen.getByRole('heading', { name: 'Warum diese Symptome?' })).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Verstanden' }));
+    await user.click(screen.getAllByRole('button', { name: /Keines davon/ })[1]);
+
+    expect(navigateMock).toHaveBeenCalledWith('/patient-data');
+  });
+
   it('shows the bottom mobile step navigation with arrows and only the active step name', () => {
     render(<MobileNavigation />);
 
@@ -299,6 +314,42 @@ describe('page-level user flows', () => {
       weight: '71',
       mood: '',
     }));
+  });
+
+  it('handles empty numeric pointer steppers without changing non-spinner clicks', () => {
+    render(<PatientDataPage />);
+
+    const birthYearInput = screen.getByPlaceholderText('JJJJ') as HTMLInputElement;
+    const heightInput = screen.getByPlaceholderText('zB. 175') as HTMLInputElement;
+    const weightInput = screen.getByPlaceholderText('zB. 70') as HTMLInputElement;
+    const spinButtonRect = {
+      bottom: 40,
+      height: 40,
+      left: 0,
+      right: 100,
+      top: 0,
+      width: 100,
+      x: 0,
+      y: 0,
+      toJSON: () => undefined,
+    };
+
+    vi.spyOn(birthYearInput, 'getBoundingClientRect').mockReturnValue(spinButtonRect);
+    vi.spyOn(heightInput, 'getBoundingClientRect').mockReturnValue(spinButtonRect);
+    vi.spyOn(weightInput, 'getBoundingClientRect').mockReturnValue(spinButtonRect);
+
+    fireEvent.keyDown(birthYearInput, { key: 'Tab' });
+    fireEvent.pointerDown(birthYearInput, { clientX: 10, clientY: 5 });
+    expect(birthYearInput.value).toBe('');
+
+    fireEvent.pointerDown(heightInput, { clientX: 95, clientY: 5 });
+    expect(heightInput.value).toBe('176');
+
+    fireEvent.pointerDown(heightInput, { clientX: 95, clientY: 35 });
+    expect(heightInput.value).toBe('176');
+
+    fireEvent.pointerDown(weightInput, { clientX: 95, clientY: 35 });
+    expect(weightInput.value).toBe('69');
   });
 
   it('collects optional medical data and continues to symptom selection', async () => {
@@ -1142,6 +1193,16 @@ describe('page-level user flows', () => {
 
     await user.click(screen.getByRole('button', { name: 'medical-summary-bearbeiten' }));
 
+    const genderSelect = screen.getAllByRole('combobox').find((select) =>
+      Array.from(select.querySelectorAll('option')).some((option) => option.value === 'Divers'),
+    );
+    expect(genderSelect).toBeTruthy();
+    await user.selectOptions(genderSelect!, 'Divers');
+    await user.click(screen.getByLabelText('Schwanger'));
+    await user.click(screen.getByLabelText('Stillzeit'));
+    await user.type(screen.getByLabelText('Allergien'), 'Pollen');
+    await user.type(screen.getByLabelText('Medikamente'), 'Cetirizin');
+
     const substancePresenceSelect = screen.getAllByRole('combobox').find((select) =>
       Array.from(select.querySelectorAll('option')).some((option) => option.value === 'Ja'),
     );
@@ -1169,6 +1230,11 @@ describe('page-level user flows', () => {
     await user.click(screen.getByRole('button', { name: 'Speichern' }));
 
     expect(setPatientDataMock).toHaveBeenCalledWith(expect.objectContaining({
+      allergies: 'Pollen',
+      gender: 'Divers',
+      isBreastfeeding: true,
+      isPregnant: true,
+      medications: 'Cetirizin',
       substanceInfluence: 'Energy Drinks',
       recentAbroad: 'Ja',
       recentAbroadDetails: 'Spanien | 2026-05-01 | 2026-05-09',
