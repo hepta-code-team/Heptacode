@@ -10,4 +10,4 @@ Aktuell enthalten:
 - [pdf-doc.md](./pdf-doc.md): PDF-Erzeugung und API-Endpunkt `POST /api/v1/pdf/export`
 - [standort-doc.md](./standort-doc.md): Standortsuche und API-Endpunkt `POST /places/nearby`
 - [FHIR.md](./FHIR.md): Dokumentation der FHIR-Datenstruktur
-- [outdatet](./outdatet/): enthält veraltete Dokumentation
+- [outdated](./outdated/): enthält veraltete Dokumentation
