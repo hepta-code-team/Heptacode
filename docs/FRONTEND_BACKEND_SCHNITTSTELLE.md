@@ -359,6 +359,73 @@ curl -X POST http://localhost:3000/api/v1/pdf/export \
 
 ---
 
+### FHIR-Dummy-Versand
+
+```http
+POST /api/v1/fhir/send
+```
+
+Uebergibt ein FHIR `Bundle` an die konfigurierte Sendeschicht. Standardmaessig
+antwortet der Dummy-Modus lokal. Mit `FHIR_SEND_MODE=http` sendet das Backend
+das Bundle per echtem HTTP-POST an `FHIR_ENDPOINT`.
+
+#### Request
+
+```ts
+interface FhirSendRequest {
+  target?: string;
+  bundle: {
+    resourceType: "Bundle";
+    type: string;
+    entry: Array<{
+      resource: {
+        resourceType: string;
+        [key: string]: unknown;
+      };
+      [key: string]: unknown;
+    }>;
+    [key: string]: unknown;
+  };
+}
+```
+
+#### Response `202`
+
+```ts
+interface DummyFhirSendResult {
+  mode: "dummy" | "http";
+  status: "accepted" | "failed";
+  target: string;
+  transmissionId: string;
+  submittedAt: string;
+  bundleSummary: {
+    generated: true;
+    bundleType: string;
+    entryCount: number;
+    resourceTypes: string[];
+  };
+  response?: {
+    httpStatus?: number;
+    contentType?: string;
+    resourceType?: string;
+    issueCount?: number;
+    issueSeverities?: string[];
+    issueCodes?: string[];
+  };
+  error?: string;
+}
+```
+
+#### Beispiel
+
+```bash
+curl -X POST http://localhost:3000/api/v1/fhir/send \
+  -H 'Content-Type: application/json' \
+  --data '{"target":"showcase-kis","bundle":{"resourceType":"Bundle","type":"document","entry":[{"resource":{"resourceType":"Composition"}}]}}'
+```
+
+---
+
 ### Strukturierte Summary erstellen (historisch, aktuell nicht registriert)
 
 Dieser Abschnitt beschreibt einen frueher geplanten Endpunkt. Im aktuellen Backend ist diese Route nicht registriert; fuer PDF-Erzeugung wird aktuell `POST /api/v1/pdf/export` verwendet.
@@ -570,3 +637,4 @@ const result = await apiClient.post<TriageResponse>("/api/v1/triage/evaluate", r
 | `POST` | `/api/v1/symptoms/consistency` | Symptom-Konsistenz pruefen | JSON |
 | `POST` | `/api/v1/triage/evaluate` | Triage bewerten | JSON |
 | `POST` | `/api/v1/pdf/export` | Assessment-PDF erzeugen | PDF |
+| `POST` | `/api/v1/fhir/send` | Dummy-Versand eines FHIR-Bundles simulieren | JSON |

@@ -12,7 +12,7 @@ Ersteinschaetzung ein FHIR `Bundle` im Backend.
 | Bundle-Typ | `document` |
 | Erzeugung | nach erfolgreichem `POST /assessments` |
 | Speicherung | keine Persistenz, Bundle entsteht im Arbeitsspeicher |
-| Externer Versand | keiner |
+| Externer Versand | standardmaessig Dummy; echter HTTP-POST per `FHIR_SEND_MODE=http` |
 | Hauptdatei | `backend/src/modules/fhir/fhirBundle.ts` |
 | Tests | `backend/tests/unit/modules/fhir/fhirBundle.test.ts` |
 
@@ -22,14 +22,106 @@ Ersteinschaetzung ein FHIR `Bundle` im Backend.
 2. `evaluateAssessmentWithAi` erzeugt das fachliche `AssessmentResult`.
 3. `buildFhirBundle(payload, result)` baut daraus ein FHIR Document Bundle.
 4. Die Route loggt eine strukturierte, inhaltsarme Zusammenfassung des Bundles.
-5. Die HTTP-Antwort bleibt das normale Assessment-Ergebnis; das FHIR Bundle wird
+5. `sendFhirBundle(...)` uebergibt das Bundle an die konfigurierte Sendeschicht.
+   Standardmaessig ist das der Dummy-Modus; bei `FHIR_SEND_MODE=http` wird ein
+   echter HTTP-POST an `FHIR_ENDPOINT` ausgefuehrt.
+6. Die HTTP-Antwort bleibt das normale Assessment-Ergebnis; das FHIR Bundle wird
    aktuell nicht als Response ausgeliefert.
+
+## FHIR-Versand
+
+Fuer Showcase-, Integrations- und echte Sendetests gibt es einen Send-Endpunkt:
+
+```http
+POST /api/v1/fhir/send
+```
+
+Der Endpunkt erwartet ein FHIR `Bundle` und uebergibt es an denselben
+Send-Service, der auch nach `POST /assessments` verwendet wird.
+
+Request:
+
+```json
+{
+  "target": "showcase-kis",
+  "bundle": {
+    "resourceType": "Bundle",
+    "type": "document",
+    "entry": [
+      {
+        "resource": {
+          "resourceType": "Composition"
+        }
+      }
+    ]
+  }
+}
+```
+
+Response `202 Accepted`:
+
+```json
+{
+  "mode": "dummy",
+  "status": "accepted",
+  "target": "showcase-kis",
+  "transmissionId": "dummy-fhir-...",
+  "submittedAt": "2026-06-23T12:00:00.000Z",
+  "bundleSummary": {
+    "generated": true,
+    "bundleType": "document",
+    "entryCount": 1,
+    "resourceTypes": ["Composition"]
+  }
+}
+```
+
+Die Quittung enthaelt nur Struktur-Metadaten und keine klinischen Inhalte.
+
+### Dummy-Modus
+
+Ohne weitere Konfiguration laeuft der Versand im Dummy-Modus:
+
+```env
+FHIR_SEND_MODE=dummy
+```
+
+Dabei findet kein Netzwerkversand an ein KIS, eine TI oder einen echten
+FHIR-Server statt. Der Service erzeugt lokal eine Quittung mit
+`status: "accepted"`.
+
+### Echter HTTP-Modus
+
+Fuer einen echten POST an einen FHIR-Server wird die Umgebung so konfiguriert:
+
+```env
+FHIR_SEND_MODE=http
+FHIR_ENDPOINT=https://fhir.example.org/fhir/Bundle
+FHIR_AUTH_TOKEN=<optional-bearer-token>
+FHIR_REQUEST_TIMEOUT_MS=10000
+```
+
+Im HTTP-Modus sendet `sendFhirBundle(...)` das Bundle mit:
+
+```http
+Content-Type: application/fhir+json
+Accept: application/fhir+json, application/json
+```
+
+Wenn `FHIR_AUTH_TOKEN` gesetzt ist, wird zusaetzlich ein Bearer Token gesendet.
+Erfolgreiche HTTP-Statuscodes werden als `status: "accepted"` zurueckgegeben.
+Nicht erfolgreiche Antworten oder Verbindungsfehler werden als
+`status: "failed"` mit HTTP-Status beziehungsweise Fehlermeldung protokolliert.
+FHIR `OperationOutcome`-Antworten werden nur zusammengefasst, damit keine
+vollstaendigen Antwortkoerper mit klinischen Inhalten in Logs landen.
 
 Relevante Dateien:
 
 - `backend/src/routes/assessment.routes.ts`
 - `backend/src/modules/assessment/assessment.service.ts`
 - `backend/src/modules/fhir/fhirBundle.ts`
+- `backend/src/modules/fhir/fhirSend.service.ts`
+- `backend/src/routes/fhir.routes.ts`
 
 ## Bundle-Struktur
 
@@ -133,7 +225,10 @@ per Entwicklungsflag abgesichert werden.
 
 ## Grenzen der aktuellen Implementierung
 
-- Es gibt aktuell keinen separaten FHIR-Export-Endpunkt.
+- Es gibt aktuell keinen separaten FHIR-Export-Endpunkt fuer das zuletzt
+  erzeugte Bundle.
+- Echte FHIR-Server koennen je nach Profil, Endpoint und Bundle-Typ weitere
+  Anforderungen stellen.
 - Das Bundle wird nicht persistiert.
 - Es findet noch keine Validierung gegen ein konkretes FHIR-Profil statt.
 - Medizinische Inhalte werden ueber lesbare deutsche Texte transportiert, noch
