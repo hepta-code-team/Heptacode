@@ -4,7 +4,7 @@ KI-basierte Patientensteuerung zur Effizienzsteigerung im Gesundheitswesen.
 Patienten werden sicher, schnell und laienverständlich durch das Gesundheitssystem geleitet — mit KI-basierter Triage.
 
 ---
-## RollenVerteilung
+## Rollenverteilung
 | Name | Rolle | 
 |---|---|
 | Ella | PO/UI/UX |
