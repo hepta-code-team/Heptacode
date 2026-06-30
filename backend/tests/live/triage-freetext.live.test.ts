@@ -4,6 +4,7 @@ import type { CareLevel } from '../../src/modules/triage/triage.types.js'
 import {
   TRIAGE_FREETEXT_LIVE_CASES,
 } from '../fixtures/triageFreetextLiveCases.js'
+import { hasCareLevelReasoning } from './triageLiveReasoning.js'
 
 /** Live AI evaluations are opt-in because they call external models. */
 const runLiveAiEval = process.env.RUN_AI_TRIAGE_EVAL === 'true' || process.env.RUN_AI_TRIAGE_EVAL === '1'
@@ -26,6 +27,7 @@ type FreetextEvaluationResult = {
   expectedCareLevel: CareLevel
   finalCareLevel?: CareLevel
   passed: boolean
+  reasoningPassed: boolean
   aiUnavailable: boolean
   reasons: string[]
   error?: string
@@ -40,6 +42,7 @@ function formatRate(passed: number, total: number): string {
 function logEvaluationSummary(): void {
   const availableResults = evaluationResults.filter((result) => !result.aiUnavailable)
   const passed = availableResults.filter((result) => result.passed).length
+  const reasoningPassed = availableResults.filter((result) => result.reasoningPassed).length
 
   console.info('Live AI triage freetext emergency evaluation summary', {
     evaluated: availableResults.length,
@@ -47,12 +50,17 @@ function logEvaluationSummary(): void {
     total: evaluationResults.length,
     passed,
     rate: formatRate(passed, availableResults.length),
+    reasoning: {
+      passed: reasoningPassed,
+      rate: formatRate(reasoningPassed, availableResults.length),
+    },
     failures: evaluationResults
-      .filter((result) => !result.passed || result.aiUnavailable)
+      .filter((result) => !result.passed || !result.reasoningPassed || result.aiUnavailable)
       .map(({
         id,
         expectedCareLevel,
         finalCareLevel,
+        reasoningPassed,
         aiUnavailable,
         reasons,
         error,
@@ -60,6 +68,7 @@ function logEvaluationSummary(): void {
         id,
         expectedCareLevel,
         finalCareLevel,
+        reasoningPassed,
         aiUnavailable,
         reasons,
         error,
@@ -116,6 +125,7 @@ describe('live AI triage freetext emergency evaluation', () => {
           return evaluateTriage(patientData, undefined, false, text, 'text')
         })()
         const passed = result.careLevel === expectedCareLevel
+        const reasoningPassed = hasCareLevelReasoning(result, expectedCareLevel)
         const aiUnavailable = result.aiUnavailable === true
 
         evaluationResults.push({
@@ -124,6 +134,7 @@ describe('live AI triage freetext emergency evaluation', () => {
           expectedCareLevel,
           finalCareLevel: result.careLevel,
           passed,
+          reasoningPassed,
           aiUnavailable,
           reasons: result.reasons,
         })
@@ -133,6 +144,7 @@ describe('live AI triage freetext emergency evaluation', () => {
           expectedCareLevel,
           finalCareLevel: result.careLevel,
           passed,
+          reasoningPassed,
           aiUnavailable,
           reasons: result.reasons,
         })
@@ -142,6 +154,10 @@ describe('live AI triage freetext emergency evaluation', () => {
           'AI availability fallback used; this case cannot measure freetext model correctness',
         ).toBe(false)
         expect(result.careLevel).toBe(expectedCareLevel)
+        expect(
+          reasoningPassed,
+          'AI reasoning should explain why the expected care level is appropriate',
+        ).toBe(true)
       } catch (error) {
         if (!evaluationResults.some((result) => result.id === id)) {
           evaluationResults.push({
@@ -149,6 +165,7 @@ describe('live AI triage freetext emergency evaluation', () => {
             name,
             expectedCareLevel,
             passed: false,
+            reasoningPassed: false,
             aiUnavailable: false,
             reasons: [],
             error: error instanceof Error ? error.message : String(error),

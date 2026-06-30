@@ -9,6 +9,7 @@ import {
   TRIAGE_PLAUSIBILITY_LIVE_CASES,
   type TriagePlausibilityCategory,
 } from '../fixtures/triagePlausibilityLiveCases.js'
+import { hasCareLevelReasoning } from './triageLiveReasoning.js'
 
 /** Live AI evaluations are opt-in because they call an external model. */
 const runLiveAiEval = process.env.RUN_AI_TRIAGE_EVAL === 'true' || process.env.RUN_AI_TRIAGE_EVAL === '1'
@@ -56,34 +57,6 @@ function isAvailabilityFallback(result: TriageEvaluationDiagnostics): boolean {
 /** Formats a case ratio as a percentage for console reporting. */
 function formatRate(passed: number, total: number): string {
   return total === 0 ? 'n/a' : `${((passed / total) * 100).toFixed(1)}%`
-}
-
-/** Normalizes German and ASCII fallback spellings so keyword checks are stable. */
-function normalizeReasoningText(value: string): string {
-  return value
-    .toLowerCase()
-    .replace(/ä/g, 'ae')
-    .replace(/ö/g, 'oe')
-    .replace(/ü/g, 'ue')
-    .replace(/ß/g, 'ss')
-}
-
-/** Checks whether the AI explanation contains wording that matches the expected care level. */
-function hasCareLevelReasoning(result: TriageEvaluationDiagnostics, expectedCareLevel: CareLevel): boolean {
-  const explanationText = normalizeReasoningText([
-    ...(result.aiResponse?.reasons ?? []),
-    result.aiResponse?.reviewSummary?.plainLanguage,
-    result.aiResponse?.reviewSummary?.professionalSummary,
-  ].filter((part): part is string => Boolean(part)).join(' '))
-
-  const keywordsByCareLevel: Record<CareLevel, string[]> = {
-    emergency: ['notfall', 'sofort', 'umgehend', 'akut', 'notaufnahme', '112'],
-    specialist: ['fachaerzt', 'facharzt', 'fachrichtung', 'spezialist', 'spezialisierte', 'intern', 'pneumolog', 'urolog', 'diabetolog', 'gastroenterolog'],
-    doctor: ['arzt', 'aerzt', 'hausarzt', 'allgemeinmedizin', 'abklaerung', 'einschaetzung', 'zeitnah'],
-    selfcare: ['selbst', 'haeuslich', 'beobachten', 'schonung', 'keine warnzeichen', 'harmlos'],
-  }
-
-  return keywordsByCareLevel[expectedCareLevel].some((keyword) => explanationText.includes(keyword))
 }
 
 /** Prints total accuracy, category rates, and failed case details. */
