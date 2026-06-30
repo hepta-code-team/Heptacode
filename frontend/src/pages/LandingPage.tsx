@@ -99,7 +99,7 @@ export default function LandingPage() {
                 </div>
                 <p className="font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-primary text-base mb-5"
                    style={{fontVariationSettings: "'opsz' 14"}}>
-                    Bitte wählen Sie das Symptom aus, unter dem Sie leiden oder Überspringen Sie diese Seite.
+                    Bitte wählen Sie das Symptom aus, unter dem Sie leiden oder überspringen Sie diese Seite.
                 </p>
 
                 <EmergencySymptomGrid onSymptomClick={handleEmergencySymptom} variant="mobile"/>
@@ -134,7 +134,7 @@ export default function LandingPage() {
                     className="font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-primary text-base md:text-lg mb-4"
                     style={{fontVariationSettings: "'opsz' 14"}}
                 >
-                    Bitte wählen Sie das Symptom aus, unter dem Sie leiden oder Überspringen Sie diese Seite.
+                    Bitte wählen Sie das Symptom aus, unter dem Sie leiden oder überspringen Sie diese Seite.
                 </p>
 
                 <EmergencySymptomGrid onSymptomClick={handleEmergencySymptom} variant="desktop"/>
