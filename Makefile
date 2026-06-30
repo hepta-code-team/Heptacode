@@ -20,6 +20,7 @@ logs:
 
 clean:
 	docker compose down --rmi all --volumes --remove-orphans
+	
 setup-env:
 	@if not exist .env.local copy .env.example .env.local
 

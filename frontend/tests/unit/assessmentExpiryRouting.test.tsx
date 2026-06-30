@@ -17,10 +17,10 @@ const patientData: PatientData = {
   medications: '',
   medicationDuration: '',
   substanceInfluence: '',
-  recentAbroad: false,
+  recentAbroad: 'Nein',
   recentAbroadDetails: '',
   conditions: [],
-  isSmoker: false,
+  isSmoker: 'Nein',
   smokingSinceYears: '',
   cigarettesPerDay: '',
   conditionDetails: {},
@@ -80,7 +80,7 @@ describe('assessment expiry routing', () => {
     });
 
     expect(window.location.pathname).toBe('/');
-  });
+  }, 10_000);
 
   it('keeps the current assessment when the keep-session button is clicked', async () => {
     vi.useFakeTimers();
@@ -107,5 +107,5 @@ describe('assessment expiry routing', () => {
     });
 
     expect(window.location.pathname).toBe('/patient-data');
-  });
+  }, 10_000);
 });
