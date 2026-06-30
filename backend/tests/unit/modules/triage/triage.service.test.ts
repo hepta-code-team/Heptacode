@@ -168,6 +168,7 @@ describe('evaluateTriage', () => {
     )
   })
 
+  /** Medication and duration should be sent as active triage context, not just demographics. */
   it('hebt Medikamente und Einnahmedauer als eigenen Triage-Kontext hervor', async () => {
     requestStructuredAiResponseWithModelMock.mockResolvedValueOnce({
       data: {
@@ -207,6 +208,7 @@ describe('evaluateTriage', () => {
     )
   })
 
+  /** Missing medication duration should remain explicit in the prompt context. */
   it('kennzeichnet eine fehlende Einnahmedauer im Medikationskontext', async () => {
     requestStructuredAiResponseWithModelMock.mockResolvedValueOnce({
       data: {
@@ -239,6 +241,7 @@ describe('evaluateTriage', () => {
     )
   })
 
+  /** Medical risk factors should be grouped into the dedicated triage risk context. */
   it('hebt Allergien, Substanzeinfluss, Reisen und Vorerkrankungen als Risikokontext hervor', async () => {
     requestStructuredAiResponseWithModelMock.mockResolvedValueOnce({
       data: {
