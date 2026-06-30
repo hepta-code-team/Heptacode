@@ -355,6 +355,8 @@ describe('page-level user flows', () => {
 
     await user.click(screen.getByRole('button', { name: 'Diabetes' }));
     await user.click(screen.getByRole('button', { name: 'Typ 2' }));
+    await user.click(screen.getByRole('button', { name: 'Epilepsie' }));
+    expect(screen.getByRole('button', { name: 'Unklar' }).parentElement).toHaveClass('top-full', 'mt-1');
     await user.type(screen.getByLabelText('Sonstige'), 'Migräne');
     await user.click(screen.getAllByRole('button', { name: 'Weiter' }).at(-1)!);
 

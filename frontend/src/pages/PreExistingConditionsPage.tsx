@@ -516,9 +516,6 @@ export default function PreExistingConditionsPage() {
             const config = CONDITION_DETAIL_CONFIGS[condition];
             const detail = formData.conditionDetails?.[condition]?.detail ?? "";
             const isOpen = expandedConditionDetails[condition] ?? false;
-            const opensUpward =
-              condition === "Epilepsie" || condition === "Psychische Erkrankung";
-
             if (condition === "Sonstige") {
               const isOtherOpen =
                 expandedConditionDetails.Sonstige ?? false;
@@ -606,9 +603,7 @@ export default function PreExistingConditionsPage() {
                   </div>
                   {otherValue.trim() && isOtherOpen && (
                     <div
-                      className={`absolute z-10 left-0 right-0 max-h-[calc(100dvh-12rem)] overflow-y-auto rounded-[12px] border-2 border-[#486284] bg-white shadow-lg ${
-                        opensUpward ? "bottom-full mb-1" : "top-full mt-1"
-                      }`}
+                      className="absolute z-10 left-0 right-0 top-full mt-1 max-h-[calc(100dvh-12rem)] overflow-y-auto rounded-[12px] border-2 border-[#486284] bg-white shadow-lg"
                     >
                       {renderConditionDurationField(condition)}
                     </div>
@@ -687,9 +682,7 @@ export default function PreExistingConditionsPage() {
 
                 {isOpen && config && (
                   <div
-                    className={`absolute z-10 left-0 right-0 max-h-[calc(100dvh-12rem)] overflow-y-auto bg-white border-2 border-[#486284] rounded-[12px] shadow-lg ${
-                      opensUpward ? "bottom-full mb-1" : "top-full mt-1"
-                    }`}
+                    className="absolute z-10 left-0 right-0 top-full mt-1 max-h-[calc(100dvh-12rem)] overflow-y-auto bg-white border-2 border-[#486284] rounded-[12px] shadow-lg"
                   >
                     {config.options.map((option) => (
                       <button
