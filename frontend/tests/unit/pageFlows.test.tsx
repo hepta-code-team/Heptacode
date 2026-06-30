@@ -190,8 +190,8 @@ describe('page-level user flows', () => {
 
     fireEvent.change(screen.getByPlaceholderText('MM'), { target: { value: '13' } });
     fireEvent.change(screen.getByPlaceholderText('JJJJ'), { target: { value: '1990' } });
-    fireEvent.change(screen.getByPlaceholderText('zB. 175'), { target: { value: '180' } });
-    fireEvent.change(screen.getByPlaceholderText('zB. 70'), { target: { value: '80' } });
+    fireEvent.change(screen.getByPlaceholderText('z. B. 175'), { target: { value: '180' } });
+    fireEvent.change(screen.getByPlaceholderText('z. B. 70'), { target: { value: '80' } });
     await user.click(screen.getByRole('button', { name: 'Männlich' }));
     expect(screen.getByText('Bitte Monat zwischen 1-12 wählen.')).toBeInTheDocument();
 
@@ -223,8 +223,8 @@ describe('page-level user flows', () => {
 
     const birthMonthInput = screen.getByPlaceholderText('MM') as HTMLInputElement;
     const birthYearInput = screen.getByPlaceholderText('JJJJ') as HTMLInputElement;
-    const heightInput = screen.getByPlaceholderText('zB. 175') as HTMLInputElement;
-    const weightInput = screen.getByPlaceholderText('zB. 70') as HTMLInputElement;
+    const heightInput = screen.getByPlaceholderText('z. B. 175') as HTMLInputElement;
+    const weightInput = screen.getByPlaceholderText('z. B. 70') as HTMLInputElement;
 
     fireEvent.change(birthMonthInput, { target: { value: '07' } });
     fireEvent.change(birthYearInput, { target: { value: '01990' } });
