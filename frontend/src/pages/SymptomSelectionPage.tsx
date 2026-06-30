@@ -4,7 +4,7 @@ import { useNavigate, useSearchParams } from "react-router";
 import { Brain, Check, Mic, MicOff, PersonStanding, Sparkles, Trash2, X } from "lucide-react";
 import PageShell from "../components/PageShell";
 import Button from "../components/Button";
-import SymptomButtonGrid from "../features/symptoms/SymptomButtonGrid";
+import SymptomButtonGrid, { renderBreakableLabel } from "../features/symptoms/SymptomButtonGrid";
 import { useAssessment } from "../lib/AssessmentContext";
 import { extractSymptomsFromText } from "../lib/symptomExtractionApi";
 import {
@@ -1323,7 +1323,7 @@ export default function SymptomSelectionPage() {
                       }
                     >
                       <div className="flex items-center justify-between gap-2 md:items-start">
-                        <div>
+                        <div className="min-w-0 flex-1">
                           <p
                             className="hidden font-['DM_Sans:Bold',sans-serif] text-xs font-bold md:mb-1 md:block"
                             style={{ fontVariationSettings: "'opsz' 14" }}
@@ -1331,10 +1331,11 @@ export default function SymptomSelectionPage() {
                             Beschwerde {index + 1}
                           </p>
                           <p
-                            className="font-['DM_Sans:SemiBold',sans-serif] text-xs font-semibold leading-tight md:text-sm"
+                            className="hyphens-auto break-words font-['DM_Sans:SemiBold',sans-serif] text-xs font-semibold leading-tight md:text-sm"
+                            lang="de"
                             style={{ fontVariationSettings: "'opsz' 14" }}
                           >
-                            {symptom ? getSymptomKey(symptom) : `${index + 1}. hinzufügen`}
+                            {symptom ? renderBreakableLabel(getSymptomKey(symptom)) : `${index + 1}. hinzufügen`}
                           </p>
                         </div>
                         {symptom && (
@@ -1344,7 +1345,7 @@ export default function SymptomSelectionPage() {
                               event.stopPropagation();
                               removeSymptom(index);
                             }}
-                            className="rounded-full p-0.5 text-app-text-primary hover:bg-[#eff2f6]"
+                            className="flex-shrink-0 rounded-full p-0.5 text-app-text-primary hover:bg-[#eff2f6]"
                             aria-label={`${getSymptomKey(symptom)} entfernen`}
                           >
                             <X className="size-3.5 md:size-4" aria-hidden="true" />
