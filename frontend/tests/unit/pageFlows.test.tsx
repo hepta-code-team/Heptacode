@@ -266,9 +266,9 @@ describe('page-level user flows', () => {
     await user.type(screen.getByPlaceholderText('Land / Region, falls bekannt'), 'Italien');
     await user.click(screen.getAllByRole('button', { name: 'Ja' })[1]);
     await user.click(screen.getByRole('button', { name: /Rauchen/ }));
-    await user.click(screen.getAllByRole('button', { name: 'Ja' }).at(-1)!);
-    await user.click(screen.getByRole('button', { name: 'Rauchdauer erhöhen' }));
-    await user.click(screen.getByRole('button', { name: 'Zigaretten pro Tag erhöhen' }));
+    await user.click(screen.getByRole('button', { name: 'Regelmäßig' }));
+    await user.type(screen.getByLabelText('Seit wann?'), 'seit 1 Jahr');
+    await user.click(screen.getByRole('button', { name: 'Rauchmenge erhöhen' }));
     await user.click(screen.getAllByRole('button', { name: 'Weiter' }).at(-1)!);
 
     expect(setPatientDataMock).toHaveBeenCalledWith(expect.objectContaining({
@@ -278,8 +278,8 @@ describe('page-level user flows', () => {
       recentAbroad: "Ja",
       recentAbroadDetails: 'Italien',
       isPregnant: true,
-      isSmoker: "Ja",
-      smokingSinceYears: '1',
+      isSmoker: "Regelmäßig",
+      smokingSinceYears: 'seit 1 Jahr',
       cigarettesPerDay: '1',
     }));
     expect(navigateMock).toHaveBeenCalledWith('/pre-existing-conditions');
@@ -338,7 +338,13 @@ describe('page-level user flows', () => {
     await user.click(screen.getByRole('button', { name: /Rauchen/ }));
 
     expect(screen.getByRole('button', { name: 'Gelegentlich' })).toHaveClass('bg-[#486284]');
-    expect(screen.getByRole('button', { name: 'Ja' })).not.toHaveClass('bg-[#486284]');
+    expect(screen.getByText('Seit wann?')).toBeInTheDocument();
+    expect(screen.getByText('Menge pro Woche')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Rauchmenge erhöhen' }));
+    expect(screen.getByDisplayValue('1')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Regelmäßig' })).not.toHaveClass('bg-[#486284]');
+    await user.click(screen.getByRole('button', { name: 'Früher' }));
+    expect(screen.getByText('Seit wann nicht mehr?')).toBeInTheDocument();
   });
 
   it('collects pre-existing conditions and continues to symptom selection', async () => {
