@@ -66,34 +66,25 @@ function hasSubstance(value: string | undefined, substance: "Alkohol" | "Drogen"
 }
 
 function buildSubstanceInfluence(
-  data: Pick<
+  _data: Pick<
     PatientData,
     "alcoholSince" | "alcoholFrequencyPerDay" | "drugDetails" | "drugSince" | "drugFrequencyPerDay"
   >,
   selection: { alcohol: boolean; drugs: boolean },
 ) {
-  const parts: string[] = [];
+  if (selection.alcohol && selection.drugs) {
+    return "Alkohol und Drogen ausgewählt";
+  }
 
   if (selection.alcohol) {
-    const details = [
-      data.alcoholSince?.trim() ? `seit ${data.alcoholSince.trim()}` : null,
-      data.alcoholFrequencyPerDay?.trim() ? `${data.alcoholFrequencyPerDay.trim()} pro Tag` : null,
-    ].filter(Boolean);
-
-    parts.push(details.length > 0 ? `Alkohol (${details.join(", ")})` : "Alkohol");
+    return "Alkohol ausgewählt";
   }
 
   if (selection.drugs) {
-    const details = [
-      data.drugDetails?.trim() ? `Substanz: ${data.drugDetails.trim()}` : null,
-      data.drugSince?.trim() ? `seit ${data.drugSince.trim()}` : null,
-      data.drugFrequencyPerDay?.trim() ? `${data.drugFrequencyPerDay.trim()} pro Tag` : null,
-    ].filter(Boolean);
-
-    parts.push(details.length > 0 ? `Drogen (${details.join(", ")})` : "Drogen");
+    return "Drogen ausgewählt";
   }
 
-  return parts.length > 0 ? parts.join("; ") : "";
+  return "";
 }
 
 function getSubstanceSummary(data: PatientData) {
@@ -620,7 +611,7 @@ export default function MedicalDataPage() {
             />
             <div className="mt-3 space-y-1.5">
               <label htmlFor="medicationDuration" className="text-xs font-medium text-app-text-subtle">
-                Seit wenn nehmen Sie diese Medikamente?
+                Seit wann nehmen Sie diese Medikamente?
               </label>
               <Input
                 id="medicationDuration"
@@ -628,14 +619,14 @@ export default function MedicalDataPage() {
                 onChange={(event) =>
                   setFormData({ ...formData, medicationDuration: event.target.value})
                 }
-                placeholder="z.b.B seit 2021, seit 3 Wochen, unbekannt"
+                placeholder="z.B. seit 2021, seit 3 Wochen, unbekannt"
                 className="!bg-white"
               />
             </div>
           </MedicalAccordionPanel>
 
           <MedicalAccordionPanel
-            title="Einfluss durch Alkohol oder Drogen"
+            title="Einfluss durch Alkohol oder/und Drogen"
             icon={Wine}
             isOpen={expandedMedicalSections.substance}
             onToggle={() => toggleMedicalSection("substance")}

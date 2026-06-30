@@ -274,7 +274,7 @@ describe('page-level user flows', () => {
     expect(setPatientDataMock).toHaveBeenCalledWith(expect.objectContaining({
       allergies: 'Penicillin',
       medications: 'Ibuprofen',
-      substanceInfluence: 'Alkohol',
+      substanceInfluence: 'Alkohol ausgewählt',
       recentAbroad: "Ja",
       recentAbroadDetails: 'Italien',
       isPregnant: true,
@@ -283,6 +283,34 @@ describe('page-level user flows', () => {
       cigarettesPerDay: '1',
     }));
     expect(navigateMock).toHaveBeenCalledWith('/pre-existing-conditions');
+  });
+
+  it('summarizes substance influence by selection without entered details', async () => {
+    const user = userEvent.setup();
+    assessmentState.patientData = basePatientData;
+
+    render(<MedicalDataPage />);
+
+    await user.click(screen.getByRole('button', { name: /Einfluss durch Alkohol/ }));
+    await user.click(screen.getByRole('button', { name: 'Alkohol' }));
+    await user.type(screen.getByLabelText('Seit wann?'), 'seit 2021');
+    await user.type(screen.getByLabelText('Wie oft am Tag?'), '1 Glas');
+
+    expect(screen.getByRole('button', { name: /Einfluss durch Alkohol oder\/und Drogen.*Alkohol ausgewählt/ })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Einfluss durch Alkohol oder\/und Drogen.*seit 2021/ })).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Drogen' }));
+    await user.type(screen.getByLabelText('Welche Drogen oder Substanzen nehmen Sie ein?'), 'Cannabis');
+    await user.type(screen.getAllByLabelText('Seit wann?').at(-1)!, 'seit 2022');
+    await user.type(screen.getAllByLabelText('Wie oft am Tag?').at(-1)!, '2-mal');
+
+    expect(screen.getByRole('button', { name: /Einfluss durch Alkohol oder\/und Drogen.*Alkohol und Drogen ausgewählt/ })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Einfluss durch Alkohol oder\/und Drogen.*Cannabis/ })).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Alkohol' }));
+
+    expect(screen.getByRole('button', { name: /Einfluss durch Alkohol oder\/und Drogen.*Drogen ausgewählt/ })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Einfluss durch Alkohol oder\/und Drogen.*2-mal/ })).not.toBeInTheDocument();
   });
 
   it('keeps occasional smoking selected after medical data is persisted', async () => {
