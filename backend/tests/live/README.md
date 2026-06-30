@@ -14,7 +14,8 @@ Linux ohne zusaetzliches Runner-Skript.
   Specialist-, Doctor-, Selfcare- und False-Positive-Faelle. Zusaetzlich wird
   geprueft, ob die KI-Begruendung zur erwarteten Versorgungsebene passt.
 - `triage-freetext.live.test.ts` prueft, ob eindeutig genannte
-  Notfallsymptome auch nach Freitext-Extraktion als Emergency eingestuft werden.
+  Notfallsymptome auch nach Freitext-Extraktion als Emergency eingestuft werden
+  und ob die KI-Begruendung zur erwarteten Versorgungsebene passt.
 
 Die Plausibilitaets-Suite wertet einen Fall nur dann als korrekt, wenn die
 erwartete Versorgungsebene direkt vom KI-Ablauf zurueckgegeben wird. Ein Ergebnis
@@ -32,6 +33,18 @@ Die Zusammenfassung enthaelt zwei getrennte Quoten:
 
 Dadurch wird sichtbar, ob eine Prompt-Aenderung die KI selbst verbessert oder ob
 das Backend eine fehlerhafte KI-Einstufung erst durch den Fallback korrigiert.
+
+## Nachvollziehbarkeit
+
+Jeder Live-Testfall gibt die erwartete Versorgungsebene, das tatsaechliche
+Ergebnis, die verwendete KI-Begruendung und moegliche Plausibilitaetsfehler aus.
+Die Freitext-Suite prueft zusaetzlich, ob Notfallsymptome nach der
+Freitext-Extraktion weiterhin als Emergency eingestuft werden.
+
+Die `reasoning`-Quote zeigt, ob die KI-Begruendung sprachlich zur erwarteten
+Versorgungsebene passt. Dadurch koennen Prompt-Aenderungen nicht nur anhand der
+reinen Einstufung, sondern auch anhand der Erklaerbarkeit der Antwort verglichen
+werden.
 
 ## Befehle
 
