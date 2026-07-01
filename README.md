@@ -131,6 +131,9 @@ cd backend
 npm run test:ai-triage
 ```
 
+Details zur Auswertung, Fallauswahl und Interpretation stehen in
+[backend/docs/ki-triage-live-tests-doc.md](backend/docs/ki-triage-live-tests-doc.md).
+
 ---
 
 ## Deployment-Optionen
