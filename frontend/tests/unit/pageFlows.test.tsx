@@ -355,17 +355,36 @@ describe('page-level user flows', () => {
 
     await user.click(screen.getByRole('button', { name: 'Diabetes' }));
     await user.click(screen.getByRole('button', { name: 'Typ 2' }));
-    await user.click(screen.getByRole('button', { name: 'Epilepsie' }));
-    expect(screen.getByRole('button', { name: 'Unklar' }).parentElement).toHaveClass('top-full', 'mt-1');
+
+    const mentalConditionButton = screen.getByRole('button', { name: 'Psychische Erkrankung' });
+    const epilepsyButton = screen.getByRole('button', { name: 'Epilepsie' });
+    expect(
+      mentalConditionButton.compareDocumentPosition(epilepsyButton) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+
+    await user.click(epilepsyButton);
+    expect(screen.getByRole('button', { name: 'Unklar' }).parentElement).toHaveClass(
+      'top-full',
+      'mt-1',
+      'overflow-y-auto',
+      'overscroll-contain',
+    );
+    expect(screen.queryByLabelText('Seit wann?')).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Unklar' }));
     await user.type(screen.getByLabelText('Sonstige'), 'Migräne');
     await user.click(screen.getAllByRole('button', { name: 'Weiter' }).at(-1)!);
 
     expect(setPatientDataMock).toHaveBeenCalledWith(expect.objectContaining({
-      conditions: expect.arrayContaining(['Diabetes', 'Sonstige']),
+      conditions: expect.arrayContaining(['Diabetes', 'Epilepsie', 'Sonstige']),
       conditionDetails: expect.objectContaining({
         Diabetes: {
           condition: 'Diabetes',
           detail: 'Typ 2',
+          duration: '',
+        },
+        Epilepsie: {
+          condition: 'Epilepsie',
+          detail: 'Unklar',
           duration: '',
         },
         Sonstige: {

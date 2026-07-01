@@ -247,12 +247,16 @@ export default function PreExistingConditionsPage() {
   const navigate = useNavigate();
   const { patientData, setPatientData } = useAssessment();
   const conditionsGridRef = useRef<HTMLDivElement | null>(null);
+  const conditionDropdownRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const [formData, setFormData] = useState<PatientData>(() =>
     createInitialPatientData(patientData ?? undefined),
   );
 
   const [expandedConditionDetails, setExpandedConditionDetails] = useState<
     Record<string, boolean>
+  >({});
+  const [conditionDropdownMaxHeights, setConditionDropdownMaxHeights] = useState<
+    Record<string, number | undefined>
   >({});
 
   /**
@@ -275,7 +279,43 @@ export default function PreExistingConditionsPage() {
     setPatientData(formData);
   }, [formData, setPatientData]);
 
+  /**
+   * Caps opened condition lists to the viewport space below the trigger so
+   * dropdown overflow is handled inside the list instead of creating an outer
+   * page scrollbar. Short lists remain below the cap and show no scrollbar.
+   */
+  useEffect(() => {
+    const updateDropdownMaxHeights = () => {
+      const nextMaxHeights: Record<string, number | undefined> = {};
 
+      for (const [condition, isOpen] of Object.entries(
+        expandedConditionDetails,
+      )) {
+        if (!isOpen) continue;
+
+        const dropdown = conditionDropdownRefs.current[condition];
+        if (!dropdown) continue;
+
+        const viewportPadding = 16;
+        const availableHeight =
+          window.innerHeight -
+          dropdown.getBoundingClientRect().top -
+          viewportPadding;
+
+        nextMaxHeights[condition] = Math.max(0, availableHeight);
+      }
+
+      setConditionDropdownMaxHeights(nextMaxHeights);
+    };
+
+    const frameId = window.requestAnimationFrame(updateDropdownMaxHeights);
+    window.addEventListener("resize", updateDropdownMaxHeights);
+
+    return () => {
+      window.cancelAnimationFrame(frameId);
+      window.removeEventListener("resize", updateDropdownMaxHeights);
+    };
+  }, [expandedConditionDetails, formData.conditionDetails]);
 
   const toggleConditionDropdown = (condition: string) => {
     setExpandedConditionDetails((sections) => ({
@@ -603,7 +643,11 @@ export default function PreExistingConditionsPage() {
                   </div>
                   {otherValue.trim() && isOtherOpen && (
                     <div
-                      className="absolute z-10 left-0 right-0 top-full mt-1 max-h-[calc(100dvh-12rem)] overflow-y-auto rounded-[12px] border-2 border-[#486284] bg-white shadow-lg"
+                      ref={(element) => {
+                        conditionDropdownRefs.current[condition] = element;
+                      }}
+                      className="absolute z-10 left-0 right-0 top-full mt-1 overflow-y-auto overscroll-contain rounded-[12px] border-2 border-[#486284] bg-white shadow-lg"
+                      style={{ maxHeight: conditionDropdownMaxHeights[condition] }}
                     >
                       {renderConditionDurationField(condition)}
                     </div>
@@ -682,7 +726,11 @@ export default function PreExistingConditionsPage() {
 
                 {isOpen && config && (
                   <div
-                    className="absolute z-10 left-0 right-0 top-full mt-1 max-h-[calc(100dvh-12rem)] overflow-y-auto bg-white border-2 border-[#486284] rounded-[12px] shadow-lg"
+                    ref={(element) => {
+                      conditionDropdownRefs.current[condition] = element;
+                    }}
+                    className="absolute z-10 left-0 right-0 top-full mt-1 overflow-y-auto overscroll-contain bg-white border-2 border-[#486284] rounded-[12px] shadow-lg"
+                    style={{ maxHeight: conditionDropdownMaxHeights[condition] }}
                   >
                     {config.options.map((option) => (
                       <button
@@ -704,7 +752,7 @@ export default function PreExistingConditionsPage() {
                         )}
                       </button>
                     ))}
-                    {renderConditionDurationField(condition)}
+                    {condition !== "Epilepsie" && renderConditionDurationField(condition)}
                   </div>
                 )}
               </div>
