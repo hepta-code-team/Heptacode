@@ -500,7 +500,7 @@ export default function MedicalDataPage() {
   const isAlcoholSelected = hasSubstance(formData.substanceInfluence, "Alkohol");
   const isDrugSelected = hasSubstance(formData.substanceInfluence, "Drogen");
   const smokingDurationLabel = formData.isSmoker === "Früher" ? "Seit wann nicht mehr?" : "Seit wann?";
-  const smokingAmountLabel = formData.isSmoker === "Gelegentlich" ? "Menge pro Woche" : "Menge pro Tag";
+  const smokingAmountLabel = formData.isSmoker === "Gelegentlich" ? "Menge pro Monat" : "Menge pro Tag";
 
   return (
     <PageShell
@@ -586,7 +586,7 @@ export default function MedicalDataPage() {
               onChange={(event) =>
                 setFormData({ ...formData, allergies: event.target.value })
               }
-              placeholder="z.B. Penicillin, Nüsse, Latex"
+              placeholder="z. B. Penicillin, Nüsse, Latex"
               className="w-full min-h-[82px] resize-none rounded-[10px] bg-white p-3 text-sm outline-none focus:ring-2 focus:ring-[#486284]/30"
             />
           </MedicalAccordionPanel>
@@ -608,7 +608,7 @@ export default function MedicalDataPage() {
               onChange={(event) =>
                 setFormData({ ...formData, medications: event.target.value })
               }
-              placeholder="z.B. Blutdruckmittel, Schmerzmittel, Pille"
+              placeholder="z. B. Blutdruckmittel, Schmerzmittel, Pille"
               className="w-full min-h-[82px] resize-none rounded-[10px] bg-white p-3 text-sm outline-none focus:ring-2 focus:ring-[#486284]/30"
             />
             <div className="mt-3 space-y-1.5">
@@ -619,9 +619,9 @@ export default function MedicalDataPage() {
                 id="medicationDuration"
                 value={formData.medicationDuration}
                 onChange={(event) =>
-                  setFormData({ ...formData, medicationDuration: event.target.value})
+                  setFormData({ ...formData, medicationDuration: event.target.value })
                 }
-                placeholder="z.B. seit 2021, seit 3 Wochen, unbekannt"
+                placeholder="z. B. seit 2021, seit 3 Wochen, unbekannt"
                 className="!bg-white"
               />
             </div>
@@ -855,7 +855,7 @@ export default function MedicalDataPage() {
                       smokingSinceYears: event.target.value,
                     })
                   }
-                  placeholder="z.B. seit 3 Jahren, seit 2019, unbekannt"
+                  placeholder="z. B. seit 3 Jahren, seit 2019, unbekannt"
                   className="bg-white border-none text-xs h-9"
                 />
               </div>
