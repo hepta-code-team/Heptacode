@@ -12,7 +12,7 @@ vi.mock('../../../src/ai/llmAdapter.js', () => ({
 
 const requestStructuredAiResponseWithModelMock = vi.mocked(requestStructuredAiResponseWithModel)
 
-/** Creates an isolated Fastify instance for each route test. */
+/** Fresh Fastify instances keep route plugins and mocked AI behavior isolated between cases. */
 async function createApp(): Promise<FastifyInstance> {
   const app = await buildApp()
   await app.ready()
