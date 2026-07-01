@@ -24,42 +24,23 @@ describe('sendFhirBundle', () => {
     vi.unstubAllGlobals()
   })
 
-  /** Dummy mode should keep the local acknowledgement behavior for demos without a server. */
-  it('simuliert den Versand im Dummy-Modus', async () => {
-    const result = await sendFhirBundle(
-      { target: 'showcase-kis', bundle: createBundle() },
-      { mode: 'dummy', timeoutMs: 1000 },
-    )
-
-    expect(result).toMatchObject({
-      mode: 'dummy',
-      status: 'accepted',
-      target: 'showcase-kis',
-      bundleSummary: {
-        generated: true,
-        bundleType: 'document',
-        entryCount: 1,
-        resourceTypes: ['Patient'],
-      },
-    })
-    expect(result.transmissionId).toMatch(/^dummy-fhir-/)
-  })
-
-  /** HTTP mode should post the FHIR JSON Bundle to the configured endpoint. */
+  /** The sender should post the FHIR JSON Bundle to the configured endpoint. */
   it('sendet ein Bundle per echtem HTTP-POST an den FHIR-Endpunkt', async () => {
     const fetchMock = vi.fn(async () =>
       new Response(JSON.stringify({ resourceType: 'Bundle' }), {
         status: 201,
-        headers: { 'content-type': 'application/fhir+json' },
+        headers: {
+          'content-type': 'application/fhir+json',
+          location: 'https://fhir.example.test/Bundle/server-bundle-123/_history/1',
+        },
       }),
     )
     vi.stubGlobal('fetch', fetchMock)
 
     const bundle = createBundle()
     const result = await sendFhirBundle(
-      { target: 'showcase-kis', bundle },
+      { target: 'test-fhir-server', bundle },
       {
-        mode: 'http',
         endpoint: 'https://fhir.example.test/Bundle',
         authToken: 'test-token',
         timeoutMs: 1000,
@@ -69,9 +50,12 @@ describe('sendFhirBundle', () => {
     expect(result).toMatchObject({
       mode: 'http',
       status: 'accepted',
-      target: 'showcase-kis',
+      target: 'test-fhir-server',
       response: {
         httpStatus: 201,
+        location: 'https://fhir.example.test/Bundle/server-bundle-123/_history/1',
+        resourceUrl: 'https://fhir.example.test/Bundle/server-bundle-123',
+        resourceId: 'server-bundle-123',
         resourceType: 'Bundle',
       },
     })
@@ -111,7 +95,6 @@ describe('sendFhirBundle', () => {
     const result = await sendFhirBundle(
       { bundle: createBundle() },
       {
-        mode: 'http',
         endpoint: 'https://fhir.example.test/Bundle',
         timeoutMs: 1000,
       },
@@ -131,21 +114,21 @@ describe('sendFhirBundle', () => {
     })
   })
 
-  /** HTTP mode should fail explicitly when no endpoint is configured. */
+  /** Sending should fail explicitly when no endpoint is configured. */
   it('meldet fehlenden FHIR-Endpunkt als failed', async () => {
     const fetchMock = vi.fn()
     vi.stubGlobal('fetch', fetchMock)
 
     const result = await sendFhirBundle(
       { bundle: createBundle() },
-      { mode: 'http', timeoutMs: 1000 },
+      { timeoutMs: 1000 },
     )
 
     expect(result).toMatchObject({
       mode: 'http',
       status: 'failed',
       target: 'missing-fhir-endpoint',
-      error: 'FHIR_ENDPOINT is missing while FHIR_SEND_MODE=http.',
+      error: 'FHIR_ENDPOINT is missing.',
     })
     expect(fetchMock).not.toHaveBeenCalled()
   })

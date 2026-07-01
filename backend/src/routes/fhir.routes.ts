@@ -9,8 +9,8 @@ import {
  * Registers FHIR-facing endpoints.
  *
  * The send endpoint is the HTTP boundary for FHIR transmission. It validates
- * the incoming Bundle shape and then delegates to the configured send service:
- * dummy acknowledgement locally or real HTTP POST to a FHIR endpoint.
+ * the incoming Bundle shape and then performs a real HTTP POST to the
+ * configured FHIR endpoint.
  */
 export const fhirRoutes: FastifyPluginAsync = async (app) => {
   app.post('/api/v1/fhir/send', async (request, reply) => {
@@ -21,7 +21,6 @@ export const fhirRoutes: FastifyPluginAsync = async (app) => {
         bundle: body.bundle as fhir4.Bundle,
       },
       {
-        mode: env.fhirSendMode,
         endpoint: env.fhirEndpoint,
         authToken: env.fhirAuthToken,
         timeoutMs: env.fhirRequestTimeoutMs,

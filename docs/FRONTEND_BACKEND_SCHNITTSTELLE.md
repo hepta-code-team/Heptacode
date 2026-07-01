@@ -359,15 +359,14 @@ curl -X POST http://localhost:3000/api/v1/pdf/export \
 
 ---
 
-### FHIR-Dummy-Versand
+### FHIR-Versand
 
 ```http
 POST /api/v1/fhir/send
 ```
 
-Uebergibt ein FHIR `Bundle` an die konfigurierte Sendeschicht. Standardmaessig
-antwortet der Dummy-Modus lokal. Mit `FHIR_SEND_MODE=http` sendet das Backend
-das Bundle per echtem HTTP-POST an `FHIR_ENDPOINT`.
+Uebergibt ein FHIR `Bundle` an die Sendeschicht. Das Backend sendet das Bundle
+per echtem HTTP-POST an den konfigurierten `FHIR_ENDPOINT`.
 
 #### Request
 
@@ -392,8 +391,8 @@ interface FhirSendRequest {
 #### Response `202`
 
 ```ts
-interface DummyFhirSendResult {
-  mode: "dummy" | "http";
+interface FhirSendResult {
+  mode: "http";
   status: "accepted" | "failed";
   target: string;
   transmissionId: string;
@@ -407,6 +406,10 @@ interface DummyFhirSendResult {
   response?: {
     httpStatus?: number;
     contentType?: string;
+    location?: string;
+    contentLocation?: string;
+    resourceUrl?: string;
+    resourceId?: string;
     resourceType?: string;
     issueCount?: number;
     issueSeverities?: string[];
@@ -421,7 +424,7 @@ interface DummyFhirSendResult {
 ```bash
 curl -X POST http://localhost:3000/api/v1/fhir/send \
   -H 'Content-Type: application/json' \
-  --data '{"target":"showcase-kis","bundle":{"resourceType":"Bundle","type":"document","entry":[{"resource":{"resourceType":"Composition"}}]}}'
+  --data '{"target":"test-fhir-server","bundle":{"resourceType":"Bundle","type":"document","entry":[{"resource":{"resourceType":"Composition"}}]}}'
 ```
 
 ---
@@ -637,4 +640,4 @@ const result = await apiClient.post<TriageResponse>("/api/v1/triage/evaluate", r
 | `POST` | `/api/v1/symptoms/consistency` | Symptom-Konsistenz pruefen | JSON |
 | `POST` | `/api/v1/triage/evaluate` | Triage bewerten | JSON |
 | `POST` | `/api/v1/pdf/export` | Assessment-PDF erzeugen | PDF |
-| `POST` | `/api/v1/fhir/send` | Dummy-Versand eines FHIR-Bundles simulieren | JSON |
+| `POST` | `/api/v1/fhir/send` | FHIR-Bundle an konfigurierten FHIR-Server senden | JSON |

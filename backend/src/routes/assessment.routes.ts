@@ -4,7 +4,6 @@ import { evaluateAssessmentWithAi } from '../modules/assessment/assessment.servi
 import { assessmentPayloadSchema } from '../modules/assessment/assessment.types.js'
 import {
   buildFhirBundle,
-  formatFhirBundleForDebugLog,
   summarizeFhirBundleForLog,
 } from '../modules/fhir/fhirBundle.js'
 import { sendFhirBundle } from '../modules/fhir/fhirSend.service.js'
@@ -37,7 +36,6 @@ export const assessmentRoutes: FastifyPluginAsync = async (app) => {
         bundle: fhirBundle,
       },
       {
-        mode: env.fhirSendMode,
         endpoint: env.fhirEndpoint,
         authToken: env.fhirAuthToken,
         timeoutMs: env.fhirRequestTimeoutMs,
@@ -54,7 +52,6 @@ export const assessmentRoutes: FastifyPluginAsync = async (app) => {
         ? 'FHIR send accepted for assessment'
         : 'FHIR send failed for assessment',
     )
-    console.info(formatFhirBundleForDebugLog(fhirBundle))
 
     void reply.send(result)
   })

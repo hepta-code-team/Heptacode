@@ -12,7 +12,7 @@ Ersteinschaetzung ein FHIR `Bundle` im Backend.
 | Bundle-Typ | `document` |
 | Erzeugung | nach erfolgreichem `POST /assessments` |
 | Speicherung | keine Persistenz, Bundle entsteht im Arbeitsspeicher |
-| Externer Versand | standardmaessig Dummy; echter HTTP-POST per `FHIR_SEND_MODE=http` |
+| Externer Versand | echter HTTP-POST an `FHIR_ENDPOINT` |
 | Hauptdatei | `backend/src/modules/fhir/fhirBundle.ts` |
 | Tests | `backend/tests/unit/modules/fhir/fhirBundle.test.ts` |
 
@@ -22,15 +22,14 @@ Ersteinschaetzung ein FHIR `Bundle` im Backend.
 2. `evaluateAssessmentWithAi` erzeugt das fachliche `AssessmentResult`.
 3. `buildFhirBundle(payload, result)` baut daraus ein FHIR Document Bundle.
 4. Die Route loggt eine strukturierte, inhaltsarme Zusammenfassung des Bundles.
-5. `sendFhirBundle(...)` uebergibt das Bundle an die konfigurierte Sendeschicht.
-   Standardmaessig ist das der Dummy-Modus; bei `FHIR_SEND_MODE=http` wird ein
-   echter HTTP-POST an `FHIR_ENDPOINT` ausgefuehrt.
+5. `sendFhirBundle(...)` uebergibt das Bundle an die Sendeschicht und fuehrt
+   einen HTTP-POST an `FHIR_ENDPOINT` aus.
 6. Die HTTP-Antwort bleibt das normale Assessment-Ergebnis; das FHIR Bundle wird
    aktuell nicht als Response ausgeliefert.
 
 ## FHIR-Versand
 
-Fuer Showcase-, Integrations- und echte Sendetests gibt es einen Send-Endpunkt:
+Fuer Integrations- und echte Sendetests gibt es einen Send-Endpunkt:
 
 ```http
 POST /api/v1/fhir/send
@@ -43,7 +42,7 @@ Request:
 
 ```json
 {
-  "target": "showcase-kis",
+  "target": "test-fhir-server",
   "bundle": {
     "resourceType": "Bundle",
     "type": "document",
@@ -62,46 +61,42 @@ Response `202 Accepted`:
 
 ```json
 {
-  "mode": "dummy",
+  "mode": "http",
   "status": "accepted",
-  "target": "showcase-kis",
-  "transmissionId": "dummy-fhir-...",
+  "target": "test-fhir-server",
+  "transmissionId": "http-fhir-...",
   "submittedAt": "2026-06-23T12:00:00.000Z",
   "bundleSummary": {
     "generated": true,
     "bundleType": "document",
     "entryCount": 1,
     "resourceTypes": ["Composition"]
+  },
+  "response": {
+    "httpStatus": 201,
+    "location": "https://hapi.fhir.org/baseR4/Bundle/123/_history/1",
+    "resourceUrl": "https://hapi.fhir.org/baseR4/Bundle/123",
+    "resourceId": "123",
+    "resourceType": "Bundle"
   }
 }
 ```
 
 Die Quittung enthaelt nur Struktur-Metadaten und keine klinischen Inhalte.
+`response.resourceUrl` ist die direkt oeffenbare URL der vom FHIR-Server
+gespeicherten Resource.
 
-### Dummy-Modus
-
-Ohne weitere Konfiguration laeuft der Versand im Dummy-Modus:
-
-```env
-FHIR_SEND_MODE=dummy
-```
-
-Dabei findet kein Netzwerkversand an ein KIS, eine TI oder einen echten
-FHIR-Server statt. Der Service erzeugt lokal eine Quittung mit
-`status: "accepted"`.
-
-### Echter HTTP-Modus
+### HTTP-Konfiguration
 
 Fuer einen echten POST an einen FHIR-Server wird die Umgebung so konfiguriert:
 
 ```env
-FHIR_SEND_MODE=http
-FHIR_ENDPOINT=https://fhir.example.org/fhir/Bundle
+FHIR_ENDPOINT=https://hapi.fhir.org/baseR4/Bundle
 FHIR_AUTH_TOKEN=<optional-bearer-token>
 FHIR_REQUEST_TIMEOUT_MS=10000
 ```
 
-Im HTTP-Modus sendet `sendFhirBundle(...)` das Bundle mit:
+`sendFhirBundle(...)` sendet das Bundle mit:
 
 ```http
 Content-Type: application/fhir+json
@@ -112,6 +107,9 @@ Wenn `FHIR_AUTH_TOKEN` gesetzt ist, wird zusaetzlich ein Bearer Token gesendet.
 Erfolgreiche HTTP-Statuscodes werden als `status: "accepted"` zurueckgegeben.
 Nicht erfolgreiche Antworten oder Verbindungsfehler werden als
 `status: "failed"` mit HTTP-Status beziehungsweise Fehlermeldung protokolliert.
+Bei erfolgreichen Create-Responses werden `Location` beziehungsweise
+`Content-Location` ausgewertet, damit `resourceUrl` und `resourceId` im Log
+sichtbar sind.
 FHIR `OperationOutcome`-Antworten werden nur zusammengefasst, damit keine
 vollstaendigen Antwortkoerper mit klinischen Inhalten in Logs landen.
 
@@ -218,10 +216,9 @@ Funktion gibt nur Struktur-Metadaten zurueck:
 }
 ```
 
-`formatFhirBundleForDebugLog(bundle)` serialisiert dagegen das komplette Bundle
-inklusive klinischer Inhalte. Diese Funktion ist nur fuer lokale Entwicklung
-und Showcase-Debugging gedacht und sollte vor produktivem Einsatz entfernt oder
-per Entwicklungsflag abgesichert werden.
+Das komplette Bundle wird im normalen Backend-Flow nicht mehr ungefiltert in
+die Logs geschrieben. Fuer Nachweise und Debugging dienen der FHIR-Server, die
+Sendequittung und die inhaltsarme Bundle-Zusammenfassung.
 
 ## Grenzen der aktuellen Implementierung
 

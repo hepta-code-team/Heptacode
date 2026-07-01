@@ -41,7 +41,6 @@ export interface FhirSendInput {
 }
 
 export interface FhirSendConfig {
-  mode: 'dummy' | 'http'
   endpoint?: string
   authToken?: string
   timeoutMs: number
@@ -50,6 +49,10 @@ export interface FhirSendConfig {
 export interface FhirHttpResponseSummary {
   httpStatus?: number
   contentType?: string
+  location?: string
+  contentLocation?: string
+  resourceUrl?: string
+  resourceId?: string
   resourceType?: string
   issueCount?: number
   issueSeverities?: string[]
@@ -57,7 +60,7 @@ export interface FhirHttpResponseSummary {
 }
 
 export interface FhirSendResult {
-  mode: FhirSendConfig['mode']
+  mode: 'http'
   status: 'accepted' | 'failed'
   target: string
   transmissionId: string
@@ -67,33 +70,16 @@ export interface FhirSendResult {
   error?: string
 }
 
-const DEFAULT_DUMMY_TARGET = 'dummy-fhir-server'
-
 function createBaseSendResult(
   request: FhirSendInput,
-  mode: FhirSendConfig['mode'],
   target: string,
 ): Omit<FhirSendResult, 'status'> {
   return {
-    mode,
+    mode: 'http',
     target,
-    transmissionId: `${mode}-fhir-${randomUUID()}`,
+    transmissionId: `http-fhir-${randomUUID()}`,
     submittedAt: new Date().toISOString(),
     bundleSummary: summarizeFhirBundleForLog(request.bundle),
-  }
-}
-
-/**
- * Simulates handing a FHIR Bundle to an external target system.
- *
- * This function intentionally performs no network IO and returns only
- * structure metadata, so it can be used for demos and integration tests without
- * exposing clinical content in the acknowledgement.
- */
-export function simulateFhirBundleSend(request: FhirSendInput): FhirSendResult {
-  return {
-    ...createBaseSendResult(request, 'dummy', request.target ?? DEFAULT_DUMMY_TARGET),
-    status: 'accepted',
   }
 }
 
@@ -120,11 +106,35 @@ function summarizeOperationOutcome(body: Record<string, unknown>): FhirHttpRespo
   }
 }
 
+function stripHistoryFromResourceUrl(value: string): string {
+  return value.replace(/\/_history\/[^/?#]+(?=([?#]|$))/, '')
+}
+
+function extractResourceIdFromUrl(value: string): string | undefined {
+  const match = stripHistoryFromResourceUrl(value).match(/\/([^/?#]+)(?:[?#])?$/)
+  return match?.[1]
+}
+
+function readHeaderLocationSummary(response: Response): FhirHttpResponseSummary {
+  const location = response.headers.get('location') ?? undefined
+  const contentLocation = response.headers.get('content-location') ?? undefined
+  const resourceUrl = location ? stripHistoryFromResourceUrl(location) : undefined
+  const resourceId = resourceUrl ? extractResourceIdFromUrl(resourceUrl) : undefined
+
+  return {
+    ...(location ? { location } : {}),
+    ...(contentLocation ? { contentLocation } : {}),
+    ...(resourceUrl ? { resourceUrl } : {}),
+    ...(resourceId ? { resourceId } : {}),
+  }
+}
+
 async function summarizeFhirHttpResponse(response: Response): Promise<FhirHttpResponseSummary> {
   const contentType = response.headers.get('content-type') ?? undefined
   const summary: FhirHttpResponseSummary = {
     httpStatus: response.status,
     ...(contentType ? { contentType } : {}),
+    ...readHeaderLocationSummary(response),
   }
 
   if (!contentType?.toLowerCase().includes('json')) {
@@ -148,24 +158,25 @@ async function summarizeFhirHttpResponse(response: Response): Promise<FhirHttpRe
     return {
       ...summary,
       resourceType: body.resourceType,
+      ...(typeof body.id === 'string' && !summary.resourceId ? { resourceId: body.id } : {}),
     }
   } catch {
     return summary
   }
 }
 
-async function postFhirBundleOverHttp(
+export async function sendFhirBundle(
   request: FhirSendInput,
   config: FhirSendConfig,
 ): Promise<FhirSendResult> {
   const endpoint = config.endpoint?.trim()
-  const base = createBaseSendResult(request, 'http', request.target ?? endpoint ?? 'missing-fhir-endpoint')
+  const base = createBaseSendResult(request, request.target ?? endpoint ?? 'missing-fhir-endpoint')
 
   if (!endpoint) {
     return {
       ...base,
       status: 'failed',
-      error: 'FHIR_ENDPOINT is missing while FHIR_SEND_MODE=http.',
+      error: 'FHIR_ENDPOINT is missing.',
     }
   }
 
@@ -204,21 +215,4 @@ async function postFhirBundleOverHttp(
   } finally {
     clearTimeout(timeout)
   }
-}
-
-/**
- * Sends a FHIR Bundle through the configured transport.
- *
- * In dummy mode this returns a local acknowledgement. In HTTP mode it performs
- * a real POST with `application/fhir+json` to the configured FHIR endpoint.
- */
-export async function sendFhirBundle(
-  request: FhirSendInput,
-  config: FhirSendConfig,
-): Promise<FhirSendResult> {
-  if (config.mode === 'http') {
-    return postFhirBundleOverHttp(request, config)
-  }
-
-  return simulateFhirBundleSend(request)
 }
