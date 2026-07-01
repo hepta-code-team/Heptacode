@@ -235,7 +235,11 @@ function formatSelectedCategoryLabel(category: BodyAreaCategory | null, selected
   return BODY_AREA_LABELS[category];
 }
 
-function getSchnittwundeLocalization(category: BodyAreaCategory | null, selectedBodySide: BodySideSelection | null) {
+function shouldUseBodyRegionLocalization(regionName: string) {
+  return regionName === "Schnittwunde" || regionName === "Verbrennung";
+}
+
+function getBodyRegionLocalization(category: BodyAreaCategory | null, selectedBodySide: BodySideSelection | null) {
   const label = formatSelectedCategoryLabel(category, selectedBodySide);
 
   return label || undefined;
@@ -247,13 +251,13 @@ function getLocalizedSymptomSide(
   selectedCategory: BodyAreaCategory | null,
   selectedBodySide: BodySideSelection | null,
 ) {
-  if (regionName !== "Schnittwunde") {
+  if (!shouldUseBodyRegionLocalization(regionName)) {
     const bodySide = selectedBodySide?.category === selectedCategory ? selectedBodySide.side : undefined;
 
     return bodySide ? (side && side !== regionName ? `${bodySide}: ${side}` : bodySide) : side;
   }
 
-  const localization = getSchnittwundeLocalization(selectedCategory, selectedBodySide);
+  const localization = getBodyRegionLocalization(selectedCategory, selectedBodySide);
 
   if (!localization) {
     return side;
@@ -269,7 +273,7 @@ function getLocalizedSymptomSide(
  * the same category instead of only seeing a static summary chip.
  */
 function getBodyAreaCategoryForSymptom(symptom: SelectedSymptom): BodyAreaCategory | null {
-  if (symptom.region === "Schnittwunde" && symptom.side) {
+  if (shouldUseBodyRegionLocalization(symptom.region) && symptom.side) {
     if (symptom.side.startsWith("Kopf")) {
       return "head";
     }

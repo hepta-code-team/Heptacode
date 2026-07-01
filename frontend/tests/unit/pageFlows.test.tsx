@@ -408,6 +408,31 @@ describe('page-level user flows', () => {
     expect(navigateMock).toHaveBeenCalledWith('/symptom-details');
   });
 
+  it('keeps burns separated by the selected body region', async () => {
+    const user = userEvent.setup();
+
+    render(<SymptomSelectionPage />);
+
+    await user.click(screen.getByRole('button', { name: 'Linken Arm auswählen' }));
+    await user.click(screen.getByRole('button', { name: 'Verbrennung' }));
+    await user.click(screen.getByRole('button', { name: 'Kleine Fläche' }));
+
+    await user.click(screen.getByRole('button', { name: 'Linkes Bein auswählen' }));
+    await user.click(screen.getByRole('button', { name: 'Verbrennung' }));
+    await user.click(screen.getByRole('button', { name: 'Kleine Fläche' }));
+
+    expect(screen.getByText('Verbrennung (Arm links: Kleine Fläche)')).toBeInTheDocument();
+    expect(screen.getByText('Verbrennung (Bein links: Kleine Fläche)')).toBeInTheDocument();
+
+    await user.click(screen.getAllByRole('button', { name: 'Weiter' }).at(-1)!);
+
+    expect(assessmentState.setSelectedSymptoms).toHaveBeenCalledWith([
+      { region: 'Verbrennung', side: 'Arm links: Kleine Fläche' },
+      { region: 'Verbrennung', side: 'Bein links: Kleine Fläche' },
+    ]);
+    expect(navigateMock).toHaveBeenCalledWith('/symptom-details');
+  });
+
   it('extracts free-text symptoms via the mocked AI endpoint and navigates with route state', async () => {
     const user = userEvent.setup();
     assessmentState.patientData = basePatientData;
