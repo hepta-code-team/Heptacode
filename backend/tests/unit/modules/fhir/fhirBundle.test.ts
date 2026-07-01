@@ -71,6 +71,7 @@ function createResult(): AssessmentResult {
 }
 
 describe('buildFhirBundle', () => {
+  /** FHIR exports should use the document bundle structure expected by downstream systems. */
   it('erstellt ein FHIR Document Bundle mit Composition, Patient, Device und ClinicalImpression', () => {
     const bundle = buildFhirBundle(createPayload(), createResult())
 
@@ -85,6 +86,7 @@ describe('buildFhirBundle', () => {
     ])
   })
 
+  /** Patient resources should avoid unnecessary identifying contact details. */
   it('uebernimmt nur minimale Patientendaten in die Patient Resource', () => {
     const bundle = buildFhirBundle(createPayload(), createResult())
     const patient = bundle.entry?.find(
@@ -102,6 +104,7 @@ describe('buildFhirBundle', () => {
     expect(patient?.address).toBeUndefined()
   })
 
+  /** ClinicalImpression should carry the medical summary and symptom notes. */
   it('legt das medizinische Ergebnis in der ClinicalImpression ab', () => {
     const bundle = buildFhirBundle(createPayload(), createResult())
     const clinicalImpression = bundle.entry?.find(
@@ -120,6 +123,7 @@ describe('buildFhirBundle', () => {
     expect(clinicalImpression?.note?.some((note) => note.text?.includes('Asthma'))).toBe(true)
   })
 
+  /** Log summaries should expose structure metadata without clinical content. */
   it('liefert fuer Logs nur Struktur-Metadaten ohne medizinische Inhalte', () => {
     const bundle = buildFhirBundle(createPayload(), createResult())
     const logSummary = summarizeFhirBundleForLog(bundle)

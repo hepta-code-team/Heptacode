@@ -424,6 +424,7 @@ describe('validateSymptomDetailInput', () => {
     vi.resetAllMocks()
   })
 
+  /** Short symptom details should be validated through the permissive fallback model. */
   it('validiert kurze Details ueber das lockere Fallback-Modell', async () => {
     requestStructuredAiResponseMock.mockResolvedValueOnce({
       isValidMedicalInput: true,
@@ -446,6 +447,7 @@ describe('validateSymptomDetailInput', () => {
     )
   })
 
+  /** Detail validation should instruct the fallback model with the central taxonomy. */
   it('weist das Fallback-Modell mit der zentralen Taxonomie an, Koerperregionen zu akzeptieren', async () => {
     requestStructuredAiResponseMock.mockResolvedValueOnce({
       isValidMedicalInput: true,
@@ -482,6 +484,7 @@ describe('validateSymptomDetailInput', () => {
     )
   })
 
+  /** Random text should still be rejected by fallback detail validation. */
   it('laesst Zufallstext durch das Fallback-Modell ablehnen', async () => {
     requestStructuredAiResponseMock.mockResolvedValueOnce({
       isValidMedicalInput: false,
@@ -499,6 +502,7 @@ describe('validateSymptomDetailInput', () => {
     expect(requestStructuredAiResponseMock).toHaveBeenCalledTimes(1)
   })
 
+  /** Empty detail text should be rejected locally without a model call. */
   it('faengt leere Detailangaben ohne KI-Aufruf ab', async () => {
     const result = await validateSymptomDetailInput('   ')
 
@@ -539,6 +543,7 @@ describe('validateSymptomConsistency', () => {
     vi.resetAllMocks()
   })
 
+  /** Unspecific anatomical regions should remain valid when no contradictory detail exists. */
   it('akzeptiert eine unspezifische Koerperregion ohne Details', async () => {
     requestStructuredAiResponseMock.mockResolvedValueOnce({
       isRegionMeaningful: true,
@@ -577,6 +582,7 @@ describe('validateSymptomConsistency', () => {
     )
   })
 
+  /** Clear body-region contradictions should be detected locally from the taxonomy. */
   it('meldet einen klaren Widerspruch zwischen Bein und Hand', async () => {
     const result = await validateSymptomConsistency({
       region: 'Bein',
@@ -595,6 +601,7 @@ describe('validateSymptomConsistency', () => {
     expect(requestStructuredAiResponseMock).not.toHaveBeenCalled()
   })
 
+  /** High-confidence taxonomy mismatches should be rejected without calling the model. */
   it.each([
     ['Kopf', 'Schmerzen im Fuß', 'head', 'legs'],
     ['Auge', 'Schnittwunde am Bein', 'head', 'legs'],
@@ -624,6 +631,7 @@ describe('validateSymptomConsistency', () => {
     expect(requestStructuredAiResponseMock).not.toHaveBeenCalled()
   })
 
+  /** Lower-confidence body-location differences should defer to model validation. */
   it('laesst unterschiedliche Regionen bei nicht hoher Sicherheit durch', async () => {
     requestStructuredAiResponseMock.mockResolvedValueOnce({
       isRegionMeaningful: true,
