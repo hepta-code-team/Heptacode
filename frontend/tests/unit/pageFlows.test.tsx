@@ -339,7 +339,7 @@ describe('page-level user flows', () => {
 
     expect(screen.getByRole('button', { name: 'Gelegentlich' })).toHaveClass('bg-[#486284]');
     expect(screen.getByText('Seit wann?')).toBeInTheDocument();
-    expect(screen.getByText('Menge pro Woche')).toBeInTheDocument();
+    expect(screen.getByText('Menge pro Monat')).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Rauchmenge erhöhen' }));
     expect(screen.getByDisplayValue('1')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Regelmäßig' })).not.toHaveClass('bg-[#486284]');
