@@ -55,9 +55,6 @@ const symptoms: EmergencySymptom[] = [
     icon: imgHeadache,
   },
 ];
-
-const severeHeadache = symptoms[5];
-
 export default function EmergencySymptomGrid({ onSymptomClick, variant = "mobile" }: EmergencySymptomGridProps) {
   if (variant === "mobile") {
     return (
@@ -90,12 +87,12 @@ export default function EmergencySymptomGrid({ onSymptomClick, variant = "mobile
 
   // Desktop variant
   return (
-    <div className="grid grid-cols-2 gap-3 mb-4">
+    <div className="grid grid-cols-2 gap-4 mb-4">
       {symptoms.slice(0, 6).map((symptom) => (
         <button
           key={symptom.name}
           onClick={() => onSymptomClick(symptom)}
-          className="bg-[#eff2f6] shadow-md rounded-[16px] p-3 min-h-[140px] flex items-start gap-3 hover:bg-[#dde3ea] transition-all"
+          className="bg-[#eff2f6] shadow-md rounded-[16px] p-3 min-h-[125px] flex items-start gap-3 hover:bg-[#dde3ea] transition-all"
         >
           <img
             alt=""

@@ -71,6 +71,7 @@ export const conditionDetailSchema = z.object({
 })
 
 export const patientDataSchema = z.object({
+  age: z.number().int().min(0).max(125).optional(),
   birthMonth: z.string(),
   birthYear: z.string(),
   height: z.string(),

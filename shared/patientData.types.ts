@@ -7,6 +7,7 @@ export interface ConditionDetail {
 
 // Patient data collected before the symptom assessment.
 export interface PatientData {
+    age?: number
     birthMonth: string
     birthYear: string
     height: string

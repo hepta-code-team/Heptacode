@@ -9,10 +9,19 @@ import {
   TRIAGE_PLAUSIBILITY_LIVE_CASES,
   type TriagePlausibilityCategory,
 } from '../fixtures/triagePlausibilityLiveCases.js'
+import { hasCareLevelReasoning } from './triageLiveReasoning.js'
 
 /** Live AI evaluations are opt-in because they call an external model. */
 const runLiveAiEval = process.env.RUN_AI_TRIAGE_EVAL === 'true' || process.env.RUN_AI_TRIAGE_EVAL === '1'
 const itLive = runLiveAiEval ? it : it.skip
+const selectedCaseId = process.env.TRIAGE_LIVE_CASE_ID?.trim()
+const selectedLiveCases = selectedCaseId
+  ? TRIAGE_PLAUSIBILITY_LIVE_CASES.filter((testCase) => testCase.id === selectedCaseId)
+  : TRIAGE_PLAUSIBILITY_LIVE_CASES
+const hasInvalidSelectedCaseId = selectedCaseId !== undefined && selectedLiveCases.length === 0
+const liveCasesToEvaluate = hasInvalidSelectedCaseId
+  ? TRIAGE_PLAUSIBILITY_LIVE_CASES.slice(0, 1)
+  : selectedLiveCases
 
 /** Captures one evaluated case for the final accuracy report. */
 type EvaluationResult = {
@@ -25,6 +34,7 @@ type EvaluationResult = {
   aiModel?: string
   directAiPassed: boolean
   systemPassed: boolean
+  reasoningPassed: boolean
   fallbackType: TriageEvaluationDiagnostics['fallbackType']
   unavailable: boolean
   aiReasons: string[]
@@ -54,11 +64,13 @@ function logEvaluationSummary(): void {
   const availableResults = evaluationResults.filter((result) => !result.unavailable)
   const directAiPassed = availableResults.filter((result) => result.directAiPassed).length
   const systemPassed = availableResults.filter((result) => result.systemPassed).length
+  const reasoningPassed = availableResults.filter((result) => result.reasoningPassed).length
 
   const categories = TRIAGE_PLAUSIBILITY_CATEGORIES.map((category) => {
     const results = availableResults.filter((result) => result.category === category)
     const categoryDirectAiPassed = results.filter((result) => result.directAiPassed).length
     const categorySystemPassed = results.filter((result) => result.systemPassed).length
+    const categoryReasoningPassed = results.filter((result) => result.reasoningPassed).length
 
     return {
       category,
@@ -70,6 +82,10 @@ function logEvaluationSummary(): void {
       finalSystem: {
         passed: categorySystemPassed,
         rate: formatRate(categorySystemPassed, results.length),
+      },
+      reasoning: {
+        passed: categoryReasoningPassed,
+        rate: formatRate(categoryReasoningPassed, results.length),
       },
     }
   })
@@ -86,14 +102,19 @@ function logEvaluationSummary(): void {
       passed: systemPassed,
       rate: formatRate(systemPassed, availableResults.length),
     },
+    reasoning: {
+      passed: reasoningPassed,
+      rate: formatRate(reasoningPassed, availableResults.length),
+    },
     categories,
     failures: evaluationResults
-      .filter((result) => !result.directAiPassed || !result.systemPassed)
+      .filter((result) => !result.directAiPassed || !result.systemPassed || !result.reasoningPassed)
       .map(({
         id,
         expectedCareLevel,
         directAiCareLevel,
         finalCareLevel,
+        reasoningPassed,
         fallbackType,
         unavailable,
         aiReasons,
@@ -105,6 +126,7 @@ function logEvaluationSummary(): void {
         expectedCareLevel,
         directAiCareLevel,
         finalCareLevel,
+        reasoningPassed,
         fallbackType,
         unavailable,
         aiReasons,
@@ -122,7 +144,11 @@ describe('live AI triage plausibility evaluation', () => {
       return
     }
 
-    const firstCase = TRIAGE_PLAUSIBILITY_LIVE_CASES[0]
+    if (hasInvalidSelectedCaseId) {
+      throw new Error(`No live AI triage plausibility case found for TRIAGE_LIVE_CASE_ID=${selectedCaseId}`)
+    }
+
+    const firstCase = liveCasesToEvaluate[0]
 
     if (!firstCase) {
       throw new Error('No live AI triage plausibility cases configured')
@@ -148,7 +174,7 @@ describe('live AI triage plausibility evaluation', () => {
   })
 
   /** Each case should be classified by the AI without a local availability or plausibility fallback. */
-  itLive.each(TRIAGE_PLAUSIBILITY_LIVE_CASES)(
+  itLive.each(liveCasesToEvaluate)(
     'ordnet $category: $name korrekt zu',
     async ({ id, name, category, expectedCareLevel, patientData, symptoms }) => {
       try {
@@ -160,6 +186,7 @@ describe('live AI triage plausibility evaluation', () => {
         const unavailable = isAvailabilityFallback(result)
         const directAiPassed = result.aiResponse?.careLevel === expectedCareLevel
         const systemPassed = result.finalResponse.careLevel === expectedCareLevel
+        const reasoningPassed = hasCareLevelReasoning(result, expectedCareLevel)
 
         evaluationResults.push({
           id,
@@ -171,6 +198,7 @@ describe('live AI triage plausibility evaluation', () => {
           aiModel: result.aiResponse?.aiModel,
           directAiPassed,
           systemPassed,
+          reasoningPassed,
           fallbackType: result.fallbackType,
           unavailable,
           aiReasons: result.aiResponse?.reasons ?? [],
@@ -186,6 +214,7 @@ describe('live AI triage plausibility evaluation', () => {
           finalCareLevel: result.finalResponse.careLevel,
           directAiPassed,
           systemPassed,
+          reasoningPassed,
           fallbackType: result.fallbackType,
           unavailable,
           aiModel: result.aiResponse?.aiModel,
@@ -199,6 +228,10 @@ describe('live AI triage plausibility evaluation', () => {
           'AI availability fallback used; this case cannot measure model correctness',
         ).toBe(false)
         expect(result.aiResponse?.careLevel).toBe(expectedCareLevel)
+        expect(
+          reasoningPassed,
+          'AI reasoning should explain why the expected care level is appropriate',
+        ).toBe(true)
       } catch (error) {
         if (!evaluationResults.some((result) => result.id === id)) {
           evaluationResults.push({
@@ -208,6 +241,7 @@ describe('live AI triage plausibility evaluation', () => {
             expectedCareLevel,
             directAiPassed: false,
             systemPassed: false,
+            reasoningPassed: false,
             fallbackType: 'none',
             unavailable: false,
             aiReasons: [],

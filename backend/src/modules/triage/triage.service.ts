@@ -78,8 +78,7 @@ function buildPatientDataLines(patientData?: PatientData): string[] {
   }
 
   return [
-    `Geburtsmonat: ${patientData.birthMonth}`,
-    `Geburtsjahr: ${patientData.birthYear}`,
+    patientData.age !== undefined ? `Alter: ${patientData.age} Jahre` : null,
     `Groesse: ${patientData.height}`,
     `Gewicht: ${patientData.weight}`,
     `Geschlecht: ${patientData.gender}`,

@@ -24,6 +24,7 @@ describe('POST /places/nearby', () => {
     vi.unstubAllGlobals()
   })
 
+  /** Google Places responses should be normalized into the frontend facility shape. */
   it('normalisiert Google Places Treffer fuer das Frontend', async () => {
     const fetchMock = vi.fn<typeof fetch>().mockResolvedValueOnce({
       ok: true,
@@ -93,6 +94,7 @@ describe('POST /places/nearby', () => {
     expect(googleRequest).not.toHaveProperty('openNow')
   })
 
+  /** Facility lists should be capped to the five closest normalized results. */
   it('liefert hoechstens die fuenf naechsten Einrichtungen nach Entfernung', async () => {
     vi.stubGlobal('fetch', vi.fn<typeof fetch>().mockResolvedValueOnce({
       ok: true,
