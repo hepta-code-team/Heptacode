@@ -19,7 +19,7 @@ vi.mock('../../../../src/modules/symptom-extraction/symptomExtraction.service.js
 const requestStructuredAiResponseWithModelMock = vi.mocked(requestStructuredAiResponseWithModel)
 const extractSymptomsMock = vi.mocked(extractSymptoms)
 
-/** Shared patient fixture for demographic plausibility checks. */
+/** Shared male patient fixture for demographic plausibility checks. */
 const malePatientData = {
   birthMonth: '05',
   birthYear: '1988',
@@ -125,8 +125,6 @@ describe('evaluateTriage', () => {
       }),
     )
   })
-
-  /** AI request availability failures should use the conservative local triage fallback. */
 
   /** AI prompts should receive the already calculated patient age. */
   it('uebergibt das vorberechnete Alter an die KI', async () => {
@@ -296,7 +294,7 @@ describe('evaluateTriage', () => {
   })
 
   /** AI request availability failures should use the conservative local triage fallback. */
-  it('nutzt den Fallback, wenn die KI-Anfrage fehlschlaegt', async () => {
+  it('nutzt den konservativen Triage-Fallback bei KI-Verfuegbarkeitsfehlern', async () => {
     requestStructuredAiResponseWithModelMock.mockRejectedValueOnce(new AiResponseError('timeout'))
 
     const result = await evaluateTriage(undefined, [
@@ -349,7 +347,7 @@ describe('evaluateTriage', () => {
   })
 
   /** Diagnostic evaluation should preserve the rejected AI answer and the final safety fallback. */
-  it('stellt direkte KI-Antwort und finales Fallback getrennt bereit', async () => {
+  it('stellt verworfene KI-Antwort und finalen Sicherheitsfallback getrennt bereit', async () => {
     requestStructuredAiResponseWithModelMock.mockResolvedValueOnce({
       data: {
         careLevel: 'selfcare',

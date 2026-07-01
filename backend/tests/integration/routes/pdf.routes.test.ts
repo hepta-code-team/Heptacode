@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { buildApp } from '../../../src/app.js'
 import type { PdfExportRequest } from '../../../src/modules/pdf/pdf.types.js'
 
-/** Creates an isolated Fastify instance for each route test. */
+/** Fresh Fastify instances keep route plugins and response headers isolated between cases. */
 async function createApp(): Promise<FastifyInstance> {
   const app = await buildApp()
   await app.ready()

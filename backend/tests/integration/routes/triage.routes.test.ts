@@ -13,7 +13,7 @@ vi.mock('../../../src/ai/llmAdapter.js', () => ({
 const requestStructuredAiResponseMock = vi.mocked(requestStructuredAiResponse)
 const requestStructuredAiResponseWithModelMock = vi.mocked(requestStructuredAiResponseWithModel)
 
-/** Shared patient fixture for route payloads that include demographics. */
+/** Shared male patient fixture for route payloads with demographic checks. */
 const malePatientData = {
   birthMonth: '05',
   birthYear: '1988',
@@ -34,7 +34,7 @@ const malePatientData = {
   conditionDetails: {},
 }
 
-/** Creates an isolated Fastify instance for each route test. */
+/** Fresh Fastify instances keep route plugins and mocks isolated between test cases. */
 async function createApp(): Promise<FastifyInstance> {
   const app = await buildApp()
   await app.ready()
@@ -202,7 +202,7 @@ describe('POST /api/v1/triage/evaluate', () => {
   })
 
   /** AI availability errors should surface as the controlled triage fallback response. */
-  it('nutzt den kontrollierten Fallback, wenn die Triage-KI nicht antwortet', async () => {
+  it('liefert den kontrollierten Triage-Fallback bei KI-Verfuegbarkeitsfehlern', async () => {
     requestStructuredAiResponseWithModelMock.mockRejectedValueOnce(new AiResponseError('timeout'))
 
     const response = await app.inject({

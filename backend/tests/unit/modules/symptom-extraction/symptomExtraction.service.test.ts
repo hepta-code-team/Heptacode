@@ -19,7 +19,7 @@ vi.mock('../../../../src/ai/llmAdapter.js', () => ({
 
 const requestStructuredAiResponseMock = vi.mocked(requestStructuredAiResponse)
 
-/** Shared patient fixture for demographic plausibility checks. */
+/** Shared male patient fixture for demographic plausibility checks. */
 const malePatientData = {
   birthMonth: '05',
   birthYear: '1988',
@@ -91,7 +91,7 @@ describe('extractSymptoms', () => {
   })
 
   /** Medical-context validation should return invalid input without running extraction. */
-  it('gibt ungueltige medizinische Eingaben aus der KI-Validierung zurueck', async () => {
+  it('gibt fachlich unpassende Freitext-Eingaben kontrolliert zurueck', async () => {
     requestStructuredAiResponseMock.mockResolvedValueOnce({
       isValidMedicalInput: false,
       reason: 'Der Text beschreibt keine gesundheitlichen Beschwerden.',
