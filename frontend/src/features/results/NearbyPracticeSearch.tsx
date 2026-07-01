@@ -1237,12 +1237,14 @@ export default function NearbyPracticeSearch({
       {hasReadyResults && (
         // Sobald Treffer vorhanden sind, wird die Ergebnisliste gerendert.
         <div>
-          <div className="mb-3 flex min-h-[52px] w-full flex-col gap-3 rounded-[8px] border border-transparent bg-white px-4 py-2.5 transition-all hover:border-[#486284] sm:flex-row sm:items-center">
+          <div
+            onClick={() => setAreFacilitiesVisible((isVisible) => !isVisible)}
+            className="mb-3 flex min-h-[52px] w-full cursor-pointer flex-col gap-3 rounded-[8px] border border-transparent bg-white px-4 py-2.5 transition-all hover:border-[#486284] sm:flex-row sm:items-center"
+          >
             <button
               type="button"
               aria-expanded={areFacilitiesVisible}
               aria-controls="nearby-facilities-list"
-              onClick={() => setAreFacilitiesVisible((isVisible) => !isVisible)}
               className="text-left text-sm font-medium text-[#24364b] focus-visible:outline-none focus-visible:underline"
             >
               {filteredFacilities.length}{" "}
@@ -1253,6 +1255,7 @@ export default function NearbyPracticeSearch({
             <div
               role="group"
               aria-label="Einrichtungen nach Öffnungsstatus filtern"
+              onClick={(event) => event.stopPropagation()}
               className="flex flex-wrap items-center gap-1.5 sm:ml-auto"
             >
               <button
@@ -1293,7 +1296,6 @@ export default function NearbyPracticeSearch({
               aria-label={areFacilitiesVisible ? "Einrichtungen ausblenden" : "Einrichtungen einblenden"}
               aria-expanded={areFacilitiesVisible}
               aria-controls="nearby-facilities-list"
-              onClick={() => setAreFacilitiesVisible((isVisible) => !isVisible)}
               className="ml-auto flex size-7 flex-shrink-0 items-center justify-center rounded-[8px] border border-[#c8d2dc] text-[#24364b] transition-colors hover:border-[#486284] hover:bg-[#e8eef5] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#486284] focus-visible:ring-offset-2 sm:ml-[0.5px]"
             >
               <ChevronDown

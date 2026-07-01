@@ -126,10 +126,8 @@ describe('evaluateTriage', () => {
     )
   })
 
-  /** AI prompts should include the current date for age-dependent medical context. */
-  it('uebergibt das aktuelle Datum als Bezugsdatum fuer Altersberechnungen an die KI', async () => {
-    vi.useFakeTimers()
-    vi.setSystemTime(new Date(2026, 5, 15, 12, 0, 0))
+  /** AI prompts should receive the already calculated patient age. */
+  it('uebergibt das vorberechnete Alter an die KI', async () => {
     requestStructuredAiResponseWithModelMock.mockResolvedValueOnce({
       data: {
         careLevel: 'doctor',
@@ -144,6 +142,7 @@ describe('evaluateTriage', () => {
 
     await evaluateTriage({
       ...malePatientData,
+      age: 22,
       birthMonth: '05',
       birthYear: '2004',
     }, [
@@ -155,15 +154,18 @@ describe('evaluateTriage', () => {
         messages: expect.arrayContaining([
           expect.objectContaining({
             role: 'system',
-            content: expect.stringContaining('Bezugsdatum fuer Altersberechnungen'),
+            content: expect.stringContaining('uebergebene Alter'),
           }),
           expect.objectContaining({
             role: 'user',
-            content: expect.stringContaining('Aktuelles Datum:\n2026-06-15'),
+            content: expect.stringContaining('Stammdaten:\nAlter: 22 Jahre\nGroesse: 175'),
           }),
         ]),
       }),
     )
+    const userPrompt = requestStructuredAiResponseWithModelMock.mock.calls[0]?.[0].messages[1]?.content
+    expect(userPrompt).not.toContain('Geburtsmonat')
+    expect(userPrompt).not.toContain('Geburtsjahr')
   })
 
   /** Medication and duration should be sent as active triage context, not just demographics. */
