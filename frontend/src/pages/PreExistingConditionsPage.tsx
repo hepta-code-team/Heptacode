@@ -280,9 +280,9 @@ export default function PreExistingConditionsPage() {
   }, [formData, setPatientData]);
 
   /**
-   * Caps opened condition lists to the viewport space below the trigger so
-   * dropdown overflow is handled inside the list instead of creating an outer
-   * page scrollbar. Short lists remain below the cap and show no scrollbar.
+   * Caps opened condition lists to the remaining page space below the trigger so
+   * a dropdown can scroll internally only when it would otherwise extend beyond
+   * the page bottom. Short lists remain below the cap and show no scrollbar.
    */
   useEffect(() => {
     const updateDropdownMaxHeights = () => {
@@ -296,11 +296,12 @@ export default function PreExistingConditionsPage() {
         const dropdown = conditionDropdownRefs.current[condition];
         if (!dropdown) continue;
 
-        const viewportPadding = 16;
+        const pagePadding = 16;
+        const pageBottom =
+          dropdown.closest("main")?.getBoundingClientRect().bottom ??
+          document.documentElement.getBoundingClientRect().bottom;
         const availableHeight =
-          window.innerHeight -
-          dropdown.getBoundingClientRect().top -
-          viewportPadding;
+          pageBottom - dropdown.getBoundingClientRect().top - pagePadding;
 
         nextMaxHeights[condition] = Math.max(0, availableHeight);
       }
