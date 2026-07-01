@@ -235,6 +235,33 @@ function formatSelectedCategoryLabel(category: BodyAreaCategory | null, selected
   return BODY_AREA_LABELS[category];
 }
 
+function getSchnittwundeLocalization(category: BodyAreaCategory | null, selectedBodySide: BodySideSelection | null) {
+  const label = formatSelectedCategoryLabel(category, selectedBodySide);
+
+  return label || undefined;
+}
+
+function getLocalizedSymptomSide(
+  regionName: string,
+  side: string | undefined,
+  selectedCategory: BodyAreaCategory | null,
+  selectedBodySide: BodySideSelection | null,
+) {
+  if (regionName !== "Schnittwunde") {
+    const bodySide = selectedBodySide?.category === selectedCategory ? selectedBodySide.side : undefined;
+
+    return bodySide ? (side && side !== regionName ? `${bodySide}: ${side}` : bodySide) : side;
+  }
+
+  const localization = getSchnittwundeLocalization(selectedCategory, selectedBodySide);
+
+  if (!localization) {
+    return side;
+  }
+
+  return side && side !== regionName ? `${localization}: ${side}` : localization;
+}
+
 /**
  * Maps a selected symptom back to the body-area tab that can show it again.
  *
@@ -242,6 +269,32 @@ function formatSelectedCategoryLabel(category: BodyAreaCategory | null, selected
  * the same category instead of only seeing a static summary chip.
  */
 function getBodyAreaCategoryForSymptom(symptom: SelectedSymptom): BodyAreaCategory | null {
+  if (symptom.region === "Schnittwunde" && symptom.side) {
+    if (symptom.side.startsWith("Kopf")) {
+      return "head";
+    }
+
+    if (symptom.side.startsWith("Hals")) {
+      return "neck";
+    }
+
+    if (symptom.side.startsWith("Torso")) {
+      return "torso";
+    }
+
+    if (symptom.side.startsWith("Hüfte")) {
+      return "hips";
+    }
+
+    if (symptom.side.startsWith("Arm")) {
+      return "arms";
+    }
+
+    if (symptom.side.startsWith("Bein")) {
+      return "legs";
+    }
+  }
+
   const matchingRegion = BODY_REGIONS.find((region) => region.name === symptom.region);
 
   if (!matchingRegion) {
@@ -269,6 +322,14 @@ function getBodySideSelectionForSymptom(
   }
 
   if (symptom.side.startsWith("Rechts")) {
+    return { category, side: "Rechts" };
+  }
+
+  if (symptom.side.startsWith("Arm links") || symptom.side.startsWith("Bein links")) {
+    return { category, side: "Links" };
+  }
+
+  if (symptom.side.startsWith("Arm rechts") || symptom.side.startsWith("Bein rechts")) {
     return { category, side: "Rechts" };
   }
 
@@ -615,7 +676,12 @@ export default function SymptomSelectionPage() {
       return selectedRegionKeys;
     }
 
-    return selectedRegionKeys.filter((symptomKey) => symptomKey.includes(`(${selectedBodySide.side}`));
+    const localizedBodySide = formatSelectedCategoryLabel(selectedCategory, selectedBodySide);
+
+    return selectedRegionKeys.filter(
+      (symptomKey) =>
+        symptomKey.includes(`(${selectedBodySide.side}`) || symptomKey.includes(`(${localizedBodySide}`),
+    );
   }, [selectedBodySide, selectedCategory, selectedRegionKeys]);
   const shouldShowInlineOptions = false;
   const symptomTextCharacterCount = useMemo(() => getCharacterCount(symptomTextDraft), [symptomTextDraft]);
@@ -997,8 +1063,7 @@ export default function SymptomSelectionPage() {
       return;
     }
 
-    const bodySide = selectedBodySide?.category === selectedCategory ? selectedBodySide.side : undefined;
-    const localizedSide = bodySide ? (side && side !== regionName ? `${bodySide}: ${side}` : bodySide) : side;
+    const localizedSide = getLocalizedSymptomSide(regionName, side, selectedCategory, selectedBodySide);
     const symptomKey = localizedSide ? `${regionName} (${localizedSide})` : regionName;
     const alreadySelected = selectedSymptoms.some((symptom) => getSymptomKey(symptom) === symptomKey);
 
