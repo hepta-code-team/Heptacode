@@ -266,23 +266,51 @@ describe('page-level user flows', () => {
     await user.type(screen.getByPlaceholderText('Land / Region, falls bekannt'), 'Italien');
     await user.click(screen.getAllByRole('button', { name: 'Ja' })[1]);
     await user.click(screen.getByRole('button', { name: /Rauchen/ }));
-    await user.click(screen.getAllByRole('button', { name: 'Ja' }).at(-1)!);
-    await user.click(screen.getByRole('button', { name: 'Rauchdauer erhöhen' }));
-    await user.click(screen.getByRole('button', { name: 'Zigaretten pro Tag erhöhen' }));
+    await user.click(screen.getByRole('button', { name: 'Regelmäßig' }));
+    await user.type(screen.getByLabelText('Seit wann?'), 'seit 1 Jahr');
+    await user.click(screen.getByRole('button', { name: 'Rauchmenge erhöhen' }));
     await user.click(screen.getAllByRole('button', { name: 'Weiter' }).at(-1)!);
 
     expect(setPatientDataMock).toHaveBeenCalledWith(expect.objectContaining({
       allergies: 'Penicillin',
       medications: 'Ibuprofen',
-      substanceInfluence: 'Alkohol',
+      substanceInfluence: 'Alkohol ausgewählt',
       recentAbroad: "Ja",
       recentAbroadDetails: 'Italien',
       isPregnant: true,
-      isSmoker: "Ja",
-      smokingSinceYears: '1',
+      isSmoker: "Regelmäßig",
+      smokingSinceYears: 'seit 1 Jahr',
       cigarettesPerDay: '1',
     }));
     expect(navigateMock).toHaveBeenCalledWith('/pre-existing-conditions');
+  });
+
+  it('summarizes substance influence by selection without entered details', async () => {
+    const user = userEvent.setup();
+    assessmentState.patientData = basePatientData;
+
+    render(<MedicalDataPage />);
+
+    await user.click(screen.getByRole('button', { name: /Einfluss durch Alkohol/ }));
+    await user.click(screen.getByRole('button', { name: 'Alkohol' }));
+    await user.type(screen.getByLabelText('Seit wann?'), 'seit 2021');
+    await user.type(screen.getByLabelText('Wie oft am Tag?'), '1 Glas');
+
+    expect(screen.getByRole('button', { name: /Einfluss durch Alkohol oder\/und Drogen.*Alkohol ausgewählt/ })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Einfluss durch Alkohol oder\/und Drogen.*seit 2021/ })).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Drogen' }));
+    await user.type(screen.getByLabelText('Welche Drogen oder Substanzen nehmen Sie ein?'), 'Cannabis');
+    await user.type(screen.getAllByLabelText('Seit wann?').at(-1)!, 'seit 2022');
+    await user.type(screen.getAllByLabelText('Wie oft am Tag?').at(-1)!, '2-mal');
+
+    expect(screen.getByRole('button', { name: /Einfluss durch Alkohol oder\/und Drogen.*Alkohol und Drogen ausgewählt/ })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Einfluss durch Alkohol oder\/und Drogen.*Cannabis/ })).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Alkohol' }));
+
+    expect(screen.getByRole('button', { name: /Einfluss durch Alkohol oder\/und Drogen.*Drogen ausgewählt/ })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Einfluss durch Alkohol oder\/und Drogen.*2-mal/ })).not.toBeInTheDocument();
   });
 
   it('keeps occasional smoking selected after medical data is persisted', async () => {
@@ -310,7 +338,13 @@ describe('page-level user flows', () => {
     await user.click(screen.getByRole('button', { name: /Rauchen/ }));
 
     expect(screen.getByRole('button', { name: 'Gelegentlich' })).toHaveClass('bg-[#486284]');
-    expect(screen.getByRole('button', { name: 'Ja' })).not.toHaveClass('bg-[#486284]');
+    expect(screen.getByText('Seit wann?')).toBeInTheDocument();
+    expect(screen.getByText('Menge pro Monat')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Rauchmenge erhöhen' }));
+    expect(screen.getByDisplayValue('1')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Regelmäßig' })).not.toHaveClass('bg-[#486284]');
+    await user.click(screen.getByRole('button', { name: 'Früher' }));
+    expect(screen.getByText('Seit wann nicht mehr?')).toBeInTheDocument();
   });
 
   it('collects pre-existing conditions and continues to symptom selection', async () => {
@@ -321,15 +355,36 @@ describe('page-level user flows', () => {
 
     await user.click(screen.getByRole('button', { name: 'Diabetes' }));
     await user.click(screen.getByRole('button', { name: 'Typ 2' }));
+
+    const mentalConditionButton = screen.getByRole('button', { name: 'Psychische Erkrankung' });
+    const epilepsyButton = screen.getByRole('button', { name: 'Epilepsie' });
+    expect(
+      mentalConditionButton.compareDocumentPosition(epilepsyButton) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+
+    await user.click(epilepsyButton);
+    expect(screen.getByRole('button', { name: 'Unklar' }).parentElement).toHaveClass(
+      'top-full',
+      'mt-1',
+      'overflow-y-auto',
+      'overscroll-contain',
+    );
+    expect(screen.queryByLabelText('Seit wann?')).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Unklar' }));
     await user.type(screen.getByLabelText('Sonstige'), 'Migräne');
     await user.click(screen.getAllByRole('button', { name: 'Weiter' }).at(-1)!);
 
     expect(setPatientDataMock).toHaveBeenCalledWith(expect.objectContaining({
-      conditions: expect.arrayContaining(['Diabetes', 'Sonstige']),
+      conditions: expect.arrayContaining(['Diabetes', 'Epilepsie', 'Sonstige']),
       conditionDetails: expect.objectContaining({
         Diabetes: {
           condition: 'Diabetes',
           detail: 'Typ 2',
+          duration: '',
+        },
+        Epilepsie: {
+          condition: 'Epilepsie',
+          detail: 'Unklar',
           duration: '',
         },
         Sonstige: {

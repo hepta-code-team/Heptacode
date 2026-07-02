@@ -85,11 +85,11 @@ function buildPatientDataLines(patientData?: PatientData): string[] {
     patientData.isPregnant ? 'Schwanger: Ja' : null,
     patientData.isBreastfeeding ? 'Stillend: Ja' : null,
     patientData.isSmoker ? `Raucher: ${patientData.isSmoker}` : 'Raucher: Keine Angabe',
-    patientData.isSmoker !== '' && patientData.isSmoker !== 'Nein' && hasText(patientData.smokingSinceYears)
-      ? `Rauchdauer: ${patientData.smokingSinceYears.trim()} Jahre`
+    patientData.isSmoker !== '' && patientData.isSmoker !== 'Nein' && patientData.isSmoker !== 'Nie' && hasText(patientData.smokingSinceYears)
+      ? `Rauchdauer: ${patientData.smokingSinceYears.trim()}`
       : null,
-    patientData.isSmoker !== '' && patientData.isSmoker !== 'Nein' && hasText(patientData.cigarettesPerDay)
-      ? `Zigaretten pro Tag: ${patientData.cigarettesPerDay.trim()}`
+    patientData.isSmoker !== '' && patientData.isSmoker !== 'Nein' && patientData.isSmoker !== 'Nie' && hasText(patientData.cigarettesPerDay)
+      ? `Rauchmenge: ${patientData.cigarettesPerDay.trim()}`
       : null,
   ].filter((line): line is string => line !== null)
 }

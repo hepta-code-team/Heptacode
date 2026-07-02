@@ -64,6 +64,7 @@ Das Backend registriert aktuell diese HTTP-Endpunkte:
 | `POST` | `/api/v1/symptoms/consistency` | Symptom-Konsistenz pruefen |
 | `POST` | `/api/v1/triage/evaluate` | Triage bewerten |
 | `POST` | `/api/v1/pdf/export` | Assessment-PDF erzeugen |
+| `POST` | `/api/v1/fhir/send` | FHIR-Bundle per HTTP an den konfigurierten FHIR-Server senden |
 
 Details stehen in [docs/FRONTEND_BACKEND_SCHNITTSTELLE.md](docs/FRONTEND_BACKEND_SCHNITTSTELLE.md) und in den Backend-Moduldokumenten unter [backend/docs](backend/docs).
 

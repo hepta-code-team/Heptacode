@@ -66,34 +66,25 @@ function hasSubstance(value: string | undefined, substance: "Alkohol" | "Drogen"
 }
 
 function buildSubstanceInfluence(
-  data: Pick<
+  _data: Pick<
     PatientData,
     "alcoholSince" | "alcoholFrequencyPerDay" | "drugDetails" | "drugSince" | "drugFrequencyPerDay"
   >,
   selection: { alcohol: boolean; drugs: boolean },
 ) {
-  const parts: string[] = [];
+  if (selection.alcohol && selection.drugs) {
+    return "Alkohol und Drogen ausgewählt";
+  }
 
   if (selection.alcohol) {
-    const details = [
-      data.alcoholSince?.trim() ? `seit ${data.alcoholSince.trim()}` : null,
-      data.alcoholFrequencyPerDay?.trim() ? `${data.alcoholFrequencyPerDay.trim()} pro Tag` : null,
-    ].filter(Boolean);
-
-    parts.push(details.length > 0 ? `Alkohol (${details.join(", ")})` : "Alkohol");
+    return "Alkohol ausgewählt";
   }
 
   if (selection.drugs) {
-    const details = [
-      data.drugDetails?.trim() ? `Substanz: ${data.drugDetails.trim()}` : null,
-      data.drugSince?.trim() ? `seit ${data.drugSince.trim()}` : null,
-      data.drugFrequencyPerDay?.trim() ? `${data.drugFrequencyPerDay.trim()} pro Tag` : null,
-    ].filter(Boolean);
-
-    parts.push(details.length > 0 ? `Drogen (${details.join(", ")})` : "Drogen");
+    return "Drogen ausgewählt";
   }
 
-  return parts.length > 0 ? parts.join("; ") : "";
+  return "";
 }
 
 function getSubstanceSummary(data: PatientData) {
@@ -224,7 +215,6 @@ export default function MedicalDataPage() {
     abroad: false,
     smoking: false,
   });
-  const [, setExpandedConditionDetails] = useState<Record<string, boolean>>({});
   useEffect(() => {
     setPatientData(formData);
   }, [formData, setPatientData]);
@@ -242,139 +232,6 @@ export default function MedicalDataPage() {
         [section]: shouldOpenSection,
       };
     });
-  };
-
-  const toggleConditionDropdown = (condition: string) => {
-    setExpandedConditionDetails((sections) => ({
-      [condition]: !sections[condition],
-    }));
-  };
-
-  const clearAllConditionSelections = () => {
-    setFormData((prev) => ({
-      ...prev,
-      conditions: [],
-      conditionDetails: {},
-    }));
-    setExpandedConditionDetails({});
-  };
-
-  const clearOtherConditionSelection = () => {
-    setFormData((prev) => {
-      const { Sonstige: _removedDetail, ...nextConditionDetails } =
-        prev.conditionDetails ?? {};
-
-      return {
-        ...prev,
-        conditions: prev.conditions.filter(
-          (condition) => condition !== "Sonstige",
-        ),
-        conditionDetails: nextConditionDetails,
-      };
-    });
-    setExpandedConditionDetails({});
-  };
-
-  const clearConditionSelection = (condition: string) => {
-    setFormData((prev) => {
-      const { [condition]: _removedDetail, ...nextConditionDetails } =
-        prev.conditionDetails ?? {};
-
-      return {
-        ...prev,
-        conditions: prev.conditions.filter(
-          (selectedCondition) => selectedCondition !== condition,
-        ),
-        conditionDetails: nextConditionDetails,
-      };
-    });
-    setExpandedConditionDetails({});
-  };
-
-  const toggleConditionSelection = (condition: string) => {
-    toggleConditionDropdown(condition);
-  };
-
-  /**
-   * Selects a predefined detail and ensures the parent condition is active.
-   *
-   * Choosing a detail implies the condition itself should be included in the
-   * assessment payload, even if the main condition button was not toggled first.
-   */
-  const selectConditionDetail = (condition: string, value: string) => {
-    setFormData((prev) => ({
-      ...prev,
-      conditions: prev.conditions.includes(condition)
-        ? prev.conditions
-        : [...prev.conditions, condition],
-      conditionDetails: {
-        ...(prev.conditionDetails ?? {}),
-        [condition]: {
-          condition,
-          detail: value,
-          duration: prev.conditionDetails?.[condition]?.duration ?? "",
-        },
-      },
-    }));
-    setExpandedConditionDetails({ [condition]: true });
-  };
-
-  /**
-   * Keeps the custom "Sonstige" condition synchronized with its free-text value.
-   *
-   * Clearing the field removes the synthetic condition so empty custom entries
-   * do not get sent to triage or PDF export.
-   */
-  const updateOtherCondition = (value: string) => {
-    const trimmedValue = value.trim();
-
-    setExpandedConditionDetails(trimmedValue ? { Sonstige: true } : {});
-
-    setFormData((prev) => {
-      const nextConditions = trimmedValue
-        ? prev.conditions.includes("Sonstige")
-          ? prev.conditions
-          : [...prev.conditions, "Sonstige"]
-        : prev.conditions.filter((condition) => condition !== "Sonstige");
-
-      return {
-        ...prev,
-        conditions: nextConditions,
-        conditionDetails: {
-          ...(prev.conditionDetails ?? {}),
-          Sonstige: {
-            condition: "Sonstige",
-            detail: value,
-            duration: prev.conditionDetails?.Sonstige?.duration ?? "",
-          },
-        },
-      };
-    });
-  };
-
-  const updateConditionDuration = (condition: string, duration: string) => {
-    setFormData((prev) => {
-      const currentDetail = prev.conditionDetails?.[condition];
-
-      return {
-        ...prev,
-        conditionDetails: {
-          ...(prev.conditionDetails ?? {}),
-          [condition]: {
-            condition,
-            detail: currentDetail?.detail ?? "",
-            duration,
-          },
-        },
-      };
-    });
-  };
-
-  const collapseConditionDropdown = (condition: string) => {
-    setExpandedConditionDetails((sections) => ({
-      ...sections,
-      [condition]: false,
-    }));
   };
 
   const updateSubstanceDetails = (
@@ -435,68 +292,6 @@ export default function MedicalDataPage() {
     });
   };
 
-  const renderConditionDurationField = (
-    condition: string,
-    options: { showLabel?: boolean } = {},
-  ) => {
-    const detail = formData.conditionDetails?.[condition];
-    const hasSelectedDetail = Boolean(detail?.detail.trim());
-    const showLabel = options.showLabel ?? true;
-
-    return (
-      <div
-        className="border-t border-gray-200 bg-[#eff2f6] p-3"
-        onClick={(event) => event.stopPropagation()}
-      >
-        {showLabel && (
-          <Label
-            htmlFor={`conditionDuration-${condition}`}
-            className="mb-1 block font-['DM_Sans:Bold',sans-serif] font-bold text-app-text-body text-xs leading-tight"
-            style={{ fontVariationSettings: "'opsz' 14" }}
-          >
-            Seit wann?
-          </Label>
-        )}
-        <div className="relative">
-          <Input
-            id={`conditionDuration-${condition}`}
-            value={detail?.duration ?? ""}
-            onChange={(event) =>
-              updateConditionDuration(condition, event.target.value)
-            }
-            onKeyDown={(event) => {
-              if (event.key !== "Enter") return;
-              event.preventDefault();
-              event.stopPropagation();
-              collapseConditionDropdown(condition);
-            }}
-            placeholder={
-              hasSelectedDetail
-                ? "z. B. 2019, seit 6 Monaten"
-                : "Bitte erst auswählen"
-            }
-            disabled={!hasSelectedDetail}
-            className="h-8 border-none bg-white pr-8 text-xs disabled:cursor-not-allowed disabled:bg-white disabled:text-app-text-muted disabled:opacity-70"
-          />
-          {detail?.duration.trim() && (
-            <button
-              type="button"
-              onClick={(event) => {
-                event.stopPropagation();
-                collapseConditionDropdown(condition);
-              }}
-              className="absolute right-1 top-1/2 flex size-7 -translate-y-1/2 items-center justify-center rounded-[8px] text-app-text-primary transition-all hover:bg-[#eff2f6]"
-              aria-label={`${condition}-Liste zuklappen`}
-              title={`${condition}-Liste zuklappen`}
-            >
-              <Check className="size-4" strokeWidth={3} aria-hidden="true" />
-            </button>
-          )}
-        </div>
-      </div>
-    );
-  };
-
   const handleContinue = () => {
     setPatientData(formData);
     navigate("/pre-existing-conditions");
@@ -508,6 +303,8 @@ export default function MedicalDataPage() {
 
   const isAlcoholSelected = hasSubstance(formData.substanceInfluence, "Alkohol");
   const isDrugSelected = hasSubstance(formData.substanceInfluence, "Drogen");
+  const smokingDurationLabel = formData.isSmoker === "Früher" ? "Seit wann nicht mehr?" : "Seit wann?";
+  const smokingAmountLabel = formData.isSmoker === "Gelegentlich" ? "Menge pro Monat" : "Menge pro Tag";
 
   return (
     <PageShell
@@ -635,7 +432,7 @@ export default function MedicalDataPage() {
           </MedicalAccordionPanel>
 
           <MedicalAccordionPanel
-            title="Einfluss durch Alkohol oder Drogen"
+            title="Einfluss durch Alkohol oder/und Drogen"
             icon={Wine}
             isOpen={expandedMedicalSections.substance}
             onToggle={() => toggleMedicalSection("substance")}
@@ -815,16 +612,14 @@ export default function MedicalDataPage() {
           summary={
             formData.isSmoker === ""
               ? "Optional ergänzen"
-              : formData.isSmoker === "Nein"
-                ? "Nein ausgewählt"
-                : formData.isSmoker === "Gelegentlich"
-                ? "Gelegentlich ausgewählt"
-                : "Ja ausgewählt"
+              : formData.isSmoker === "Nein" || formData.isSmoker === "Nie"
+                ? "Nie ausgewählt"
+                : `${formData.isSmoker} ausgewählt`
           }
           isCompleted={formData.isSmoker !== ""}
         >
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-            {(["Nein", "Gelegentlich", "Ja"] as const).map((status) => (
+          <div className="grid grid-cols-1 sm:grid-cols-4 gap-2">
+            {(["Nie", "Früher", "Gelegentlich", "Regelmäßig"] as const).map((status) => (
               <OptionButton
                 key={status}
                 label={status}
@@ -836,81 +631,44 @@ export default function MedicalDataPage() {
                     ...formData,
                     isSmoker: nextIsSmoker,
                     smokingSinceYears:
-                      nextIsSmoker === "" || nextIsSmoker === "Nein" ? "" : formData.smokingSinceYears,
+                      nextIsSmoker === "" || nextIsSmoker === "Nie" ? "" : formData.smokingSinceYears,
                     cigarettesPerDay:
-                      nextIsSmoker === "" || nextIsSmoker === "Nein" ? "" : formData.cigarettesPerDay,
+                      nextIsSmoker === "" || nextIsSmoker === "Nie" ? "" : formData.cigarettesPerDay,
                   });
                 }}
               />
             ))}
           </div>
 
-          {formData.isSmoker !== "" && formData.isSmoker !== "Nein" && (
+          {formData.isSmoker !== "" && formData.isSmoker !== "Nie" && formData.isSmoker !== "Nein" && (
             <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2">
               <div>
                 <Label
                   htmlFor="smokingSinceYears"
                   className="mb-1 block text-xs font-bold text-app-text-body"
                 >
-                  Seit wann? (Jahre)
+                  {smokingDurationLabel}
                 </Label>
-                <div className="flex h-9 overflow-hidden rounded-[10px] bg-white">
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setFormData({
-                        ...formData,
-                        smokingSinceYears: String(
-                          Math.max(
-                            Number(formData.smokingSinceYears || 0) - 1,
-                            0,
-                          ),
-                        ),
-                      })
-                    }
-                    className="w-10 border-r border-[#eff2f6] text-base font-bold text-app-text-primary hover:bg-[#dde3ea]"
-                    aria-label="Rauchdauer verringern"
-                  >
-                    -
-                  </button>
-                  <input
-                    id="smokingSinceYears"
-                    type="number"
-                    min="0"
-                    step="1"
-                    value={formData.smokingSinceYears ?? ""}
-                    onChange={(event) =>
-                      setFormData({
-                        ...formData,
-                        smokingSinceYears: event.target.value,
-                      })
-                    }
-                    placeholder="0"
-                    className="min-w-0 flex-1 bg-white px-3 text-center text-sm font-semibold outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-                  />
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setFormData({
-                        ...formData,
-                        smokingSinceYears: String(
-                          Number(formData.smokingSinceYears || 0) + 1,
-                        ),
-                      })
-                    }
-                    className="w-10 border-l border-[#eff2f6] text-base font-bold text-app-text-primary hover:bg-[#dde3ea]"
-                    aria-label="Rauchdauer erhöhen"
-                  >
-                    +
-                  </button>
-                </div>
+                <Input
+                  id="smokingSinceYears"
+                  type="text"
+                  value={formData.smokingSinceYears ?? ""}
+                  onChange={(event) =>
+                    setFormData({
+                      ...formData,
+                      smokingSinceYears: event.target.value,
+                    })
+                  }
+                  placeholder="z. B. seit 3 Jahren, seit 2019, unbekannt"
+                  className="bg-white border-none text-xs h-9"
+                />
               </div>
               <div>
                 <Label
                   htmlFor="cigarettesPerDay"
                   className="mb-1 block text-xs font-bold text-app-text-body"
                 >
-                  Menge pro Tag
+                  {smokingAmountLabel}
                 </Label>
                 <div className="flex h-9 overflow-hidden rounded-[10px] bg-white">
                   <button
@@ -927,7 +685,7 @@ export default function MedicalDataPage() {
                       })
                     }
                     className="w-10 border-r border-[#eff2f6] text-base font-bold text-app-text-primary hover:bg-[#dde3ea]"
-                    aria-label="Zigaretten pro Tag verringern"
+                    aria-label="Rauchmenge verringern"
                   >
                     -
                   </button>
@@ -957,7 +715,7 @@ export default function MedicalDataPage() {
                       })
                     }
                     className="w-10 border-l border-[#eff2f6] text-base font-bold text-app-text-primary hover:bg-[#dde3ea]"
-                    aria-label="Zigaretten pro Tag erhöhen"
+                    aria-label="Rauchmenge erhöhen"
                   >
                     +
                   </button>

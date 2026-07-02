@@ -4,7 +4,7 @@ import { useNavigate, useSearchParams } from "react-router";
 import { Brain, Check, Mic, MicOff, PersonStanding, Sparkles, Trash2, X } from "lucide-react";
 import PageShell from "../components/PageShell";
 import Button from "../components/Button";
-import SymptomButtonGrid from "../features/symptoms/SymptomButtonGrid";
+import SymptomButtonGrid, { renderBreakableLabel } from "../features/symptoms/SymptomButtonGrid";
 import { useAssessment } from "../lib/AssessmentContext";
 import { extractSymptomsFromText } from "../lib/symptomExtractionApi";
 import {
@@ -24,6 +24,7 @@ const MAX_RECORDING_DURATION_MS = 60_000;
 const MAX_RECORDING_DURATION_SECONDS = MAX_RECORDING_DURATION_MS / 1000;
 const MAX_SYMPTOM_TEXT_CHARACTERS = 300;
 const SYMPTOM_TEXT_CHARACTER_LIMIT_ERROR = `Bitte beschreiben Sie Ihre Symptome mit maximal ${MAX_SYMPTOM_TEXT_CHARACTERS} Zeichen.`;
+const MOBILE_LAYOUT_MAX_WIDTH_PX = 960;
 
 type BrowserSpeechRecognitionAlternative = {
   transcript: string;
@@ -400,7 +401,7 @@ function AnatomyFigure({
   return (
     <svg
       viewBox="0 0 220 350"
-      className="mx-auto h-[360px] w-[230px] sm:h-[330px] sm:w-[210px] md:h-[390px] md:w-[245px]"
+      className="mx-auto h-[360px] w-[230px] md:h-[390px] md:w-[245px]"
       role="img"
       aria-label="Klickbare Körperauswahl"
     >
@@ -564,7 +565,7 @@ function AnatomyFigure({
         onMouseLeave={() => setHoveredBodyArea(null)}
         onFocus={() => setHoveredBodyArea({ category: "headNeck" })}
         onBlur={() => setHoveredBodyArea(null)}
-        className={`${interactiveClass} sm:hidden`}
+        className={`${interactiveClass} md:hidden`}
       >
         <path
           d="M80 42 C80 20 94 7 110 7 C126 7 140 20 140 42 C140 64 127 78 110 78 C93 78 80 64 80 42 Z"
@@ -595,7 +596,7 @@ function AnatomyFigure({
         onMouseLeave={() => setHoveredBodyArea(null)}
         onFocus={() => setHoveredBodyArea({ category: "neck" })}
         onBlur={() => setHoveredBodyArea(null)}
-        className={`${interactiveClass} hidden sm:block`}
+        className={`${interactiveClass} hidden md:block`}
       >
         <path
           d="M94 72 C100 82 120 82 126 72 L128 94 C121 101 99 101 92 94 Z"
@@ -618,7 +619,7 @@ function AnatomyFigure({
         onMouseLeave={() => setHoveredBodyArea(null)}
         onFocus={() => setHoveredBodyArea({ category: "head" })}
         onBlur={() => setHoveredBodyArea(null)}
-        className={`${interactiveClass} hidden sm:block`}
+        className={`${interactiveClass} hidden md:block`}
       >
         <path
           d="M80 42 C80 20 94 7 110 7 C126 7 140 20 140 42 C140 64 127 78 110 78 C93 78 80 64 80 42 Z"
@@ -980,8 +981,8 @@ export default function SymptomSelectionPage() {
     setSelectedBodySide(nextBodySide);
     setSearchParams(nextBodySide ? { category, side: nextBodySide.side } : { category });
 
-    // On mobile, move the newly opened options into view after React has rendered them.
-    if (window.innerWidth < 768) {
+    // On mobile (including landscape phones), move the newly opened options into view after React has rendered them.
+    if (window.innerWidth < MOBILE_LAYOUT_MAX_WIDTH_PX) {
       window.setTimeout(() => {
         symptomOptionsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
       }, 80);
@@ -995,7 +996,7 @@ export default function SymptomSelectionPage() {
    * mobile users need the viewport moved after a category or slot click.
    */
   const scrollToSymptomOptions = () => {
-    if (window.innerWidth >= 768) {
+    if (window.innerWidth >= MOBILE_LAYOUT_MAX_WIDTH_PX) {
       return;
     }
 
@@ -1246,7 +1247,7 @@ export default function SymptomSelectionPage() {
                   Körperstelle auswählen
                 </span>
                 <span
-                  className="mt-0.5 hidden font-['DM_Sans:Medium',sans-serif] text-xs font-medium sm:block"
+                  className="mt-0.5 hidden font-['DM_Sans:Medium',sans-serif] text-xs font-medium md:block"
                   style={{ fontVariationSettings: "'opsz' 14" }}
                 >
                   Für klare lokale Beschwerden
@@ -1280,7 +1281,7 @@ export default function SymptomSelectionPage() {
                   Frei beschreiben
                 </span>
                 <span
-                  className="mt-0.5 hidden font-['DM_Sans:Medium',sans-serif] text-xs font-medium sm:block"
+                  className="mt-0.5 hidden font-['DM_Sans:Medium',sans-serif] text-xs font-medium md:block"
                   style={{ fontVariationSettings: "'opsz' 14" }}
                 >
                   Für Sprache oder eigene Worte
@@ -1391,7 +1392,7 @@ export default function SymptomSelectionPage() {
                       }
                     >
                       <div className="flex items-center justify-between gap-2 md:items-start">
-                        <div>
+                        <div className="min-w-0 flex-1">
                           <p
                             className="hidden font-['DM_Sans:Bold',sans-serif] text-xs font-bold md:mb-1 md:block"
                             style={{ fontVariationSettings: "'opsz' 14" }}
@@ -1399,10 +1400,11 @@ export default function SymptomSelectionPage() {
                             Beschwerde {index + 1}
                           </p>
                           <p
-                            className="font-['DM_Sans:SemiBold',sans-serif] text-xs font-semibold leading-tight md:text-sm"
+                            className="hyphens-auto break-words font-['DM_Sans:SemiBold',sans-serif] text-xs font-semibold leading-tight md:text-sm"
+                            lang="de"
                             style={{ fontVariationSettings: "'opsz' 14" }}
                           >
-                            {symptom ? getSymptomKey(symptom) : `${index + 1}. hinzufügen`}
+                            {symptom ? renderBreakableLabel(getSymptomKey(symptom)) : `${index + 1}. hinzufügen`}
                           </p>
                         </div>
                         {symptom && (
@@ -1412,7 +1414,7 @@ export default function SymptomSelectionPage() {
                               event.stopPropagation();
                               removeSymptom(index);
                             }}
-                            className="rounded-full p-0.5 text-app-text-primary hover:bg-[#eff2f6]"
+                            className="flex-shrink-0 rounded-full p-0.5 text-app-text-primary hover:bg-[#eff2f6]"
                             aria-label={`${getSymptomKey(symptom)} entfernen`}
                           >
                             <X className="size-3.5 md:size-4" aria-hidden="true" />
