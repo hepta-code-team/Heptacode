@@ -6,7 +6,6 @@ Das Modul `pdf` erzeugt aus einer bereits vorliegenden Ersteinschätzung ein pat
 
 - Validierung des Export-Requests
 - Aufbereitung von Patientendaten, Beschwerden und Triage-Ergebnis
-- Normalisierung deutscher Texte und älterer Summary-Formate
 - Erzeugung eines A4-Dokuments mit PDFKit
 - Rückgabe des PDFs als binärer Download
 

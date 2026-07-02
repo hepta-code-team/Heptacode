@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { KeyboardEvent, PointerEvent } from "react";
 import { useNavigate } from "react-router";
 import { Annoyed, Frown, Laugh, Mars, Meh, Smile, Transgender, Venus, type LucideIcon } from "lucide-react";
@@ -128,6 +128,10 @@ export default function PatientDataPage() {
       Number(formData.birthYear) -
       (Number(formData.birthMonth) > currentMonth ? 1 : 0)
     : null;
+  const patientDataWithCalculatedAge: PatientData = useMemo(() => ({
+    ...formData,
+    age: calculatedAge ?? undefined,
+  }), [formData, calculatedAge]);
 
   /**
    * Validates only the required demographic fields for the first step.
@@ -161,8 +165,8 @@ export default function PatientDataPage() {
   const isGenderComplete = Boolean(formData.gender);
 
   useEffect(() => {
-    setPatientData(formData);
-  }, [formData, setPatientData]);
+    setPatientData(patientDataWithCalculatedAge);
+  }, [patientDataWithCalculatedAge, setPatientData]);
 
   const setEmptyNumberStepValue = (
     field: "birthYear" | "height" | "weight",
@@ -235,7 +239,7 @@ export default function PatientDataPage() {
       return;
     }
 
-    setPatientData(formData);
+    setPatientData(patientDataWithCalculatedAge);
     navigate("/medical-data");
   };
 
@@ -371,7 +375,7 @@ export default function PatientDataPage() {
               <Input
                 id="height"
                 type="number"
-                placeholder="zB. 175"
+                placeholder="z. B. 175"
                 min={HEIGHT_MIN}
                 max={HEIGHT_MAX}
                 aria-invalid={hasHeightError}
@@ -412,7 +416,7 @@ export default function PatientDataPage() {
               <Input
                 id="weight"
                 type="number"
-                placeholder="zB. 70"
+                placeholder="z. B. 70"
                 min={WEIGHT_MIN}
                 max={WEIGHT_MAX}
                 aria-invalid={hasWeightError}

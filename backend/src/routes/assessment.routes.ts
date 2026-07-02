@@ -1,11 +1,12 @@
 import type { FastifyPluginAsync } from 'fastify'
+import { env } from '../config/env.js'
 import { evaluateAssessmentWithAi } from '../modules/assessment/assessment.service.js'
 import { assessmentPayloadSchema } from '../modules/assessment/assessment.types.js'
 import {
   buildFhirBundle,
-  formatFhirBundleForDebugLog,
   summarizeFhirBundleForLog,
 } from '../modules/fhir/fhirBundle.js'
+import { sendFhirBundle } from '../modules/fhir/fhirSend.service.js'
 
 export const assessmentRoutes: FastifyPluginAsync = async (app) => {
   app.post('/assessments', async (request, reply) => {
@@ -29,12 +30,28 @@ export const assessmentRoutes: FastifyPluginAsync = async (app) => {
     const payload = parsedPayload.data
     const result = await evaluateAssessmentWithAi(payload)
     const fhirBundle = buildFhirBundle(payload, result)
+    const fhirSendResult = await sendFhirBundle(
+      {
+        target: 'assessment-fhir-target',
+        bundle: fhirBundle,
+      },
+      {
+        endpoint: env.fhirEndpoint,
+        authToken: env.fhirAuthToken,
+        timeoutMs: env.fhirRequestTimeoutMs,
+      },
+    )
 
     request.log.info(
       { fhirBundle: summarizeFhirBundleForLog(fhirBundle) },
       'FHIR bundle generated for assessment',
     )
-    console.info(formatFhirBundleForDebugLog(fhirBundle))
+    request.log.info(
+      { fhirSend: fhirSendResult },
+      fhirSendResult.status === 'accepted'
+        ? 'FHIR send accepted for assessment'
+        : 'FHIR send failed for assessment',
+    )
 
     void reply.send(result)
   })

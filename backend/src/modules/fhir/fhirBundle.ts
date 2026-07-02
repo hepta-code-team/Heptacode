@@ -129,11 +129,11 @@ function formatPatientContext(payload: AssessmentPayload): string {
       ? `Vorerkrankungen: ${patientData.conditions.join(', ')}`
       : null,
     patientData.isSmoker ? `Raucher: ${patientData.isSmoker}` : 'Raucher: Keine Angabe',
-    patientData.isSmoker !== '' && patientData.isSmoker !== 'Nein' && hasText(patientData.smokingSinceYears)
-      ? `Rauchdauer: ${patientData.smokingSinceYears.trim()} Jahre`
+    patientData.isSmoker !== '' && patientData.isSmoker !== 'Nein' && patientData.isSmoker !== 'Nie' && hasText(patientData.smokingSinceYears)
+      ? `Rauchdauer: ${patientData.smokingSinceYears.trim()}`
       : null,
-    patientData.isSmoker !== '' && patientData.isSmoker !== 'Nein' && hasText(patientData.cigarettesPerDay)
-      ? `Zigaretten pro Tag: ${patientData.cigarettesPerDay.trim()}`
+    patientData.isSmoker !== '' && patientData.isSmoker !== 'Nein' && patientData.isSmoker !== 'Nie' && hasText(patientData.cigarettesPerDay)
+      ? `Rauchmenge: ${patientData.cigarettesPerDay.trim()}`
       : null,
     conditionDetails.length > 0
       ? `Details zu Vorerkrankungen: ${conditionDetails.join('; ')}`
@@ -373,19 +373,3 @@ export function summarizeFhirBundleForLog(bundle: fhir4.Bundle): FhirBundleLogSu
   }
 }
 
-// Development/debug output: this contains clinical content and should not be used for production logs.
-// this is for showcase purposes only
-export function formatFhirBundleForDebugLog(bundle: fhir4.Bundle): string {
-  const summary = summarizeFhirBundleForLog(bundle)
-
-  return [
-    '',
-    'FHIR bundle generated for assessment',
-    `generated: ${summary.generated}`,
-    `bundleType: ${summary.bundleType}`,
-    `entryCount: ${summary.entryCount}`,
-    `resourceTypes: ${summary.resourceTypes.join(', ')}`,
-    'content:',
-    JSON.stringify(bundle, null, 2),
-  ].join('\n')
-}

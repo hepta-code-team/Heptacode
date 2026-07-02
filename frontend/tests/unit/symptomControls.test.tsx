@@ -132,7 +132,7 @@ describe('symptom control components', () => {
       />,
     );
 
-    await user.click(screen.getByRole('button', { name: /Kopf\s+Stirn/ }));
+    await user.click(screen.getByRole('button', { name: 'Stirn' }));
     expect(onRegionSelect).toHaveBeenCalledWith('Kopf', 'Stirn');
   });
 

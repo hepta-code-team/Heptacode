@@ -10,9 +10,25 @@ vi.mock('../../../src/ai/llmAdapter.js', () => ({
   requestStructuredAiResponseWithModel: vi.fn(),
 }))
 
+vi.mock('../../../src/config/env.js', () => ({
+  env: {
+    port: 3000,
+    host: '0.0.0.0',
+    corsOrigin: 'http://localhost:5173',
+    aiApiUrl: 'http://ai.example.test',
+    aiApiKey: 'dummy',
+    aiModel: 'test-model',
+    fallbackModel: 'fallback-model',
+    googleMapsApiKey: undefined,
+    fhirEndpoint: 'https://fhir.example.test/Bundle',
+    fhirAuthToken: undefined,
+    fhirRequestTimeoutMs: 1000,
+  },
+}))
+
 const requestStructuredAiResponseWithModelMock = vi.mocked(requestStructuredAiResponseWithModel)
 
-/** Creates an isolated Fastify instance for each route test. */
+/** Fresh Fastify instances keep route plugins and mocked AI behavior isolated between cases. */
 async function createApp(): Promise<FastifyInstance> {
   const app = await buildApp()
   await app.ready()
@@ -62,10 +78,20 @@ describe('POST /assessments', () => {
 
   beforeEach(async () => {
     vi.clearAllMocks()
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () =>
+        new Response(JSON.stringify({ resourceType: 'Bundle' }), {
+          status: 201,
+          headers: { 'content-type': 'application/fhir+json' },
+        }),
+      ),
+    )
     app = await createApp()
   })
 
   afterEach(async () => {
+    vi.unstubAllGlobals()
     await app.close()
   })
 

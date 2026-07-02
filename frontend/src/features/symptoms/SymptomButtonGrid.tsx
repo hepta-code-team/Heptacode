@@ -13,6 +13,40 @@ type InlineOption = {
 };
 type SymptomGridItem = BodyRegion | OtherRegion | InlineOption;
 
+const SOFT_HYPHEN = "­";
+const LONG_WORD_CHUNK_SIZE = 10;
+
+function hyphenateLongWords(label: string) {
+  return label
+    .split(/(\s+)/)
+    .map((part) => {
+      if (/\s+/.test(part) || part.length <= LONG_WORD_CHUNK_SIZE + 4) {
+        return part;
+      }
+
+      return part.replace(new RegExp(`(.{${LONG_WORD_CHUNK_SIZE}})(?=.)`, "g"), `$1${SOFT_HYPHEN}`);
+    })
+    .join("");
+}
+
+export function renderBreakableLabel(label: string) {
+  if (!label.includes("/")) {
+    return hyphenateLongWords(label);
+  }
+
+  return label.split("/").map((part, index, parts) => (
+    <span key={`${part}-${index}`}>
+      {hyphenateLongWords(part)}
+      {index < parts.length - 1 && (
+        <>
+          /
+          <wbr />
+        </>
+      )}
+    </span>
+  ));
+}
+
 interface SymptomButtonGridProps {
   onRegionSelect: (regionName: string, side?: string) => void;
   regions?: BodyRegion[];
@@ -125,25 +159,26 @@ export default function SymptomButtonGrid({
         <div key={region.id} className="relative">
           <button
             onClick={() => handleRegionClick(region)}
-            className={`w-full bg-[#eff2f6] shadow-md rounded-[16px] p-4 h-[120px] flex items-center justify-center text-center transition-all relative ${
+            className={`w-full bg-[#eff2f6] shadow-md rounded-[16px] p-4 h-[120px] flex items-center justify-start text-left transition-all relative ${
               isItemSelected(region)
                 ? "ring-2 ring-[#486284]"
                 : "hover:bg-[#dde3ea]"
             }`}
             disabled={isSelectedItemDisabled || (selectedRegions.length >= MAX_SYMPTOMS && !isItemSelected(region))}
+            aria-label={region.name}
           >
             {"icon" in region && (
               <img
                 src={region.icon}
                 alt=""
-                className="absolute left-5 top-1/2 size-18 -translate-y-1/2 object-contain lg:left-6 lg:size-20"
+                className="absolute left-4 top-1/2 size-16 -translate-y-1/2 object-contain md:left-5 md:size-18 lg:left-6 lg:size-20"
                 aria-hidden="true"
               />
             )}
             {region.id === "other" && (
-              <Mic className="absolute left-8 top-1/2 size-10 -translate-y-1/2 text-app-text-muted" aria-hidden="true" />
+              <Mic className="absolute left-7 top-1/2 size-10 -translate-y-1/2 text-app-text-muted md:left-8" aria-hidden="true" />
             )}
-            <div className="pl-10">
+            <div className="min-w-0 flex-1 pl-20 pr-7 md:pl-24">
               {"isInlineOption" in region && (
                 <p
                   className="font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-primary text-xs mb-0.5"
@@ -153,10 +188,11 @@ export default function SymptomButtonGrid({
                 </p>
               )}
               <p
-                className="font-['DM_Sans:Bold',sans-serif] font-bold text-app-text-body text-base"
+                className="hyphens-auto break-words font-['DM_Sans:Bold',sans-serif] font-bold leading-tight text-app-text-body text-base"
+                lang="de"
                 style={{ fontVariationSettings: "'opsz' 14" }}
               >
-                {region.name}
+                {renderBreakableLabel(region.name)}
               </p>
             </div>
             {"options" in region && region.options?.length && (
@@ -194,8 +230,8 @@ export default function SymptomButtonGrid({
                           : "hover:bg-[#eff2f6]"
                       }`}
                     >
-                      <span className="font-['DM_Sans:Medium',sans-serif] font-medium text-sm text-app-text-body">
-                        {option}
+                      <span className="hyphens-auto break-words font-['DM_Sans:Medium',sans-serif] font-medium text-sm text-app-text-body" lang="de">
+                        {renderBreakableLabel(option)}
                       </span>
                     </button>
                   </div>

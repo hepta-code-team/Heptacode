@@ -7,6 +7,7 @@ import { symptomExtractionRoutes } from './routes/symptomExtraction.routes.js'
 import { triageRoutes } from './routes/triage.routes.js'
 import { assessmentRoutes } from './routes/assessment.routes.js'
 import { placesRoutes } from './routes/places.routes.js'
+import { fhirRoutes } from './routes/fhir.routes.js'
 import { errorHandler } from './common/middleware/errorHandler.js'
 import { notFoundHandler } from './common/middleware/notFoundHandler.js'
 
@@ -30,6 +31,7 @@ export async function buildApp(): Promise<FastifyInstance> {
   await app.register(triageRoutes)
   await app.register(pdfRoutes)
   await app.register(placesRoutes)
+  await app.register(fhirRoutes)
 
   return app
 }

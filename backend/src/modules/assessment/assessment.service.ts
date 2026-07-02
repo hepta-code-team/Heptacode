@@ -66,11 +66,11 @@ function buildPatientDataLines(patientData: AssessmentPayload['patientData']): s
       ? `Vorerkrankungen: ${patientData.conditions.join(', ')}`
       : null,
     patientData.isSmoker ? `Raucher: ${patientData.isSmoker}` : null,
-    patientData.isSmoker !== '' && patientData.isSmoker !== 'Nein' && hasText(patientData.smokingSinceYears)
-      ? `Rauchdauer: ${patientData.smokingSinceYears.trim()} Jahre`
+    patientData.isSmoker !== '' && patientData.isSmoker !== 'Nein' && patientData.isSmoker !== 'Nie' && hasText(patientData.smokingSinceYears)
+      ? `Rauchdauer: ${patientData.smokingSinceYears.trim()}`
       : null,
-    patientData.isSmoker !== '' && patientData.isSmoker !== 'Nein' && hasText(patientData.cigarettesPerDay)
-      ? `Zigaretten pro Tag: ${patientData.cigarettesPerDay.trim()}`
+    patientData.isSmoker !== '' && patientData.isSmoker !== 'Nein' && patientData.isSmoker !== 'Nie' && hasText(patientData.cigarettesPerDay)
+      ? `Rauchmenge: ${patientData.cigarettesPerDay.trim()}`
       : null,
     conditionDetails.length > 0
       ? `Details zu Vorerkrankungen: ${conditionDetails.join('; ')}`

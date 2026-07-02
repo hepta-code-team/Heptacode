@@ -19,7 +19,7 @@ vi.mock('../../../../src/modules/symptom-extraction/symptomExtraction.service.js
 const requestStructuredAiResponseWithModelMock = vi.mocked(requestStructuredAiResponseWithModel)
 const extractSymptomsMock = vi.mocked(extractSymptoms)
 
-/** Shared patient fixture for demographic plausibility checks. */
+/** Shared male patient fixture for demographic plausibility checks. */
 const malePatientData = {
   birthMonth: '05',
   birthYear: '1988',
@@ -126,12 +126,8 @@ describe('evaluateTriage', () => {
     )
   })
 
-  /** AI request availability failures should use the conservative local triage fallback. */
-
-  /** AI prompts should include the current date for age-dependent medical context. */
-  it('uebergibt das aktuelle Datum als Bezugsdatum fuer Altersberechnungen an die KI', async () => {
-    vi.useFakeTimers()
-    vi.setSystemTime(new Date(2026, 5, 15, 12, 0, 0))
+  /** AI prompts should receive the already calculated patient age. */
+  it('uebergibt das vorberechnete Alter an die KI', async () => {
     requestStructuredAiResponseWithModelMock.mockResolvedValueOnce({
       data: {
         careLevel: 'doctor',
@@ -146,6 +142,7 @@ describe('evaluateTriage', () => {
 
     await evaluateTriage({
       ...malePatientData,
+      age: 22,
       birthMonth: '05',
       birthYear: '2004',
     }, [
@@ -157,17 +154,21 @@ describe('evaluateTriage', () => {
         messages: expect.arrayContaining([
           expect.objectContaining({
             role: 'system',
-            content: expect.stringContaining('Bezugsdatum fuer Altersberechnungen'),
+            content: expect.stringContaining('uebergebene Alter'),
           }),
           expect.objectContaining({
             role: 'user',
-            content: expect.stringContaining('Aktuelles Datum:\n2026-06-15'),
+            content: expect.stringContaining('Stammdaten:\nAlter: 22 Jahre\nGroesse: 175'),
           }),
         ]),
       }),
     )
+    const userPrompt = requestStructuredAiResponseWithModelMock.mock.calls[0]?.[0].messages[1]?.content
+    expect(userPrompt).not.toContain('Geburtsmonat')
+    expect(userPrompt).not.toContain('Geburtsjahr')
   })
 
+  /** Medication and duration should be sent as active triage context, not just demographics. */
   it('hebt Medikamente und Einnahmedauer als eigenen Triage-Kontext hervor', async () => {
     requestStructuredAiResponseWithModelMock.mockResolvedValueOnce({
       data: {
@@ -207,6 +208,7 @@ describe('evaluateTriage', () => {
     )
   })
 
+  /** Missing medication duration should remain explicit in the prompt context. */
   it('kennzeichnet eine fehlende Einnahmedauer im Medikationskontext', async () => {
     requestStructuredAiResponseWithModelMock.mockResolvedValueOnce({
       data: {
@@ -239,6 +241,7 @@ describe('evaluateTriage', () => {
     )
   })
 
+  /** Medical risk factors should be grouped into the dedicated triage risk context. */
   it('hebt Allergien, Substanzeinfluss, Reisen und Vorerkrankungen als Risikokontext hervor', async () => {
     requestStructuredAiResponseWithModelMock.mockResolvedValueOnce({
       data: {
@@ -291,7 +294,7 @@ describe('evaluateTriage', () => {
   })
 
   /** AI request availability failures should use the conservative local triage fallback. */
-  it('nutzt den Fallback, wenn die KI-Anfrage fehlschlaegt', async () => {
+  it('nutzt den konservativen Triage-Fallback bei KI-Verfuegbarkeitsfehlern', async () => {
     requestStructuredAiResponseWithModelMock.mockRejectedValueOnce(new AiResponseError('timeout'))
 
     const result = await evaluateTriage(undefined, [
@@ -344,7 +347,7 @@ describe('evaluateTriage', () => {
   })
 
   /** Diagnostic evaluation should preserve the rejected AI answer and the final safety fallback. */
-  it('stellt direkte KI-Antwort und finales Fallback getrennt bereit', async () => {
+  it('stellt verworfene KI-Antwort und finalen Sicherheitsfallback getrennt bereit', async () => {
     requestStructuredAiResponseWithModelMock.mockResolvedValueOnce({
       data: {
         careLevel: 'selfcare',

@@ -222,8 +222,8 @@ describe('page-level user flows', () => {
 
     fireEvent.change(screen.getByPlaceholderText('MM'), { target: { value: '13' } });
     fireEvent.change(screen.getByPlaceholderText('JJJJ'), { target: { value: '1990' } });
-    fireEvent.change(screen.getByPlaceholderText('zB. 175'), { target: { value: '180' } });
-    fireEvent.change(screen.getByPlaceholderText('zB. 70'), { target: { value: '80' } });
+    fireEvent.change(screen.getByPlaceholderText('z. B. 175'), { target: { value: '180' } });
+    fireEvent.change(screen.getByPlaceholderText('z. B. 70'), { target: { value: '80' } });
     await user.click(screen.getByRole('button', { name: 'Männlich' }));
     expect(screen.getByText('Bitte Monat zwischen 1-12 wählen.')).toBeInTheDocument();
 
@@ -255,8 +255,8 @@ describe('page-level user flows', () => {
 
     const birthMonthInput = screen.getByPlaceholderText('MM') as HTMLInputElement;
     const birthYearInput = screen.getByPlaceholderText('JJJJ') as HTMLInputElement;
-    const heightInput = screen.getByPlaceholderText('zB. 175') as HTMLInputElement;
-    const weightInput = screen.getByPlaceholderText('zB. 70') as HTMLInputElement;
+    const heightInput = screen.getByPlaceholderText('z. B. 175') as HTMLInputElement;
+    const weightInput = screen.getByPlaceholderText('z. B. 70') as HTMLInputElement;
 
     fireEvent.change(birthMonthInput, { target: { value: '07' } });
     fireEvent.change(birthYearInput, { target: { value: '01990' } });
@@ -289,8 +289,8 @@ describe('page-level user flows', () => {
 
     const birthMonthInput = screen.getByPlaceholderText('MM') as HTMLInputElement;
     const birthYearInput = screen.getByPlaceholderText('JJJJ') as HTMLInputElement;
-    const heightInput = screen.getByPlaceholderText('zB. 175') as HTMLInputElement;
-    const weightInput = screen.getByPlaceholderText('zB. 70') as HTMLInputElement;
+    const heightInput = screen.getByPlaceholderText('z. B. 175') as HTMLInputElement;
+    const weightInput = screen.getByPlaceholderText('z. B. 70') as HTMLInputElement;
 
     fireEvent.keyDown(birthYearInput, { key: 'ArrowUp' });
     fireEvent.keyDown(heightInput, { key: 'ArrowDown' });
@@ -320,8 +320,8 @@ describe('page-level user flows', () => {
     render(<PatientDataPage />);
 
     const birthYearInput = screen.getByPlaceholderText('JJJJ') as HTMLInputElement;
-    const heightInput = screen.getByPlaceholderText('zB. 175') as HTMLInputElement;
-    const weightInput = screen.getByPlaceholderText('zB. 70') as HTMLInputElement;
+    const heightInput = screen.getByPlaceholderText('z. B. 175') as HTMLInputElement;
+    const weightInput = screen.getByPlaceholderText('z. B. 70') as HTMLInputElement;
     const spinButtonRect = {
       bottom: 40,
       height: 40,
@@ -370,20 +370,20 @@ describe('page-level user flows', () => {
     await user.type(screen.getByPlaceholderText('Land / Region, falls bekannt'), 'Italien');
     await user.click(screen.getAllByRole('button', { name: 'Ja' })[1]);
     await user.click(screen.getByRole('button', { name: /Rauchen/ }));
-    await user.click(screen.getAllByRole('button', { name: 'Ja' }).at(-1)!);
-    await user.click(screen.getByRole('button', { name: 'Rauchdauer erhöhen' }));
-    await user.click(screen.getByRole('button', { name: 'Zigaretten pro Tag erhöhen' }));
+    await user.click(screen.getByRole('button', { name: 'Regelmäßig' }));
+    await user.type(screen.getByLabelText('Seit wann?'), 'seit 1 Jahr');
+    await user.click(screen.getByRole('button', { name: 'Rauchmenge erhöhen' }));
     await user.click(screen.getAllByRole('button', { name: 'Weiter' }).at(-1)!);
 
     expect(setPatientDataMock).toHaveBeenCalledWith(expect.objectContaining({
       allergies: 'Penicillin',
       medications: 'Ibuprofen',
-      substanceInfluence: 'Alkohol',
+      substanceInfluence: 'Alkohol ausgewählt',
       recentAbroad: "Ja",
       recentAbroadDetails: 'Italien',
       isPregnant: true,
-      isSmoker: "Ja",
-      smokingSinceYears: '1',
+      isSmoker: "Regelmäßig",
+      smokingSinceYears: 'seit 1 Jahr',
       cigarettesPerDay: '1',
     }));
     expect(navigateMock).toHaveBeenCalledWith('/pre-existing-conditions');
@@ -403,7 +403,7 @@ describe('page-level user flows', () => {
     expect(setPatientDataMock).toHaveBeenCalledWith(expect.objectContaining({
       alcoholSince: '2021',
       alcoholFrequencyPerDay: '1 Glas',
-      substanceInfluence: 'Alkohol (seit 2021, 1 Glas pro Tag)',
+      substanceInfluence: 'Alkohol ausgewählt',
     }));
 
     await user.click(screen.getByRole('button', { name: 'Alkohol' }));
@@ -444,14 +444,11 @@ describe('page-level user flows', () => {
     await user.click(screen.getByRole('button', { name: 'Drogen' }));
 
     await user.click(screen.getByRole('button', { name: /Rauchen/ }));
-    await user.click(screen.getByRole('button', { name: 'Ja' }));
-    const [decreaseSmokingYears, increaseSmokingYears] = screen.getAllByRole('button', { name: /Rauchdauer/ });
-    const [decreaseCigarettes, increaseCigarettes] = screen.getAllByRole('button', { name: /Zigaretten pro Tag/ });
-    await user.click(increaseSmokingYears);
-    await user.click(decreaseSmokingYears);
-    await user.click(increaseCigarettes);
-    await user.click(decreaseCigarettes);
-    await user.click(screen.getByRole('button', { name: 'Nein' }));
+    await user.click(screen.getByRole('button', { name: 'Gelegentlich' }));
+    await user.type(screen.getByLabelText('Seit wann?'), 'seit 1 Jahr');
+    await user.click(screen.getByRole('button', { name: 'Rauchmenge erhöhen' }));
+    await user.click(screen.getByRole('button', { name: 'Rauchmenge verringern' }));
+    await user.click(screen.getByRole('button', { name: 'Nie' }));
     await user.click(screen.getAllByRole('button', { name: 'Weiter' }).at(-1)!);
 
     expect(setPatientDataMock).toHaveBeenCalledWith(expect.objectContaining({
@@ -459,11 +456,39 @@ describe('page-level user flows', () => {
       drugDetails: '',
       drugSince: '',
       drugFrequencyPerDay: '',
-      isSmoker: 'Nein',
+      isSmoker: 'Nie',
       smokingSinceYears: '',
       cigarettesPerDay: '',
     }));
     expect(navigateMock).toHaveBeenCalledWith('/pre-existing-conditions');
+  });
+
+  it('summarizes substance influence by selection without entered details', async () => {
+    const user = userEvent.setup();
+    assessmentState.patientData = basePatientData;
+
+    render(<MedicalDataPage />);
+
+    await user.click(screen.getByRole('button', { name: /Einfluss durch Alkohol/ }));
+    await user.click(screen.getByRole('button', { name: 'Alkohol' }));
+    await user.type(screen.getByLabelText('Seit wann?'), 'seit 2021');
+    await user.type(screen.getByLabelText('Wie oft am Tag?'), '1 Glas');
+
+    expect(screen.getByRole('button', { name: /Einfluss durch Alkohol oder\/und Drogen.*Alkohol ausgewählt/ })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Einfluss durch Alkohol oder\/und Drogen.*seit 2021/ })).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Drogen' }));
+    await user.type(screen.getByLabelText('Welche Drogen oder Substanzen nehmen Sie ein?'), 'Cannabis');
+    await user.type(screen.getAllByLabelText('Seit wann?').at(-1)!, 'seit 2022');
+    await user.type(screen.getAllByLabelText('Wie oft am Tag?').at(-1)!, '2-mal');
+
+    expect(screen.getByRole('button', { name: /Einfluss durch Alkohol oder\/und Drogen.*Alkohol und Drogen ausgewählt/ })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Einfluss durch Alkohol oder\/und Drogen.*Cannabis/ })).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Alkohol' }));
+
+    expect(screen.getByRole('button', { name: /Einfluss durch Alkohol oder\/und Drogen.*Drogen ausgewählt/ })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Einfluss durch Alkohol oder\/und Drogen.*2-mal/ })).not.toBeInTheDocument();
   });
 
   it('keeps occasional smoking selected after medical data is persisted', async () => {
@@ -491,7 +516,13 @@ describe('page-level user flows', () => {
     await user.click(screen.getByRole('button', { name: /Rauchen/ }));
 
     expect(screen.getByRole('button', { name: 'Gelegentlich' })).toHaveClass('bg-[#486284]');
-    expect(screen.getByRole('button', { name: 'Ja' })).not.toHaveClass('bg-[#486284]');
+    expect(screen.getByText('Seit wann?')).toBeInTheDocument();
+    expect(screen.getByText('Menge pro Monat')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Rauchmenge erhöhen' }));
+    expect(screen.getByDisplayValue('1')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Regelmäßig' })).not.toHaveClass('bg-[#486284]');
+    await user.click(screen.getByRole('button', { name: 'Früher' }));
+    expect(screen.getByText('Seit wann nicht mehr?')).toBeInTheDocument();
   });
 
   it('collects pre-existing conditions and continues to symptom selection', async () => {
@@ -502,15 +533,36 @@ describe('page-level user flows', () => {
 
     await user.click(screen.getByRole('button', { name: 'Diabetes' }));
     await user.click(screen.getByRole('button', { name: 'Typ 2' }));
+
+    const mentalConditionButton = screen.getByRole('button', { name: 'Psychische Erkrankung' });
+    const epilepsyButton = screen.getByRole('button', { name: 'Epilepsie' });
+    expect(
+      mentalConditionButton.compareDocumentPosition(epilepsyButton) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+
+    await user.click(epilepsyButton);
+    expect(screen.getByRole('button', { name: 'Unklar' }).parentElement).toHaveClass(
+      'top-full',
+      'mt-1',
+      'overflow-y-auto',
+      'overscroll-contain',
+    );
+    expect(screen.queryByLabelText('Seit wann?')).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Unklar' }));
     await user.type(screen.getByLabelText('Sonstige'), 'Migräne');
     await user.click(screen.getAllByRole('button', { name: 'Weiter' }).at(-1)!);
 
     expect(setPatientDataMock).toHaveBeenCalledWith(expect.objectContaining({
-      conditions: expect.arrayContaining(['Diabetes', 'Sonstige']),
+      conditions: expect.arrayContaining(['Diabetes', 'Epilepsie', 'Sonstige']),
       conditionDetails: expect.objectContaining({
         Diabetes: {
           condition: 'Diabetes',
           detail: 'Typ 2',
+          duration: '',
+        },
+        Epilepsie: {
+          condition: 'Epilepsie',
+          detail: 'Unklar',
           duration: '',
         },
         Sonstige: {
@@ -588,96 +640,54 @@ describe('page-level user flows', () => {
     expect(navigateMock).toHaveBeenCalledWith('/symptom-details');
   });
 
-  it('keeps body-side selections attached to arm and leg symptoms', async () => {
+  it('keeps cut wounds separated by the selected body region', async () => {
     const user = userEvent.setup();
 
     render(<SymptomSelectionPage />);
 
-    await user.click(screen.getByRole('button', { name: /Rechten Arm ausw/ }));
-    expect(setSearchParamsMock).toHaveBeenCalledWith({ category: 'arms', side: 'Rechts' });
+    await user.click(screen.getByRole('button', { name: 'Linken Arm auswählen' }));
+    await user.click(screen.getByRole('button', { name: 'Schnittwunde' }));
+    await user.click(screen.getByRole('button', { name: 'Leichte Blutung' }));
 
-    await user.click(screen.getByRole('button', { name: 'Unterarm' }));
-    await user.click(screen.getByRole('button', { name: 'Hand/Handgelenk' }));
+    await user.click(screen.getByRole('button', { name: 'Linkes Bein auswählen' }));
+    await user.click(screen.getByRole('button', { name: 'Schnittwunde' }));
+    await user.click(screen.getByRole('button', { name: 'Leichte Blutung' }));
 
-    expect(screen.getByText('Unterarm (Rechts: Hand/Handgelenk)')).toBeInTheDocument();
+    expect(screen.getByText('Schnittwunde (Arm links: Leichte Blutung)')).toBeInTheDocument();
+    expect(screen.getByText('Schnittwunde (Bein links: Leichte Blutung)')).toBeInTheDocument();
+
+    await user.click(screen.getAllByRole('button', { name: 'Weiter' }).at(-1)!);
+
     expect(assessmentState.setSelectedSymptoms).toHaveBeenCalledWith([
-      { region: 'Unterarm', side: 'Rechts: Hand/Handgelenk' },
+      { region: 'Schnittwunde', side: 'Arm links: Leichte Blutung' },
+      { region: 'Schnittwunde', side: 'Bein links: Leichte Blutung' },
     ]);
+    expect(navigateMock).toHaveBeenCalledWith('/symptom-details');
   });
 
-  it('toggles an already selected symptom off and removes matching details', async () => {
-    const user = userEvent.setup();
-    assessmentState.selectedSymptoms = [{ region: 'Kopf', side: 'Stirn' }];
-    assessmentState.symptomDetails = [
-      {
-        id: 'symptom-1',
-        region: 'Kopf',
-        side: 'Stirn',
-        active: true,
-        measurementType: 'pain',
-        measurementValue: 5,
-        duration: 'today',
-      },
-      {
-        id: 'symptom-2',
-        region: 'Bauch',
-        active: true,
-        measurementType: 'pain',
-        measurementValue: 4,
-        duration: 'days',
-      },
-    ];
-
-    render(<SymptomSelectionPage />);
-
-    await user.click(screen.getByRole('button', { name: /Kopf ausw/ }));
-    await user.click(screen.getByRole('button', { name: 'Kopf' }));
-    await user.click(screen.getByRole('button', { name: 'Stirn' }));
-
-    expect(assessmentState.setSelectedSymptoms).toHaveBeenCalledWith([]);
-    expect(assessmentState.setSymptomDetails).toHaveBeenCalledWith([
-      expect.objectContaining({ region: 'Bauch' }),
-    ]);
-  });
-
-  it('reopens a selected symptom slot from the keyboard', async () => {
-    assessmentState.selectedSymptoms = [{ region: 'Unterarm', side: 'Links: Finger' }];
-
-    render(<SymptomSelectionPage />);
-
-    fireEvent.keyDown(screen.getByRole('button', { name: 'Unterarm (Links: Finger) anzeigen' }), {
-      key: 'Enter',
-    });
-
-    expect(setSearchParamsMock).toHaveBeenCalledWith({ category: 'arms', side: 'Links' });
-    expect(screen.getByText('Arm links')).toBeInTheDocument();
-
-    const emptySecondSlot = screen.getByRole('button', { name: /Beschwerde 2/ });
-    fireEvent.keyDown(emptySecondSlot, {
-      key: ' ',
-    });
-
-    expect(emptySecondSlot).toHaveClass('ring-2');
-  });
-
-  it('switches back to body mode, selects a supporting area and focuses slots by click', async () => {
+  it('keeps burns separated by the selected body region', async () => {
     const user = userEvent.setup();
 
     render(<SymptomSelectionPage />);
 
-    await user.click(screen.getByRole('tab', { name: /Frei beschreiben/ }));
-    expect(screen.getByPlaceholderText(/Seit 3 Tagen/)).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Linken Arm auswählen' }));
+    await user.click(screen.getByRole('button', { name: 'Verbrennung' }));
+    await user.click(screen.getByRole('button', { name: 'Kleine Fläche' }));
 
-    await user.click(screen.getByRole('tab', { name: /K.rperstelle ausw/ }));
-    expect(screen.getByText(/Bereich w/)).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Linkes Bein auswählen' }));
+    await user.click(screen.getByRole('button', { name: 'Verbrennung' }));
+    await user.click(screen.getByRole('button', { name: 'Kleine Fläche' }));
 
-    await user.click(screen.getByRole('button', { name: /Allgemein/ }));
-    expect(setSearchParamsMock).toHaveBeenCalledWith({ category: 'general' });
+    expect(screen.getByText('Verbrennung (Arm links: Kleine Fläche)')).toBeInTheDocument();
+    expect(screen.getByText('Verbrennung (Bein links: Kleine Fläche)')).toBeInTheDocument();
 
-    const emptyThirdSlot = screen.getByRole('button', { name: /Beschwerde 3/ });
-    await user.click(emptyThirdSlot);
+    await user.click(screen.getAllByRole('button', { name: 'Weiter' }).at(-1)!);
 
-    expect(emptyThirdSlot).toHaveClass('ring-2');
+    expect(assessmentState.setSelectedSymptoms).toHaveBeenCalledWith([
+      { region: 'Verbrennung', side: 'Arm links: Kleine Fläche' },
+      { region: 'Verbrennung', side: 'Bein links: Kleine Fläche' },
+    ]);
+    expect(navigateMock).toHaveBeenCalledWith('/symptom-details');
   });
 
   it('extracts free-text symptoms via the mocked AI endpoint and navigates with route state', async () => {

@@ -80,6 +80,24 @@ function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 }
 
+function hasDeferredSpecialtyContext(beforeSpecialty: string, afterSpecialty: string): boolean {
+  const illustrativeBefore =
+    /\b(?:wie|beispielsweise|zum beispiel|z b)\b[^.!?;\n]{0,55}$/i.test(beforeSpecialty)
+  const deferredAfter =
+    /^[^.!?;\n]{0,130}\b(?:kann|konnen|koennen|konnte|koennte|konnten|koennten|ggf|gegebenenfalls|eventuell|spaeter)\b[^.!?;\n]{0,80}\b(?:notwendig|erforderlich|sinnvoll|angezeigt)\b/i
+      .test(afterSpecialty)
+  const primaryCareAfter =
+    /^[^.!?;\n]{0,180}\b(?:erste anlaufstelle|zunaechst|zunachst|erst)\b[^.!?;\n]{0,80}\b(?:hausarzt|hausaerzt|allgemeinmedizin)\b/i
+      .test(afterSpecialty)
+
+  return illustrativeBefore && (deferredAfter || primaryCareAfter)
+}
+
+function hasDescriptiveSpecialtyContext(afterSpecialty: string): boolean {
+  return /^[^.!?;\n]{0,25}\b(?:erkrankung|erkrankungen|stoerung|storung|ursache|ursachen|symptom|symptome|beschwerde|beschwerden|funktion)\b/i
+    .test(afterSpecialty)
+}
+
 /**
  * Requires specialty wording to appear near an actual recommendation phrase.
  */
@@ -109,17 +127,21 @@ function hasSpecialtyRecommendationContext(responseText: string, keyword: string
     )
     const afterSpecialty = responseText.slice(
       specialtyIndex + specialtyText.length,
-      specialtyIndex + specialtyText.length + 80,
+      specialtyIndex + specialtyText.length + 220,
     )
     const negatedBefore =
       /\b(?:kein[a-z]*|weder)\b[^.!?;\n]{0,75}$/i.test(beforeSpecialty)
     const negatedAfter =
       /^[^.!?;\n]{0,50}\b(?:nicht|kein[a-z]*)\b[^.!?;\n]{0,30}\b(?:indiziert|erforderlich|notwendig|empfohlen|angezeigt|vorgesehen)\b/i
         .test(afterSpecialty)
+    const deferredSpecialtyContext = hasDeferredSpecialtyContext(beforeSpecialty, afterSpecialty)
+    const descriptiveSpecialtyContext = hasDescriptiveSpecialtyContext(afterSpecialty)
 
     if (
       !negatedBefore &&
       !negatedAfter &&
+      !deferredSpecialtyContext &&
+      !descriptiveSpecialtyContext &&
       (
         recommendationBefore.test(beforeSpecialty) ||
         recommendationAfter.test(afterSpecialty)

@@ -359,6 +359,76 @@ curl -X POST http://localhost:3000/api/v1/pdf/export \
 
 ---
 
+### FHIR-Versand
+
+```http
+POST /api/v1/fhir/send
+```
+
+Uebergibt ein FHIR `Bundle` an die Sendeschicht. Das Backend sendet das Bundle
+per echtem HTTP-POST an den konfigurierten `FHIR_ENDPOINT`.
+
+#### Request
+
+```ts
+interface FhirSendRequest {
+  target?: string;
+  bundle: {
+    resourceType: "Bundle";
+    type: string;
+    entry: Array<{
+      resource: {
+        resourceType: string;
+        [key: string]: unknown;
+      };
+      [key: string]: unknown;
+    }>;
+    [key: string]: unknown;
+  };
+}
+```
+
+#### Response `202`
+
+```ts
+interface FhirSendResult {
+  mode: "http";
+  status: "accepted" | "failed";
+  target: string;
+  transmissionId: string;
+  submittedAt: string;
+  bundleSummary: {
+    generated: true;
+    bundleType: string;
+    entryCount: number;
+    resourceTypes: string[];
+  };
+  response?: {
+    httpStatus?: number;
+    contentType?: string;
+    location?: string;
+    contentLocation?: string;
+    resourceUrl?: string;
+    resourceId?: string;
+    resourceType?: string;
+    issueCount?: number;
+    issueSeverities?: string[];
+    issueCodes?: string[];
+  };
+  error?: string;
+}
+```
+
+#### Beispiel
+
+```bash
+curl -X POST http://localhost:3000/api/v1/fhir/send \
+  -H 'Content-Type: application/json' \
+  --data '{"target":"test-fhir-server","bundle":{"resourceType":"Bundle","type":"document","entry":[{"resource":{"resourceType":"Composition"}}]}}'
+```
+
+---
+
 ### Strukturierte Summary erstellen (historisch, aktuell nicht registriert)
 
 Dieser Abschnitt beschreibt einen frueher geplanten Endpunkt. Im aktuellen Backend ist diese Route nicht registriert; fuer PDF-Erzeugung wird aktuell `POST /api/v1/pdf/export` verwendet.
@@ -570,3 +640,4 @@ const result = await apiClient.post<TriageResponse>("/api/v1/triage/evaluate", r
 | `POST` | `/api/v1/symptoms/consistency` | Symptom-Konsistenz pruefen | JSON |
 | `POST` | `/api/v1/triage/evaluate` | Triage bewerten | JSON |
 | `POST` | `/api/v1/pdf/export` | Assessment-PDF erzeugen | PDF |
+| `POST` | `/api/v1/fhir/send` | FHIR-Bundle an konfigurierten FHIR-Server senden | JSON |
