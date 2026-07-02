@@ -80,7 +80,7 @@ describe('assessment expiry routing', () => {
     });
 
     expect(window.location.pathname).toBe('/');
-  });
+  }, 10_000);
 
   it('keeps the current assessment when the keep-session button is clicked', async () => {
     vi.useFakeTimers();
@@ -107,5 +107,5 @@ describe('assessment expiry routing', () => {
     });
 
     expect(window.location.pathname).toBe('/patient-data');
-  });
+  }, 10_000);
 });

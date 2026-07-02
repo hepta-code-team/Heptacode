@@ -132,7 +132,7 @@ describe('symptom control components', () => {
       />,
     );
 
-    await user.click(screen.getByRole('button', { name: /Kopf\s+Stirn/ }));
+    await user.click(screen.getByRole('button', { name: 'Stirn' }));
     expect(onRegionSelect).toHaveBeenCalledWith('Kopf', 'Stirn');
   });
 
@@ -185,5 +185,36 @@ describe('symptom control components', () => {
 
     await user.click(screen.getAllByRole('button')[0]);
     expect(onRemove).toHaveBeenCalledTimes(1);
+  });
+
+  it('closes editable symptom fields with keyboard and save buttons', async () => {
+    const user = userEvent.setup();
+
+    render(
+      <SymptomDetailsForm
+        symptom={createSymptom()}
+        onUpdate={vi.fn()}
+        onNameUpdate={vi.fn()}
+        onRemove={vi.fn()}
+      />,
+    );
+
+    await user.click(screen.getByRole('button', { name: 'Symptomname bearbeiten' }));
+    fireEvent.keyDown(screen.getByLabelText('Symptomname bearbeiten'), { key: 'Enter' });
+    expect(screen.queryByRole('textbox', { name: 'Symptomname bearbeiten' })).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Symptomname bearbeiten' }));
+    fireEvent.mouseDown(screen.getByRole('button', { name: 'Symptomname speichern' }));
+    await user.click(screen.getByRole('button', { name: 'Symptomname speichern' }));
+    expect(screen.queryByRole('textbox', { name: 'Symptomname bearbeiten' })).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Zusatzdetails bearbeiten' }));
+    fireEvent.keyDown(screen.getByLabelText('Zusatzdetails bearbeiten'), { key: 'Enter' });
+    expect(screen.queryByRole('textbox', { name: 'Zusatzdetails bearbeiten' })).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Zusatzdetails bearbeiten' }));
+    fireEvent.mouseDown(screen.getByRole('button', { name: 'Zusatzdetails speichern' }));
+    await user.click(screen.getByRole('button', { name: 'Zusatzdetails speichern' }));
+    expect(screen.queryByRole('textbox', { name: 'Zusatzdetails bearbeiten' })).not.toBeInTheDocument();
   });
 });

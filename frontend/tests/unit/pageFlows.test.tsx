@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useState } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -25,6 +25,7 @@ const resetAssessmentMock = vi.fn();
 const setSearchParamsMock = vi.fn();
 const submitAssessmentMock = vi.fn();
 const locationState = { current: null as unknown };
+const searchParamsState = { current: new URLSearchParams() };
 
 const basePatientData: PatientData = {
   birthMonth: '01',
@@ -85,7 +86,7 @@ const assessmentState = {
 vi.mock('react-router', () => ({
   useNavigate: () => navigateMock,
   useLocation: () => ({ pathname: '/patient-data', state: locationState.current }),
-  useSearchParams: () => [new URLSearchParams(), setSearchParamsMock],
+  useSearchParams: () => [searchParamsState.current, setSearchParamsMock],
 }));
 
 vi.mock('../../src/lib/symptomExtractionApi', () => ({
@@ -125,6 +126,7 @@ describe('page-level user flows', () => {
     assessmentState.patientData = null;
     assessmentState.symptomText = '';
     locationState.current = null;
+    searchParamsState.current = new URLSearchParams();
     validateSymptomInputMock.mockResolvedValue({
       text: 'Kopf',
       inputType: 'text',
@@ -161,6 +163,36 @@ describe('page-level user flows', () => {
     expect(screen.queryByRole('heading', { name: 'Warum diese Symptome?' })).not.toBeInTheDocument();
 
     await user.click(screen.getAllByRole('button', { name: /Keines davon/ })[0]);
+    expect(navigateMock).toHaveBeenCalledWith('/patient-data');
+  });
+
+  it('routes red-flag emergency symptoms directly to the emergency result', async () => {
+    const user = userEvent.setup();
+
+    render(<LandingPage />);
+
+    await user.click(screen.getByRole('button', { name: 'Verstanden' }));
+    await user.click(screen.getAllByRole('button', { name: /Akute Atemnot/ })[0]);
+
+    expect(resetAssessmentMock).toHaveBeenCalledTimes(1);
+    expect(navigateMock).toHaveBeenCalledWith(expect.stringContaining('/result?'));
+    const emergencyTarget = String(navigateMock.mock.calls.at(-1)?.[0]);
+    expect(emergencyTarget).toContain('emergency=true');
+    expect(emergencyTarget).toContain('acuteSymptom=Akute+Atemnot');
+  });
+
+  it('opens emergency information and continues from the desktop landing controls', async () => {
+    const user = userEvent.setup();
+
+    render(<LandingPage />);
+
+    await user.click(screen.getByRole('button', { name: 'Verstanden' }));
+    await user.click(screen.getAllByRole('button', { name: 'Informationen zu Notfall-Symptomen' })[1]);
+    expect(screen.getByRole('heading', { name: 'Warum diese Symptome?' })).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Verstanden' }));
+    await user.click(screen.getAllByRole('button', { name: /Keines davon/ })[1]);
+
     expect(navigateMock).toHaveBeenCalledWith('/patient-data');
   });
 
@@ -248,6 +280,78 @@ describe('page-level user flows', () => {
     expect(navigateMock).toHaveBeenCalledWith('/medical-data');
   });
 
+  it('supports empty number steppers, future-date validation and mood toggles', async () => {
+    const user = userEvent.setup();
+    const currentDate = new Date();
+    const nextMonth = currentDate.getMonth() + 2;
+
+    render(<PatientDataPage />);
+
+    const birthMonthInput = screen.getByPlaceholderText('MM') as HTMLInputElement;
+    const birthYearInput = screen.getByPlaceholderText('JJJJ') as HTMLInputElement;
+    const heightInput = screen.getByPlaceholderText('z. B. 175') as HTMLInputElement;
+    const weightInput = screen.getByPlaceholderText('z. B. 70') as HTMLInputElement;
+
+    fireEvent.keyDown(birthYearInput, { key: 'ArrowUp' });
+    fireEvent.keyDown(heightInput, { key: 'ArrowDown' });
+    fireEvent.keyDown(weightInput, { key: 'ArrowUp' });
+
+    expect(birthYearInput.value).toBe('2001');
+    expect(heightInput.value).toBe('174');
+    expect(weightInput.value).toBe('71');
+
+    fireEvent.change(birthMonthInput, { target: { value: String(nextMonth) } });
+    fireEvent.change(birthYearInput, { target: { value: String(currentDate.getFullYear()) } });
+    await user.click(screen.getByRole('button', { name: /Weiblich/ }));
+    await user.click(screen.getByRole('button', { name: 'Gut' }));
+    await user.click(screen.getByRole('button', { name: 'Gut' }));
+    await user.click(screen.getAllByRole('button', { name: 'Weiter' }).at(-1)!);
+
+    expect(screen.getByText('Das Geburtsdatum darf nicht in der Zukunft liegen.')).toBeInTheDocument();
+    expect(navigateMock).not.toHaveBeenCalledWith('/medical-data');
+    expect(setPatientDataMock).toHaveBeenCalledWith(expect.objectContaining({
+      height: '174',
+      weight: '71',
+      mood: '',
+    }));
+  });
+
+  it('handles empty numeric pointer steppers without changing non-spinner clicks', () => {
+    render(<PatientDataPage />);
+
+    const birthYearInput = screen.getByPlaceholderText('JJJJ') as HTMLInputElement;
+    const heightInput = screen.getByPlaceholderText('z. B. 175') as HTMLInputElement;
+    const weightInput = screen.getByPlaceholderText('z. B. 70') as HTMLInputElement;
+    const spinButtonRect = {
+      bottom: 40,
+      height: 40,
+      left: 0,
+      right: 100,
+      top: 0,
+      width: 100,
+      x: 0,
+      y: 0,
+      toJSON: () => undefined,
+    };
+
+    vi.spyOn(birthYearInput, 'getBoundingClientRect').mockReturnValue(spinButtonRect);
+    vi.spyOn(heightInput, 'getBoundingClientRect').mockReturnValue(spinButtonRect);
+    vi.spyOn(weightInput, 'getBoundingClientRect').mockReturnValue(spinButtonRect);
+
+    fireEvent.keyDown(birthYearInput, { key: 'Tab' });
+    fireEvent.pointerDown(birthYearInput, { clientX: 10, clientY: 5 });
+    expect(birthYearInput.value).toBe('');
+
+    fireEvent.pointerDown(heightInput, { clientX: 95, clientY: 5 });
+    expect(heightInput.value).toBe('176');
+
+    fireEvent.pointerDown(heightInput, { clientX: 95, clientY: 35 });
+    expect(heightInput.value).toBe('176');
+
+    fireEvent.pointerDown(weightInput, { clientX: 95, clientY: 35 });
+    expect(weightInput.value).toBe('69');
+  });
+
   it('collects optional medical data and continues to symptom selection', async () => {
     const user = userEvent.setup();
     assessmentState.patientData = basePatientData;
@@ -281,6 +385,80 @@ describe('page-level user flows', () => {
       isSmoker: "Regelmäßig",
       smokingSinceYears: 'seit 1 Jahr',
       cigarettesPerDay: '1',
+    }));
+    expect(navigateMock).toHaveBeenCalledWith('/pre-existing-conditions');
+  }, 10_000);
+
+  it('persists and clears alcohol detail fields in medical data', async () => {
+    const user = userEvent.setup();
+    assessmentState.patientData = basePatientData;
+
+    render(<MedicalDataPage />);
+
+    await user.click(screen.getByRole('button', { name: /Einfluss durch Alkohol/ }));
+    await user.click(screen.getByRole('button', { name: 'Alkohol' }));
+    await user.type(screen.getByLabelText('Seit wann?'), '2021');
+    await user.type(screen.getByLabelText('Wie oft am Tag?'), '1 Glas');
+
+    expect(setPatientDataMock).toHaveBeenCalledWith(expect.objectContaining({
+      alcoholSince: '2021',
+      alcoholFrequencyPerDay: '1 Glas',
+      substanceInfluence: 'Alkohol ausgewählt',
+    }));
+
+    await user.click(screen.getByRole('button', { name: 'Alkohol' }));
+    await user.click(screen.getAllByRole('button', { name: 'Weiter' }).at(-1)!);
+
+    expect(setPatientDataMock).toHaveBeenCalledWith(expect.objectContaining({
+      alcoholSince: '',
+      alcoholFrequencyPerDay: '',
+      substanceInfluence: '',
+    }));
+    expect(navigateMock).toHaveBeenCalledWith('/pre-existing-conditions');
+  });
+
+  it('skips optional medical data without persisting edits', async () => {
+    const user = userEvent.setup();
+    assessmentState.patientData = basePatientData;
+
+    render(<MedicalDataPage />);
+    setPatientDataMock.mockClear();
+
+    await user.click(screen.getByRole('button', { name: /berspringen/ }));
+
+    expect(setPatientDataMock).not.toHaveBeenCalled();
+    expect(navigateMock).toHaveBeenCalledWith('/pre-existing-conditions');
+  });
+
+  it('collects and clears drug and smoking detail fields', async () => {
+    const user = userEvent.setup();
+    assessmentState.patientData = basePatientData;
+
+    render(<MedicalDataPage />);
+
+    await user.click(screen.getByRole('button', { name: /Einfluss durch Alkohol/ }));
+    await user.click(screen.getByRole('button', { name: 'Drogen' }));
+    await user.type(screen.getByLabelText(/Welche Drogen/), 'Cannabis');
+    await user.type(screen.getByLabelText('Seit wann?'), 'seit 6 Monaten');
+    await user.type(screen.getByLabelText('Wie oft am Tag?'), '2-mal');
+    await user.click(screen.getByRole('button', { name: 'Drogen' }));
+
+    await user.click(screen.getByRole('button', { name: /Rauchen/ }));
+    await user.click(screen.getByRole('button', { name: 'Gelegentlich' }));
+    await user.type(screen.getByLabelText('Seit wann?'), 'seit 1 Jahr');
+    await user.click(screen.getByRole('button', { name: 'Rauchmenge erhöhen' }));
+    await user.click(screen.getByRole('button', { name: 'Rauchmenge verringern' }));
+    await user.click(screen.getByRole('button', { name: 'Nie' }));
+    await user.click(screen.getAllByRole('button', { name: 'Weiter' }).at(-1)!);
+
+    expect(setPatientDataMock).toHaveBeenCalledWith(expect.objectContaining({
+      substanceInfluence: '',
+      drugDetails: '',
+      drugSince: '',
+      drugFrequencyPerDay: '',
+      isSmoker: 'Nie',
+      smokingSinceYears: '',
+      cigarettesPerDay: '',
     }));
     expect(navigateMock).toHaveBeenCalledWith('/pre-existing-conditions');
   });
@@ -394,6 +572,30 @@ describe('page-level user flows', () => {
         },
       }),
     }));
+    expect(navigateMock).toHaveBeenCalledWith('/symptom-selection');
+  });
+
+  it('clears selected pre-existing condition details and skips unchanged data', async () => {
+    const user = userEvent.setup();
+    assessmentState.patientData = basePatientData;
+
+    render(<PreExistingConditionsPage />);
+
+    await user.click(screen.getByRole('button', { name: 'Diabetes' }));
+    await user.click(screen.getByRole('button', { name: 'Typ 1' }));
+    await user.type(screen.getByPlaceholderText('z. B. 2019, seit 6 Monaten'), 'seit 2019');
+    await user.keyboard('{Enter}');
+    await user.click(screen.getByRole('button', { name: 'Diabetes aufheben' }));
+
+    expect(screen.queryByText('Typ 1')).not.toBeInTheDocument();
+
+    await user.type(screen.getByLabelText('Sonstige'), 'MigrÃ¤ne');
+    await user.click(screen.getByRole('button', { name: /Sonstige Angabe/ }));
+    await user.click(screen.getByRole('button', { name: 'Alle Auswahlen aufheben' }));
+    setPatientDataMock.mockClear();
+    await user.click(screen.getByRole('button', { name: /berspringen/ }));
+
+    expect(setPatientDataMock).not.toHaveBeenCalled();
     expect(navigateMock).toHaveBeenCalledWith('/symptom-selection');
   });
 
@@ -555,6 +757,183 @@ describe('page-level user flows', () => {
     expect(navigateMock).not.toHaveBeenCalledWith('/symptom-details', expect.anything());
   });
 
+  it('uses a fallback error when extraction is unavailable without a message', async () => {
+    const user = userEvent.setup();
+    extractSymptomsFromTextMock.mockResolvedValue({
+      text: 'Kopfschmerzen',
+      inputType: 'text',
+      symptoms: [],
+      aiUnavailable: true,
+    });
+
+    render(<SymptomSelectionPage />);
+
+    await user.click(screen.getByRole('tab', { name: /Frei beschreiben/ }));
+    await user.type(screen.getByPlaceholderText(/Seit 3 Tagen/), 'Kopfschmerzen');
+    await user.click(screen.getByRole('button', { name: /Symptombeschreibung/ }));
+
+    expect(await screen.findByText('Die Beschreibung konnte nicht ausgewertet werden.')).toBeInTheDocument();
+    expect(navigateMock).not.toHaveBeenCalledWith('/symptom-details', expect.anything());
+  });
+
+  it('limits pasted free-text symptoms to the supported character count', async () => {
+    const user = userEvent.setup();
+    const longText = 'a'.repeat(350);
+
+    render(<SymptomSelectionPage />);
+
+    await user.click(screen.getByRole('tab', { name: /Frei beschreiben/ }));
+    const textArea = screen.getByPlaceholderText(/Seit 3 Tagen/) as HTMLTextAreaElement;
+
+    fireEvent.paste(textArea, {
+      clipboardData: {
+        getData: () => longText,
+      },
+    });
+
+    expect(textArea).toHaveValue('a'.repeat(300));
+    expect(assessmentState.symptomText).toHaveLength(300);
+    expect(screen.getByText('300/300 Zeichen')).toBeInTheDocument();
+    expect(screen.getByText(/maximal 300 Zeichen/)).toBeInTheDocument();
+  });
+
+  it('clears existing free-text symptoms and blocks oversized persisted text', async () => {
+    const user = userEvent.setup();
+    assessmentState.symptomText = 'a'.repeat(301);
+
+    render(<SymptomSelectionPage />);
+
+    const textArea = screen.getByPlaceholderText(/Seit 3 Tagen/);
+    expect(textArea).toHaveValue('a'.repeat(301));
+
+    await user.click(screen.getByRole('button', { name: /Symptombeschreibung/ }));
+
+    expect(textArea).toHaveValue('a'.repeat(300));
+    expect(screen.getByText(/maximal 300 Zeichen/)).toBeInTheDocument();
+    expect(extractSymptomsFromTextMock).not.toHaveBeenCalled();
+
+    await user.click(screen.getByRole('button', { name: /Freitext/ }));
+
+    expect(textArea).toHaveValue('');
+    expect(assessmentState.symptomText).toBe('');
+    expect(screen.queryByText(/maximal 300 Zeichen/)).not.toBeInTheDocument();
+  });
+
+  it('shows a useful error when speech recognition is unavailable', async () => {
+    const user = userEvent.setup();
+
+    render(<SymptomSelectionPage />);
+
+    await user.click(screen.getByRole('tab', { name: /Frei beschreiben/ }));
+    await user.click(screen.getByRole('button', { name: 'Symptom diktieren' }));
+
+    expect(screen.getByText(/Spracheingabe wird von diesem Browser nicht unterst/)).toBeInTheDocument();
+  });
+
+  it('appends final speech recognition transcripts to the free-text field', async () => {
+    const user = userEvent.setup();
+    const recognitions: Array<{
+      continuous: boolean;
+      interimResults: boolean;
+      lang: string;
+      onend: (() => void) | null;
+      onerror: ((event: { error: string }) => void) | null;
+      onresult: ((event: {
+        resultIndex: number;
+        results: {
+          length: number;
+          [index: number]: {
+            isFinal: boolean;
+            [index: number]: { transcript: string };
+          };
+        };
+      }) => void) | null;
+      onstart: (() => void) | null;
+      abort: ReturnType<typeof vi.fn>;
+      start: ReturnType<typeof vi.fn>;
+      stop: ReturnType<typeof vi.fn>;
+    }> = [];
+    class MockSpeechRecognition {
+      continuous = false;
+      interimResults = false;
+      lang = '';
+      onend: (() => void) | null = null;
+      onerror: ((event: { error: string }) => void) | null = null;
+      onresult: ((event: {
+        resultIndex: number;
+        results: {
+          length: number;
+          [index: number]: {
+            isFinal: boolean;
+            [index: number]: { transcript: string };
+          };
+        };
+      }) => void) | null = null;
+      onstart: (() => void) | null = null;
+      abort = vi.fn();
+      start = vi.fn(() => this.onstart?.());
+      stop = vi.fn(() => this.onend?.());
+
+      constructor() {
+        recognitions.push(this);
+      }
+    }
+    vi.stubGlobal('SpeechRecognition', MockSpeechRecognition);
+
+    render(<SymptomSelectionPage />);
+
+    await user.click(screen.getByRole('tab', { name: /Frei beschreiben/ }));
+    await user.click(screen.getByRole('button', { name: 'Symptom diktieren' }));
+
+    const recognition = recognitions[0];
+    expect(recognition.continuous).toBe(true);
+    expect(recognition.interimResults).toBe(true);
+    expect(recognition.lang).toBe('de-DE');
+
+    act(() => {
+      recognition.onresult?.({
+        resultIndex: 0,
+        results: {
+          length: 1,
+          0: {
+            isFinal: true,
+            0: { transcript: 'starke Kopfschmerzen' },
+          },
+        },
+      });
+    });
+
+    expect(screen.getByPlaceholderText(/Seit 3 Tagen/)).toHaveValue('starke Kopfschmerzen');
+    expect(assessmentState.symptomText).toBe('starke Kopfschmerzen');
+
+    await user.click(screen.getByRole('button', { name: 'Spracheingabe stoppen' }));
+    expect(recognition.stop).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps users on the free-text step when extraction fails or returns no symptoms', async () => {
+    const user = userEvent.setup();
+    extractSymptomsFromTextMock
+      .mockRejectedValueOnce(new Error('Backend nicht erreichbar'))
+      .mockResolvedValueOnce({
+        text: 'unklar',
+        inputType: 'text',
+        symptoms: [],
+      });
+
+    render(<SymptomSelectionPage />);
+
+    await user.click(screen.getByRole('tab', { name: /Frei beschreiben/ }));
+    await user.type(screen.getByPlaceholderText(/Seit 3 Tagen/), 'Kopfschmerzen');
+    await user.click(screen.getByRole('button', { name: /Symptombeschreibung/ }));
+
+    expect(await screen.findByText('Backend nicht erreichbar')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: /Symptombeschreibung/ }));
+
+    expect(await screen.findByText(/Es wurden keine passenden Beschwerden erkannt/)).toBeInTheDocument();
+    expect(navigateMock).not.toHaveBeenCalledWith('/symptom-details', expect.anything());
+  });
+
   it('redirects empty symptom details pages back to selection', () => {
     render(<SymptomDetailsPage />);
 
@@ -595,6 +974,37 @@ describe('page-level user flows', () => {
       }),
     ]);
     expect(navigateMock).toHaveBeenCalledWith('/result');
+  });
+
+  it('shows validation errors, adds symptoms through the modal and surfaces submit errors', async () => {
+    const user = userEvent.setup();
+    submitAssessmentMock.mockRejectedValue(new Error('Triage fehlgeschlagen'));
+    assessmentState.patientData = basePatientData;
+    assessmentState.selectedSymptoms = [{ region: 'Kopf', side: 'Stirn' }];
+
+    render(<SymptomDetailsPage />);
+
+    await user.click(screen.getAllByRole('button', { name: 'Weiter' }).at(-1)!);
+    expect(await screen.findByText(/Bitte ausw/)).toBeInTheDocument();
+
+    const removeButtons = screen.getAllByRole('button').filter((button) =>
+      button.querySelector('svg path[d="M6 18L18 6M6 6l12 12"]'),
+    );
+    await user.click(removeButtons[0]);
+
+    const addSlotButton = screen.getAllByRole('button').find((button) =>
+      button.querySelector('svg path[d="M12 4v16m8-8H4"]'),
+    );
+    expect(addSlotButton).toBeTruthy();
+    await user.click(addSlotButton!);
+    expect(screen.getByRole('heading', { name: /Symptom hinzuf/ })).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Bauch' }));
+    await user.click(screen.getByRole('button', { name: 'Oberbauch' }));
+    await user.click(screen.getByRole('button', { name: 'Seit heute' }));
+    await user.click(screen.getAllByRole('button', { name: 'Weiter' }).at(-1)!);
+
+    expect(await screen.findByText('Triage fehlgeschlagen')).toBeInTheDocument();
+    expect(submitAssessmentMock).toHaveBeenCalled();
   });
 
   it('blocks contradictory edited symptom region and details on the details page', async () => {
@@ -770,5 +1180,152 @@ describe('page-level user flows', () => {
     expect(appendChildSpy).toHaveBeenCalled();
     expect(clickMock).toHaveBeenCalledTimes(1);
     expect(revokeObjectUrlMock).toHaveBeenCalledWith('blob:pdf');
+  });
+
+  it('saves editable travel, substance, condition and smoking result fields', async () => {
+    const user = userEvent.setup();
+    assessmentState.patientData = {
+      ...basePatientData,
+      recentAbroad: 'Nein',
+      isSmoker: 'Nein',
+    };
+    assessmentState.assessmentResult = {
+      careLevel: 'doctor',
+      recommendedSpecialty: 'general_practice',
+      reasons: ['Bitte abklaeren lassen.'],
+      reviewSummary: {
+        plainLanguage: 'Bitte abklaeren lassen.',
+        professionalSummary: 'Beschwerden:\nHusten.',
+      },
+    };
+
+    render(<ResultPage />);
+
+    await user.click(screen.getByRole('button', { name: 'medical-summary-bearbeiten' }));
+
+    const genderSelect = screen.getAllByRole('combobox').find((select) =>
+      Array.from(select.querySelectorAll('option')).some((option) => option.value === 'Divers'),
+    );
+    expect(genderSelect).toBeTruthy();
+    await user.selectOptions(genderSelect!, 'Divers');
+    await user.click(screen.getByLabelText('Schwanger'));
+    await user.click(screen.getByLabelText('Stillzeit'));
+    await user.type(screen.getByLabelText('Allergien'), 'Pollen');
+    await user.type(screen.getByLabelText('Medikamente'), 'Cetirizin');
+
+    const substancePresenceSelect = screen.getAllByRole('combobox').find((select) =>
+      Array.from(select.querySelectorAll('option')).some((option) => option.value === 'Ja'),
+    );
+    expect(substancePresenceSelect).toBeTruthy();
+    await user.selectOptions(substancePresenceSelect!, 'Ja');
+
+    const substanceSelect = screen.getAllByRole('combobox').find((select) =>
+      Array.from(select.querySelectorAll('option')).some((option) => option.value === 'Andere'),
+    );
+    expect(substanceSelect).toBeTruthy();
+    await user.selectOptions(substanceSelect!, 'Andere');
+    await user.type(screen.getByPlaceholderText('Welche Substanz?'), 'Energy Drinks');
+
+    await user.click(screen.getByLabelText('Auslandsreise'));
+    await user.type(screen.getByLabelText('Wo'), 'Spanien');
+    fireEvent.change(screen.getByLabelText('Von'), { target: { value: '2026-05-01' } });
+    fireEvent.change(screen.getByLabelText('Bis'), { target: { value: '2026-05-09' } });
+
+    await user.clear(screen.getByLabelText('Vorerkrankungen'));
+    await user.type(screen.getByLabelText('Vorerkrankungen'), 'Asthma, Diabetes');
+    await user.click(screen.getByLabelText('Raucher'));
+    await user.type(screen.getByLabelText('Rauchdauer'), '4');
+    await user.type(screen.getByLabelText('Zigaretten pro Tag'), '6');
+
+    await user.click(screen.getByRole('button', { name: 'Speichern' }));
+
+    expect(setPatientDataMock).toHaveBeenCalledWith(expect.objectContaining({
+      allergies: 'Pollen',
+      gender: 'Divers',
+      isBreastfeeding: true,
+      isPregnant: true,
+      medications: 'Cetirizin',
+      substanceInfluence: 'Energy Drinks',
+      recentAbroad: 'Ja',
+      recentAbroadDetails: 'Spanien | 2026-05-01 | 2026-05-09',
+      conditions: ['Asthma', 'Diabetes'],
+      isSmoker: 'Ja',
+      smokingSinceYears: '4',
+      cigarettesPerDay: '6',
+    }));
+  });
+
+  it('cancels result summary edits without persisting patient drafts', async () => {
+    const user = userEvent.setup();
+    assessmentState.patientData = basePatientData;
+    assessmentState.assessmentResult = {
+      careLevel: 'doctor',
+      recommendedSpecialty: 'general_practice',
+      reasons: ['Bitte abklaeren lassen.'],
+      reviewSummary: {
+        plainLanguage: 'Bitte abklaeren lassen.',
+        professionalSummary: 'Beschwerden:\nHusten.',
+      },
+    };
+
+    render(<ResultPage />);
+
+    await user.click(screen.getByRole('button', { name: 'medical-summary-bearbeiten' }));
+    await user.clear(screen.getByLabelText('Geburtsmonat'));
+    await user.type(screen.getByLabelText('Geburtsmonat'), '08');
+    await user.click(screen.getByRole('button', { name: 'Abbrechen' }));
+
+    expect(setPatientDataMock).not.toHaveBeenCalled();
+    expect(screen.queryByRole('button', { name: 'Speichern' })).not.toBeInTheDocument();
+  });
+
+  it('renders acute emergency results from URL parameters and resets from there', async () => {
+    const user = userEvent.setup();
+    searchParamsState.current = new URLSearchParams({
+      emergency: 'true',
+      acuteSymptom: 'Akute Atemnot',
+      acuteSymptomDescription: 'Sofort abklÃ¤ren lassen.',
+    });
+
+    render(<ResultPage />);
+
+    expect(screen.getByRole('heading', { name: 'Notfallversorgung' })).toBeInTheDocument();
+    expect(screen.getByText(/Akute Atemnot/)).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: '112 anrufen' })).toHaveAttribute('href', 'tel:112');
+
+    await user.click(screen.getByRole('button', { name: 'Neue Bewertung starten' }));
+
+    expect(resetAssessmentMock).toHaveBeenCalledTimes(1);
+    expect(navigateMock).toHaveBeenCalledWith('/', {
+      replace: true,
+      flushSync: true,
+    });
+  });
+
+  it('alerts when PDF export fails', async () => {
+    const user = userEvent.setup();
+    const alertMock = vi.fn();
+    vi.stubGlobal('alert', alertMock);
+    vi.stubGlobal('fetch', vi.fn<typeof fetch>().mockResolvedValue({
+      ok: false,
+      text: async () => 'kaputt',
+    } as Response));
+    vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    assessmentState.assessmentResult = {
+      careLevel: 'specialist',
+      recommendedSpecialty: 'unknown-specialty' as never,
+      reasons: [],
+      reviewSummary: {
+        plainLanguage: '',
+        professionalSummary: '',
+      },
+    };
+
+    render(<ResultPage />);
+
+    await user.click(screen.getByRole('button', { name: 'download-summary' }));
+
+    expect(alertMock).toHaveBeenCalledWith('Das PDF konnte nicht heruntergeladen werden.');
+    expect(console.error).toHaveBeenCalledWith(expect.any(Error));
   });
 });
