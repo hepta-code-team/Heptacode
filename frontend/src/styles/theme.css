@@ -15,6 +15,8 @@
   --app-text-warning-strong: #92400E;
   --app-text-on-primary: #ffffff;
   --background: #ffffff;
+  --app-background-top: #A3E64D;
+  --app-background-bottom: #1F3F59;
   --foreground: oklch(0.145 0 0);
   --card: #ffffff;
   --card-foreground: oklch(0.145 0 0);
@@ -90,6 +92,11 @@
   --sidebar-ring: oklch(0.439 0 0);
 }
 
+@theme {
+  /* Keep landscape phones in the mobile layout instead of switching to the tablet/desktop md breakpoint. */
+  --breakpoint-md: 60rem;
+}
+
 @theme inline {
   --color-background: var(--background);
   --color-app-text-primary: var(--app-text-primary);
@@ -149,7 +156,13 @@
   }
 
   body {
-    @apply bg-background text-foreground;
+    min-height: 100dvh;
+    margin: 0;
+    @apply bg-background text-foreground font-sans;
+  }
+
+  #root {
+    min-height: 100dvh;
   }
 
   /**
@@ -159,6 +172,8 @@
 
   html {
     font-size: var(--font-size);
+    font-family: ui-sans-serif, system-ui, sans-serif;
+    scrollbar-gutter: stable;
   }
 
   h1 {
@@ -201,5 +216,15 @@
     font-size: var(--text-base);
     font-weight: var(--font-weight-normal);
     line-height: 1.5;
+  }
+}
+
+@layer components {
+  .page-header-divider {
+    background: linear-gradient(
+      to right,
+      var(--app-background-bottom),
+      var(--app-background-top)
+    );
   }
 }

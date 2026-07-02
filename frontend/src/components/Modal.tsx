@@ -1,4 +1,6 @@
+import { X } from "lucide-react";
 import type { ReactNode } from "react";
+import { createPortal } from "react-dom";
 
 interface ModalProps {
   isOpen: boolean;
@@ -7,6 +9,7 @@ interface ModalProps {
   subtitle?: string;
   children: ReactNode;
   maxWidth?: string;
+  showCloseButton?: boolean;
 }
 
 export default function Modal({
@@ -15,11 +18,12 @@ export default function Modal({
   title,
   subtitle,
   children,
-  maxWidth = "max-w-2xl"
+  maxWidth = "max-w-2xl",
+  showCloseButton = false,
 }: ModalProps) {
   if (!isOpen) return null;
 
-  return (
+  return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       {/* Backdrop */}
       <div
@@ -27,8 +31,19 @@ export default function Modal({
         onClick={onClose}
       />
 
-      {/* Modal Content */}
+      {/* Modal content */}
       <div className={`relative bg-white rounded-[24px] shadow-2xl ${maxWidth} w-full p-8 md:p-10 max-h-[80vh] overflow-y-auto`}>
+        {showCloseButton && (
+          <button
+            type="button"
+            onClick={onClose}
+            className="absolute right-4 top-4 rounded-full p-2 text-app-text-primary transition-colors hover:bg-[#eff2f6] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#486284]"
+            aria-label="Fenster schließen"
+          >
+            <X className="size-5" aria-hidden="true" />
+          </button>
+        )}
+
         <h2
           className="font-['DM_Sans:Bold',sans-serif] font-bold text-app-text-primary text-2xl md:text-3xl mb-3"
           style={{ fontVariationSettings: "'opsz' 14" }}
@@ -45,6 +60,7 @@ export default function Modal({
         )}
         {children}
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

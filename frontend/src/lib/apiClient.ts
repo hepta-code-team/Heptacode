@@ -1,8 +1,37 @@
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "";
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:3000';
 
 type RequestOptions = Omit<RequestInit, "body"> & {
   body?: unknown;
 };
+
+function getErrorMessage(errorBody: unknown, fallback: string) {
+  if (!errorBody || typeof errorBody !== "object") {
+    return fallback;
+  }
+
+  const body = errorBody as {
+    message?: unknown;
+    error?: unknown;
+  };
+
+  if (typeof body.error === "object" && body.error !== null && "message" in body.error) {
+    const nestedMessage = (body.error as { message?: unknown }).message;
+
+    if (typeof nestedMessage === "string" && nestedMessage.trim().length > 0) {
+      return nestedMessage;
+    }
+  }
+
+  if (typeof body.message === "string" && body.message.trim().length > 0) {
+    return body.message;
+  }
+
+  if (typeof body.error === "string" && body.error.trim().length > 0) {
+    return body.error;
+  }
+
+  return fallback;
+}
 
 async function request<TResponse>(path: string, options: RequestOptions = {}): Promise<TResponse> {
   const { body, headers, ...init } = options;
@@ -17,7 +46,20 @@ async function request<TResponse>(path: string, options: RequestOptions = {}): P
   });
 
   if (!response.ok) {
-    throw new Error(`API request failed with status ${response.status}`);
+    let message = `API request failed with status ${response.status}`;
+
+    try {
+      const errorBody = await response.json();
+      message = getErrorMessage(errorBody, message);
+    } catch {
+      // Ignore invalid JSON error bodies.
+    }
+
+    throw new Error(message);
+  }
+
+  if (response.status === 204) {
+    return undefined as TResponse;
   }
 
   return response.json() as Promise<TResponse>;

@@ -1,15 +1,17 @@
 services:
   frontend:
     build:
-      context: ./frontend
-      dockerfile: Dockerfile.dev
+      context: .
+      dockerfile: frontend/Dockerfile.dev
+    working_dir: /workspace/frontend
     ports: 
       - "5173:5173"
     volumes:
-      - ./frontend:/workspace
-      - /workspace/node_modules
+      - .:/workspace
+      - /workspace/frontend/node_modules
     environment:
       - VITE_API_BASE_URL=/api
+      - VITE_FACILITY_DATA_PROVIDER=auto
     depends_on:
       - backend
     networks:
@@ -17,17 +19,18 @@ services:
 
   backend:
     build: 
-      context: ./backend
-      dockerfile: Dockerfile.dev
+      context: .
+      dockerfile: backend/Dockerfile.dev
+    working_dir: /workspace/backend
     ports:
       - "3000:3000"
       - "9229:9229"
     volumes:
-      - ./backend:/workspace
-      - /workspace/node_modules
+      - .:/workspace
+      - /workspace/backend/node_modules
     environment:
       - NODE_ENV=development
-      - PORT:3000
+      - PORT=3000
     env_file:
       - .env.local
     networks:

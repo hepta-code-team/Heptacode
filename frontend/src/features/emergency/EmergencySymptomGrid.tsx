@@ -1,33 +1,40 @@
-import imgConfusion from "../../assets/emergency/confusion.png";
+import imgConfusion from "../../assets/emergency/stroke.png";
 import imgHeadache from "../../assets/emergency/headache.png";
 import imgHeartPain from "../../assets/emergency/heartpain.png";
 import imgIconAtemnot from "../../assets/emergency/shortness-of-breath.png";
 import imgSevereBleeding from "../../assets/emergency/severbleeding.png";
-import imgStomachPain from "../../assets/emergency/stomachpain.png";
+import allergy from "../../assets/emergency/allergy.png";
+
+type EmergencySymptom = {
+  name: string;
+  desc: string;
+  descLong: string;
+  icon: string;
+};
 
 interface EmergencySymptomGridProps {
-  onSymptomClick: () => void;
+  onSymptomClick: (symptom: EmergencySymptom) => void;
   variant?: "mobile" | "desktop";
 }
 
-const symptoms = [
+const symptoms: EmergencySymptom[] = [
   {
     name: "Akute Atemnot",
-    desc: "Plötzliche Probleme beim Atmen oder starke Luftnot",
+    desc: "Plötzliche Probleme beim Atmen oder starke Luftnot.",
     descLong: "Plötzliche oder starke Probleme beim Atmen. Sie bekommen schlecht Luft oder fühlen sich, als würde die Atmung nicht ausreichen.",
     icon: imgIconAtemnot,
   },
   {
     name: "Starke Brustschmerzen",
-    desc: "Starker Schmerz oder Druck in der Brust",
+    desc: "Starker Schmerz, Druck oder ein Engegefühl in der Brust, das nicht nachlässt.",
     descLong: "Starker Schmerz, Druck oder Engegefühl in der Brust. Besonders wichtig, wenn es plötzlich beginnt oder nicht nachlässt.",
     icon: imgHeartPain,
   },
   {
-    name: "Starke Bauchschmerzen",
-    desc: "Sehr starke Schmerzen im Bauchbereich",
-    descLong: "Sehr starker Bauchschmerz, der plötzlich auftritt oder rasch schlimmer wird. Vor allem auffällig bei harter Bauchdecke, Übelkeit oder starkem Unwohlsein.",
-    icon: imgStomachPain,
+    name: "Seh-/Sprachstörungen oder Lähmung",
+    desc: "Plötzlich auftetende Seh-, Sprach- oder Bewegungsprobleme. Außerdem ein hängender Mundwinkel oder verwaschene Sprache.",
+    descLong: "Einseitige Lähmung oder Taubheit, ein hängender Mundwinkel, verwaschene Sprache, starke Verwirrtheit oder plötzlich auftretende Sehstörungen.",
+    icon: imgConfusion,
   },
   {
     name: "Starke Blutungen / Knochenbruch",
@@ -36,19 +43,18 @@ const symptoms = [
     icon: imgSevereBleeding,
   },
   {
-    name: "Seh-/Sprachstörungen oder Lähmung",
-    desc: "Plötzliche Seh-, Sprach- oder Bewegungsprobleme",
-    descLong: "Plötzliche Probleme beim Sehen, Sprechen oder Verstehen sowie die Lähmung einer Körperhälfte.",
-    icon: imgConfusion,
+    name: "Allergische Reaktion",
+    desc: "Starke allergische Reaktion, wie Atmenot, ein Engegefühl im Hals oder Schwellungen.",
+    descLong: "Starke Atemnot, ein Engegefühl im Hals, Schwellungen im Gesicht, starker Hautausschlag oder Schwindel und Kreislaufprobleme.",
+    icon: allergy,
   },
   {
     name: "Starke Kopfschmerzen",
-    desc: "Sehr starke oder plötzlich einsetzende Kopfschmerzen",
+    desc: "Sehr starke, ungewohnte oder plötzlich einsetzende Kopfschmerzen.",
     descLong: "Sehr starke, ungewohnte oder plötzlich einsetzende Kopfschmerzen. Besonders auffällig, wenn sie anders sind als sonst oder sehr heftig beginnen.",
     icon: imgHeadache,
   },
 ];
-
 export default function EmergencySymptomGrid({ onSymptomClick, variant = "mobile" }: EmergencySymptomGridProps) {
   if (variant === "mobile") {
     return (
@@ -56,7 +62,7 @@ export default function EmergencySymptomGrid({ onSymptomClick, variant = "mobile
         {symptoms.map((symptom) => (
           <button
             key={symptom.name}
-            onClick={onSymptomClick}
+            onClick={() => onSymptomClick(symptom)}
             className="bg-[#eff2f6] rounded-[16px] p-3 min-h-[85px] hover:bg-[#dde3ea] transition-all flex items-start gap-3"
           >
             <img
@@ -81,12 +87,12 @@ export default function EmergencySymptomGrid({ onSymptomClick, variant = "mobile
 
   // Desktop variant
   return (
-    <div className="grid grid-cols-2 gap-3 mb-4">
-      {symptoms.slice(0, 5).map((symptom) => (
+    <div className="grid grid-cols-2 gap-4 mb-4">
+      {symptoms.slice(0, 6).map((symptom) => (
         <button
           key={symptom.name}
-          onClick={onSymptomClick}
-          className="bg-[#eff2f6] rounded-[16px] p-3 min-h-[140px] flex items-start gap-3 hover:bg-[#dde3ea] transition-all"
+          onClick={() => onSymptomClick(symptom)}
+          className="bg-[#eff2f6] shadow-md rounded-[16px] p-3 min-h-[125px] flex items-start gap-3 hover:bg-[#dde3ea] transition-all"
         >
           <img
             alt=""
@@ -111,32 +117,6 @@ export default function EmergencySymptomGrid({ onSymptomClick, variant = "mobile
         </button>
       ))}
 
-      {/* Special layout for Starke Kopfschmerzen on desktop */}
-      <button
-        onClick={onSymptomClick}
-        className="bg-[#eff2f6] rounded-[16px] p-3 min-h-[140px] flex items-start gap-3 hover:bg-[#dde3ea] transition-all"
-      >
-        <img
-          alt=""
-          className="size-20 flex-shrink-0 object-contain"
-          src={imgHeadache}
-          aria-hidden="true"
-        />
-        <div className="flex-1 text-left">
-          <p
-            className="font-['DM_Sans:Bold',sans-serif] font-bold text-app-text-body text-lg mb-1"
-            style={{ fontVariationSettings: "'opsz' 14" }}
-          >
-            Starke Kopfschmerzen
-          </p>
-          <p
-            className="font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-body text-sm leading-snug"
-            style={{ fontVariationSettings: "'opsz' 14" }}
-          >
-            Sehr starke, ungewohnte oder plötzlich einsetzende Kopfschmerzen. Besonders auffällig, wenn sie anders sind als sonst oder sehr heftig beginnen.
-          </p>
-        </div>
-      </button>
     </div>
   );
 }

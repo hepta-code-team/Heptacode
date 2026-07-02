@@ -1,8 +1,9 @@
 import { DURATIONS } from "./symptoms.constants";
+import type { TriageSymptomDuration } from "../../../../shared/symptom.types";
 
 interface DurationSelectorProps {
-  selectedDuration: string;
-  onDurationChange: (durationId: string) => void;
+  selectedDuration?: TriageSymptomDuration;
+  onDurationChange: (durationId: TriageSymptomDuration) => void;
   showError?: boolean;
 }
 
@@ -28,8 +29,8 @@ export default function DurationSelector({ selectedDuration, onDurationChange, s
         {DURATIONS.map((duration) => (
           <button
             key={duration.id}
-            onClick={() => onDurationChange(duration.id)}
-            className={`p-3 rounded-[12px] transition-all ${
+            onClick={() => onDurationChange(duration.id as TriageSymptomDuration)}
+            className={`shadow-md p-3 rounded-[12px] transition-all ${
               selectedDuration === duration.id
                 ? "bg-[#486284] text-app-text-on-primary"
                 : "bg-white text-app-text-body hover:bg-[#dde3ea]"

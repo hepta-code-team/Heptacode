@@ -1,13 +1,24 @@
-import armPainIcon from "../../assets/symptoms/armpain.png";
 import backPainIcon from "../../assets/symptoms/backpain.png";
 import burnIcon from "../../assets/symptoms/burn.png";
 import chestPainIcon from "../../assets/symptoms/chestpain.png";
-import legPainIcon from "../../assets/symptoms/legpain.png";
 import mentalDistressIcon from "../../assets/symptoms/mentaldistress.png";
 import overallPainIcon from "../../assets/symptoms/overallpain.png";
 import stomachPainIcon from "../../assets/symptoms/stomachpain.png";
 import type { SymptomMeasurementType } from "../../types/assessment";
 import headAcheIcon from "../../assets/symptoms/headache.png";
+import faceIcon from "../../assets/symptoms/face.png";
+import bleedingIcon from "../../assets/symptoms/bleeding.png";
+import lowerArmIcon from "../../assets/symptoms/lowerarm.png";
+import upperArmIcon from "../../assets/symptoms/upperarm.png";
+import upperLegIcon from "../../assets/symptoms/upperleg.png";
+import lowerLegIcon from "../../assets/symptoms/lowerleg.png";
+import hipPainIcon from "../../assets/symptoms/hip.png"
+import throatIcon from "../../assets/symptoms/throat.png";
+import nauseaIcon from "../../assets/symptoms/nausea.png";
+import feverIcon from "../../assets/symptoms/fever.png";
+import weaknessIcon from "../../assets/symptoms/weakness.png";
+import confusionIcon from "../../assets/symptoms/confusion.png";
+
 
 export interface BodyRegion {
   id: string;
@@ -16,14 +27,31 @@ export interface BodyRegion {
   options?: string[];
 }
 
-export type BodyAreaCategory = "head" | "torso" | "arms" | "legs" | "mental" | "general";
+export type BodyAreaCategory = "headNeck" | "head" | "neck" | "torso" | "hips" | "arms" | "legs" | "mental" | "general";
 
+/**
+ * Canonical symptom regions shown in the manual selection flow.
+ * These names are also used by AI extraction and triage normalization, so
+ * display labels should only change together with the shared taxonomy.
+ */
 export const BODY_REGIONS: BodyRegion[] = [
   {
     id: "kopf",
     name: "Kopf",
     icon: headAcheIcon,
     options: ["Stirn", "Schläfen", "Hinterkopf", "Gesicht"],
+  },
+  {
+    id: "gesicht",
+    name: "Gesicht",
+    icon: faceIcon,
+    options: ["Augen", "Ohren", "Nase", "Mund", "Zähne", "Zahnschmerzen"],
+  },
+  {
+    id: "hals",
+    name: "Hals",
+    icon: throatIcon,
+    options: ["Hals", "Rachen", "Schluckbeschwerden", "Nacken"],
   },
   {
     id: "brust",
@@ -38,22 +66,40 @@ export const BODY_REGIONS: BodyRegion[] = [
     options: ["Nacken", "Oberer Rücken", "Mittlerer Rücken", "Unterer Rücken", "Steißbein"],
   },
   {
-    id: "arme",
-    name: "Arme",
-    icon: armPainIcon,
-    options: ["Schulter", "Oberarm", "Ellenbogen", "Unterarm", "Hand/Handgelenk", "Finger"],
+    id: "huefte",
+    name: "Hüfte",
+    icon: hipPainIcon,
+    options: ["Leiste", "Hüfte", "Seitliche Hüfte","Gesäßschmerzen", "Genitalbereich"],
+  },
+  {
+    id: "oberarm",
+    name: "Oberarm",
+    icon: upperArmIcon,
+    options: ["Schulter", "Oberarm", "Ellenbogen", "Muskelkrämpfe"],
+  },
+  {
+    id: "unterarm",
+    name: "Unterarm",
+    icon: lowerArmIcon,
+    options: ["Unterarm", "Hand/Handgelenk", "Finger", "Muskelkrämpfe"],
   },
   {
     id: "bauch",
     name: "Bauch",
     icon: stomachPainIcon,
-    options: ["Oberbauch", "Unterbauch", "Rechts oben", "Rechts unten", "Links oben", "Links unten"],
+    options: ["Oberbauch", "Unterbauch", "Rechts oben", "Rechts unten", "Links oben", "Links unten", "Bauchkrämpfe"],
   },
   {
-    id: "beine",
-    name: "Beine",
-    icon: legPainIcon,
-    options: ["Hüfte", "Oberschenkel", "Knie", "Wade", "Fuß/Knöchel", "Zehen"],
+    id: "oberschenkel",
+    name: "Oberschenkel",
+    icon: upperLegIcon,
+    options: ["Hüfte", "Oberschenkel", "Knie", "Muskelkrämpfe"],
+  },
+  {
+    id: "unterschenkel",
+    name: "Unterschenkel",
+    icon: lowerLegIcon,
+    options: ["Wade", "Fuß/Knöchel", "Zehen", "Muskelkrämpfe"],
   },
   {
     id: "verbrennung",
@@ -62,33 +108,95 @@ export const BODY_REGIONS: BodyRegion[] = [
     options: ["Große Fläche", "Kleine Fläche", "Blasenbildung"],
   },
   {
+    id: "schnittwunde",
+    name: "Schnittwunde",
+    icon: bleedingIcon,
+    options: ["Leichte Blutung", "Starke Blutung", "Klaffende Wundränder"],
+  },
+  {
     id: "allgemein",
     name: "Allgemein",
     icon: overallPainIcon,
     options: ["Fieber", "Übelkeit/Schwindel", "Schwäche", "Verwirrtheit"],
   },
   {
-    id: "psychisch",
-    name: "Psychische Probleme",
+    id: "haut",
+    name: "Haut",
+    icon: overallPainIcon,
+    options: ["Hautausschlag", "Juckreiz", "Rötung", "Schwellung", "Bläschen", "Quaddeln", "Trockene Haut"],
+  },
+  {
+    id: "fieber",
+    name: "Fieber",
+    icon: feverIcon,
+  },
+  {
+    id: "uebelkeit",
+    name: "Übelkeit/Schwindel",
+    icon: nauseaIcon,
+  },
+  {
+    id: "schwaeche",
+    name: "Schwäche",
+    icon: weaknessIcon,
+  },
+  {
+    id: "verwirrtheit",
+    name: "Verwirrtheit",
+    icon: confusionIcon,
+  },
+  {
+    id: "angst",
+    name: "Angst/Panik",
     icon: mentalDistressIcon,
-    options: ["Angst/Panik", "Suizidgedanken", "Niedergeschlagenheit"],
+  },
+  {
+    id: "depression",
+    name: "Niedergeschlagenheit",
+    icon: mentalDistressIcon,
+  },
+  {
+    id: "suizidgedanken",
+    name: "Suizidgedanken",
+    icon: mentalDistressIcon,
+  },
+  {
+    id: "halluzinationen",
+    name: "Halluzinationen",
+    icon: mentalDistressIcon,
   },
 ];
 
+/**
+ * Manual suboptions that immediately trigger the emergency path.
+ * The list is intentionally small because these options bypass the normal
+ * symptom-details step and should only include high-confidence red flags.
+ */
 export const EMERGENCY_SYMPTOM_OPTIONS = ["Suizidgedanken"];
 
+/**
+ * Maps coarse body areas to the detailed regions shown after selection.
+ * Shared injury types such as burns and cuts appear in multiple body areas
+ * because their location is less important than surfacing the symptom quickly.
+ */
 export const BODY_AREA_REGION_IDS: Record<BodyAreaCategory, string[]> = {
-  head: ["kopf", "verbrennung"],
-  torso: ["brust", "bauch", "ruecken", "verbrennung"],
-  arms: ["arme", "verbrennung"],
-  legs: ["beine", "verbrennung"],
-  mental: ["psychisch"],
-  general: ["allgemein"],
+  headNeck: ["kopf", "gesicht", "hals", "verbrennung", "schnittwunde"],
+  head: ["kopf", "gesicht", "verbrennung", "schnittwunde"],
+  neck: ["hals", "verbrennung", "schnittwunde"],
+  torso: ["brust", "bauch", "ruecken", "verbrennung", "schnittwunde"],
+  hips: ["huefte", "verbrennung", "schnittwunde"],
+  arms: ["oberarm", "unterarm", "verbrennung", "schnittwunde"],
+  legs: ["oberschenkel", "unterschenkel", "verbrennung", "schnittwunde"],
+  mental: ["angst", "depression","halluzinationen", "suizidgedanken"],
+  general: ["fieber", "schwaeche", "uebelkeit", "verwirrtheit", "haut"],
 };
 
 export const BODY_AREA_LABELS: Record<BodyAreaCategory, string> = {
+  headNeck: "Kopf & Hals",
   head: "Kopf",
+  neck: "Hals",
   torso: "Torso",
+  hips: "Hüfte",
   arms: "Arme",
   legs: "Beine",
   mental: "Psyche",
@@ -123,6 +231,7 @@ export const PRE_EXISTING_CONDITIONS = [
   "Asthma/COPD",
   "Nierenerkrankungen",
   "Lebererkrankungen",
+  "Psychische Erkrankung",
   "Epilepsie",
   "Sonstige",
 ];
@@ -137,20 +246,30 @@ export interface MeasurementConfig {
   step?: number;
   defaultValue: number;
   unit?: string;
-  minLabel: string;
-  maxLabel: string;
+  minLabel?: string;
+  maxLabel?: string;
+  scaleLabels?: Array<{
+    value: number;
+    label: string;
+  }>;
 }
 
 const MEASUREMENT_CONFIGS: Record<SymptomMeasurementType, MeasurementConfig> = {
   pain: {
     type: "pain",
     title: "Schmerzstärke",
-    min: 1,
+    min: 0,
     max: 10,
     defaultValue: 5,
-    minLabel: "Leicht",
-    maxLabel: "Sehr stark",
+    scaleLabels: [
+      { value: 0, label: "Kein Schmerz" },
+      { value: 3, label: "Leicht" },
+      { value: 4, label: "Mittel" },
+      { value: 7, label: "Stark" },
+      { value: 10, label: "Sehr stark" },
+    ],
   },
+
   temperature: {
     type: "temperature",
     title: "Temperatur",
@@ -168,8 +287,12 @@ const MEASUREMENT_CONFIGS: Record<SymptomMeasurementType, MeasurementConfig> = {
     min: 1,
     max: 10,
     defaultValue: 5,
-    minLabel: "Leicht",
-    maxLabel: "Sehr stark",
+    scaleLabels: [
+      { value: 1, label: "Leicht" },
+      { value: 4, label: "Mittel" },
+      { value: 7, label: "Stark" },
+      { value: 10, label: "Sehr stark" },
+    ],
   },
   severity: {
     type: "severity",
@@ -177,23 +300,37 @@ const MEASUREMENT_CONFIGS: Record<SymptomMeasurementType, MeasurementConfig> = {
     min: 1,
     max: 10,
     defaultValue: 5,
-    minLabel: "Leicht",
-    maxLabel: "Sehr stark",
+    scaleLabels: [
+      { value: 1, label: "Leicht" },
+      { value: 4, label: "Mittel" },
+      { value: 7, label: "Stark" },
+      { value: 10, label: "Sehr stark" },
+    ],
   },
 };
 
-export function getMeasurementConfig(region: string, option?: string): MeasurementConfig {
-  if (option === "Fieber") {
-    return MEASUREMENT_CONFIGS.temperature;
-  }
+/**
+ * Chooses the measurement UI based on the selected symptom region.
+ * Most symptoms use pain by default, while fever, mental-health symptoms, and
+ * general complaints need scales that better match their clinical meaning.
+ */
+export function getMeasurementConfig(region: string): MeasurementConfig {
+    if (region === "Fieber") {
+        return MEASUREMENT_CONFIGS.temperature;
+    }
 
-  if (region === "Psychische Probleme") {
-    return MEASUREMENT_CONFIGS.feeling;
-  }
+    if ((region === "Angst/Panik") || (region === "Niedergeschlagenheit") || (region === "Suizidgedanken")
+        || (region === "Halluzinationen")) {
+        return MEASUREMENT_CONFIGS.feeling;
+    }
 
-  if (["Übelkeit/Schwindel", "Schwäche", "Verwirrtheit", "Schüttelfrost"].includes(option ?? "")) {
-    return MEASUREMENT_CONFIGS.severity;
-  }
+    if ((region === "Verwirrtheit") || (region === "Schwäche") || (region === "Übelkeit/Schwindel")) {
+        return MEASUREMENT_CONFIGS.severity;
+    }
 
-  return MEASUREMENT_CONFIGS.pain;
+    return MEASUREMENT_CONFIGS.pain;
+}
+
+export function getMeasurementConfigByType(type: SymptomMeasurementType): MeasurementConfig {
+    return MEASUREMENT_CONFIGS[type];
 }

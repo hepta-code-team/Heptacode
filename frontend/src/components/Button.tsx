@@ -15,7 +15,7 @@ export default function Button({
   disabled = false,
   className = ""
 }: ButtonProps) {
-  const baseStyles = "rounded-[14px] px-8 py-2.5 transition-all";
+  const baseStyles = "shadow-md rounded-[14px] px-8 py-2.5 transition-all";
 
   const variantStyles = {
     primary: "bg-[#486284] text-app-text-on-primary hover:bg-[#3a4d68]",
