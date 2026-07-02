@@ -34,6 +34,12 @@ const adultPatientData: PatientData = {
   conditionDetails: {},
 }
 
+/** Alcohol-intoxication context keeps the emergency free-text case consistent with patient data. */
+const alcoholInfluencePatientData: PatientData = {
+  ...adultPatientData,
+  substanceInfluence: 'Alkohol ausgewählt',
+}
+
 /** Free-text cases for TE2.1: explicit emergency symptoms must remain emergency. */
 export const TRIAGE_FREETEXT_LIVE_CASES: TriageFreetextLiveCase[] = [
   {
@@ -72,8 +78,8 @@ export const TRIAGE_FREETEXT_LIVE_CASES: TriageFreetextLiveCase[] = [
   {id: 'freetext-emergency-alcohol-poisoning',
     name: 'Freitext akute Alkoholvergiftung',
     expectedCareLevel: 'emergency',
-    patientData: adultPatientData,
-    text: 'Ich habe sehr viel Alkohol getrunken und fühle mich sehr benommen, mir ist übel und ich kann kaum noch stehen.',
+    patientData: alcoholInfluencePatientData,
+    text: 'Ich habe sehr viel Alkohol getrunken, erbreche wiederholt, war kurz bewusstlos, werde kaum noch wach, atme langsam und unregelmaessig und kann nicht sicher stehen.',
   },
   {id: 'freetext-emergency-severe-burn',
     name: 'Freitext schwere Verbrennung',
