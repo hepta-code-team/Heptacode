@@ -12,6 +12,12 @@ export interface EnvConfig {
   /** Model identifier used when the primary AI model is unavailable or times out. */
   fallbackModel: string
   googleMapsApiKey?: string
+  /** Target FHIR server endpoint used for outgoing Bundle POSTs. */
+  fhirEndpoint?: string
+  /** Optional bearer token for the target FHIR server. */
+  fhirAuthToken?: string
+  /** Timeout for outgoing FHIR HTTP requests. */
+  fhirRequestTimeoutMs: number
 }
 
 function loadEnvFile(path: string): void {
@@ -66,6 +72,16 @@ function readRequired(value: string | undefined, name: string): string {
   return value
 }
 
+function readOptional(value: string | undefined): string | undefined {
+  const trimmed = value?.trim()
+  return trimmed ? trimmed : undefined
+}
+
+function readTimeoutMs(value: string | undefined, fallback: number): number {
+  const parsed = Number(value)
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback
+}
+
 loadLocalEnvFiles()
 
 export const env: EnvConfig = {
@@ -77,4 +93,7 @@ export const env: EnvConfig = {
   aiModel: process.env.AI_MODEL ?? 'medgemma:27b',
   fallbackModel: process.env.FALLBACK_MODEL ?? 'medgemma:4b',
   googleMapsApiKey: process.env.GOOGLE_MAPS_API_KEY,
+  fhirEndpoint: readOptional(process.env.FHIR_ENDPOINT),
+  fhirAuthToken: readOptional(process.env.FHIR_AUTH_TOKEN),
+  fhirRequestTimeoutMs: readTimeoutMs(process.env.FHIR_REQUEST_TIMEOUT_MS, 10_000),
 }
