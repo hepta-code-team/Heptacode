@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from "react";
-import type { ReactNode } from "react";
 import { useNavigate } from "react-router";
 import {
   Activity,
@@ -15,7 +14,6 @@ import {
   Stethoscope,
   Wind,
   X,
-  type LucideIcon,
 } from "lucide-react";
 import PageShell from "../components/PageShell";
 import Button from "../components/Button";
@@ -24,9 +22,6 @@ import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
 import { PRE_EXISTING_CONDITIONS } from "../features/symptoms/symptoms.constants";
 import type { PatientData } from "../../../shared/patientData.types";
-
-type MedicalSection = "allergies" | "medications" | "substance" | "abroad";
-type SmokingStatus = "Nein" | "Gelegentlich" | "Ja";
 
 const conditionIcons = {
   Diabetes: Droplets,
@@ -135,113 +130,6 @@ const createInitialPatientData = (
   conditionDetails: {},
   ...patientData,
 });
-
-/**
- * Reusable disclosure panel for optional medical sections.
- *
- * It keeps the visual summary visible while hiding longer inputs until the user
- * chooses to provide details.
- */
-function MedicalAccordionPanel({
-  title,
-  icon: Icon,
-  isOpen,
-  onToggle,
-  summary,
-  isCompleted = false,
-  children,
-}: {
-  title: string;
-  icon: LucideIcon;
-  isOpen: boolean;
-  onToggle: () => void;
-  summary: string;
-  isCompleted?: boolean;
-  children: ReactNode;
-}) {
-  return (
-    <div
-      className={`rounded-[14px] border-2 p-3 transition-all ${
-        isCompleted
-          ? "border-[#486284] bg-[#eff2f6]"
-          : "border-transparent bg-[#eff2f6]"
-      }`}
-    >
-      <button
-        type="button"
-        onClick={onToggle}
-        className="w-full flex items-center gap-3 text-left"
-        aria-expanded={isOpen}
-      >
-        <span className="flex size-9 flex-shrink-0 items-center justify-center rounded-full bg-white text-app-text-primary">
-          <Icon className="size-5" aria-hidden="true" />
-        </span>
-        <span className="min-w-0 flex-1">
-          <span
-            className="font-['DM_Sans:Bold',sans-serif] font-bold text-app-text-body text-sm block"
-            style={{ fontVariationSettings: "'opsz' 14" }}
-          >
-            {title}
-          </span>
-          <span
-            className="font-['DM_Sans:Medium',sans-serif] font-medium text-app-text-primary text-xs block truncate"
-            style={{ fontVariationSettings: "'opsz' 14" }}
-          >
-            {summary}
-          </span>
-        </span>
-        <ChevronDown
-          className={`size-5 flex-shrink-0 text-app-text-primary transition-transform ${isOpen ? "rotate-180" : ""}`}
-          aria-hidden="true"
-        />
-      </button>
-      {isOpen && <div className="mt-3">{children}</div>}
-    </div>
-  );
-}
-
-function SelectionMark({ selected }: { selected: boolean }) {
-  return (
-    <span
-      className={`flex size-5 flex-shrink-0 items-center justify-center rounded-[6px] border-2 transition-all ${
-        selected ? "border-current bg-white/20" : "border-[#828b93]"
-      }`}
-      aria-hidden="true"
-    >
-      {selected && <Check className="size-3.5" strokeWidth={3} />}
-    </span>
-  );
-}
-
-function OptionButton({
-  label,
-  selected,
-  onClick,
-}: {
-  label: string;
-  selected: boolean;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`p-2 rounded-[10px] text-left transition-all flex items-center gap-2 ${
-        selected
-          ? "bg-[#486284] text-white"
-          : "bg-white text-app-text-body hover:bg-[#dde3ea]"
-      }`}
-    >
-      <span
-        className="min-w-0 flex-1 whitespace-normal break-words font-['DM_Sans:SemiBold',sans-serif] font-semibold text-sm leading-snug"
-        style={{ fontVariationSettings: "'opsz' 14" }}
-      >
-        {label}
-      </span>
-      <SelectionMark selected={selected} />
-    </button>
-  );
-}
 
 export default function PreExistingConditionsPage() {
   const navigate = useNavigate();
