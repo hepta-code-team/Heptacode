@@ -301,7 +301,8 @@ heptacode/
 ├── frontend/                   # React + TypeScript + Vite
 │   ├── Dockerfile
 │   ├── Dockerfile.dev
-│   ├── ARCHITECTURE.md
+│   ├── docs/
+│   │   ├── ARCHITECTURE.md
 │   ├── README.md
 │   ├── nginx.conf
 │   ├── src/
