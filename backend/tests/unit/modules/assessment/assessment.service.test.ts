@@ -244,8 +244,8 @@ describe('evaluateAssessmentWithAi', () => {
     expect(result.reviewSummary.professionalSummary).toContain('Medikamente: Ibuprofen')
     expect(result.reviewSummary.professionalSummary).toContain('Substanzbeeinflussung: Alkohol')
     expect(result.reviewSummary.professionalSummary).toContain('Auslandsaufenthalt letzte 3 Monate: Spanien')
-    expect(result.reviewSummary.professionalSummary).toContain('Rauchdauer: 5 Jahre')
-    expect(result.reviewSummary.professionalSummary).toContain('Zigaretten pro Tag: 10')
+    expect(result.reviewSummary.professionalSummary).toContain('Rauchdauer: 5')
+    expect(result.reviewSummary.professionalSummary).toContain('Rauchmenge: 10')
     expect(result.reviewSummary.professionalSummary).toContain('Details zu Vorerkrankungen: Asthma: Belastungsasthma')
   })
 

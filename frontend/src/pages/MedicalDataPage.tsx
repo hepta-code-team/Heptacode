@@ -66,34 +66,25 @@ function hasSubstance(value: string | undefined, substance: "Alkohol" | "Drogen"
 }
 
 function buildSubstanceInfluence(
-  data: Pick<
+  _data: Pick<
     PatientData,
     "alcoholSince" | "alcoholFrequencyPerDay" | "drugDetails" | "drugSince" | "drugFrequencyPerDay"
   >,
   selection: { alcohol: boolean; drugs: boolean },
 ) {
-  const parts: string[] = [];
+  if (selection.alcohol && selection.drugs) {
+    return "Alkohol und Drogen ausgewählt";
+  }
 
   if (selection.alcohol) {
-    const details = [
-      data.alcoholSince?.trim() ? `seit ${data.alcoholSince.trim()}` : null,
-      data.alcoholFrequencyPerDay?.trim() ? `${data.alcoholFrequencyPerDay.trim()} pro Tag` : null,
-    ].filter(Boolean);
-
-    parts.push(details.length > 0 ? `Alkohol (${details.join(", ")})` : "Alkohol");
+    return "Alkohol ausgewählt";
   }
 
   if (selection.drugs) {
-    const details = [
-      data.drugDetails?.trim() ? `Substanz: ${data.drugDetails.trim()}` : null,
-      data.drugSince?.trim() ? `seit ${data.drugSince.trim()}` : null,
-      data.drugFrequencyPerDay?.trim() ? `${data.drugFrequencyPerDay.trim()} pro Tag` : null,
-    ].filter(Boolean);
-
-    parts.push(details.length > 0 ? `Drogen (${details.join(", ")})` : "Drogen");
+    return "Drogen ausgewählt";
   }
 
-  return parts.length > 0 ? parts.join("; ") : "";
+  return "";
 }
 
 function getSubstanceSummary(data: PatientData) {
@@ -508,6 +499,8 @@ export default function MedicalDataPage() {
 
   const isAlcoholSelected = hasSubstance(formData.substanceInfluence, "Alkohol");
   const isDrugSelected = hasSubstance(formData.substanceInfluence, "Drogen");
+  const smokingDurationLabel = formData.isSmoker === "Früher" ? "Seit wann nicht mehr?" : "Seit wann?";
+  const smokingAmountLabel = formData.isSmoker === "Gelegentlich" ? "Menge pro Monat" : "Menge pro Tag";
 
   return (
     <PageShell
@@ -635,7 +628,7 @@ export default function MedicalDataPage() {
           </MedicalAccordionPanel>
 
           <MedicalAccordionPanel
-            title="Einfluss durch Alkohol oder Drogen"
+            title="Einfluss durch Alkohol oder/und Drogen"
             icon={Wine}
             isOpen={expandedMedicalSections.substance}
             onToggle={() => toggleMedicalSection("substance")}
@@ -815,16 +808,14 @@ export default function MedicalDataPage() {
           summary={
             formData.isSmoker === ""
               ? "Optional ergänzen"
-              : formData.isSmoker === "Nein"
-                ? "Nein ausgewählt"
-                : formData.isSmoker === "Gelegentlich"
-                ? "Gelegentlich ausgewählt"
-                : "Ja ausgewählt"
+              : formData.isSmoker === "Nein" || formData.isSmoker === "Nie"
+                ? "Nie ausgewählt"
+                : `${formData.isSmoker} ausgewählt`
           }
           isCompleted={formData.isSmoker !== ""}
         >
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-            {(["Nein", "Gelegentlich", "Ja"] as const).map((status) => (
+          <div className="grid grid-cols-1 sm:grid-cols-4 gap-2">
+            {(["Nie", "Früher", "Gelegentlich", "Regelmäßig"] as const).map((status) => (
               <OptionButton
                 key={status}
                 label={status}
@@ -836,81 +827,44 @@ export default function MedicalDataPage() {
                     ...formData,
                     isSmoker: nextIsSmoker,
                     smokingSinceYears:
-                      nextIsSmoker === "" || nextIsSmoker === "Nein" ? "" : formData.smokingSinceYears,
+                      nextIsSmoker === "" || nextIsSmoker === "Nie" ? "" : formData.smokingSinceYears,
                     cigarettesPerDay:
-                      nextIsSmoker === "" || nextIsSmoker === "Nein" ? "" : formData.cigarettesPerDay,
+                      nextIsSmoker === "" || nextIsSmoker === "Nie" ? "" : formData.cigarettesPerDay,
                   });
                 }}
               />
             ))}
           </div>
 
-          {formData.isSmoker !== "" && formData.isSmoker !== "Nein" && (
+          {formData.isSmoker !== "" && formData.isSmoker !== "Nie" && formData.isSmoker !== "Nein" && (
             <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2">
               <div>
                 <Label
                   htmlFor="smokingSinceYears"
                   className="mb-1 block text-xs font-bold text-app-text-body"
                 >
-                  Seit wann? (Jahre)
+                  {smokingDurationLabel}
                 </Label>
-                <div className="flex h-9 overflow-hidden rounded-[10px] bg-white">
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setFormData({
-                        ...formData,
-                        smokingSinceYears: String(
-                          Math.max(
-                            Number(formData.smokingSinceYears || 0) - 1,
-                            0,
-                          ),
-                        ),
-                      })
-                    }
-                    className="w-10 border-r border-[#eff2f6] text-base font-bold text-app-text-primary hover:bg-[#dde3ea]"
-                    aria-label="Rauchdauer verringern"
-                  >
-                    -
-                  </button>
-                  <input
-                    id="smokingSinceYears"
-                    type="number"
-                    min="0"
-                    step="1"
-                    value={formData.smokingSinceYears ?? ""}
-                    onChange={(event) =>
-                      setFormData({
-                        ...formData,
-                        smokingSinceYears: event.target.value,
-                      })
-                    }
-                    placeholder="0"
-                    className="min-w-0 flex-1 bg-white px-3 text-center text-sm font-semibold outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-                  />
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setFormData({
-                        ...formData,
-                        smokingSinceYears: String(
-                          Number(formData.smokingSinceYears || 0) + 1,
-                        ),
-                      })
-                    }
-                    className="w-10 border-l border-[#eff2f6] text-base font-bold text-app-text-primary hover:bg-[#dde3ea]"
-                    aria-label="Rauchdauer erhöhen"
-                  >
-                    +
-                  </button>
-                </div>
+                <Input
+                  id="smokingSinceYears"
+                  type="text"
+                  value={formData.smokingSinceYears ?? ""}
+                  onChange={(event) =>
+                    setFormData({
+                      ...formData,
+                      smokingSinceYears: event.target.value,
+                    })
+                  }
+                  placeholder="z. B. seit 3 Jahren, seit 2019, unbekannt"
+                  className="bg-white border-none text-xs h-9"
+                />
               </div>
               <div>
                 <Label
                   htmlFor="cigarettesPerDay"
                   className="mb-1 block text-xs font-bold text-app-text-body"
                 >
-                  Menge pro Tag
+                  {smokingAmountLabel}
                 </Label>
                 <div className="flex h-9 overflow-hidden rounded-[10px] bg-white">
                   <button
@@ -927,7 +881,7 @@ export default function MedicalDataPage() {
                       })
                     }
                     className="w-10 border-r border-[#eff2f6] text-base font-bold text-app-text-primary hover:bg-[#dde3ea]"
-                    aria-label="Zigaretten pro Tag verringern"
+                    aria-label="Rauchmenge verringern"
                   >
                     -
                   </button>
@@ -957,7 +911,7 @@ export default function MedicalDataPage() {
                       })
                     }
                     className="w-10 border-l border-[#eff2f6] text-base font-bold text-app-text-primary hover:bg-[#dde3ea]"
-                    aria-label="Zigaretten pro Tag erhöhen"
+                    aria-label="Rauchmenge erhöhen"
                   >
                     +
                   </button>

@@ -265,8 +265,8 @@ function summarizePatient(data?: PatientData): string {
     `Reise ins Ausland: ${formatRecentAbroad(data)}`,
     ...conditionLines,
     `Raucher: ${data.isSmoker || '—'}`,
-    data.isSmoker !== 'Nein' && data.isSmoker ? `Rauchdauer: ${data.smokingSinceYears || '—'}` : null,
-    data.isSmoker !== 'Nein' && data.isSmoker ? `Zigaretten pro Tag: ${data.cigarettesPerDay || '—'}` : null,
+    data.isSmoker !== 'Nein' && data.isSmoker !== 'Nie' && data.isSmoker ? `Rauchdauer: ${data.smokingSinceYears || '—'}` : null,
+    data.isSmoker !== 'Nein' && data.isSmoker !== 'Nie' && data.isSmoker ? `Rauchmenge: ${data.cigarettesPerDay || '—'}` : null,
   ].filter((line): line is string => line !== null).join('\n')
 }
 
