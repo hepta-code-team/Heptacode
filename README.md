@@ -4,17 +4,6 @@ KI-basierte Patientensteuerung zur Effizienzsteigerung im Gesundheitswesen.
 Patienten werden sicher, schnell und laienverständlich durch das Gesundheitssystem geleitet — mit KI-basierter Triage.
 
 ---
-## Rollenverteilung
-| Name | Rolle | 
-|---|---|
-| Ella | PO/UI/UX |
-| Chris| Backend|
-| Selim | Frontend | 
-| Isabelle | Frontend |
-| Hanin | Backend | 
-| Kai | SM/Backend |
-| Lisa | Flex | 
----
 
 ## Branches
 
@@ -67,42 +56,6 @@ Das Backend registriert aktuell diese HTTP-Endpunkte:
 | `POST` | `/api/v1/fhir/send` | FHIR-Bundle per HTTP an den konfigurierten FHIR-Server senden |
 
 Details stehen in [docs/FRONTEND_BACKEND_SCHNITTSTELLE.md](docs/FRONTEND_BACKEND_SCHNITTSTELLE.md) und in den Backend-Moduldokumenten unter [backend/docs](backend/docs).
-
----
-
-## Täglicher Workflow
-- siehe [docs/Workflow.md](docs/Workflow.md) für genaueres
-```bash
-# 1. Neueste Änderungen holen
-git pull
-
-# 2. Falls package.json geändert wurde
-cd frontend && npm install
-cd ../backend && npm install
-cd ..
-
-# 3. Starten
-make dev
-
-# 4. Code schreiben, App auf localhost:5173 anschauen
-
-# 5. Pushen
-git add .
-git commit -m "was du gemacht hast" (keep conventional git msg in mind)
-git push
-```
-
----
-
-## Befehle
-
-| Was | Mac | Windows |
-|---|---|---|
-| Dev starten | `make dev` | `docker compose -f docker-compose.dev.yml up --build` |
-| Stoppen | `make down` | `docker compose -f docker-compose.dev.yml down` |
-| Logs | `make logs` | `docker compose -f docker-compose.dev.yml logs -f` |
-| Prod Build | `make prod` | `docker compose up --build -d` |
-| Alles löschen | `make clean` | `docker compose down --rmi all --volumes` |
 
 ---
 
